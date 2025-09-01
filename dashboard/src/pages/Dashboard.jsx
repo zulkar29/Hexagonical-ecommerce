@@ -21,7 +21,7 @@ export default function Dashboard() {
         {/* TODO: Add dashboard sections */}
         {/* <Grid container spacing={3}> */}
         {/*   <Grid item xs={12} sm={6} md={3}> */}
-        {/*     <MetricCard title="Total Sales" value="$12,345" /> */}
+        {/*     <MetricCard title="Total Sales" value="৳13,58,000" /> */}
         {/*   </Grid> */}
         {/*   <Grid item xs={12} sm={6} md={3}> */}
         {/*     <MetricCard title="Orders" value="145" /> */}

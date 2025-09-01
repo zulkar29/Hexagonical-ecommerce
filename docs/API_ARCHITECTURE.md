@@ -1,23 +1,25 @@
 # API Architecture & Design
 
 ## Overview
-Technical architecture for the API layer, covering REST, GraphQL, and real-time capabilities to optimize performance and developer experience for the multi-tenant e-commerce platform.
+Technical architecture for the API layer, covering REST and WebSocket real-time capabilities to optimize performance and developer experience for the multi-tenant e-commerce platform.
+
+> **Note**: For overall system architecture and technology decisions, see [ARCHITECTURE.md](./ARCHITECTURE.md)
 
 ## Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    CLIENT APPLICATIONS                     │
-│         (Next.js Storefront + Dashboard)                   │
-└─────────┬─────────────┬─────────────┬─────────────┬─────────┘
-          │             │             │             │
-    ┌─────▼─────┐ ┌─────▼─────┐ ┌─────▼─────┐ ┌─────▼─────┐
-    │    REST   │ │  GraphQL  │ │    SSE    │ │ WebSocket │
-    │    API    │ │    API    │ │ Real-time │ │   Events  │
-    └─────┬─────┘ └─────┬─────┘ └─────┬─────┘ └─────┬─────┘
-          └─────────────┼─────────────┼─────────────┘
-                        │             │
-┌─────────────────────▼─────────────▼─────────────────────────┐
+│    (Next.js Storefront + React Dashboard)                  │
+└─────────────────────┬───────────────────┬───────────────────┘
+                      │                   │
+              ┌─────▼─────┐       ┌─────▼─────┐
+              │    REST   │       │ WebSocket │
+              │    API    │       │Real-time  │
+              └─────┬─────┘       └─────┬─────┘
+                    └─────────┬─────────┘
+                              │
+┌─────────────────────────────▼───────────────────────────────┐
 │                   API GATEWAY LAYER                        │
 │  ┌─────────────┬─────────────┬─────────────┬─────────────┐  │
 │  │   Request   │   Rate      │   Auth &    │  Response   │  │
@@ -26,8 +28,8 @@ Technical architecture for the API layer, covering REST, GraphQL, and real-time 
 └─────────────────────┬───────────────────────────────────────┘
                       │
 ┌─────────────────────▼───────────────────────────────────────┐
-│               APPLICATION SERVICES                         │
-│              (Go Modular Monolith)                         │
+│               APPLICATION SERVICES                          │
+│              (Go Modular Monolith)                          │
 │  ┌─────────────┬─────────────┬─────────────┬─────────────┐  │
 │  │   Product   │   Order     │   User      │   Tenant    │  │
 │  │   Module    │   Module    │   Module    │   Module    │  │
@@ -35,450 +37,446 @@ Technical architecture for the API layer, covering REST, GraphQL, and real-time 
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## 1. GraphQL for Dashboard Complex Queries
+## 1. REST API Design for Dashboard Operations
 
-### GraphQL Schema Design
+### API Endpoint Structure
 
-#### Product Management Schema
-```graphql
-# Core Types
-type Product {
-  id: ID!
-  tenantId: ID!
-  name: String!
-  description: String
-  sku: String!
-  price: Money!
-  comparePrice: Money
-  status: ProductStatus!
-  inventory: ProductInventory!
-  images: [ProductImage!]!
-  variants: [ProductVariant!]!
-  categories: [Category!]!
-  tags: [String!]!
-  seo: ProductSEO!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  
-  # Computed fields
-  isInStock: Boolean!
-  totalSales: Int!
-  conversionRate: Float!
-  profitMargin: Float!
-}
-
-type ProductInventory {
-  trackQuantity: Boolean!
-  quantity: Int!
-  reservedQuantity: Int!
-  availableQuantity: Int! # Computed
-  lowStockAlert: Int!
-  allowBackorder: Boolean!
-}
-
-type ProductImage {
-  id: ID!
-  url: String!
-  altText: String
-  position: Int!
-  width: Int
-  height: Int
-}
-
-type ProductVariant {
-  id: ID!
-  title: String!
-  sku: String!
-  price: Money
-  inventory: ProductInventory!
-  options: [VariantOption!]!
-}
-
-type Category {
-  id: ID!
-  name: String!
-  slug: String!
-  description: String
-  parentId: ID
-  children: [Category!]!
-  productCount: Int!
-  isActive: Boolean!
-}
-
-# Input Types
-input ProductFilter {
-  status: [ProductStatus!]
-  categories: [ID!]
-  priceRange: PriceRange
-  inStock: Boolean
-  hasVariants: Boolean
-  tags: [String!]
-  createdAfter: DateTime
-  createdBefore: DateTime
-}
-
-input ProductSort {
-  field: ProductSortField!
-  direction: SortDirection!
-}
-
-enum ProductSortField {
-  NAME
-  PRICE
-  CREATED_AT
-  UPDATED_AT
-  TOTAL_SALES
-  INVENTORY
-}
-
-enum SortDirection {
-  ASC
-  DESC
-}
-```
-
-#### Dashboard Analytics Schema
-```graphql
-type DashboardStats {
-  revenue: RevenueStats!
-  orders: OrderStats!
-  products: ProductStats!
-  customers: CustomerStats!
-  traffic: TrafficStats!
-  conversionFunnel: ConversionFunnel!
-}
-
-type RevenueStats {
-  total: Money!
-  change: Float! # Percentage change from previous period
-  trend: [DataPoint!]!
-  byPaymentMethod: [PaymentMethodStats!]!
-  byCategory: [CategoryStats!]!
-  topProducts: [ProductRevenueStats!]!
-}
-
-type OrderStats {
-  total: Int!
-  pending: Int!
-  completed: Int!
-  cancelled: Int!
-  averageOrderValue: Money!
-  trend: [DataPoint!]!
-  fulfillmentStatus: [FulfillmentStats!]!
-}
-
-type DataPoint {
-  date: DateTime!
-  value: Float!
-}
-
-# Complex Queries
-type Query {
-  # Product Management
-  products(
-    first: Int = 20
-    after: String
-    filter: ProductFilter
-    sort: ProductSort
-  ): ProductConnection!
-  
-  product(id: ID!): Product
-  
-  # Dashboard Analytics  
-  dashboardStats(period: Period!): DashboardStats!
-  
-  # Advanced Analytics
-  salesReport(
-    period: Period!
-    groupBy: GroupBy!
-    filters: ReportFilters
-  ): SalesReport!
-  
-  inventoryReport(
-    lowStockOnly: Boolean = false
-    categories: [ID!]
-  ): InventoryReport!
-  
-  customerAnalytics(
-    segmentation: CustomerSegmentation!
-  ): CustomerAnalytics!
-}
-
-# Mutations
-type Mutation {
-  # Product Management
-  createProduct(input: CreateProductInput!): CreateProductResult!
-  updateProduct(id: ID!, input: UpdateProductInput!): UpdateProductResult!
-  deleteProduct(id: ID!): DeleteProductResult!
-  
-  # Bulk Operations
-  bulkUpdateProducts(
-    ids: [ID!]!
-    updates: BulkProductUpdates!
-  ): BulkUpdateResult!
-  
-  bulkImportProducts(
-    file: Upload!
-    mapping: ImportMapping!
-  ): ImportResult!
-  
-  # Inventory Management
-  adjustInventory(
-    productId: ID!
-    adjustment: InventoryAdjustment!
-  ): InventoryAdjustmentResult!
-}
-```
-
-#### Real-time Subscriptions
-```graphql
-type Subscription {
-  # Product Updates
-  productUpdated(tenantId: ID!): Product!
-  inventoryChanged(tenantId: ID!, productIds: [ID!]): InventoryUpdate!
-  
-  # Order Updates
-  orderStatusChanged(tenantId: ID!): Order!
-  newOrder(tenantId: ID!): Order!
-  
-  # Dashboard Updates
-  dashboardStatsUpdated(tenantId: ID!): DashboardStats!
-  
-  # System Notifications
-  systemNotification(tenantId: ID!): SystemNotification!
-}
-```
-
-### GraphQL Resolver Implementation
+#### Product Management Endpoints
 ```go
-// Product resolver with data loader pattern
-type ProductResolver struct {
-    productLoader *dataloader.Loader
-    imageLoader   *dataloader.Loader
-    categoryLoader *dataloader.Loader
+// Product CRUD Operations
+GET    /api/v1/products              // List products with pagination and filters
+POST   /api/v1/products              // Create new product
+GET    /api/v1/products/{id}         // Get single product with full details
+PUT    /api/v1/products/{id}         // Update product
+DELETE /api/v1/products/{id}         // Delete product
+
+// Product Variants
+GET    /api/v1/products/{id}/variants       // List product variants
+POST   /api/v1/products/{id}/variants       // Create variant
+PUT    /api/v1/products/{id}/variants/{vid} // Update variant
+DELETE /api/v1/products/{id}/variants/{vid} // Delete variant
+
+// Bulk Operations
+POST   /api/v1/products/bulk-import        // Bulk import products
+PUT    /api/v1/products/bulk-update        // Bulk update products
+DELETE /api/v1/products/bulk-delete        // Bulk delete products
+
+```
+
+#### REST API Response Models
+```go
+// Product Response Model
+type ProductResponse struct {
+    ID              string               `json:"id"`
+    TenantID        string               `json:"tenant_id"`
+    Name            string               `json:"name"`
+    Description     string               `json:"description,omitempty"`
+    SKU             string               `json:"sku"`
+    Price           float64              `json:"price"`
+    ComparePrice    float64              `json:"compare_price,omitempty"`
+    Status          string               `json:"status"` // draft, active, archived
+    Inventory       ProductInventory     `json:"inventory"`
+    Images          []ProductImage       `json:"images"`
+    Variants        []ProductVariant     `json:"variants"`
+    Categories      []string             `json:"categories"`
+    Tags            []string             `json:"tags"`
+    SEO             ProductSEO           `json:"seo"`
+    CreatedAt       time.Time            `json:"created_at"`
+    UpdatedAt       time.Time            `json:"updated_at"`
+    
+    // Computed fields
+    IsInStock       bool                 `json:"is_in_stock"`
+    TotalSales      int                  `json:"total_sales"`
+    ConversionRate  float64              `json:"conversion_rate"`
+    ProfitMargin    float64              `json:"profit_margin"`
 }
 
-func (r *ProductResolver) Product(ctx context.Context, id string) (*Product, error) {
-    tenantID := GetTenantIDFromContext(ctx)
+type ProductInventory struct {
+    TrackQuantity     bool  `json:"track_quantity"`
+    Quantity          int   `json:"quantity"`
+    ReservedQuantity  int   `json:"reserved_quantity"`
+    AvailableQuantity int   `json:"available_quantity"` // computed
+    LowStockAlert     int   `json:"low_stock_alert"`
+    AllowBackorder    bool  `json:"allow_backorder"`
+}
+
+type ProductImage struct {
+    ID       string `json:"id"`
+    URL      string `json:"url"`
+    AltText  string `json:"alt_text,omitempty"`
+    Position int    `json:"position"`
+    Width    int    `json:"width,omitempty"`
+    Height   int    `json:"height,omitempty"`
+}
+```
+
+#### Query Parameters for Filtering
+```go
+// GET /api/v1/products?status=active&category=electronics&sort=name&order=asc&limit=20&after=cursor123
+
+type ProductListQuery struct {
+    // Filters
+    Status       []string `query:"status"`          // draft, active, archived
+    Categories   []string `query:"category"`        // category IDs or names
+    MinPrice     float64  `query:"min_price"`       // minimum price
+    MaxPrice     float64  `query:"max_price"`       // maximum price
+    InStock      bool     `query:"in_stock"`        // only in-stock items
+    HasVariants  bool     `query:"has_variants"`    // products with variants
+    Tags         []string `query:"tags"`            // product tags
+    CreatedAfter string   `query:"created_after"`   // ISO date
+    CreatedBefore string  `query:"created_before"`  // ISO date
+    Search       string   `query:"search"`          // search in name/description
     
-    // Use DataLoader to batch database calls
-    key := fmt.Sprintf("%s:%s", tenantID, id)
-    product, err := r.productLoader.Load(ctx, key)()
+    // Sorting
+    Sort         string   `query:"sort"`            // name, price, created_at, updated_at
+    Order        string   `query:"order"`           // asc, desc
+    
+    // Pagination
+    Limit        int      `query:"limit"`           // default 20, max 100
+    After        string   `query:"after"`           // cursor for pagination
+    Before       string   `query:"before"`          // cursor for pagination
+}
+```
+
+#### Dashboard Analytics Endpoints
+```go
+// Analytics Endpoints
+GET    /api/v1/analytics/dashboard         // Main dashboard stats
+GET    /api/v1/analytics/revenue           // Revenue breakdown
+GET    /api/v1/analytics/orders            // Order analytics  
+GET    /api/v1/analytics/products          // Product performance
+GET    /api/v1/analytics/customers         // Customer insights
+GET    /api/v1/analytics/reports/sales     // Sales reports
+GET    /api/v1/analytics/reports/inventory // Inventory reports
+```
+
+#### Analytics Response Models
+```go
+// Dashboard Stats Response
+type DashboardStats struct {
+    Revenue    RevenueStats    `json:"revenue"`
+    Orders     OrderStats      `json:"orders"`
+    Products   ProductStats    `json:"products"`
+    Customers  CustomerStats   `json:"customers"`
+    Traffic    TrafficStats    `json:"traffic"`
+}
+
+type RevenueStats struct {
+    Total             float64                `json:"total"`
+    Change            float64                `json:"change"` // percentage change
+    Trend             []DataPoint            `json:"trend"`
+    ByPaymentMethod   []PaymentMethodStats   `json:"by_payment_method"`
+    ByCategory        []CategoryStats        `json:"by_category"`
+    TopProducts       []ProductRevenueStats  `json:"top_products"`
+}
+
+type OrderStats struct {
+    Total            int              `json:"total"`
+    Pending          int              `json:"pending"`
+    Completed        int              `json:"completed"`
+    Cancelled        int              `json:"cancelled"`
+    AverageValue     float64          `json:"average_order_value"`
+    Trend            []DataPoint      `json:"trend"`
+    FulfillmentStats []FulfillmentStat `json:"fulfillment_status"`
+}
+
+type DataPoint struct {
+    Date  time.Time `json:"date"`
+    Value float64   `json:"value"`
+}
+
+```
+
+### REST API Handler Implementation
+```go
+// Product Handler with repository pattern
+type ProductHandler struct {
+    productService *ProductService
+    imageService   *ImageService
+    categoryService *CategoryService
+}
+
+// Get single product by ID
+func (h *ProductHandler) GetProduct(c *fiber.Ctx) error {
+    tenantID := c.Locals("tenant_id").(string)
+    productID := c.Params("id")
+    
+    product, err := h.productService.GetProductByID(tenantID, productID)
     if err != nil {
-        return nil, err
+        if errors.Is(err, ErrProductNotFound) {
+            return c.Status(404).JSON(fiber.Map{"error": "Product not found"})
+        }
+        return c.Status(500).JSON(fiber.Map{"error": err.Error()})
     }
     
-    return product.(*Product), nil
+    return c.JSON(product)
 }
 
-// Efficient N+1 prevention with DataLoader
-func (r *ProductResolver) Images(ctx context.Context, product *Product) ([]*ProductImage, error) {
-    // Batch load images for all products in current request
-    images, err := r.imageLoader.LoadMany(ctx, []string{product.ID.String()})()
-    if err != nil {
-        return nil, err
+// List products with filtering and pagination
+func (h *ProductHandler) ListProducts(c *fiber.Ctx) error {
+    tenantID := c.Locals("tenant_id").(string)
+    
+    // Parse query parameters
+    var query ProductListQuery
+    if err := c.QueryParser(&query); err != nil {
+        return c.Status(400).JSON(fiber.Map{"error": "Invalid query parameters"})
     }
     
-    return images.([]*ProductImage), nil
+    // Apply defaults
+    if query.Limit == 0 || query.Limit > 100 {
+        query.Limit = 20
+    }
+    if query.Sort == "" {
+        query.Sort = "created_at"
+    }
+    if query.Order == "" {
+        query.Order = "desc"
+    }
+    
+    products, pageInfo, err := h.productService.ListProducts(tenantID, query)
+    if err != nil {
+        return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+    }
+    
+    return c.JSON(fiber.Map{
+        "data":      products,
+        "page_info": pageInfo,
+        "total":     len(products),
+    })
 }
 
-// Complex dashboard resolver
-func (r *QueryResolver) DashboardStats(ctx context.Context, period Period) (*DashboardStats, error) {
-    tenantID := GetTenantIDFromContext(ctx)
+// Dashboard analytics handler
+func (h *AnalyticsHandler) GetDashboardStats(c *fiber.Ctx) error {
+    tenantID := c.Locals("tenant_id").(string)
+    period := c.Query("period", "30d") // default 30 days
     
     // Run analytics queries in parallel
     var wg sync.WaitGroup
-    results := make(chan interface{}, 5)
+    var revenue RevenueStats
+    var orders OrderStats
+    var mu sync.Mutex
     
     // Revenue stats
     wg.Add(1)
     go func() {
         defer wg.Done()
-        stats := r.analyticsService.GetRevenueStats(tenantID, period)
-        results <- RevenueResult{stats}
+        stats, err := h.analyticsService.GetRevenueStats(tenantID, period)
+        if err == nil {
+            mu.Lock()
+            revenue = stats
+            mu.Unlock()
+        }
     }()
     
     // Order stats
     wg.Add(1)
     go func() {
         defer wg.Done()
-        stats := r.analyticsService.GetOrderStats(tenantID, period)
-        results <- OrderResult{stats}
+        stats, err := h.analyticsService.GetOrderStats(tenantID, period)
+        if err == nil {
+            mu.Lock()
+            orders = stats
+            mu.Unlock()
+        }
     }()
     
-    // Collect results
     wg.Wait()
-    close(results)
     
-    dashboardStats := &DashboardStats{}
-    for result := range results {
-        switch r := result.(type) {
-        case RevenueResult:
-            dashboardStats.Revenue = r.Stats
-        case OrderResult:
-            dashboardStats.Orders = r.Stats
-        }
+    dashboardStats := DashboardStats{
+        Revenue: revenue,
+        Orders:  orders,
     }
     
-    return dashboardStats, nil
+    return c.JSON(dashboardStats)
 }
 ```
 
-### GraphQL Performance Optimizations
+### REST API Performance Optimizations
 
-#### Query Complexity Analysis
+#### Request Validation Middleware
 ```go
-// Prevent expensive queries
-func ComplexityLimitMiddleware(maxComplexity int) gin.HandlerFunc {
-    return gin.HandlerFunc(func(c *gin.Context) {
-        requestContext := c.Request.Context()
-        
-        complexity := graphql.GetRequestContext(requestContext).ComplexityLimit
-        if complexity > maxComplexity {
-            c.JSON(400, gin.H{
-                "error": "Query too complex",
-                "max_complexity": maxComplexity,
-                "query_complexity": complexity,
+// Validate request parameters and limits
+func RequestValidationMiddleware() fiber.Handler {
+    return func(c *fiber.Ctx) error {
+        // Limit query parameter counts
+        queryParams := c.Context().QueryArgs()
+        if queryParams.Len() > 50 {
+            return c.Status(400).JSON(fiber.Map{
+                "error": "Too many query parameters",
+                "max_allowed": 50,
             })
-            c.Abort()
-            return
         }
         
-        c.Next()
-    })
+        // Validate pagination limits
+        if limit := c.QueryInt("limit", 20); limit > 100 {
+            return c.Status(400).JSON(fiber.Map{
+                "error": "Limit too large",
+                "max_limit": 100,
+            })
+        }
+        
+        return c.Next()
+    }
 }
 
-// Field-level complexity calculation
-func ProductComplexity(childComplexity int, first *int, filter *ProductFilter) int {
-    complexity := childComplexity
-    
-    if first != nil {
-        complexity *= *first
-    } else {
-        complexity *= 20 // Default limit
+// Request timeout middleware
+func RequestTimeoutMiddleware(timeout time.Duration) fiber.Handler {
+    return func(c *fiber.Ctx) error {
+        ctx, cancel := context.WithTimeout(c.Context(), timeout)
+        defer cancel()
+        
+        c.SetUserContext(ctx)
+        return c.Next()
     }
-    
-    // Add complexity for filters
-    if filter != nil && filter.Categories != nil {
-        complexity += len(*filter.Categories) * 2
-    }
-    
-    return complexity
 }
 ```
 
-#### Query Depth Limiting
+#### API Configuration
 ```yaml
-# GraphQL Configuration
-max_query_depth: 15
-max_query_complexity: 1000
-query_timeout: 30s
-enable_introspection: false # Production
-enable_playground: false   # Production
+# REST API Configuration
+max_request_size: 10MB
+request_timeout: 30s
+max_query_params: 50
+enable_cors: true
+enable_compression: true
 
 # Rate Limiting per Tenant
 rate_limits:
-  queries_per_minute: 60
-  mutations_per_minute: 30
-  subscriptions_per_tenant: 10
+  requests_per_minute: 1000
+  burst_capacity: 100
+  dashboard_requests_per_minute: 500
 ```
 
-## 2. Server-Sent Events for Real-time Updates
+## 2. WebSocket for Real-time Updates
 
-### SSE Implementation Architecture
+### WebSocket Implementation Architecture
 ```go
-// SSE Connection Manager
-type SSEManager struct {
-    connections map[string]map[string]*SSEConnection
+// WebSocket Connection Manager
+type WSManager struct {
+    connections map[string]map[string]*WSConnection
     mutex       sync.RWMutex
     eventBus    *EventBus
+    upgrader    websocket.Upgrader
 }
 
-type SSEConnection struct {
+type WSConnection struct {
     ID       string
     TenantID string
     UserID   string
-    Writer   http.ResponseWriter
-    Request  *http.Request
+    Conn     *websocket.Conn
+    Send     chan WSMessage
     Done     chan bool
-    Events   chan SSEEvent
 }
 
-type SSEEvent struct {
-    Type string      `json:"type"`
-    Data interface{} `json:"data"`
-    ID   string      `json:"id,omitempty"`
+type WSMessage struct {
+    Type      string      `json:"type"`
+    Data      interface{} `json:"data"`
+    Timestamp time.Time   `json:"timestamp"`
 }
 
-// SSE endpoint handler
-func (s *SSEManager) HandleSSE(c *gin.Context) {
-    tenantID := c.GetString("tenant_id")
-    userID := c.GetString("user_id")
+// WebSocket upgrade and connection handler
+func (ws *WSManager) HandleWebSocket(c *fiber.Ctx) error {
+    tenantID := c.Locals("tenant_id").(string)
+    userID := c.Locals("user_id").(string)
     
-    // Set SSE headers
-    c.Header("Content-Type", "text/event-stream")
-    c.Header("Cache-Control", "no-cache")
-    c.Header("Connection", "keep-alive")
-    c.Header("Access-Control-Allow-Origin", "*")
+    // Upgrade HTTP connection to WebSocket
+    conn, err := ws.upgrader.Upgrade(c.Response(), c.Request(), nil)
+    if err != nil {
+        return err
+    }
+    defer conn.Close()
     
-    // Create connection
-    conn := &SSEConnection{
+    // Create WebSocket connection
+    wsConn := &WSConnection{
         ID:       uuid.New().String(),
         TenantID: tenantID,
         UserID:   userID,
-        Writer:   c.Writer,
-        Request:  c.Request,
+        Conn:     conn,
+        Send:     make(chan WSMessage, 256),
         Done:     make(chan bool),
-        Events:   make(chan SSEEvent, 100),
     }
     
     // Register connection
-    s.addConnection(conn)
-    defer s.removeConnection(conn)
+    ws.addConnection(wsConn)
+    defer ws.removeConnection(wsConn)
     
-    // Handle connection
-    s.handleConnection(conn)
-}
-
-func (s *SSEManager) handleConnection(conn *SSEConnection) {
-    // Send initial connection event
-    conn.Events <- SSEEvent{
+    // Start goroutines for reading and writing
+    go ws.handleRead(wsConn)
+    go ws.handleWrite(wsConn)
+    
+    // Send welcome message
+    wsConn.Send <- WSMessage{
         Type: "connected",
         Data: map[string]string{
-            "connection_id": conn.ID,
-            "timestamp": time.Now().Format(time.RFC3339),
+            "connection_id": wsConn.ID,
+            "tenant_id":     wsConn.TenantID,
         },
+        Timestamp: time.Now(),
     }
+    
+    // Wait for connection to close
+    <-wsConn.Done
+    
+    return nil
+}
+
+// Handle reading messages from client
+func (ws *WSManager) handleRead(conn *WSConnection) {
+    defer func() {
+        conn.Done <- true
+    }()
+    
+    conn.Conn.SetReadLimit(512)
+    conn.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+    conn.Conn.SetPongHandler(func(string) error {
+        conn.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+        return nil
+    })
+    
+    for {
+        var message WSMessage
+        err := conn.Conn.ReadJSON(&message)
+        if err != nil {
+            if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+                log.Printf("WebSocket error: %v", err)
+            }
+            break
+        }
+        
+        // Handle incoming messages (ping, subscribe, etc.)
+        ws.handleMessage(conn, message)
+    }
+}
+
+// Handle writing messages to client
+func (ws *WSManager) handleWrite(conn *WSConnection) {
+    ticker := time.NewTicker(54 * time.Second)
+    defer func() {
+        ticker.Stop()
+        conn.Conn.Close()
+    }()
     
     for {
         select {
-        case event := <-conn.Events:
-            // Send event to client
-            eventData, _ := json.Marshal(event.Data)
-            fmt.Fprintf(conn.Writer, "event: %s\n", event.Type)
-            fmt.Fprintf(conn.Writer, "data: %s\n", string(eventData))
-            if event.ID != "" {
-                fmt.Fprintf(conn.Writer, "id: %s\n", event.ID)
+        case message, ok := <-conn.Send:
+            conn.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+            if !ok {
+                conn.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+                return
             }
-            fmt.Fprintf(conn.Writer, "\n")
             
-            // Flush to client
-            if flusher, ok := conn.Writer.(http.Flusher); ok {
-                flusher.Flush()
+            if err := conn.Conn.WriteJSON(message); err != nil {
+                return
+            }
+            
+        case <-ticker.C:
+            conn.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+            if err := conn.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+                return
             }
             
         case <-conn.Done:
             return
-            
-        case <-conn.Request.Context().Done():
-            return
-            
-        case <-time.After(30 * time.Second):
-            // Send keepalive
-            fmt.Fprintf(conn.Writer, ": keepalive\n\n")
-            if flusher, ok := conn.Writer.(http.Flusher); ok {
-                flusher.Flush()
-            }
         }
     }
 }
@@ -536,13 +534,13 @@ system_notification:
   action_url: "/dashboard/inventory"
 ```
 
-### SSE Event Broadcasting
+### WebSocket Event Broadcasting
 ```go
 // Event broadcasting service
-func (s *SSEManager) BroadcastToTenant(tenantID string, event SSEEvent) {
-    s.mutex.RLock()
-    connections, exists := s.connections[tenantID]
-    s.mutex.RUnlock()
+func (ws *WSManager) BroadcastToTenant(tenantID string, message WSMessage) {
+    ws.mutex.RLock()
+    connections, exists := ws.connections[tenantID]
+    ws.mutex.RUnlock()
     
     if !exists {
         return
@@ -550,11 +548,37 @@ func (s *SSEManager) BroadcastToTenant(tenantID string, event SSEEvent) {
     
     for _, conn := range connections {
         select {
-        case conn.Events <- event:
-            // Event sent successfully
+        case conn.Send <- message:
+            // Message sent successfully
         case <-time.After(1 * time.Second):
-            // Connection might be dead, remove it
-            s.removeConnection(conn)
+            // Connection might be blocked, remove it
+            close(conn.Send)
+            ws.removeConnection(conn)
+        }
+    }
+}
+
+// Broadcast to specific user
+func (ws *WSManager) BroadcastToUser(tenantID, userID string, message WSMessage) {
+    ws.mutex.RLock()
+    tenantConnections, exists := ws.connections[tenantID]
+    ws.mutex.RUnlock()
+    
+    if !exists {
+        return
+    }
+    
+    for _, conn := range tenantConnections {
+        if conn.UserID == userID {
+            select {
+            case conn.Send <- message:
+                // Message sent successfully
+            default:
+                // Connection is blocked, remove it
+                close(conn.Send)
+                ws.removeConnection(conn)
+            }
+            break
         }
     }
 }
@@ -569,10 +593,10 @@ func (s *ProductService) UpdateProduct(product *Product) error {
         return err
     }
     
-    // Broadcast real-time update
+    // Broadcast real-time update via WebSocket
     changes := s.detectChanges(oldProduct, product)
     if len(changes) > 0 {
-        event := SSEEvent{
+        message := WSMessage{
             Type: "product_updated",
             Data: map[string]interface{}{
                 "product_id": product.ID,
@@ -580,9 +604,10 @@ func (s *ProductService) UpdateProduct(product *Product) error {
                 "changes":    changes,
                 "updated_fields": s.getUpdatedFields(oldProduct, product, changes),
             },
+            Timestamp: time.Now(),
         }
         
-        s.sseManager.BroadcastToTenant(product.TenantID.String(), event)
+        s.wsManager.BroadcastToTenant(product.TenantID.String(), message)
     }
     
     return nil
@@ -756,7 +781,7 @@ func (r *ProductRepository) GetProductsWithCursor(
 ### REST API Cursor Pagination
 ```go
 // REST endpoint with cursor pagination
-func (h *ProductHandler) GetProducts(c *gin.Context) {
+func (h *ProductHandler) GetProducts(c *fiber.Ctx) error {
     tenantID := GetTenantID(c)
     
     // Parse pagination parameters
@@ -774,12 +799,11 @@ func (h *ProductHandler) GetProducts(c *gin.Context) {
     connection, err := h.productRepo.GetProductsWithCursor(
         tenantID, pagination, filter)
     if err != nil {
-        c.JSON(500, gin.H{"error": err.Error()})
-        return
+        return c.Status(500).JSON(fiber.Map{"error": err.Error()})
     }
     
     // Return paginated response
-    c.JSON(200, gin.H{
+    return c.JSON(fiber.Map{
         "data":       connection.Edges,
         "pageInfo":   connection.PageInfo,
         "totalCount": connection.TotalCount,
@@ -806,12 +830,11 @@ func NewRequestDeduplicator(cache *redis.Client, ttl time.Duration) *RequestDedu
     }
 }
 
-func (rd *RequestDeduplicator) Middleware() gin.HandlerFunc {
-    return gin.HandlerFunc(func(c *gin.Context) {
+func (rd *RequestDeduplicator) Middleware() fiber.Handler {
+    return func(c *fiber.Ctx) error {
         // Only deduplicate safe methods for now
-        if c.Request.Method != "GET" {
-            c.Next()
-            return
+        if c.Method() != "GET" {
+            return c.Next()
         }
         
         // Generate deduplication key
@@ -819,62 +842,56 @@ func (rd *RequestDeduplicator) Middleware() gin.HandlerFunc {
         
         // Check if request is in progress
         lockKey := fmt.Sprintf("lock:%s", key)
-        acquired, err := rd.cache.SetNX(c.Request.Context(), lockKey, "1", rd.ttl).Result()
+        acquired, err := rd.cache.SetNX(c.Context(), lockKey, "1", rd.ttl).Result()
         if err != nil {
             // If Redis fails, proceed without deduplication
-            c.Next()
-            return
+            return c.Next()
         }
         
         if !acquired {
             // Request is already in progress, wait for result
-            rd.waitForResult(c, key)
-            return
+            return rd.waitForResult(c, key)
         }
         
         // This request will handle the computation
-        defer rd.cache.Del(c.Request.Context(), lockKey)
+        defer rd.cache.Del(c.Context(), lockKey)
         
-        // Capture response
-        responseRecorder := &ResponseRecorder{
-            ResponseWriter: c.Writer,
-            body:          bytes.NewBuffer(nil),
-            statusCode:    200,
-            headers:       make(http.Header),
+        // Process request and capture response
+        err = c.Next()
+        if err != nil {
+            return err
         }
-        c.Writer = responseRecorder
         
-        // Process request
-        c.Next()
-        
-        // Store result for other waiting requests
-        if responseRecorder.statusCode == 200 {
+        // Store result for other waiting requests if successful
+        if c.Response().StatusCode() == 200 {
             result := CachedResponse{
-                StatusCode: responseRecorder.statusCode,
-                Headers:    responseRecorder.headers,
-                Body:       responseRecorder.body.Bytes(),
+                StatusCode: c.Response().StatusCode(),
+                Headers:    make(http.Header),
+                Body:       c.Response().Body(),
                 CreatedAt:  time.Now(),
             }
             
             resultJSON, _ := json.Marshal(result)
-            rd.cache.Set(c.Request.Context(), key, resultJSON, rd.ttl)
+            rd.cache.Set(c.Context(), key, resultJSON, rd.ttl)
         }
-    })
+        
+        return nil
+    }
 }
 
-func defaultKeyFunc(c *gin.Context) string {
+func defaultKeyFunc(c *fiber.Ctx) string {
     // Include tenant context, path, and query parameters
-    tenantID := c.GetString("tenant_id")
+    tenantID := c.Locals("tenant_id").(string)
     h := sha256.New()
     h.Write([]byte(fmt.Sprintf("%s:%s:%s", 
         tenantID, 
-        c.Request.URL.Path,
-        c.Request.URL.RawQuery,
+        c.Path(),
+        c.Request().URI().QueryArgs().String(),
     )))
     return fmt.Sprintf("req:%x", h.Sum(nil)[:12])
 }
 
-func (rd *RequestDeduplicator) waitForResult(c *gin.Context, key string) {
+func (rd *RequestDeduplicator) waitForResult(c *fiber.Ctx, key string) error {
     timeout := time.After(30 * time.Second)
     ticker := time.NewTicker(100 * time.Millisecond)
     defer ticker.Stop()
@@ -883,36 +900,32 @@ func (rd *RequestDeduplicator) waitForResult(c *gin.Context, key string) {
         select {
         case <-timeout:
             // Timeout waiting for result
-            c.JSON(408, gin.H{"error": "Request timeout"})
-            return
+            return c.Status(408).JSON(fiber.Map{"error": "Request timeout"})
             
         case <-ticker.C:
             // Check if result is available
-            resultJSON, err := rd.cache.Get(c.Request.Context(), key).Result()
+            resultJSON, err := rd.cache.Get(c.Context(), key).Result()
             if err == redis.Nil {
                 continue // Not ready yet
             } else if err != nil {
                 // Redis error, return error
-                c.JSON(500, gin.H{"error": "Internal server error"})
-                return
+                return c.Status(500).JSON(fiber.Map{"error": "Internal server error"})
             }
             
             // Parse and return cached result
             var result CachedResponse
             if err := json.Unmarshal([]byte(resultJSON), &result); err != nil {
-                c.JSON(500, gin.H{"error": "Internal server error"})
-                return
+                return c.Status(500).JSON(fiber.Map{"error": "Internal server error"})
             }
             
             // Copy headers
             for key, values := range result.Headers {
                 for _, value := range values {
-                    c.Header(key, value)
+                    c.Set(key, value)
                 }
             }
             
-            c.Data(result.StatusCode, "application/json", result.Body)
-            return
+            return c.Status(result.StatusCode).Send(result.Body)
         }
     }
 }
@@ -925,8 +938,8 @@ type EndpointConfig struct {
     Path        string
     Methods     []string
     TTL         time.Duration
-    KeyFunc     func(*gin.Context) string
-    ShouldCache func(*gin.Context) bool
+    KeyFunc     func(*fiber.Ctx) string
+    ShouldCache func(*fiber.Ctx) bool
 }
 
 var DeduplicationConfig = []EndpointConfig{
@@ -934,12 +947,12 @@ var DeduplicationConfig = []EndpointConfig{
         Path:    "/api/v1/products",
         Methods: []string{"GET"},
         TTL:     5 * time.Minute,
-        KeyFunc: func(c *gin.Context) string {
+        KeyFunc: func(c *fiber.Ctx) string {
             return fmt.Sprintf("products:%s:%s", 
-                c.GetString("tenant_id"),
-                c.Request.URL.RawQuery)
+                c.Locals("tenant_id").(string),
+                c.Request().URI().QueryArgs().String())
         },
-        ShouldCache: func(c *gin.Context) bool {
+        ShouldCache: func(c *fiber.Ctx) bool {
             // Only cache if no real-time filters
             return c.Query("real_time") != "true"
         },
@@ -948,9 +961,9 @@ var DeduplicationConfig = []EndpointConfig{
         Path:    "/api/v1/analytics/dashboard",
         Methods: []string{"GET"},
         TTL:     10 * time.Minute,
-        KeyFunc: func(c *gin.Context) string {
+        KeyFunc: func(c *fiber.Ctx) string {
             return fmt.Sprintf("dashboard:%s:%s", 
-                c.GetString("tenant_id"),
+                c.Locals("tenant_id").(string),
                 c.Query("period"))
         },
     },
@@ -958,10 +971,10 @@ var DeduplicationConfig = []EndpointConfig{
         Path:    "/api/v1/search",
         Methods: []string{"GET"},
         TTL:     15 * time.Minute,
-        KeyFunc: func(c *gin.Context) string {
+        KeyFunc: func(c *fiber.Ctx) string {
             h := sha256.New()
             h.Write([]byte(fmt.Sprintf("%s:%s", 
-                c.GetString("tenant_id"),
+                c.Locals("tenant_id").(string),
                 c.Query("q"))))
             return fmt.Sprintf("search:%x", h.Sum(nil)[:8])
         },
@@ -972,26 +985,24 @@ var DeduplicationConfig = []EndpointConfig{
 ### Idempotency for Mutations
 ```go
 // Idempotency key middleware for mutations
-func IdempotencyMiddleware() gin.HandlerFunc {
-    return gin.HandlerFunc(func(c *gin.Context) {
+func IdempotencyMiddleware() fiber.Handler {
+    return func(c *fiber.Ctx) error {
         // Only apply to mutations
-        if c.Request.Method == "GET" || c.Request.Method == "HEAD" {
-            c.Next()
-            return
+        if c.Method() == "GET" || c.Method() == "HEAD" {
+            return c.Next()
         }
         
         // Check for idempotency key
-        idempotencyKey := c.GetHeader("Idempotency-Key")
+        idempotencyKey := c.Get("Idempotency-Key")
         if idempotencyKey == "" {
-            c.Next()
-            return
+            return c.Next()
         }
         
-        tenantID := c.GetString("tenant_id")
+        tenantID := c.Locals("tenant_id").(string)
         key := fmt.Sprintf("idempotent:%s:%s", tenantID, idempotencyKey)
         
         // Check if operation already completed
-        resultJSON, err := rd.cache.Get(c.Request.Context(), key).Result()
+        resultJSON, err := rd.cache.Get(c.Context(), key).Result()
         if err == nil {
             // Return cached result
             var result CachedResponse
@@ -999,39 +1010,35 @@ func IdempotencyMiddleware() gin.HandlerFunc {
             
             for k, v := range result.Headers {
                 for _, value := range v {
-                    c.Header(k, value)
+                    c.Set(k, value)
                 }
             }
-            c.Header("Idempotency-Replayed", "true")
-            c.Data(result.StatusCode, "application/json", result.Body)
-            return
+            c.Set("Idempotency-Replayed", "true")
+            return c.Status(result.StatusCode).Send(result.Body)
         }
         
-        // Process request and cache result
-        responseRecorder := &ResponseRecorder{
-            ResponseWriter: c.Writer,
-            body:          bytes.NewBuffer(nil),
-            statusCode:    200,
-            headers:       make(http.Header),
+        // Process request
+        err = c.Next()
+        if err != nil {
+            return err
         }
-        c.Writer = responseRecorder
-        
-        c.Next()
         
         // Cache successful operations
-        if responseRecorder.statusCode >= 200 && responseRecorder.statusCode < 300 {
+        if c.Response().StatusCode() >= 200 && c.Response().StatusCode() < 300 {
             result := CachedResponse{
-                StatusCode: responseRecorder.statusCode,
-                Headers:    responseRecorder.headers,
-                Body:       responseRecorder.body.Bytes(),
+                StatusCode: c.Response().StatusCode(),
+                Headers:    make(http.Header),
+                Body:       c.Response().Body(),
                 CreatedAt:  time.Now(),
             }
             
             resultJSON, _ := json.Marshal(result)
             // Cache for 24 hours
-            rd.cache.Set(c.Request.Context(), key, resultJSON, 24*time.Hour)
+            rd.cache.Set(c.Context(), key, resultJSON, 24*time.Hour)
         }
-    })
+        
+        return nil
+    }
 }
 ```
 
@@ -1045,16 +1052,11 @@ api_request_duration_seconds{method, endpoint, tenant_id}
 api_request_size_bytes{method, endpoint, tenant_id}
 api_response_size_bytes{method, endpoint, tenant_id}
 
-# GraphQL Metrics
-graphql_queries_total{operation, tenant_id, complexity}
-graphql_query_duration_seconds{operation, tenant_id}
-graphql_resolver_duration_seconds{resolver, tenant_id}
-graphql_errors_total{error_type, operation, tenant_id}
-
-# SSE Metrics
-sse_connections_active{tenant_id}
-sse_events_sent_total{event_type, tenant_id}
-sse_connection_duration_seconds{tenant_id}
+# WebSocket Metrics
+websocket_connections_active{tenant_id}
+websocket_messages_sent_total{message_type, tenant_id}
+websocket_connection_duration_seconds{tenant_id}
+websocket_errors_total{error_type, tenant_id}
 
 # Deduplication Metrics
 request_deduplication_hits_total{endpoint, tenant_id}
@@ -1064,19 +1066,19 @@ request_deduplication_wait_duration_seconds{endpoint, tenant_id}
 
 ## 6. Implementation Checklist
 
-### Phase 1: GraphQL Foundation
-- [ ] Set up GraphQL server with Go (gqlgen)
-- [ ] Design core schemas (Product, Order, Analytics)
-- [ ] Implement DataLoader pattern for N+1 prevention
-- [ ] Add query complexity limiting
-- [ ] Create GraphQL playground for development
+### Phase 1: REST API Foundation
+- [ ] Set up REST API with Go Fiber
+- [ ] Design endpoint structure and response models
+- [ ] Implement request validation and filtering
+- [ ] Add cursor-based pagination
+- [ ] Create API documentation with OpenAPI
 
 ### Phase 2: Real-time Capabilities
-- [ ] Implement Server-Sent Events infrastructure
-- [ ] Add GraphQL subscriptions support
-- [ ] Create event broadcasting system
+- [ ] Implement WebSocket infrastructure
+- [ ] Add WebSocket connection management
+- [ ] Create message broadcasting system
 - [ ] Integrate real-time updates with business logic
-- [ ] Add SSE connection monitoring
+- [ ] Add WebSocket connection monitoring
 
 ### Phase 3: Advanced Pagination
 - [ ] Implement cursor-based pagination

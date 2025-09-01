@@ -136,7 +136,7 @@ describe('ProductCard', () => {
     render(<ProductCard product={mockProduct} />)
     
     expect(screen.getByText('Test Product')).toBeInTheDocument()
-    expect(screen.getByText('$29.99')).toBeInTheDocument()
+    expect(screen.getByText('৳3,299')).toBeInTheDocument()
   })
 
   it('calls onAddToCart when button is clicked', () => {

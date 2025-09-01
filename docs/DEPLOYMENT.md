@@ -9,16 +9,18 @@
 - **Testing**: Automated testing environment for CI/CD
 
 ### Deployment Options
-**VPS Server Deployment (Recommended)**:
-- **Provider**: DigitalOcean, Linode, Vultr, or Hetzner
-- **Server Size**: 4GB+ RAM, 2+ CPU cores, 80GB+ SSD
-- **Operating System**: Ubuntu 22.04 LTS or CentOS Stream 9
+**VPS Server Deployment (Primary Strategy)**:
+- **Provider**: Hostinger (primary), DigitalOcean, or Hetzner
+- **Phase 1**: 8GB RAM, 4 vCPU, 160GB SSD - ৳1,320/month
+- **Phase 2**: Multiple VPS instances with load balancing
+- **Operating System**: Ubuntu 22.04 LTS
 - **Container Management**: Docker & Docker Compose
+- **CDN**: Cloudflare (free tier initially)
 
-**Cloud Provider Alternative**:
-- **AWS/GCP/Azure**: For enterprise scale and managed services
-- **Regions**: Multiple regions for global presence
-- **Availability Zones**: Multi-AZ deployment for high availability
+**Scaling Strategy**:
+- **Single VPS**: 0-200 customers
+- **Multi-VPS**: 200-1000 customers  
+- **VPS Cluster**: 1000+ customers
 
 ## Development Environment
 
@@ -68,11 +70,18 @@
 ```
 
 ### VPS Requirements
-- **RAM**: 4GB minimum (8GB recommended)
-- **CPU**: 2+ cores (4 cores recommended) 
-- **Storage**: 80GB SSD minimum (200GB recommended)
-- **Bandwidth**: 1TB+ monthly transfer
+**Phase 1 (Single VPS):**
+- **RAM**: 8GB (handles 200+ customers comfortably)
+- **CPU**: 4 vCPU cores (Go concurrency + PostgreSQL)
+- **Storage**: 160GB SSD (database + files + logs)
+- **Bandwidth**: 8TB monthly transfer
+- **Cost**: ৳1,320/month (Hostinger Business VPS)
 - **Operating System**: Ubuntu 22.04 LTS
+
+**Phase 2 (Multi-VPS):**
+- **App Server**: 8GB RAM, 4 vCPU - ৳1,320/month
+- **Database Server**: 16GB RAM, 4 vCPU - ৳2,640/month
+- **Load Balancer**: 2GB RAM, 1 vCPU - ৳660/month
 
 ### VPS Services Configuration
 - **Web Server**: Nginx as reverse proxy
@@ -218,26 +227,32 @@ volumes:
 
 ### Multi-Tenant Database Design
 ```sql
--- Tenant isolation strategy
-CREATE SCHEMA tenant_123;
-CREATE SCHEMA tenant_456;
-
--- Shared tables for platform management
-CREATE TABLE public.tenants (
-    id UUID PRIMARY KEY,
+-- Hybrid approach: Shared database with tenant isolation
+CREATE TABLE tenants (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     subdomain VARCHAR(255) UNIQUE,
     custom_domain VARCHAR(255),
-    plan_id UUID REFERENCES plans(id),
+    plan VARCHAR(20) NOT NULL DEFAULT 'basic',
+    tenant_type VARCHAR(20) DEFAULT 'shared', -- shared, dedicated
+    database_name VARCHAR(100), -- Only for dedicated tenants
     created_at TIMESTAMP DEFAULT NOW()
 );
 
--- Tenant-specific tables
-CREATE TABLE tenant_123.products (
-    id UUID PRIMARY KEY,
+-- Shared database tables with tenant_id isolation
+CREATE TABLE products (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id),
     name VARCHAR(255),
     price DECIMAL(10,2),
     created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Row Level Security for automatic tenant isolation
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+CREATE POLICY products_tenant_isolation ON products
+    FOR ALL
+    TO application_role
+    USING (tenant_id = current_setting('app.current_tenant_id')::UUID);
 ```
 
 ## CI/CD Pipeline

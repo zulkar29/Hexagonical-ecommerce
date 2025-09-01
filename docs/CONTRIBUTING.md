@@ -188,7 +188,7 @@ export const filteredProductsAtom = atom((get) => {
 ### Pull Request Requirements
 - [ ] **Description**: Clear description of changes
 - [ ] **Tests**: New tests for new functionality  
-- [ ] **Documentation**: Updated relevant docs
+- [ ] **Documentation**: Include relevant docs
 - [ ] **Breaking Changes**: Documented if any
 - [ ] **Performance**: No performance regressions
 - [ ] **Security**: No security vulnerabilities

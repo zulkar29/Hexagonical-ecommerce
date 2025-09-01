@@ -302,9 +302,9 @@ external_service_costs:
 
 #### Real-time Cost Tracking
 ```yaml
-# Cost per Tenant (Updated Hourly)
-tenant_infrastructure_cost_usd{tenant_id, cost_type, period}
-tenant_revenue_usd{tenant_id, period} 
+# Cost per Tenant (Hourly Tracking)
+tenant_infrastructure_cost_bdt{tenant_id, cost_type, period}
+tenant_revenue_bdt{tenant_id, period} 
 tenant_profit_margin_percent{tenant_id, period}
 
 # Cost Efficiency Metrics
@@ -314,8 +314,8 @@ cost_per_order{tenant_id}
 cost_per_gb_stored{tenant_id}
 
 # Budget & Forecasting
-tenant_monthly_budget_usd{tenant_id}
-tenant_projected_cost_usd{tenant_id, forecast_days}
+tenant_monthly_budget_bdt{tenant_id}
+tenant_projected_cost_bdt{tenant_id, forecast_days}
 tenant_budget_utilization_percent{tenant_id}
 ```
 

@@ -17,7 +17,7 @@ export default function Header() {
       {/* Top bar */}
       <div className="bg-gray-900 text-white text-sm">
         <div className="container mx-auto px-4 py-2 text-center">
-          Free shipping on orders over $100!
+          Free shipping on orders over ৳11,000!
         </div>
       </div>
 

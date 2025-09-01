@@ -35,7 +35,7 @@ backend/
 
 ### Prerequisites
 - Go 1.21+
-- PostgreSQL 14+
+- PostgreSQL 15+
 - Redis 7+
 
 ### Setup

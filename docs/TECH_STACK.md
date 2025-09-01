@@ -13,12 +13,13 @@
 - **JWT-Go**: JSON Web Token implementation
 
 ### Database & Storage
-- **PostgreSQL 14+**: Primary database with JSONB support
-- **Redis 7+**: Caching and session storage
-- **Amazon S3**: Object storage for images/files
-- **MinIO**: Self-hosted S3-compatible storage (alternative)
+- **PostgreSQL 15+**: Primary database with JSONB support, self-hosted on VPS
+- **Redis 7+**: Caching and session storage, containerized
+- **Local File Storage**: Images/files stored on VPS with Cloudflare Images optimization
+- **Cloudflare Images**: Image optimization and CDN delivery
 
 ### Message Queue & Events
+- **WebSocket**: Real-time bidirectional communication
 - **NATS/RabbitMQ**: Event streaming and pub/sub
 - **Apache Kafka**: High-throughput event streaming (enterprise)
 - **Redis Streams**: Lightweight message queue option
@@ -37,7 +38,7 @@
 - **Go-SqlMock**: SQL driver mock for testing
 - **Playwright**: End-to-end testing for web applications
 - **Cypress**: Alternative E2E testing framework
-- **Jest**: Unit testing for JavaScript/TypeScript
+- **Jest**: Unit testing for JavaScript
 
 ## Frontend Stack
 
@@ -70,38 +71,35 @@
 
 ## DevOps & Infrastructure
 
-### Containerization
+### Containerization & Deployment
 - **Docker**: Application containerization
-- **Docker Compose**: Multi-container development
-- **Kubernetes**: Container orchestration (production)
-- **Helm**: Kubernetes package manager
+- **Docker Compose**: Multi-container production deployment
+- **Nginx**: Reverse proxy and static file serving
+- **Let's Encrypt**: Free SSL certificate automation
 
-### Cloud Services (AWS)
-- **ECS/EKS**: Container orchestration
-- **RDS**: Managed PostgreSQL
-- **ElastiCache**: Managed Redis
-- **S3**: Object storage
-- **CloudFront**: CDN and static asset delivery
-- **Route 53**: DNS management
-- **Certificate Manager**: SSL certificate management
-- **Load Balancer**: Application and network load balancing
+### VPS Hosting & Infrastructure
+- **Hostinger VPS**: Primary hosting provider (cost-effective)
+- **DigitalOcean**: Alternative VPS provider
+- **Hetzner**: European alternative for better pricing
+- **Cloudflare**: Free CDN, DNS, and DDoS protection
+- **Cloudflare Images**: Image optimization and delivery
+- **Nginx**: Load balancing and reverse proxy
 
 ### Monitoring & Observability
-- **Prometheus**: Metrics collection
-- **Grafana**: Metrics visualization
-- **Jaeger**: Distributed tracing
-- **ELK Stack**: Elasticsearch, Logstash, Kibana for logging
-- **Sentry**: Error tracking and monitoring
-- **New Relic/DataDog**: APM (Application Performance Monitoring)
+- **Uptime Kuma**: Self-hosted uptime monitoring
+- **Grafana**: Lightweight metrics visualization (self-hosted)
+- **Prometheus**: Basic metrics collection (containerized)
+- **Sentry**: Error tracking and monitoring (free tier)
+- **Simple logging**: Docker logs + log rotation
+- **Custom health checks**: Built-in application monitoring
 
 ### CI/CD Pipeline
 - **GitHub Actions**: Continuous integration and deployment
-- **Docker Hub/ECR**: Container registry
-- **Terraform**: Infrastructure as code
-- **Ansible**: Configuration management
-- **ArgoCD**: GitOps continuous deployment
-- **Blue-Green Deployments**: Zero-downtime deployments
-- **Canary Releases**: Gradual rollout of new features
+- **Docker Hub**: Container registry (free tier)
+- **Simple deployment scripts**: Direct VPS deployment
+- **SSH-based deployment**: Direct server updates
+- **Blue-Green Deployments**: Using Nginx upstream switching
+- **Rolling updates**: Docker Compose rolling updates
 
 ## Third-Party Integrations
 

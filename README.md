@@ -4,11 +4,11 @@ A multi-tenant e-commerce SaaS platform built with hexagonal architecture, enabl
 
 ## 📋 Documentation
 
-📚 **Complete Documentation Index**: [docs/INDEX.md](./docs/INDEX.md)
+📚 **Complete Documentation**: See individual docs below
 
 ### **Quick Links**
 - [🏗️ Architecture](./docs/ARCHITECTURE.md) - System architecture and hexagonal design patterns
-- [📡 API Reference](./docs/API_REFERENCE.md) - Complete REST API documentation (450+ endpoints)
+- [📡 API Documentation](./docs/API_REFERENCE.md) - Complete REST API documentation (450+ endpoints)
 - [🚀 API Architecture](./docs/API_ARCHITECTURE.md) - GraphQL, SSE, advanced pagination
 - [🗄️ Database Strategy](./docs/DATABASE.md) - Hybrid multi-tenant database design
 - [✨ Features](./docs/FEATURES.md) - Complete feature list and pricing tiers  

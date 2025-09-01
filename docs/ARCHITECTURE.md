@@ -3,17 +3,21 @@
 ## Overview
 Technical architecture for a multi-tenant e-commerce SaaS platform using hexagonal (clean) architecture principles.
 
+> **Note**: For detailed API specifications and endpoint documentation, see [API_ARCHITECTURE.md](./API_ARCHITECTURE.md)
+
 ## System Architecture
 
 ### Optimized Modular Monolith Architecture
-**Updated**: Simplified from microservices to modular monolith for better initial scalability
+**Design**: Modular monolith architecture for solo developer efficiency and local market requirements
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    PRESENTATION LAYER                       │
 ├─────────────────────────────────────────────────────────────┤
-│              Next.js (Customer + Dashboard)                 │
-│         Unified frontend with route-based separation        │
+│  ┌─────────────────────────┬─────────────────────────────┐  │
+│  │    Next.js Storefront   │   React.js Dashboard        │  │
+│  │   (Customer-facing)     │   (Merchant admin)          │  │
+│  └─────────────────────────┴─────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
                             │
 ┌─────────────────────────────────────────────────────────────┐
@@ -55,16 +59,17 @@ Technical architecture for a multi-tenant e-commerce SaaS platform using hexagon
 - **Product Module**: Catalog management, inventory, variants, categories
 - **Order Module**: Cart, checkout, order processing, fulfillment
 - **User Module**: Authentication, authorization, customer management
-- **Payment Module**: Stripe integration, subscription billing
+- **Payment Module**: bKash/Nagad integration, Stripe for international, subscription billing
 - **Notification Module**: Email notifications, webhooks
 - **Analytics Module**: Basic reporting and metrics
 
-**Benefits of Modular Monolith**:
-- Single deployment unit (reduced complexity)
-- Shared database transactions
-- Lower network latency
-- Easier debugging and testing
-- Can be split into microservices later when needed
+**Benefits of Modular Monolith for Solo Developer**:
+- Single deployment unit (solo-friendly complexity)
+- Shared database transactions (easier data management)
+- Lower network latency (local infrastructure optimized)
+- Easier debugging and testing (single developer can manage)
+- Local language features integrated across all modules
+- Can be split into microservices later when team expands
 
 ### Frontend Applications
 - **Customer Storefront (Next.js)**: 
@@ -83,7 +88,7 @@ Technical architecture for a multi-tenant e-commerce SaaS platform using hexagon
 ## Multi-Tenancy Strategy (Optimized)
 
 ### Hybrid Database Approach
-**Small-Medium Tenants (Basic/Professional Plans)**:
+**Small-Medium Tenants (Starter/Professional/Pro Plans)**:
 - Shared PostgreSQL database with `tenant_id` column
 - Row-level security for data isolation
 - Cost-effective for up to 10,000 products per tenant

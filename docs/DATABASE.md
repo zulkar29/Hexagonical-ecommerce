@@ -9,13 +9,13 @@ Comprehensive database schema and design patterns for the multi-tenant e-commerc
 
 **Shared Database (Default)**:
 - Row-level tenant isolation using `tenant_id` column
-- Cost-effective for Basic/Professional plans (<10k products)  
+- Cost-effective for Free/Starter/Professional plans (<5k products)  
 - Single backup/maintenance strategy
 - 60-80% cost reduction vs dedicated databases
 
 **Dedicated Database (Enterprise)**:
 - Complete data separation for high-volume tenants
-- Triggered when tenant exceeds 10,000 products
+- Triggered when tenant exceeds 5,000 products or chooses Enterprise plan
 - Independent scaling and backup strategies
 - Full compliance isolation for enterprise customers
 
@@ -30,13 +30,13 @@ Comprehensive database schema and design patterns for the multi-tenant e-commerc
 Contains tenant metadata and platform-level data:
 
 ```sql
--- Platform tenants registry (Updated for hybrid approach)
+-- Platform tenants registry (Hybrid approach design)
 CREATE TABLE tenants (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     subdomain VARCHAR(50) UNIQUE NOT NULL,
     custom_domain VARCHAR(255),
-    plan VARCHAR(20) NOT NULL DEFAULT 'basic', -- basic, professional, enterprise
+    plan VARCHAR(20) NOT NULL DEFAULT 'free', -- free, starter, professional, pro, enterprise
     status VARCHAR(20) DEFAULT 'active',
     tenant_type VARCHAR(20) DEFAULT 'shared', -- shared, dedicated
     database_name VARCHAR(100), -- Only for dedicated tenants
@@ -51,7 +51,7 @@ CREATE TABLE tenants (
 -- Subscription plans with detailed configurations
 CREATE TABLE subscription_plans (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(100) NOT NULL, -- basic, professional, enterprise
+    name VARCHAR(100) NOT NULL, -- free, starter, professional, pro, enterprise
     price DECIMAL(10,2) NOT NULL,
     features JSONB NOT NULL,
     limits JSONB NOT NULL, -- {"max_products": 1000, "max_requests_per_month": 10000}
@@ -59,25 +59,44 @@ CREATE TABLE subscription_plans (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
--- Insert default plans with detailed configurations
+-- Insert default plans with standardized pricing structure
 INSERT INTO subscription_plans (name, price, features, limits, database_type) VALUES
-('basic', 29.00, 
+('free', 0.00, 
  '[
-    "basic_analytics", 
-    "email_support", 
+    "basic_storefront", 
+    "community_support", 
     "standard_templates",
     "ssl_certificate"
   ]', 
  '{
-    "max_products": 1000,
+    "max_products": 10,
+    "max_requests_per_month": 1000,
+    "max_storage_gb": 0.5,
+    "max_bandwidth_gb": 5,
+    "support_response_hours": 72,
+    "branding_removal": false
+  }', 
+ 'shared'),
+
+('starter', 1990.00, 
+ '[
+    "basic_analytics", 
+    "email_support", 
+    "standard_templates",
+    "ssl_certificate",
+    "local_payment_gateways"
+  ]', 
+ '{
+    "max_products": 500,
     "max_requests_per_month": 10000,
     "max_storage_gb": 5,
     "max_bandwidth_gb": 50,
-    "support_response_hours": 48
+    "support_response_hours": 48,
+    "branding_removal": true
   }', 
  'shared'),
  
-('professional', 79.00, 
+('professional', 4990.00, 
  '[
     "basic_analytics", 
     "advanced_analytics", 
@@ -85,27 +104,54 @@ INSERT INTO subscription_plans (name, price, features, limits, database_type) VA
     "custom_domain", 
     "advanced_templates",
     "email_marketing",
-    "inventory_management"
+    "inventory_management",
+    "basic_api_access",
+    "social_integrations"
+  ]', 
+ '{
+    "max_products": 5000,
+    "max_requests_per_month": 100000,
+    "max_storage_gb": 100,
+    "max_bandwidth_gb": 500,
+    "support_response_hours": 24,
+    "branding_removal": true
+  }', 
+ 'shared'),
+
+('pro', 7990.00, 
+ '[
+    "all_professional_features", 
+    "advanced_analytics", 
+    "priority_support", 
+    "custom_domain", 
+    "premium_templates",
+    "advanced_email_marketing",
+    "inventory_management",
+    "api_access",
+    "social_integrations",
+    "abandoned_cart_recovery"
   ]', 
  '{
     "max_products": 10000,
-    "max_requests_per_month": 100000,
-    "max_storage_gb": 50,
-    "max_bandwidth_gb": 500,
-    "support_response_hours": 24
+    "max_requests_per_month": 250000,
+    "max_storage_gb": 250,
+    "max_bandwidth_gb": 1000,
+    "support_response_hours": 12,
+    "branding_removal": true
   }', 
  'shared'),
  
-('enterprise', 299.00, 
+('enterprise', 12990.00, 
  '[
     "all_features", 
     "dedicated_database", 
-    "api_access", 
+    "full_api_access", 
     "sla_support",
     "white_labeling",
-    "advanced_integrations",
+    "custom_integrations",
     "custom_development",
-    "priority_onboarding"
+    "priority_onboarding",
+    "dedicated_support"
   ]', 
  '{
     "max_products": -1,
@@ -113,7 +159,8 @@ INSERT INTO subscription_plans (name, price, features, limits, database_type) VA
     "max_storage_gb": -1,
     "max_bandwidth_gb": -1,
     "support_response_hours": 4,
-    "sla_uptime_percent": 99.9
+    "sla_uptime_percent": 99.9,
+    "branding_removal": true
   }', 
  'dedicated');
 
@@ -154,7 +201,7 @@ CREATE INDEX idx_migrations_tenant_id ON tenant_migrations(tenant_id, started_at
 
 ## Shared Database Schema
 
-For tenants using shared database (Basic/Professional plans) - all tables include tenant_id:
+For tenants using shared database (Free/Starter/Professional plans) - all tables include tenant_id:
 
 ```sql
 -- Products table with tenant isolation
@@ -224,7 +271,7 @@ CREATE TABLE orders (
     tax_amount DECIMAL(12,2) DEFAULT 0,
     shipping_amount DECIMAL(12,2) DEFAULT 0,
     discount_amount DECIMAL(12,2) DEFAULT 0,
-    currency VARCHAR(3) DEFAULT 'USD',
+    currency VARCHAR(3) DEFAULT 'BDT',
     items JSONB NOT NULL,
     shipping_address JSONB,
     billing_address JSONB,
@@ -316,16 +363,16 @@ CREATE INDEX idx_products_created ON products(created_at DESC);
 
 **Traditional Database-Per-Tenant Approach**:
 - 100 tenants = 100 database instances
-- Average cost per database: $50/month
-- Total monthly cost: $5,000
+- Average cost per database: ৳5,500/month
+- Total monthly cost: ৳5,50,000
 - Backup storage: 100 separate backup strategies
 - Monitoring overhead: 100 databases to monitor
 
 **Optimized Hybrid Approach**:
-- 95 tenants on shared database: 1 instance ($200/month)
-- 5 enterprise tenants on dedicated: 5 instances ($250/month)  
-- Total monthly cost: $450
-- **Cost Reduction: 91%** for same tenant count
+- 95 tenants on shared database: 1 instance (৳3,000/month)
+- 5 enterprise tenants on dedicated: 5 instances (৳3,500/month each)  
+- Total monthly cost: ৳20,500
+- **Cost Reduction: 96%** for same tenant count
 - Backup storage: 6 backup strategies total
 - Monitoring overhead: 6 databases to monitor
 
@@ -492,9 +539,10 @@ func (db *DatabaseManager) getDedicatedConnection(tenant *Tenant) (*gorm.DB, err
 ### Migration Scenarios
 
 **Startup → Growth Path**:
-1. **Basic Plan**: Shared database (0-1k products)
-2. **Professional Plan**: Shared database (1k-10k products)  
-3. **Enterprise Plan**: Dedicated database (10k+ products)
+1. **Starter Plan**: Shared database (0-500 products)
+2. **Professional Plan**: Shared database (500-5k products)
+3. **Pro Plan**: Shared database (5k-10k products)  
+4. **Enterprise Plan**: Dedicated database (10k+ products)
 
 **Migration Triggers**:
 - Product count exceeds 10,000
