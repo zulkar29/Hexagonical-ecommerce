@@ -1,0 +1,52 @@
+{
+  "name": "ecommerce-saas-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix"
+  },
+  "dependencies": {
+    "TODO": "Add dependencies during implementation",
+    "NOTES": [
+      "react: React 18+",
+      "react-dom: React DOM",
+      "react-router-dom: Client-side routing",
+      "@mui/material: Material-UI components",
+      "@mui/icons-material: Material-UI icons",
+      "@emotion/react: Styling (required by MUI)",
+      "@emotion/styled: Styling (required by MUI)",
+      "jotai: State management",
+      "@tanstack/react-query: Server state",
+      "react-hook-form: Form handling",
+      "recharts: Data visualization",
+      "axios: HTTP client",
+      "date-fns: Date manipulation"
+    ]
+  },
+  "devDependencies": {
+    "TODO": "Add dev dependencies during implementation", 
+    "DEV_NOTES": [
+      "react-scripts: Create React App scripts",
+      "@types/react: React types (if adding TypeScript later)",
+      "eslint: Code linting",
+      "prettier: Code formatting"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

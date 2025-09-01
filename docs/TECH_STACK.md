@@ -4,7 +4,7 @@
 
 ### Core Framework & Libraries
 - **Go 1.21+**: Latest stable Go version
-- **Gin/Echo**: HTTP web framework for REST APIs
+- **Fiber**: Express.js-like HTTP web framework for REST APIs
 - **GORM**: ORM for database operations
 - **Wire**: Dependency injection framework
 - **Viper**: Configuration management
@@ -35,25 +35,28 @@
 - **GoMock**: Mock generation for testing
 - **Ginkgo/Gomega**: BDD testing framework
 - **Go-SqlMock**: SQL driver mock for testing
+- **Playwright**: End-to-end testing for web applications
+- **Cypress**: Alternative E2E testing framework
+- **Jest**: Unit testing for JavaScript/TypeScript
 
 ## Frontend Stack
 
 ### Customer Storefront (Next.js)
 - **Next.js 14+**: React framework with App Router
-- **TypeScript**: Static typing for JavaScript
+- **JavaScript**: Dynamic language with modern ES6+ features
 - **Tailwind CSS**: Utility-first CSS framework
 - **Shadcn/UI**: Modern UI component library
-- **Zustand**: Lightweight state management
+- **Jotai**: Atomic state management
 - **React Query**: Server state management
 - **React Hook Form**: Form handling and validation
 - **Framer Motion**: Animation library
 
 ### Merchant Dashboard (React.js)
 - **React 18+**: UI library with concurrent features
-- **TypeScript**: Static typing
+- **JavaScript**: Dynamic language with modern ES6+ features
 - **Material-UI (MUI)**: Component library for admin interfaces
-- **Redux Toolkit**: Predictable state management
-- **RTK Query**: Data fetching and caching
+- **Jotai**: Atomic state management
+- **React Query**: Data fetching and caching
 - **React Router**: Client-side routing
 - **Recharts**: Data visualization and charts
 - **React DnD**: Drag and drop functionality
@@ -97,6 +100,8 @@
 - **Terraform**: Infrastructure as code
 - **Ansible**: Configuration management
 - **ArgoCD**: GitOps continuous deployment
+- **Blue-Green Deployments**: Zero-downtime deployments
+- **Canary Releases**: Gradual rollout of new features
 
 ## Third-Party Integrations
 

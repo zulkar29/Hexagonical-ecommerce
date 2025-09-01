@@ -1,0 +1,235 @@
+# Order management schema for e-commerce platform
+
+type Order {
+  id: ID!
+  tenantId: ID!
+  customerId: ID!
+  customer: Customer!
+  orderNumber: String!
+  status: OrderStatus!
+  paymentStatus: PaymentStatus!
+  fulfillmentStatus: FulfillmentStatus!
+  
+  # Financial details
+  subtotal: Money!
+  taxAmount: Money!
+  shippingAmount: Money!
+  discountAmount: Money!
+  totalAmount: Money!
+  
+  # Order items
+  items: [OrderItem!]!
+  itemsCount: Int!
+  
+  # Addresses
+  billingAddress: Address!
+  shippingAddress: Address!
+  
+  # Dates
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  processedAt: DateTime
+  shippedAt: DateTime
+  deliveredAt: DateTime
+  cancelledAt: DateTime
+  
+  # Additional info
+  notes: String
+  customerNotes: String
+  tags: [String!]!
+  
+  # Computed fields
+  canCancel: Boolean!
+  canRefund: Boolean!
+  isReturnable: Boolean!
+}
+
+type OrderItem {
+  id: ID!
+  productId: ID!
+  product: Product!
+  variantId: ID
+  variant: ProductVariant
+  quantity: Int!
+  price: Money!
+  totalPrice: Money!
+  title: String!
+  sku: String!
+}
+
+type Customer {
+  id: ID!
+  email: String!
+  firstName: String
+  lastName: String
+  phone: String
+  acceptsMarketing: Boolean!
+  totalOrders: Int!
+  totalSpent: Money!
+  averageOrderValue: Money!
+  createdAt: DateTime!
+}
+
+type Address {
+  id: ID!
+  firstName: String!
+  lastName: String!
+  company: String
+  address1: String!
+  address2: String
+  city: String!
+  province: String!
+  country: String!
+  zip: String!
+  phone: String
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+  RETURNED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  PARTIALLY_PAID
+  REFUNDED
+  PARTIALLY_REFUNDED
+  VOIDED
+  FAILED
+}
+
+enum FulfillmentStatus {
+  UNFULFILLED
+  PARTIALLY_FULFILLED
+  FULFILLED
+  SHIPPED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  FAILED_DELIVERY
+  RETURNED
+}
+
+# Connection types
+type OrderConnection {
+  edges: [OrderEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type OrderEdge {
+  node: Order!
+  cursor: String!
+}
+
+# Filter and sort inputs
+input OrderFilter {
+  status: [OrderStatus!]
+  paymentStatus: [PaymentStatus!]
+  fulfillmentStatus: [FulfillmentStatus!]
+  customerId: ID
+  dateRange: DateRange
+  amountRange: PriceRange
+  tags: [String!]
+}
+
+input DateRange {
+  start: DateTime
+  end: DateTime
+}
+
+input OrderSort {
+  field: OrderSortField!
+  direction: SortDirection!
+}
+
+enum OrderSortField {
+  ORDER_NUMBER
+  CREATED_AT
+  UPDATED_AT
+  TOTAL_AMOUNT
+  CUSTOMER_NAME
+  STATUS
+}
+
+# Mutation inputs
+input CreateOrderInput {
+  customerId: ID!
+  items: [OrderItemInput!]!
+  billingAddress: AddressInput!
+  shippingAddress: AddressInput!
+  notes: String
+  customerNotes: String
+  tags: [String!]
+}
+
+input OrderItemInput {
+  productId: ID!
+  variantId: ID
+  quantity: Int! @validate(constraint: "required,min=1")
+  price: Money
+}
+
+input AddressInput {
+  firstName: String! @validate(constraint: "required,min=1,max=50")
+  lastName: String! @validate(constraint: "required,min=1,max=50")
+  company: String
+  address1: String! @validate(constraint: "required,min=1,max=100")
+  address2: String
+  city: String! @validate(constraint: "required,min=1,max=50")
+  province: String! @validate(constraint: "required,min=1,max=50")
+  country: String! @validate(constraint: "required,min=2,max=2")
+  zip: String! @validate(constraint: "required,min=3,max=10")
+  phone: String
+}
+
+input UpdateOrderStatusInput {
+  status: OrderStatus!
+  notes: String
+}
+
+input UpdatePaymentStatusInput {
+  paymentStatus: PaymentStatus!
+  transactionId: String
+  notes: String
+}
+
+input UpdateFulfillmentStatusInput {
+  fulfillmentStatus: FulfillmentStatus!
+  trackingNumber: String
+  trackingUrl: String
+  carrier: String
+  notes: String
+}
+
+input ProcessRefundInput {
+  amount: Money
+  reason: String!
+  restockItems: Boolean!
+}
+
+# Result types
+type CreateOrderResult {
+  success: Boolean!
+  order: Order
+  errors: [ValidationError!]!
+}
+
+type UpdateOrderResult {
+  success: Boolean!
+  order: Order
+  errors: [ValidationError!]!
+}
+
+type RefundResult {
+  success: Boolean!
+  refundAmount: Money!
+  order: Order
+  errors: [ValidationError!]!
+}

@@ -1,0 +1,35 @@
+# Development Dockerfile for Next.js Storefront
+FROM node:18-alpine AS development
+
+# Install dependencies only when needed
+RUN apk add --no-cache libc6-compat
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=development
+
+# Copy source code
+COPY . .
+
+# Create next.config.js if it doesn't exist
+RUN if [ ! -f next.config.js ]; then \
+    echo 'const nextConfig = {}; module.exports = nextConfig;' > next.config.js; \
+    fi
+
+# Create necessary directories
+RUN mkdir -p .next
+
+# Expose port
+EXPOSE 3000
+
+# Set environment to development
+ENV NODE_ENV=development
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Start development server with hot reloading
+CMD ["npm", "run", "dev"]

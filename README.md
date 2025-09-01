@@ -2,108 +2,107 @@
 
 A multi-tenant e-commerce SaaS platform built with hexagonal architecture, enabling businesses to create and customize their own online stores with custom domains/subdomains.
 
-## 📋 Project Documentation
+## 📋 Documentation
 
-- [🏗️ Architecture](./ARCHITECTURE.md) - System architecture and hexagonal design patterns
-- [✨ Features](./FEATURES.md) - Complete feature list and pricing tiers
-- [⚡ Tech Stack](./TECH_STACK.md) - Technologies, frameworks, and tools
-- [🚀 Deployment](./DEPLOYMENT.md) - Infrastructure and deployment strategies
-- [🗺️ Roadmap](./ROADMAP.md) - Development phases and timeline
+📚 **Complete Documentation Index**: [docs/INDEX.md](./docs/INDEX.md)
 
-## 🎯 Project Overview
+### **Quick Links**
+- [🏗️ Architecture](./docs/ARCHITECTURE.md) - System architecture and hexagonal design patterns
+- [📡 API Reference](./docs/API_REFERENCE.md) - Complete REST API documentation (450+ endpoints)
+- [🚀 API Architecture](./docs/API_ARCHITECTURE.md) - GraphQL, SSE, advanced pagination
+- [🗄️ Database Strategy](./docs/DATABASE.md) - Hybrid multi-tenant database design
+- [✨ Features](./docs/FEATURES.md) - Complete feature list and pricing tiers  
+- [🐳 Docker Setup](./docs/README-DOCKER.md) - Development environment with Docker
 
-### Vision
-Create a comprehensive e-commerce SaaS platform that allows businesses to launch their own online stores with minimal technical knowledge, while providing advanced features for growth and customization.
+## 🚀 Quick Start
 
-### Key Differentiators
-- **Hexagonal Architecture**: Clean, maintainable, and testable codebase
-- **Multi-tenant Design**: Isolated data and customizable experiences
-- **Custom Domains**: Full white-label support with SSL automation
-- **Modern Tech Stack**: Go backend, Next.js/React frontend
-- **Subscription-based**: Scalable pricing model with feature gates
-
-## 🏗️ Architecture Highlights
-
-- **Backend**: Golang with hexagonal architecture
-- **Frontend**: Next.js (storefronts) + React.js (dashboard)
-- **Database**: PostgreSQL with tenant isolation
-- **Cache**: Redis for performance optimization
-- **Storage**: AWS S3 for assets and files
-- **Deployment**: Docker containers on AWS ECS
-
-## 🚀 Getting Started
-
-### Prerequisites
-- Docker and Docker Compose
-- Node.js 18+ 
-- Go 1.21+
-- PostgreSQL 14+
-- Redis 7+
-
-### Development Setup
+### Development with Docker (Recommended)
 ```bash
-# Clone the repository
-git clone [repository-url]
-cd ecommerce-sass
+# Start all services
+make dev-up
 
-# Start development environment
-docker-compose up -d
+# Check status
+make status
 
-# Run database migrations
-make migrate
+# View logs  
+make dev-logs
 
-# Start backend services
-cd backend && go run cmd/api/main.go
-
-# Start frontend applications
-cd frontend && npm run dev
-cd dashboard && npm run dev
+# Stop services
+make dev-down
 ```
 
-## 📊 Business Model
+### Manual Setup
+```bash
+# Install dependencies
+make install
 
-### Target Market
-- Small to medium businesses
-- Entrepreneurs and startups
-- Existing businesses going digital
-- Agencies serving multiple clients
+# Start core services
+make services-up
 
-### Revenue Streams
-- Monthly subscription fees
-- Transaction fees (1.5% - 2.5%)
-- Premium theme marketplace
-- Third-party app commissions
-- Professional services
+# Run each service manually
+cd backend && go run cmd/api/main.go
+cd storefront && npm run dev  
+cd dashboard && npm start
+```
 
-## 🎯 Success Metrics
+## 🏗️ Project Structure
 
-### Year 1 Goals
-- 500+ active stores
-- $100K+ Monthly Recurring Revenue
-- 90%+ uptime
-- <3s average page load time
+```
+├── docs/                    # All documentation
+├── backend/                 # Go Fiber API
+├── storefront/              # Next.js customer store  
+├── dashboard/               # React.js merchant admin
+├── docker-compose.dev.yml   # Development environment
+└── Makefile                 # Development commands
+```
 
-### Long-term Vision
-- 10,000+ active stores
-- $1M+ ARR
-- International expansion
-- Mobile applications
-- Enterprise features
+## 🎯 Tech Stack
 
-## 🤝 Contributing
+- **Backend**: Go 1.21+ with Fiber framework
+- **Frontend**: Next.js 14+ (storefront) + React 18+ (dashboard)
+- **Database**: PostgreSQL 15+ with tenant isolation
+- **Cache**: Redis 7+
+- **Storage**: MinIO (S3-compatible)
+- **State**: Jotai for client state management
+- **Styling**: Tailwind CSS
+- **Deployment**: Docker containers
 
-This is a commercial project. Contributing guidelines and processes will be defined as the team grows.
+## 📊 Services Overview
 
-## 📄 License
+| Service | Port | Description |
+|---------|------|-------------|
+| Backend API | 8080 | Go Fiber REST API |
+| Storefront | 3000 | Customer-facing store |
+| Dashboard | 3001 | Merchant admin panel |
+| PostgreSQL | 5432 | Primary database |
+| Redis | 6379 | Cache & sessions |
+| MinIO | 9000 | File storage |
+| MailHog | 8025 | Email testing |
 
-Proprietary - All rights reserved
+## 🔧 Development
 
-## 📞 Contact
+See [Docker Setup Guide](./docs/README-DOCKER.md) for complete development environment setup.
 
-For business inquiries and partnership opportunities, please contact [contact information].
+### Available Commands
+```bash
+make help           # Show all commands
+make dev-up         # Start development environment
+make dev-down       # Stop all services
+make dev-logs       # View logs
+make install        # Install dependencies
+make test           # Run tests
+make format         # Format code
+```
+
+## 📚 Additional Resources
+
+- **Architecture**: Hexagonal (Clean) Architecture with Go
+- **Multi-tenancy**: Database-per-tenant isolation
+- **Authentication**: JWT with role-based access
+- **Payments**: Stripe integration
+- **Deployment**: AWS ECS with Docker
 
 ---
 
-**Status**: Planning Phase  
-**Started**: August 2025  
-**Expected MVP**: Q2 2026
+**Status**: Development Setup Complete  
+**Next**: Implement core business logic

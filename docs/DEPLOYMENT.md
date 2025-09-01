@@ -4,12 +4,19 @@
 
 ### Environment Strategy
 - **Development**: Local development with Docker Compose
-- **Staging**: Cloud environment mirroring production
-- **Production**: High-availability cloud deployment
+- **Staging**: VPS environment mirroring production
+- **Production**: VPS server deployment with Docker
 - **Testing**: Automated testing environment for CI/CD
 
-### Cloud Provider: AWS (Primary)
-- **Alternative**: Google Cloud Platform or Azure for multi-cloud strategy
+### Deployment Options
+**VPS Server Deployment (Recommended)**:
+- **Provider**: DigitalOcean, Linode, Vultr, or Hetzner
+- **Server Size**: 4GB+ RAM, 2+ CPU cores, 80GB+ SSD
+- **Operating System**: Ubuntu 22.04 LTS or CentOS Stream 9
+- **Container Management**: Docker & Docker Compose
+
+**Cloud Provider Alternative**:
+- **AWS/GCP/Azure**: For enterprise scale and managed services
 - **Regions**: Multiple regions for global presence
 - **Availability Zones**: Multi-AZ deployment for high availability
 
@@ -38,6 +45,100 @@
 - **Seed Data**: Sample data for development and testing
 - **API Documentation**: Swagger/OpenAPI integration
 - **Debug Mode**: Enhanced logging and error messages
+
+## VPS Production Environment
+
+### VPS Server Setup
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     VPS SERVER STACK                       │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
+│  │   Nginx     │  │   Docker    │  │  Let's      │         │
+│  │ (Reverse    │  │  Compose    │  │ Encrypt     │         │
+│  │  Proxy)     │  │   Stack     │  │   (SSL)     │         │
+│  └─────────────┘  └─────────────┘  └─────────────┘         │
+├─────────────────────────────────────────────────────────────┤
+│                  DOCKER CONTAINERS                         │
+│  ┌─────────────┬─────────────┬─────────────┬─────────────┐  │
+│  │   Backend   │  Frontend   │ PostgreSQL  │    Redis    │  │
+│  │   (Go API)  │ (Next.js)   │ (Database)  │   (Cache)   │  │
+│  └─────────────┴─────────────┴─────────────┴─────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### VPS Requirements
+- **RAM**: 4GB minimum (8GB recommended)
+- **CPU**: 2+ cores (4 cores recommended) 
+- **Storage**: 80GB SSD minimum (200GB recommended)
+- **Bandwidth**: 1TB+ monthly transfer
+- **Operating System**: Ubuntu 22.04 LTS
+
+### VPS Services Configuration
+- **Web Server**: Nginx as reverse proxy
+- **Application**: Docker containers
+- **Database**: PostgreSQL in Docker with persistent volumes
+- **Cache**: Redis in Docker
+- **SSL**: Let's Encrypt with auto-renewal
+- **Monitoring**: Docker stats + custom logging
+- **Backup**: Automated database backups to external storage
+
+### Docker Compose Production Stack
+```yaml
+version: '3.8'
+services:
+  backend:
+    image: ecommerce-api:latest
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://user:pass@postgres:5432/ecommerce
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      - postgres
+      - redis
+
+  frontend:
+    image: ecommerce-frontend:latest
+    restart: unless-stopped
+    environment:
+      - API_URL=https://api.yourdomain.com
+    
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=ecommerce
+      - POSTGRES_USER=ecommerce_user
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  postgres_data:
+  redis_data:
+```
 
 ## Staging Environment
 
