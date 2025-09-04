@@ -1,8 +1,0 @@
-# Custom scalar types for the GraphQL API
-
-scalar DateTime
-scalar Money
-scalar Upload
-
-# Scalar directives for validation
-directive @validate(constraint: String!) on INPUT_FIELD_DEFINITION | ARGUMENT_DEFINITION

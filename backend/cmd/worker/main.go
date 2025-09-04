@@ -5,7 +5,6 @@ import (
 
 	"ecommerce-saas/internal/shared/config"
 	"ecommerce-saas/internal/shared/database"
-	"ecommerce-saas/internal/server"
 )
 
 func main() {
@@ -21,16 +20,16 @@ func main() {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	// Run migrations
-	if err := database.AutoMigrate(db); err != nil {
-		log.Fatalf("Failed to migrate database: %v", err)
-	}
+	log.Println("Worker starting...")
 
-	// Create server
-	srv := server.New(cfg, db)
+	// TODO: Implement background worker
+	// This will handle:
+	// - Email sending queue
+	// - Image processing
+	// - Report generation
+	// - Data cleanup tasks
+	// - Webhook processing
+	// - Notification dispatch
 
-	// Start server
-	if err := srv.Start(); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
-	}
+	log.Println("Worker implementation pending - TODO")
 }
