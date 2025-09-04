@@ -1,6 +1,7 @@
 package order
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -246,3 +247,124 @@ func (a *Address) GetFormattedAddress() string {
 // - ApplyDiscount(code string) error
 // - ProcessPayment() error
 // - SendConfirmationEmail() error
+
+// GenerateOrderNumber generates a unique order number
+func (o *Order) GenerateOrderNumber() string {
+	if o.OrderNumber != "" {
+		return o.OrderNumber
+	}
+	// This would typically be done at the service level
+	return "ORD-" + o.ID.String()[:8]
+}
+
+// ValidateOrder validates the order data
+func (o *Order) ValidateOrder() error {
+	if o.CustomerEmail == "" {
+		return fmt.Errorf("customer email is required")
+	}
+	
+	if !o.ShippingAddress.IsComplete() {
+		return fmt.Errorf("shipping address is incomplete")
+	}
+	
+	if len(o.Items) == 0 {
+		return fmt.Errorf("order must have at least one item")
+	}
+	
+	if o.TotalAmount <= 0 {
+		return fmt.Errorf("order total must be greater than zero")
+	}
+	
+	return nil
+}
+
+// CalculateTaxAmount calculates tax based on shipping location
+func (o *Order) CalculateTaxAmount() float64 {
+	// Bangladesh VAT is typically 15%
+	if o.ShippingAddress.Country == "BD" {
+		return o.SubtotalAmount * 0.15
+	}
+	// No tax for other countries in this example
+	return 0.0
+}
+
+// CalculateShippingAmount calculates shipping cost
+func (o *Order) CalculateShippingAmount() float64 {
+	// Free shipping for orders over 1000 BDT
+	if o.SubtotalAmount >= 1000 {
+		return 0.0
+	}
+	
+	// Standard shipping rates
+	if o.ShippingAddress.Country == "BD" {
+		return 60.0 // 60 BDT for Bangladesh
+	}
+	
+	return 200.0 // International shipping
+}
+
+// ApplyDiscount applies a discount to the order
+func (o *Order) ApplyDiscount(discountAmount float64) {
+	if discountAmount > 0 && discountAmount <= o.SubtotalAmount {
+		o.DiscountAmount = discountAmount
+		o.CalculateTotal()
+	}
+}
+
+// GetPaymentDue returns the amount due for payment
+func (o *Order) GetPaymentDue() float64 {
+	if o.PaymentStatus == PaymentPaid {
+		return 0.0
+	}
+	return o.TotalAmount
+}
+
+// GetRefundableAmount returns the amount that can be refunded
+func (o *Order) GetRefundableAmount() float64 {
+	if o.PaymentStatus != PaymentPaid {
+		return 0.0
+	}
+	return o.TotalAmount
+}
+
+// GetOrderAge returns the age of the order in days
+func (o *Order) GetOrderAge() int {
+	return int(time.Since(o.CreatedAt).Hours() / 24)
+}
+
+// IsExpired checks if the order has expired (pending for too long)
+func (o *Order) IsExpired() bool {
+	if o.Status != StatusPending {
+		return false
+	}
+	// Orders expire after 24 hours if not confirmed
+	return time.Since(o.CreatedAt) > 24*time.Hour
+}
+
+// GetOrderSummary returns a summary of the order
+func (o *Order) GetOrderSummary() map[string]interface{} {
+	return map[string]interface{}{
+		"order_number":     o.OrderNumber,
+		"status":          o.Status,
+		"customer_email":  o.CustomerEmail,
+		"total_amount":    o.TotalAmount,
+		"currency":        o.Currency,
+		"item_count":      o.GetItemCount(),
+		"created_at":      o.CreatedAt,
+		"is_paid":        o.PaymentStatus == PaymentPaid,
+		"is_shipped":     o.HasShipped(),
+		"is_delivered":   o.IsDelivered(),
+	}
+}
+
+// CanBeModified checks if the order can be modified
+func (o *Order) CanBeModified() bool {
+	return o.Status == StatusPending && o.PaymentStatus == PaymentPending
+}
+
+// RequiresAction checks if the order requires immediate action
+func (o *Order) RequiresAction() bool {
+	return (o.Status == StatusPending && o.IsExpired()) ||
+		   (o.Status == StatusConfirmed && o.PaymentStatus == PaymentPending) ||
+		   (o.Status == StatusProcessing && o.FulfillmentStatus == FulfillmentPending)
+}

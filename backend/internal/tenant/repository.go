@@ -191,8 +191,33 @@ func (r *Repository) BulkUpdateStatus(ids []uuid.UUID, status Status) error {
 	return r.db.Model(&Tenant{}).Where("id IN ?", ids).Update("status", status).Error
 }
 
+// GetTenantStats returns statistics for a specific tenant
+func (r *Repository) GetTenantStats(tenantID uuid.UUID) (*TenantStatsResponse, error) {
+	// TODO: This would require joins with products, orders, etc.
+	// For now, return basic stats
+	stats := &TenantStatsResponse{
+		TenantID:     tenantID.String(),
+		ProductCount: 0,
+		OrderCount:   0,
+		Revenue:      0,
+		StorageUsed:  0,
+		BandwidthUsed: 0,
+	}
+	
+	// You can add actual database queries here when product/order modules are integrated
+	// Example:
+	// r.db.Model(&Product{}).Where("tenant_id = ?", tenantID).Count(&stats.ProductCount)
+	// r.db.Model(&Order{}).Where("tenant_id = ?", tenantID).Count(&stats.OrderCount)
+	
+	return stats, nil
+}
+
+// UpdateCustomDomain updates the custom domain for a tenant
+func (r *Repository) UpdateCustomDomain(id uuid.UUID, domain string) error {
+	return r.db.Model(&Tenant{}).Where("id = ?", id).Update("custom_domain", domain).Error
+}
+
 // TODO: Add more repository methods as needed
-// - GetTenantStats(id uuid.UUID) (*TenantStats, error)
 // - UpdateUsageMetrics(id uuid.UUID, storage, bandwidth int) error
 // - GetTenantsByDateRange(start, end time.Time) ([]*Tenant, error)
 // - GetRevenueStats() (*RevenueStats, error)

@@ -1,6 +1,7 @@
 package tenant
 
 import (
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -137,3 +138,208 @@ func (t *Tenant) CanUseAdvancedAnalytics() bool {
 // - CanUpgradeTo(newPlan Plan) bool
 // - GetFeatureList() []string
 // - IsTrialExpired() bool
+
+// Request/Response structs
+
+// CreateTenantRequest represents the request to create a new tenant
+type CreateTenantRequest struct {
+	Name        string `json:"name" validate:"required,min=2,max=100"`
+	Subdomain   string `json:"subdomain" validate:"required,min=3,max=50,alphanum"`
+	Description string `json:"description,omitempty" validate:"max=500"`
+	Phone       string `json:"phone,omitempty" validate:"max=20"`
+	Email       string `json:"email,omitempty" validate:"email"`
+	Address     string `json:"address,omitempty" validate:"max=255"`
+}
+
+// UpdateTenantRequest represents the request to update tenant information
+type UpdateTenantRequest struct {
+	Name         string `json:"name,omitempty" validate:"omitempty,min=2,max=100"`
+	Description  string `json:"description,omitempty" validate:"max=500"`
+	Phone        string `json:"phone,omitempty" validate:"max=20"`
+	Email        string `json:"email,omitempty" validate:"email"`
+	Address      string `json:"address,omitempty" validate:"max=255"`
+	CustomDomain string `json:"custom_domain,omitempty" validate:"omitempty,fqdn"`
+	Logo         string `json:"logo,omitempty"`
+	Currency     string `json:"currency,omitempty" validate:"omitempty,len=3"`
+	Language     string `json:"language,omitempty" validate:"omitempty,len=2"`
+	Timezone     string `json:"timezone,omitempty"`
+}
+
+// UpdatePlanRequest represents the request to update subscription plan
+type UpdatePlanRequest struct {
+	Plan Plan `json:"plan" validate:"required"`
+}
+
+// TenantStatsResponse represents tenant statistics
+type TenantStatsResponse struct {
+	TenantID        string  `json:"tenant_id"`
+	ProductCount    int64   `json:"product_count"`
+	OrderCount      int64   `json:"order_count"`
+	CustomerCount   int64   `json:"customer_count"`
+	Revenue         float64 `json:"revenue"`
+	StorageUsed     int64   `json:"storage_used_mb"`
+	BandwidthUsed   int64   `json:"bandwidth_used_mb"`
+	StorageLimit    int     `json:"storage_limit_mb"`
+	BandwidthLimit  int     `json:"bandwidth_limit_mb"`
+	ProductLimit    int     `json:"product_limit"`
+	PlanFeatures    []string `json:"plan_features"`
+}
+
+// TenantFilter represents filtering options for tenant listing
+type TenantFilter struct {
+	Status   *Status `json:"status,omitempty"`
+	Plan     *Plan   `json:"plan,omitempty"`
+	Search   string  `json:"search,omitempty"`
+	DateFrom string  `json:"date_from,omitempty"`
+	DateTo   string  `json:"date_to,omitempty"`
+}
+
+// Additional business logic methods
+
+// ValidateBusinessInfo validates that all required business information is complete
+func (t *Tenant) ValidateBusinessInfo() error {
+	if t.Name == "" {
+		return errors.New("business name is required")
+	}
+	if t.Email == "" {
+		return errors.New("business email is required")
+	}
+	if t.Phone == "" {
+		return errors.New("business phone is required")
+	}
+	if t.Address == "" {
+		return errors.New("business address is required")
+	}
+	return nil
+}
+
+// CanUpgradeTo checks if tenant can upgrade to a new plan
+func (t *Tenant) CanUpgradeTo(newPlan Plan) bool {
+	// Define upgrade paths
+	upgradePaths := map[Plan][]Plan{
+		PlanStarter:    {PlanPro, PlanPremium, PlanEnterprise},
+		PlanPro:        {PlanPremium, PlanEnterprise},
+		PlanPremium:    {PlanEnterprise},
+		PlanEnterprise: {}, // Cannot upgrade from enterprise
+	}
+	
+	allowedUpgrades, exists := upgradePaths[t.Plan]
+	if !exists {
+		return false
+	}
+	
+	for _, allowed := range allowedUpgrades {
+		if allowed == newPlan {
+			return true
+		}
+	}
+	return false
+}
+
+// GetFeatureList returns available features for the current plan
+func (t *Tenant) GetFeatureList() []string {
+	features := map[Plan][]string{
+		PlanStarter: {
+			"Basic storefront",
+			"Up to 100 products",
+			"Standard templates",
+			"Basic analytics",
+			"Email support",
+			"SSL certificate",
+			"Payment gateway integration",
+		},
+		PlanPro: {
+			"All Starter features",
+			"Up to 1,000 products",
+			"Advanced analytics",
+			"Custom domain",
+			"Priority support",
+			"Inventory management",
+			"Discount codes",
+			"Abandoned cart recovery",
+		},
+		PlanPremium: {
+			"All Pro features",
+			"Up to 5,000 products",
+			"Multi-language support",
+			"Advanced SEO tools",
+			"API access",
+			"Custom integrations",
+			"Advanced reporting",
+			"24/7 phone support",
+		},
+		PlanEnterprise: {
+			"All Premium features",
+			"Unlimited products",
+			"White-label solution",
+			"Dedicated account manager",
+			"Custom development",
+			"SLA guarantee",
+			"Advanced security",
+			"Multi-store management",
+		},
+	}
+	
+	if planFeatures, exists := features[t.Plan]; exists {
+		return planFeatures
+	}
+	return []string{}
+}
+
+// IsTrialExpired checks if trial period has expired (if applicable)
+func (t *Tenant) IsTrialExpired() bool {
+	// TODO: Implement trial logic when trial system is added
+	// For now, assume no trials
+	return false
+}
+
+// GetBandwidthLimit returns bandwidth limit in MB based on plan
+func (t *Tenant) GetBandwidthLimit() int {
+	limits := map[Plan]int{
+		PlanStarter:    10240,  // 10GB
+		PlanPro:        51200,  // 50GB
+		PlanPremium:    102400, // 100GB
+		PlanEnterprise: 512000, // 500GB
+	}
+	
+	if limit, exists := limits[t.Plan]; exists {
+		return limit
+	}
+	return 10240 // default
+}
+
+// GetDisplayName returns a formatted display name for the tenant
+func (t *Tenant) GetDisplayName() string {
+	if t.Name != "" {
+		return t.Name
+	}
+	return t.Subdomain
+}
+
+// IsBusinessInfoComplete checks if all business information is provided
+func (t *Tenant) IsBusinessInfoComplete() bool {
+	return t.Name != "" && t.Email != "" && t.Phone != "" && t.Address != ""
+}
+
+// CanAccessFeature checks if tenant plan allows access to a specific feature
+func (t *Tenant) CanAccessFeature(feature string) bool {
+	premiumFeatures := []string{"custom_domain", "api_access", "advanced_analytics", "multi_language"}
+	enterpriseFeatures := []string{"white_label", "custom_development", "dedicated_support"}
+	
+	// Check if it's a premium feature
+	for _, f := range premiumFeatures {
+		if f == feature {
+			return t.Plan == PlanPremium || t.Plan == PlanEnterprise
+		}
+	}
+	
+	// Check if it's an enterprise feature
+	for _, f := range enterpriseFeatures {
+		if f == feature {
+			return t.Plan == PlanEnterprise
+		}
+	}
+	
+	// Basic features available to all plans
+	return true
+}

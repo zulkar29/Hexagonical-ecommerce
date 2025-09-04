@@ -3,33 +3,11 @@ package tenant
 import (
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/go-playground/validator/v10"
 )
-
-// Request/Response DTOs
-type CreateTenantRequest struct {
-	Name        string `json:"name" validate:"required,min=2,max=100"`
-	Subdomain   string `json:"subdomain" validate:"required,min=3,max=50,alphanum"`
-	Description string `json:"description,omitempty" validate:"max=500"`
-	Phone       string `json:"phone,omitempty" validate:"max=20"`
-	Email       string `json:"email,omitempty" validate:"email"`
-	Address     string `json:"address,omitempty" validate:"max=255"`
-}
-
-type UpdateTenantRequest struct {
-	Name         string `json:"name,omitempty" validate:"omitempty,min=2,max=100"`
-	Description  string `json:"description,omitempty" validate:"max=500"`
-	Phone        string `json:"phone,omitempty" validate:"max=20"`
-	Email        string `json:"email,omitempty" validate:"email"`
-	Address      string `json:"address,omitempty" validate:"max=255"`
-	CustomDomain string `json:"custom_domain,omitempty" validate:"omitempty,fqdn"`
-}
-
-type UpdatePlanRequest struct {
-	Plan Plan `json:"plan" validate:"required"`
-}
 
 // Service handles tenant business logic
 type Service struct {
@@ -203,6 +181,193 @@ func (s *Service) ActivateTenant(id string) error {
 	return s.repo.UpdateStatus(tenantID, StatusActive)
 }
 
+// GetTenantStats retrieves comprehensive statistics for a tenant
+func (s *Service) GetTenantStats(id string) (*TenantStatsResponse, error) {
+	tenantID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, errors.New("invalid tenant ID")
+	}
+
+	tenant, err := s.repo.FindByID(tenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Integrate with other modules to get actual stats
+	// For now, return basic tenant information
+	stats := &TenantStatsResponse{
+		TenantID:       id,
+		ProductCount:   0, // TODO: Get from product service
+		OrderCount:     0, // TODO: Get from order service
+		CustomerCount:  0, // TODO: Get from user service
+		Revenue:        0, // TODO: Calculate from orders
+		StorageUsed:    0, // TODO: Calculate storage usage
+		BandwidthUsed:  0, // TODO: Calculate bandwidth usage
+		StorageLimit:   tenant.GetStorageLimit(),
+		BandwidthLimit: tenant.GetBandwidthLimit(),
+		ProductLimit:   tenant.ProductLimit,
+		PlanFeatures:   tenant.GetFeatureList(),
+	}
+
+	return stats, nil
+}
+
+// ListTenantsWithFilter returns a filtered and paginated list of tenants
+func (s *Service) ListTenantsWithFilter(filter TenantFilter, offset, limit int) ([]*Tenant, int64, error) {
+	// If no specific filters, use regular list
+	if filter.Status == nil && filter.Plan == nil && filter.Search == "" {
+		return s.repo.List(offset, limit)
+	}
+
+	// Apply status filter
+	if filter.Status != nil {
+		return s.repo.ListByStatus(*filter.Status, offset, limit)
+	}
+
+	// Apply plan filter
+	if filter.Plan != nil {
+		return s.repo.ListByPlan(*filter.Plan, offset, limit)
+	}
+
+	// Apply search filter
+	if filter.Search != "" {
+		return s.repo.Search(filter.Search, offset, limit)
+	}
+
+	return s.repo.List(offset, limit)
+}
+
+// ValidateCustomDomain validates and sets a custom domain for a tenant
+func (s *Service) ValidateCustomDomain(id, domain string) error {
+	tenantID, err := uuid.Parse(id)
+	if err != nil {
+		return errors.New("invalid tenant ID")
+	}
+
+	tenant, err := s.repo.FindByID(tenantID)
+	if err != nil {
+		return err
+	}
+
+	// Check if tenant plan supports custom domains
+	if !tenant.CanUsePremiumFeatures() {
+		return errors.New("custom domain requires premium or enterprise plan")
+	}
+
+	// Normalize domain
+	domain = strings.ToLower(strings.TrimSpace(domain))
+
+	// Check if domain is already taken
+	if exists, err := s.repo.CustomDomainExists(domain); err != nil {
+		return err
+	} else if exists {
+		return errors.New("domain already in use")
+	}
+
+	// TODO: Add DNS validation logic here
+	// - Check if domain points to our servers
+	// - Validate SSL certificate
+	// - Verify ownership
+
+	tenant.CustomDomain = domain
+	_, err = s.repo.Update(tenant)
+	return err
+}
+
+// SuspendTenant suspends a tenant (e.g., for non-payment)
+func (s *Service) SuspendTenant(id string, reason string) error {
+	tenantID, err := uuid.Parse(id)
+	if err != nil {
+		return errors.New("invalid tenant ID")
+	}
+
+	// TODO: Log suspension reason and send notification
+	return s.repo.UpdateStatus(tenantID, StatusSuspended)
+}
+
+// GetPlanUpgradeOptions returns available upgrade options for a tenant
+func (s *Service) GetPlanUpgradeOptions(id string) ([]Plan, error) {
+	tenantID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, errors.New("invalid tenant ID")
+	}
+
+	tenant, err := s.repo.FindByID(tenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get available upgrade options
+	var options []Plan
+	allPlans := []Plan{PlanStarter, PlanPro, PlanPremium, PlanEnterprise}
+	
+	for _, plan := range allPlans {
+		if tenant.CanUpgradeTo(plan) {
+			options = append(options, plan)
+		}
+	}
+
+	return options, nil
+}
+
+// InitializeTenantDefaults sets up default data for a new tenant
+func (s *Service) InitializeTenantDefaults(tenantID uuid.UUID) error {
+	// TODO: This could initialize:
+	// - Default product categories
+	// - Default pages (About, Contact, etc.)
+	// - Default email templates
+	// - Default payment settings
+	// - Sample products (optional)
+
+	// For now, just return success
+	return nil
+}
+
+// CheckSubdomainAvailability checks if a subdomain is available
+func (s *Service) CheckSubdomainAvailability(subdomain string) (bool, error) {
+	subdomain = strings.ToLower(strings.TrimSpace(subdomain))
+	
+	// Validate subdomain format
+	if err := s.validateSubdomain(subdomain); err != nil {
+		return false, err
+	}
+
+	exists, err := s.repo.SubdomainExists(subdomain)
+	return !exists, err
+}
+
+// GetTenantsByPlan returns tenants for a specific plan
+func (s *Service) GetTenantsByPlan(plan Plan, offset, limit int) ([]*Tenant, int64, error) {
+	return s.repo.ListByPlan(plan, offset, limit)
+}
+
+// GetActiveTenantsCount returns the count of active tenants
+func (s *Service) GetActiveTenantsCount() (int64, error) {
+	return s.repo.GetActiveCount()
+}
+
+// UpdateTenantLimits updates tenant limits based on plan
+func (s *Service) UpdateTenantLimits(id string) error {
+	tenantID, err := uuid.Parse(id)
+	if err != nil {
+		return errors.New("invalid tenant ID")
+	}
+
+	tenant, err := s.repo.FindByID(tenantID)
+	if err != nil {
+		return err
+	}
+
+	// Update limits based on current plan
+	tenant.ProductLimit = s.getProductLimitForPlan(tenant.Plan)
+	tenant.StorageLimit = tenant.GetStorageLimit()
+	tenant.BandwidthLimit = tenant.GetBandwidthLimit()
+	tenant.UpdatedAt = time.Now()
+
+	_, err = s.repo.Update(tenant)
+	return err
+}
+
 // Private helper methods
 
 func (s *Service) validateSubdomain(subdomain string) error {
@@ -246,8 +411,11 @@ func (s *Service) getProductLimitForPlan(plan Plan) int {
 	return 100 // default
 }
 
-// TODO: Add more service methods
-// - ValidateCustomDomain(domain string) error
-// - GetUsageStats(tenantID uuid.UUID) (*UsageStats, error)
-// - CalculateBilling(tenantID uuid.UUID, month int, year int) (*BillingInfo, error)
+// TODO: Add integration methods when other modules are ready
+// - GetProductUsage(tenantID uuid.UUID) (int, error)
+// - GetOrderMetrics(tenantID uuid.UUID) (*OrderMetrics, error)
+// - GetStorageUsage(tenantID uuid.UUID) (int64, error)
+// - GetBandwidthUsage(tenantID uuid.UUID) (int64, error)
 // - SendWelcomeEmail(tenant *Tenant) error
+// - SendPlanUpgradeNotification(tenant *Tenant) error
+// - CalculateMonthlyBill(tenantID uuid.UUID) (*BillingInfo, error)

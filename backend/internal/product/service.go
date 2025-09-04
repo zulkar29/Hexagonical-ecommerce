@@ -8,7 +8,7 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-// Request/Response DTOs
+// Request/Response Structures
 type CreateProductRequest struct {
 	Name        string      `json:"name" validate:"required,min=2,max=255"`
 	Description string      `json:"description,omitempty" validate:"max=5000"`

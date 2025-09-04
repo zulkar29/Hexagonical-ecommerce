@@ -11,6 +11,8 @@ import (
 	"ecommerce-saas/internal/tenant"
 	"ecommerce-saas/internal/product"
 	"ecommerce-saas/internal/order"
+	"ecommerce-saas/internal/payment"
+	"ecommerce-saas/internal/notification"
 )
 
 // RouteConfig holds dependencies for route setup
@@ -63,12 +65,22 @@ func SetupRoutes(r *gin.Engine, cfg *RouteConfig) {
 	protected.Use(middleware.AuthMiddleware(cfg.JWTManager))
 	protected.Use(middleware.TenantMiddleware()) // Add tenant resolution middleware
 	{
+		// Setup tenant routes
+		setupTenantRoutes(protected, cfg)
+		
 		// Setup product routes
 		setupProductRoutes(protected, cfg)
 		
+		// Setup order routes
+		setupOrderRoutes(protected, cfg)
+		
+		// Setup payment routes
+		setupPaymentRoutes(protected, cfg)
+		
+		// Setup notification routes
+		setupNotificationRoutes(protected, cfg)
+		
 		// TODO: Add other protected routes here
-		// setupTenantRoutes(protected, cfg)
-		// setupOrderRoutes(protected, cfg)
 		// setupAnalyticsRoutes(protected, cfg)
 		// setupObservabilityRoutes(protected, cfg)
 	}
@@ -87,15 +99,13 @@ func SetupRoutes(r *gin.Engine, cfg *RouteConfig) {
 	// setupAnalyticsRoutes(v1, cfg)
 }
 
-// TODO: Implement other route setup functions
+// Setup tenant routes
 func setupTenantRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	// tenantRepo := tenant.NewRepository(cfg.DB)
-	// tenantService := tenant.NewService(tenantRepo)
-	// tenantHandler := tenant.NewHandler(tenantService)
+	// Initialize tenant module
+	tenantModule := tenant.NewModule(cfg.DB)
 	
-	// tenantGroup := v1.Group("/tenants")
-	// tenantGroup.Use(middleware.AuthMiddleware(cfg.JWTManager))
-	// tenantHandler.RegisterRoutes(tenantGroup)
+	// Register tenant routes
+	tenantModule.Handler.RegisterRoutes(v1)
 }
 
 func setupProductRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
@@ -109,6 +119,9 @@ func setupProductRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 func setupPublicProductRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 	// Initialize product module for public access
 	productModule := product.NewModule(cfg.DB)
+	
+	// Initialize order module for public tracking
+	orderModule := order.NewModule(cfg.DB)
 	
 	// Public product routes (read-only, no auth required)
 	public := v1.Group("")
@@ -126,34 +139,51 @@ func setupPublicProductRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 		public.GET("/categories/root", productModule.Handler.GetRootCategories)
 		public.GET("/categories/:id", productModule.Handler.GetCategory)
 		public.GET("/categories/:id/children", productModule.Handler.GetCategoryChildren)
+		
+		// Public order tracking (no auth required)
+		public.GET("/orders/track/:number", orderModule.Handler.TrackOrder)
+		public.GET("/orders/number/:number", orderModule.Handler.GetOrderByNumber)
 	}
 }
 
 func setupOrderRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	// orderRepo := order.NewRepository(cfg.DB)
-	// orderService := order.NewService(orderRepo)
-	// orderHandler := order.NewHandler(orderService)
+	// Initialize order module
+	orderModule := order.NewModule(cfg.DB)
 	
-	// orderGroup := v1.Group("/orders")
-	// orderGroup.Use(middleware.TenantMiddleware())
-	// orderGroup.Use(middleware.AuthMiddleware(cfg.JWTManager))
-	// orderHandler.RegisterRoutes(orderGroup)
+	// Register order routes
+	orderModule.RegisterRoutes(v1)
+}
+
+func setupPaymentRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
+	// Convert GORM DB to sql.DB for payment module
+	sqlDB, err := cfg.DB.DB()
+	if err != nil {
+		panic("Failed to get sql.DB from GORM: " + err.Error())
+	}
+	
+	// Initialize payment module
+	paymentModule := payment.NewModule(sqlDB)
+	
+	// Register payment routes
+	paymentModule.RegisterRoutes(v1)
+}
+
+func setupNotificationRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
+	// Convert GORM DB to sql.DB for notification module
+	sqlDB, err := cfg.DB.DB()
+	if err != nil {
+		panic("Failed to get sql.DB from GORM: " + err.Error())
+	}
+	
+	// Initialize notification module
+	notificationModule := notification.NewModule(sqlDB)
+	
+	// Register notification routes
+	notificationModule.RegisterRoutes(v1)
 }
 		// analyticsGroup.Use(middleware.TenantMiddleware())
 		// analyticsGroup.Use(middleware.AuthMiddleware())
 		// analyticsHandler.RegisterRoutes(analyticsGroup)
-
-		// TODO: Register payment routes
-		// paymentGroup := v1.Group("/payments")
-		// paymentGroup.Use(middleware.TenantMiddleware())
-		// paymentGroup.Use(middleware.AuthMiddleware())
-		// paymentHandler.RegisterRoutes(paymentGroup)
-
-		// TODO: Register notification routes
-		// notificationGroup := v1.Group("/notifications")
-		// notificationGroup.Use(middleware.TenantMiddleware())
-		// notificationGroup.Use(middleware.AuthMiddleware())
-		// notificationHandler.RegisterRoutes(notificationGroup)
 	}
 
 	// Public routes (no auth required)
@@ -168,7 +198,21 @@ func setupOrderRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 	// Webhook routes
 	webhooks := r.Group("/webhooks")
 	{
-		// TODO: Add webhook handlers for payments, notifications, etc.
+		// Convert GORM DB to sql.DB for payment module
+		sqlDB, err := cfg.DB.DB()
+		if err != nil {
+			panic("Failed to get sql.DB from GORM: " + err.Error())
+		}
+		
+		// Initialize payment module for webhooks
+		paymentModule := payment.NewModule(sqlDB)
+		
+		// Payment webhooks
+		webhooks.POST("/sslcommerz", paymentModule.GetHandler().HandleSSLCommerzWebhook)
+		webhooks.POST("/bkash", paymentModule.GetHandler().HandleBkashWebhook)
+		webhooks.POST("/nagad", paymentModule.GetHandler().HandleNagadWebhook)
+		
+		// Legacy webhook handlers (keeping for backward compatibility)
 		webhooks.POST("/stripe", func(c *gin.Context) {
 			c.JSON(200, gin.H{"message": "Stripe webhook"})
 		})

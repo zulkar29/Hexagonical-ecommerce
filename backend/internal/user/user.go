@@ -190,7 +190,7 @@ func (p *Permission) GetPermissionKey() string {
 	return p.Resource + ":" + p.Action
 }
 
-// Request/Response DTOs
+// Request/Response Structures
 
 // RegisterRequest represents user registration request
 type RegisterRequest struct {

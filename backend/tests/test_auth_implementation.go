@@ -27,7 +27,7 @@ func main() {
 	fmt.Println("")
 	fmt.Println("📁 File Structure:")
 	fmt.Println("  ├── internal/user/")
-	fmt.Println("  │   ├── user.go         # Domain models and DTOs")
+	fmt.Println("  │   ├── user.go         # Domain models and request/response structs")
 	fmt.Println("  │   ├── service.go      # Business logic")
 	fmt.Println("  │   ├── repository.go   # Database operations")
 	fmt.Println("  │   └── handler.go      # HTTP endpoints")
