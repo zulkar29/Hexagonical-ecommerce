@@ -9,14 +9,44 @@ import (
 	"gorm.io/gorm"
 )
 
-// Repository handles order data operations
-type Repository struct {
+// Repository interface defines order data operations
+type Repository interface {
+	// Order operations
+	CreateOrder(order *Order) (*Order, error)
+	GetOrderByID(tenantID, orderID uuid.UUID) (*Order, error)
+	GetOrderByNumber(tenantID uuid.UUID, orderNumber string) (*Order, error)
+	UpdateOrder(order *Order) (*Order, error)
+	ListOrders(tenantID uuid.UUID, filter OrderFilter, offset, limit int) ([]*Order, int64, error)
+	DeleteOrder(tenantID, orderID uuid.UUID) error
+	
+	// Order statistics
+	GetOrderStats(tenantID uuid.UUID) (map[string]interface{}, error)
+	GetOrdersByCustomer(tenantID, customerID uuid.UUID) ([]*Order, error)
+	GetOrdersByDateRange(tenantID uuid.UUID, start, end time.Time) ([]*Order, error)
+	GetTopCustomers(tenantID uuid.UUID, limit int) ([]map[string]interface{}, error)
+	
+	// Order item operations
+	CreateOrderItem(item *OrderItem) (*OrderItem, error)
+	UpdateOrderItem(item *OrderItem) (*OrderItem, error)
+	DeleteOrderItem(orderID, itemID uuid.UUID) error
+	
+	// Order history operations
+	CreateOrderHistory(history *OrderHistory) (*OrderHistory, error)
+	GetOrderHistory(tenantID, orderID uuid.UUID) ([]*OrderHistory, error)
+	GetOrderTimeline(tenantID, orderID uuid.UUID) ([]*OrderHistory, error)
+	
+	// Utility operations
+	GetLowStockAlert(tenantID uuid.UUID, threshold int) ([]*OrderItem, error)
+}
+
+// repository handles order data operations
+type repository struct {
 	db *gorm.DB
 }
 
 // NewRepository creates a new order repository
-func NewRepository(db *gorm.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(db *gorm.DB) Repository {
+	return &repository{db: db}
 }
 
 // OrderFilter represents filters for order queries
@@ -34,7 +64,7 @@ type OrderFilter struct {
 }
 
 // CreateOrder saves a new order to the database
-func (r *Repository) CreateOrder(order *Order) (*Order, error) {
+func (r *repository) CreateOrder(order *Order) (*Order, error) {
 	if err := r.db.Create(order).Error; err != nil {
 		return nil, fmt.Errorf("failed to create order: %w", err)
 	}
@@ -42,7 +72,7 @@ func (r *Repository) CreateOrder(order *Order) (*Order, error) {
 }
 
 // GetOrderByID retrieves an order by ID with items preloaded
-func (r *Repository) GetOrderByID(tenantID, orderID uuid.UUID) (*Order, error) {
+func (r *repository) GetOrderByID(tenantID, orderID uuid.UUID) (*Order, error) {
 	var order Order
 	err := r.db.Where("tenant_id = ? AND id = ?", tenantID, orderID).
 		Preload("Items").
@@ -59,7 +89,7 @@ func (r *Repository) GetOrderByID(tenantID, orderID uuid.UUID) (*Order, error) {
 }
 
 // GetOrderByNumber retrieves an order by order number
-func (r *Repository) GetOrderByNumber(tenantID uuid.UUID, orderNumber string) (*Order, error) {
+func (r *repository) GetOrderByNumber(tenantID uuid.UUID, orderNumber string) (*Order, error) {
 	var order Order
 	err := r.db.Where("tenant_id = ? AND order_number = ?", tenantID, orderNumber).
 		Preload("Items").
@@ -76,7 +106,7 @@ func (r *Repository) GetOrderByNumber(tenantID uuid.UUID, orderNumber string) (*
 }
 
 // UpdateOrder updates an existing order
-func (r *Repository) UpdateOrder(order *Order) (*Order, error) {
+func (r *repository) UpdateOrder(order *Order) (*Order, error) {
 	if err := r.db.Save(order).Error; err != nil {
 		return nil, fmt.Errorf("failed to update order: %w", err)
 	}
@@ -84,7 +114,7 @@ func (r *Repository) UpdateOrder(order *Order) (*Order, error) {
 }
 
 // ListOrders retrieves orders with filtering and pagination
-func (r *Repository) ListOrders(tenantID uuid.UUID, filter OrderFilter, offset, limit int) ([]*Order, int64, error) {
+func (r *repository) ListOrders(tenantID uuid.UUID, filter OrderFilter, offset, limit int) ([]*Order, int64, error) {
 	query := r.db.Where("tenant_id = ?", tenantID)
 	
 	// Apply filters
@@ -154,7 +184,7 @@ func (r *Repository) ListOrders(tenantID uuid.UUID, filter OrderFilter, offset, 
 }
 
 // GetOrderStats retrieves order statistics for a tenant
-func (r *Repository) GetOrderStats(tenantID uuid.UUID) (map[string]interface{}, error) {
+func (r *repository) GetOrderStats(tenantID uuid.UUID) (map[string]interface{}, error) {
 	stats := make(map[string]interface{})
 	
 	// Total orders count
@@ -209,7 +239,7 @@ func (r *Repository) GetOrderStats(tenantID uuid.UUID) (map[string]interface{}, 
 }
 
 // GetOrdersByCustomer retrieves orders for a specific customer
-func (r *Repository) GetOrdersByCustomer(tenantID, customerID uuid.UUID) ([]*Order, error) {
+func (r *repository) GetOrdersByCustomer(tenantID, customerID uuid.UUID) ([]*Order, error) {
 	var orders []*Order
 	err := r.db.Where("tenant_id = ? AND user_id = ?", tenantID, customerID).
 		Preload("Items").
@@ -224,7 +254,7 @@ func (r *Repository) GetOrdersByCustomer(tenantID, customerID uuid.UUID) ([]*Ord
 }
 
 // GetOrdersByDateRange retrieves orders within a date range
-func (r *Repository) GetOrdersByDateRange(tenantID uuid.UUID, start, end time.Time) ([]*Order, error) {
+func (r *repository) GetOrdersByDateRange(tenantID uuid.UUID, start, end time.Time) ([]*Order, error) {
 	var orders []*Order
 	err := r.db.Where("tenant_id = ? AND created_at BETWEEN ? AND ?", tenantID, start, end).
 		Preload("Items").
@@ -239,7 +269,7 @@ func (r *Repository) GetOrdersByDateRange(tenantID uuid.UUID, start, end time.Ti
 }
 
 // DeleteOrder soft deletes an order
-func (r *Repository) DeleteOrder(tenantID, orderID uuid.UUID) error {
+func (r *repository) DeleteOrder(tenantID, orderID uuid.UUID) error {
 	result := r.db.Where("tenant_id = ? AND id = ?", tenantID, orderID).Delete(&Order{})
 	if result.Error != nil {
 		return fmt.Errorf("failed to delete order: %w", result.Error)
@@ -253,7 +283,7 @@ func (r *Repository) DeleteOrder(tenantID, orderID uuid.UUID) error {
 }
 
 // CreateOrderItem adds an item to an order
-func (r *Repository) CreateOrderItem(item *OrderItem) (*OrderItem, error) {
+func (r *repository) CreateOrderItem(item *OrderItem) (*OrderItem, error) {
 	if err := r.db.Create(item).Error; err != nil {
 		return nil, fmt.Errorf("failed to create order item: %w", err)
 	}
@@ -261,7 +291,7 @@ func (r *Repository) CreateOrderItem(item *OrderItem) (*OrderItem, error) {
 }
 
 // UpdateOrderItem updates an order item
-func (r *Repository) UpdateOrderItem(item *OrderItem) (*OrderItem, error) {
+func (r *repository) UpdateOrderItem(item *OrderItem) (*OrderItem, error) {
 	if err := r.db.Save(item).Error; err != nil {
 		return nil, fmt.Errorf("failed to update order item: %w", err)
 	}
@@ -269,7 +299,7 @@ func (r *Repository) UpdateOrderItem(item *OrderItem) (*OrderItem, error) {
 }
 
 // DeleteOrderItem removes an item from an order
-func (r *Repository) DeleteOrderItem(orderID, itemID uuid.UUID) error {
+func (r *repository) DeleteOrderItem(orderID, itemID uuid.UUID) error {
 	result := r.db.Where("order_id = ? AND id = ?", orderID, itemID).Delete(&OrderItem{})
 	if result.Error != nil {
 		return fmt.Errorf("failed to delete order item: %w", result.Error)
@@ -283,7 +313,7 @@ func (r *Repository) DeleteOrderItem(orderID, itemID uuid.UUID) error {
 }
 
 // GetTopCustomers retrieves top customers by order value
-func (r *Repository) GetTopCustomers(tenantID uuid.UUID, limit int) ([]map[string]interface{}, error) {
+func (r *repository) GetTopCustomers(tenantID uuid.UUID, limit int) ([]map[string]interface{}, error) {
 	var customers []map[string]interface{}
 	
 	err := r.db.Model(&Order{}).
@@ -302,10 +332,39 @@ func (r *Repository) GetTopCustomers(tenantID uuid.UUID, limit int) ([]map[strin
 }
 
 // GetLowStockAlert retrieves orders with items that have low stock
-func (r *Repository) GetLowStockAlert(tenantID uuid.UUID, threshold int) ([]*OrderItem, error) {
+func (r *repository) GetLowStockAlert(tenantID uuid.UUID, threshold int) ([]*OrderItem, error) {
 	var items []*OrderItem
 	
 	// This would need to join with product inventory
 	// For now, return empty slice as products module handles inventory
 	return items, nil
+}
+
+// CreateOrderHistory creates a new order history entry
+func (r *repository) CreateOrderHistory(history *OrderHistory) (*OrderHistory, error) {
+	if err := r.db.Create(history).Error; err != nil {
+		return nil, fmt.Errorf("failed to create order history: %w", err)
+	}
+	return history, nil
+}
+
+// GetOrderHistory retrieves all history entries for an order
+func (r *repository) GetOrderHistory(tenantID, orderID uuid.UUID) ([]*OrderHistory, error) {
+	var history []*OrderHistory
+	err := r.db.Where("order_id = ?", orderID).
+		Joins("JOIN orders ON order_histories.order_id = orders.id").
+		Where("orders.tenant_id = ?", tenantID).
+		Order("order_histories.created_at ASC").
+		Find(&history).Error
+	
+	if err != nil {
+		return nil, fmt.Errorf("failed to get order history: %w", err)
+	}
+	
+	return history, nil
+}
+
+// GetOrderTimeline retrieves order timeline (same as history but with different semantic meaning)
+func (r *repository) GetOrderTimeline(tenantID, orderID uuid.UUID) ([]*OrderHistory, error) {
+	return r.GetOrderHistory(tenantID, orderID)
 }

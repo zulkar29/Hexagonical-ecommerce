@@ -1,8 +1,10 @@
 package order
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -462,6 +464,13 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		orders.GET("/stats", h.GetOrderStats)
 		orders.GET("/my-orders", h.GetCustomerOrders)
 		
+		// Export/Import
+		orders.GET("/export", h.ExportOrders)
+		orders.POST("/import", h.ImportOrders)
+		
+		// Bulk operations
+		orders.PATCH("/bulk", h.BulkUpdateOrders)
+		
 		orders.GET("/:id", h.GetOrder)
 		orders.PATCH("/:id/status", h.UpdateOrderStatus)
 		orders.POST("/:id/cancel", h.CancelOrder)
@@ -475,9 +484,168 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	}
 }
 
+// ExportOrders exports orders to CSV or Excel format
+// @Summary Export orders
+// @Description Export orders to CSV or Excel format with optional filters
+// @Tags orders
+// @Produce application/octet-stream
+// @Param format query string true "Export format (csv or excel)"
+// @Param status query string false "Filter by status"
+// @Param payment_status query string false "Filter by payment status"
+// @Param from_date query string false "Filter from date (YYYY-MM-DD)"
+// @Param to_date query string false "Filter to date (YYYY-MM-DD)"
+// @Success 200 {file} file "Exported file"
+// @Failure 400 {object} map[string]interface{}
+// @Router /orders/export [get]
+func (h *Handler) ExportOrders(c *gin.Context) {
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant context required"})
+		return
+	}
+
+	// Get export format
+	format := c.DefaultQuery("format", "csv")
+	if format != "csv" && format != "excel" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "format must be 'csv' or 'excel'"})
+		return
+	}
+
+	// Build filters
+	filters := make(map[string]interface{})
+	if status := c.Query("status"); status != "" {
+		filters["status"] = status
+	}
+	if paymentStatus := c.Query("payment_status"); paymentStatus != "" {
+		filters["payment_status"] = paymentStatus
+	}
+	if fromDate := c.Query("from_date"); fromDate != "" {
+		filters["from_date"] = fromDate
+	}
+	if toDate := c.Query("to_date"); toDate != "" {
+		filters["to_date"] = toDate
+	}
+
+	// Export orders
+	data, filename, err := h.service.ExportOrders(tenantID.(uuid.UUID), format, filters)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Set appropriate content type and headers
+	var contentType string
+	if format == "csv" {
+		contentType = "text/csv"
+	} else {
+		contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	}
+
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	c.Header("Content-Type", contentType)
+	c.Header("Content-Length", fmt.Sprintf("%d", len(data)))
+	c.Data(http.StatusOK, contentType, data)
+}
+
+// ImportOrders imports orders from CSV format
+// @Summary Import orders
+// @Description Import orders from CSV file
+// @Tags orders
+// @Accept multipart/form-data
+// @Produce json
+// @Param file formData file true "CSV file to import"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Router /orders/import [post]
+func (h *Handler) ImportOrders(c *gin.Context) {
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant context required"})
+		return
+	}
+
+	// Get uploaded file
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "file is required"})
+		return
+	}
+	defer file.Close()
+
+	// Validate file type
+	if !strings.HasSuffix(strings.ToLower(header.Filename), ".csv") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "only CSV files are supported"})
+		return
+	}
+
+	// Read file content
+	data := make([]byte, header.Size)
+	_, err = file.Read(data)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to read file"})
+		return
+	}
+
+	// Import orders
+	result, err := h.service.ImportOrders(tenantID.(uuid.UUID), data, "csv")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Import completed",
+		"result":  result,
+	})
+}
+
+// BulkUpdateOrders performs bulk operations on multiple orders
+// @Summary Bulk update orders
+// @Description Perform bulk operations (status update, cancel, refund) on multiple orders
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param request body BulkUpdateOrdersRequest true "Bulk update request"
+// @Success 200 {object} BulkUpdateResult
+// @Failure 400 {object} map[string]interface{}
+// @Router /orders/bulk [patch]
+func (h *Handler) BulkUpdateOrders(c *gin.Context) {
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant context required"})
+		return
+	}
+
+	var req BulkUpdateOrdersRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate request
+	if len(req.OrderIDs) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "order_ids is required"})
+		return
+	}
+
+	if len(req.OrderIDs) > 100 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "maximum 100 orders can be updated at once"})
+		return
+	}
+
+	// Perform bulk update
+	result, err := h.service.BulkUpdateOrders(tenantID.(uuid.UUID), req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Bulk update completed",
+		"result":  result,
+	})
+}
+
 // TODO: Add more handlers
-// - ExportOrders(c *gin.Context) - Export orders to CSV/Excel
-// - ImportOrders(c *gin.Context) - Import orders from CSV
-// - BulkUpdateOrders(c *gin.Context) - Bulk update multiple orders
 // - GetOrderTimeline(c *gin.Context) - Get order status history
 // - SendOrderNotification(c *gin.Context) - Send custom notifications

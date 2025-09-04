@@ -88,7 +88,8 @@ type Order struct {
 	DeliveredAt *time.Time `json:"delivered_at,omitempty"`
 	
 	// Relations
-	Items []OrderItem `json:"items,omitempty" gorm:"foreignKey:OrderID"`
+	Items   []OrderItem    `json:"items,omitempty" gorm:"foreignKey:OrderID"`
+	History []OrderHistory `json:"history,omitempty" gorm:"foreignKey:OrderID"`
 }
 
 // OrderItem represents an item in an order
@@ -122,6 +123,44 @@ type Address struct {
 	PostalCode string `json:"postal_code,omitempty"`
 	Country   string `json:"country" gorm:"default:BD"`
 	Phone     string `json:"phone,omitempty"`
+}
+
+// OrderHistory represents the history/timeline of order status changes
+type OrderHistory struct {
+	ID       uuid.UUID `json:"id" gorm:"primarykey"`
+	OrderID  uuid.UUID `json:"order_id" gorm:"not null;index"`
+	TenantID uuid.UUID `json:"tenant_id" gorm:"not null;index"`
+	
+	// Status information
+	FromStatus OrderStatus `json:"from_status,omitempty"`
+	ToStatus   OrderStatus `json:"to_status" gorm:"not null"`
+	
+	// Payment status changes
+	FromPaymentStatus PaymentStatus `json:"from_payment_status,omitempty"`
+	ToPaymentStatus   PaymentStatus `json:"to_payment_status,omitempty"`
+	
+	// Fulfillment status changes
+	FromFulfillmentStatus FulfillmentStatus `json:"from_fulfillment_status,omitempty"`
+	ToFulfillmentStatus   FulfillmentStatus `json:"to_fulfillment_status,omitempty"`
+	
+	// Change details
+	Action      string `json:"action" gorm:"not null"` // created, status_changed, cancelled, refunded, etc.
+	Description string `json:"description,omitempty"`
+	Reason      string `json:"reason,omitempty"`
+	Notes       string `json:"notes,omitempty"`
+	
+	// User who made the change
+	ChangedBy     *uuid.UUID `json:"changed_by,omitempty" gorm:"index"`
+	ChangedByType string     `json:"changed_by_type,omitempty"` // customer, admin, system
+	
+	// Additional data (JSON)
+	Metadata map[string]interface{} `json:"metadata,omitempty" gorm:"type:jsonb"`
+	
+	// Timestamps
+	CreatedAt time.Time `json:"created_at"`
+	
+	// Relations
+	Order *Order `json:"order,omitempty" gorm:"foreignKey:OrderID"`
 }
 
 // Business Logic Methods for Order
@@ -367,4 +406,118 @@ func (o *Order) RequiresAction() bool {
 	return (o.Status == StatusPending && o.IsExpired()) ||
 		   (o.Status == StatusConfirmed && o.PaymentStatus == PaymentPending) ||
 		   (o.Status == StatusProcessing && o.FulfillmentStatus == FulfillmentPending)
+}
+
+// GetTimeline returns the order timeline sorted by creation date
+func (o *Order) GetTimeline() []OrderHistory {
+	if len(o.History) == 0 {
+		return []OrderHistory{}
+	}
+	
+	// History is already sorted by CreatedAt in repository queries
+	return o.History
+}
+
+// GetLatestHistoryEntry returns the most recent history entry
+func (o *Order) GetLatestHistoryEntry() *OrderHistory {
+	if len(o.History) == 0 {
+		return nil
+	}
+	return &o.History[len(o.History)-1]
+}
+
+// Business Logic Methods for OrderHistory
+
+// IsStatusChange checks if this history entry represents a status change
+func (oh *OrderHistory) IsStatusChange() bool {
+	return oh.FromStatus != oh.ToStatus && oh.ToStatus != ""
+}
+
+// IsPaymentStatusChange checks if this history entry represents a payment status change
+func (oh *OrderHistory) IsPaymentStatusChange() bool {
+	return oh.FromPaymentStatus != oh.ToPaymentStatus && oh.ToPaymentStatus != ""
+}
+
+// IsFulfillmentStatusChange checks if this history entry represents a fulfillment status change
+func (oh *OrderHistory) IsFulfillmentStatusChange() bool {
+	return oh.FromFulfillmentStatus != oh.ToFulfillmentStatus && oh.ToFulfillmentStatus != ""
+}
+
+// GetChangeDescription returns a human-readable description of the change
+func (oh *OrderHistory) GetChangeDescription() string {
+	if oh.Description != "" {
+		return oh.Description
+	}
+	
+	// Generate description based on action
+	switch oh.Action {
+	case "created":
+		return "Order was created"
+	case "status_changed":
+		if oh.IsStatusChange() {
+			return fmt.Sprintf("Status changed from %s to %s", oh.FromStatus, oh.ToStatus)
+		}
+	case "payment_status_changed":
+		if oh.IsPaymentStatusChange() {
+			return fmt.Sprintf("Payment status changed from %s to %s", oh.FromPaymentStatus, oh.ToPaymentStatus)
+		}
+	case "fulfillment_status_changed":
+		if oh.IsFulfillmentStatusChange() {
+			return fmt.Sprintf("Fulfillment status changed from %s to %s", oh.FromFulfillmentStatus, oh.ToFulfillmentStatus)
+		}
+	case "cancelled":
+		return "Order was cancelled"
+	case "refunded":
+		return "Order was refunded"
+	case "shipped":
+		return "Order was shipped"
+	case "delivered":
+		return "Order was delivered"
+	default:
+		return oh.Action
+	}
+	
+	return oh.Action
+}
+
+// GetChangeSummary returns a summary of all changes in this history entry
+func (oh *OrderHistory) GetChangeSummary() map[string]interface{} {
+	summary := map[string]interface{}{
+		"action":      oh.Action,
+		"description": oh.GetChangeDescription(),
+		"created_at":  oh.CreatedAt,
+		"changed_by":  oh.ChangedBy,
+		"changed_by_type": oh.ChangedByType,
+	}
+	
+	if oh.Reason != "" {
+		summary["reason"] = oh.Reason
+	}
+	
+	if oh.Notes != "" {
+		summary["notes"] = oh.Notes
+	}
+	
+	if oh.IsStatusChange() {
+		summary["status_change"] = map[string]interface{}{
+			"from": oh.FromStatus,
+			"to":   oh.ToStatus,
+		}
+	}
+	
+	if oh.IsPaymentStatusChange() {
+		summary["payment_status_change"] = map[string]interface{}{
+			"from": oh.FromPaymentStatus,
+			"to":   oh.ToPaymentStatus,
+		}
+	}
+	
+	if oh.IsFulfillmentStatusChange() {
+		summary["fulfillment_status_change"] = map[string]interface{}{
+			"from": oh.FromFulfillmentStatus,
+			"to":   oh.ToFulfillmentStatus,
+		}
+	}
+	
+	return summary
 }

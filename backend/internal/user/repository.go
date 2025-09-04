@@ -1,7 +1,5 @@
 package user
 
-package user
-
 import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -176,20 +174,3 @@ func (r *repository) CheckUserPermission(userID uuid.UUID, resource, action stri
 
 	return count > 0, err
 }
-
-type Repository struct {
-	// db *gorm.DB
-}
-
-// TODO: Add repository methods
-// - SaveUser(user *User) (*User, error)
-// - FindUserByID(id uuid.UUID) (*User, error)
-// - FindUserByEmail(email string) (*User, error)
-// - UpdateUser(user *User) (*User, error)
-// - DeleteUser(id uuid.UUID) error
-// - ListUsers(tenantID uuid.UUID, filter UserFilter, offset, limit int) ([]*User, int64, error)
-// - SaveSession(session *UserSession) (*UserSession, error)
-// - FindSessionByToken(token string) (*UserSession, error)
-// - InvalidateUserSessions(userID uuid.UUID) error
-// - GetUserPermissions(userID uuid.UUID) ([]*Permission, error)
-// - CheckUserPermission(userID uuid.UUID, resource, action string) (bool, error)

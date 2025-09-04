@@ -129,7 +129,7 @@ type Category struct {
 
 // IsAvailable checks if product is available for purchase
 func (p *Product) IsAvailable() bool {
-	if p.Status != StatusActive {
+	if p.Status != ProductStatusActive {
 		return false
 	}
 	
@@ -394,7 +394,7 @@ func (p *Product) GetInventoryStatus() string {
 
 // CanPurchase checks if product can be purchased
 func (p *Product) CanPurchase(quantity int) bool {
-	if p.Status != StatusActive {
+	if p.Status != ProductStatusActive {
 		return false
 	}
 	

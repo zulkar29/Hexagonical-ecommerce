@@ -338,13 +338,119 @@ func (s *service) DeleteDiscount(ctx context.Context, tenantID, discountID uuid.
 }
 
 func (s *service) ValidateDiscountCode(ctx context.Context, req ValidateDiscountRequest) (*DiscountValidation, error) {
-	// TODO: Implement comprehensive discount validation
-	return nil, fmt.Errorf("TODO: implement ValidateDiscountCode")
+	// Get discount by code
+	discount, err := s.repo.GetDiscountByCode(ctx, uuid.Nil, req.Code) // TODO: Add tenantID to request
+	if err != nil {
+		return &DiscountValidation{
+			Valid:   false,
+			Message: "Invalid discount code",
+		}, nil
+	}
+
+	// Check if discount is active
+	if !discount.IsActive() {
+		return &DiscountValidation{
+			Valid:   false,
+			Message: "Discount code is not active",
+		}, nil
+	}
+
+	// Check customer eligibility
+	if req.CustomerID != nil && !discount.CanUseDiscount(req.CustomerID, req.CustomerEmail, 0) {
+		return &DiscountValidation{
+			Valid:   false,
+			Message: "You are not eligible for this discount",
+		}, nil
+	}
+
+	// Calculate discount amount
+	discountAmount, err := discount.CalculateDiscount(req.OrderAmount, req.ItemQuantity)
+	if err != nil {
+		return &DiscountValidation{
+			Valid:   false,
+			Message: err.Error(),
+		}, nil
+	}
+
+	// Check remaining usage
+	var remainingUsage *int
+	if discount.UsageLimit != nil {
+		remaining := *discount.UsageLimit - discount.UsageCount
+		remainingUsage = &remaining
+		if remaining <= 0 {
+			return &DiscountValidation{
+				Valid:   false,
+				Message: "Discount usage limit exceeded",
+			}, nil
+		}
+	}
+
+	return &DiscountValidation{
+		Valid:          true,
+		Discount:       discount,
+		DiscountAmount: discountAmount,
+		Message:        "Discount code is valid",
+		RemainingUsage: remainingUsage,
+		CanStack:       discount.Stackable,
+	}, nil
 }
 
 func (s *service) ApplyDiscount(ctx context.Context, req ApplyDiscountRequest) (*DiscountApplication, error) {
-	// TODO: Implement discount application with usage tracking
-	return nil, fmt.Errorf("TODO: implement ApplyDiscount")
+	// First validate the discount code
+	validationReq := ValidateDiscountRequest{
+		Code:          req.Code,
+		CustomerID:    req.CustomerID,
+		CustomerEmail: req.CustomerEmail,
+		OrderAmount:   req.OrderAmount,
+		ItemQuantity:  req.ItemQuantity,
+		ProductIDs:    req.ProductIDs,
+		CategoryIDs:   req.CategoryIDs,
+	}
+
+	validation, err := s.ValidateDiscountCode(ctx, validationReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to validate discount: %w", err)
+	}
+
+	if !validation.Valid {
+		return &DiscountApplication{
+			Applied: false,
+			Message: validation.Message,
+		}, nil
+	}
+
+	// Create discount usage record
+	usage := &DiscountUsage{
+		ID:            uuid.New(),
+		DiscountID:    validation.Discount.ID,
+		TenantID:      req.TenantID,
+		OrderID:       req.OrderID,
+		OrderNumber:   "", // Will be set by order service
+		CustomerID:    req.CustomerID,
+		CustomerEmail: req.CustomerEmail,
+		DiscountAmount: validation.DiscountAmount,
+		IPAddress:     req.IPAddress,
+		UserAgent:     req.UserAgent,
+		CreatedAt:     time.Now(),
+	}
+
+	// Record the usage
+	if err := s.RecordDiscountUsage(ctx, usage); err != nil {
+		return nil, fmt.Errorf("failed to record discount usage: %w", err)
+	}
+
+	// Update discount usage count
+	if err := s.repo.IncrementUsageCount(ctx, req.TenantID, validation.Discount.ID); err != nil {
+		return nil, fmt.Errorf("failed to update discount usage count: %w", err)
+	}
+
+	return &DiscountApplication{
+		Applied:        true,
+		Discount:       validation.Discount,
+		DiscountAmount: validation.DiscountAmount,
+		Usage:          usage,
+		Message:        "Discount applied successfully",
+	}, nil
 }
 
 func (s *service) RemoveDiscount(ctx context.Context, tenantID uuid.UUID, orderID uuid.UUID) error {

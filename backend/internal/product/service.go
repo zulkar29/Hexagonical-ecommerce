@@ -117,12 +117,12 @@ type ProductListFilter struct {
 
 // Service handles product business logic
 type Service struct {
-	repo      *Repository
+	repo      Repository
 	validator *validator.Validate
 }
 
 // NewService creates a new product service
-func NewService(repo *Repository) *Service {
+func NewService(repo Repository) *Service {
 	return &Service{
 		repo:      repo,
 		validator: validator.New(),
@@ -168,7 +168,7 @@ func (s *Service) CreateProduct(tenantID uuid.UUID, req CreateProductRequest) (*
 		Slug:              slug,
 		Description:       strings.TrimSpace(req.Description),
 		Type:              req.Type,
-		Status:            StatusDraft,
+		Status:            ProductStatusDraft,
 		Price:             req.Price,
 		ComparePrice:      req.ComparePrice,
 		CostPrice:         req.CostPrice,
@@ -410,21 +410,59 @@ func (s *Service) ListCategories(tenantID uuid.UUID) ([]*Category, error) {
 // Private helper methods
 
 func (s *Service) generateSlug(name string) string {
-	// Simple slug generation - in production, use a proper slug library
-	slug := strings.ToLower(name)
+	// Convert to lowercase and replace spaces with hyphens
+	slug := strings.ToLower(strings.TrimSpace(name))
 	slug = strings.ReplaceAll(slug, " ", "-")
-	// Remove special characters
-	// TODO: Implement proper slug generation with regex
+	
+	// Remove special characters using regex-like approach
+	var result strings.Builder
+	for _, r := range slug {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
+			result.WriteRune(r)
+		}
+	}
+	
+	slug = result.String()
+	
+	// Remove multiple consecutive hyphens
+	for strings.Contains(slug, "--") {
+		slug = strings.ReplaceAll(slug, "--", "-")
+	}
+	
+	// Remove leading and trailing hyphens
+	slug = strings.Trim(slug, "-")
+	
+	// Ensure slug is not empty
+	if slug == "" {
+		slug = "product"
+	}
+	
 	return slug
 }
 
 func (s *Service) generateUniqueSlug(tenantID uuid.UUID, baseSlug string) string {
-	// TODO: Implement unique slug generation by appending numbers
+	// Try appending numbers 1, 2, 3, etc.
+	for i := 1; i <= 100; i++ {
+		newSlug := fmt.Sprintf("%s-%d", baseSlug, i)
+		if exists, err := s.repo.SlugExists(tenantID, newSlug); err == nil && !exists {
+			return newSlug
+		}
+	}
+	
+	// Fallback to UUID if all numbers are taken
 	return baseSlug + "-" + uuid.New().String()[:8]
 }
 
 func (s *Service) generateUniqueCategorySlug(tenantID uuid.UUID, baseSlug string) string {
-	// TODO: Implement unique category slug generation
+	// Try appending numbers 1, 2, 3, etc.
+	for i := 1; i <= 100; i++ {
+		newSlug := fmt.Sprintf("%s-%d", baseSlug, i)
+		if exists, err := s.repo.CategorySlugExists(tenantID, newSlug); err == nil && !exists {
+			return newSlug
+		}
+	}
+	
+	// Fallback to UUID if all numbers are taken
 	return baseSlug + "-" + uuid.New().String()[:8]
 }
 
@@ -505,7 +543,7 @@ func (s *Service) DuplicateProduct(tenantID uuid.UUID, productIDStr string) (*Pr
 		Slug:              s.generateUniqueSlug(tenantID, original.Slug+"-copy"),
 		Description:       original.Description,
 		Type:              original.Type,
-		Status:            StatusDraft, // Always create as draft
+		Status:            ProductStatusDraft, // Always create as draft
 		Price:             original.Price,
 		ComparePrice:      original.ComparePrice,
 		CostPrice:         original.CostPrice,
@@ -557,10 +595,10 @@ func (s *Service) UpdateProductStatus(tenantID uuid.UUID, productIDStr string, s
 
 	// Validate status
 	validStatuses := map[ProductStatus]bool{
-		StatusDraft:     true,
-		StatusActive:    true,
-		StatusInactive:  true,
-		StatusArchived:  true,
+		ProductStatusDraft:     true,
+		ProductStatusActive:    true,
+		ProductStatusInactive:  true,
+		ProductStatusArchived:  true,
 	}
 
 	if !validStatuses[status] {

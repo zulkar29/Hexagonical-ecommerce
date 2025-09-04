@@ -8,25 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-)
-
-// TODO: Implement authentication middleware
-// This will handle:
-// - JWT token validation
-// - User session management
-// - Permission checking
-// - Rate limiting
-
-package middleware
-
-import (
-	"fmt"
-	"net/http"
-	"strings"
-	"time"
-
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	
 	"ecommerce-saas/internal/shared/utils"
 )
@@ -134,7 +115,6 @@ func CORSMiddleware(allowedOrigins, allowedMethods, allowedHeaders []string, all
 // TenantMiddleware ensures the request has valid tenant context
 func TenantMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// TODO: Implement tenant validation
 		host := c.GetHeader("Host")
 		if host == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Host header required"})
@@ -142,7 +122,23 @@ func TenantMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// TODO: Parse subdomain and validate tenant
+		// Parse subdomain from host
+		parts := strings.Split(host, ".")
+		if len(parts) < 2 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid host format"})
+			c.Abort()
+			return
+		}
+
+		subdomain := parts[0]
+		if subdomain == "" || subdomain == "www" || subdomain == "api" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant subdomain"})
+			c.Abort()
+			return
+		}
+
+		// Set tenant context from subdomain
+		c.Set("tenant_subdomain", subdomain)
 		c.Next()
 	}
 }
@@ -150,9 +146,51 @@ func TenantMiddleware() gin.HandlerFunc {
 // RoleMiddleware checks if user has required role
 func RoleMiddleware(requiredRole string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// TODO: Implement role checking
+		// Get user role from context (set by AuthMiddleware)
+		userRole, exists := c.Get("user_role")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User role not found in context"})
+			c.Abort()
+			return
+		}
+
+		role, ok := userRole.(string)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid role format"})
+			c.Abort()
+			return
+		}
+
+		// Check if user has required role or higher privileges
+		if !hasRequiredRole(role, requiredRole) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Insufficient permissions"})
+			c.Abort()
+			return
+		}
+
 		c.Next()
 	}
+}
+
+// hasRequiredRole checks if user role has required permissions
+func hasRequiredRole(userRole, requiredRole string) bool {
+	// Define role hierarchy (higher roles include lower role permissions)
+	roleHierarchy := map[string]int{
+		"customer":    1,
+		"staff":       2,
+		"manager":     3,
+		"admin":       4,
+		"super_admin": 5,
+	}
+
+	userLevel, userExists := roleHierarchy[userRole]
+	requiredLevel, requiredExists := roleHierarchy[requiredRole]
+
+	if !userExists || !requiredExists {
+		return false
+	}
+
+	return userLevel >= requiredLevel
 }
 
 // RateLimitMiddleware implements basic rate limiting
