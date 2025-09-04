@@ -2,6 +2,8 @@ package product
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -282,3 +284,209 @@ var (
 // - CalculateShippingWeight() float64
 // - GetSEOTitle() string
 // - GetSEODescription() string
+
+// ValidateProductData validates product business rules
+func (p *Product) ValidateProductData() error {
+	if p.Name == "" {
+		return errors.New("product name is required")
+	}
+	
+	if p.Price < 0 {
+		return errors.New("product price cannot be negative")
+	}
+	
+	if p.ComparePrice > 0 && p.Price >= p.ComparePrice {
+		return errors.New("compare price must be higher than selling price")
+	}
+	
+	if p.CostPrice > 0 && p.CostPrice > p.Price {
+		return errors.New("cost price should not exceed selling price")
+	}
+	
+	if p.TrackQuantity && p.InventoryQuantity < 0 {
+		return errors.New("inventory quantity cannot be negative")
+	}
+	
+	return nil
+}
+
+// CalculateShippingWeight returns total shipping weight
+func (p *Product) CalculateShippingWeight() float64 {
+	if p.Weight > 0 {
+		return p.Weight
+	}
+	// Default weight for digital products
+	if p.Type == TypeDigital {
+		return 0
+	}
+	// Default weight if not specified (in grams)
+	return 100
+}
+
+// GetSEOTitle returns optimized title for SEO
+func (p *Product) GetSEOTitle() string {
+	if p.MetaTitle != "" {
+		return p.MetaTitle
+	}
+	return p.Name
+}
+
+// GetSEODescription returns optimized description for SEO
+func (p *Product) GetSEODescription() string {
+	if p.MetaDescription != "" {
+		return p.MetaDescription
+	}
+	
+	// Generate from description if available
+	if p.Description != "" {
+		desc := p.Description
+		if len(desc) > 155 {
+			desc = desc[:152] + "..."
+		}
+		return desc
+	}
+	
+	return "Buy " + p.Name + " at the best price"
+}
+
+// GetDimensions returns formatted dimensions
+func (p *Product) GetDimensions() string {
+	if p.Length > 0 && p.Width > 0 && p.Height > 0 {
+		return fmt.Sprintf("%.2f x %.2f x %.2f cm", p.Length, p.Width, p.Height)
+	}
+	return ""
+}
+
+// IsDigital checks if product is digital
+func (p *Product) IsDigital() bool {
+	return p.Type == TypeDigital
+}
+
+// IsPhysical checks if product is physical
+func (p *Product) IsPhysical() bool {
+	return p.Type == TypePhysical
+}
+
+// IsService checks if product is a service
+func (p *Product) IsService() bool {
+	return p.Type == TypeService
+}
+
+// GetInventoryStatus returns inventory status string
+func (p *Product) GetInventoryStatus() string {
+	if !p.TrackQuantity {
+		return "unlimited"
+	}
+	
+	if p.InventoryQuantity <= 0 {
+		if p.AllowBackorder {
+			return "backorder"
+		}
+		return "out_of_stock"
+	}
+	
+	if p.InventoryQuantity < 10 {
+		return "low_stock"
+	}
+	
+	return "in_stock"
+}
+
+// CanPurchase checks if product can be purchased
+func (p *Product) CanPurchase(quantity int) bool {
+	if p.Status != StatusActive {
+		return false
+	}
+	
+	if !p.TrackQuantity {
+		return true
+	}
+	
+	if p.InventoryQuantity >= quantity {
+		return true
+	}
+	
+	return p.AllowBackorder
+}
+
+// GetVariantByOptions finds variant by option values
+func (p *Product) GetVariantByOptions(options map[string]string) *ProductVariant {
+	for _, variant := range p.Variants {
+		match := true
+		for key, value := range options {
+			if variant.Options[key] != value {
+				match = false
+				break
+			}
+		}
+		if match {
+			return &variant
+		}
+	}
+	return nil
+}
+
+// GetAvailableOptions returns all available option combinations
+func (p *Product) GetAvailableOptions() map[string][]string {
+	options := make(map[string][]string)
+	
+	for _, variant := range p.Variants {
+		for key, value := range variant.Options {
+			if !contains(options[key], value) {
+				options[key] = append(options[key], value)
+			}
+		}
+	}
+	
+	return options
+}
+
+// Enhanced ProductVariant methods
+
+// GetDisplayName returns formatted variant name
+func (v *ProductVariant) GetDisplayName() string {
+	if v.Name != "" {
+		return v.Name
+	}
+	
+	// Generate from options
+	var parts []string
+	for key, value := range v.Options {
+		parts = append(parts, fmt.Sprintf("%s: %s", key, value))
+	}
+	
+	if len(parts) > 0 {
+		return strings.Join(parts, ", ")
+	}
+	
+	return "Default"
+}
+
+// Enhanced Category methods
+
+// GetFullPath returns full category path (e.g., "Electronics > Smartphones > Android")
+func (c *Category) GetFullPath() string {
+	if c.Parent == nil {
+		return c.Name
+	}
+	return c.Parent.GetFullPath() + " > " + c.Name
+}
+
+// GetLevel returns category depth level (0 for root)
+func (c *Category) GetLevel() int {
+	if c.Parent == nil {
+		return 0
+	}
+	return c.Parent.GetLevel() + 1
+}
+
+// Helper functions
+
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}

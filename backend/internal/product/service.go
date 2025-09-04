@@ -75,6 +75,36 @@ type CreateCategoryRequest struct {
 	MetaDescription string `json:"meta_description,omitempty" validate:"max=500"`
 }
 
+type UpdateCategoryRequest struct {
+	Name            string     `json:"name,omitempty" validate:"omitempty,min=2,max=100"`
+	Description     string     `json:"description,omitempty" validate:"max=500"`
+	ParentID        *uuid.UUID `json:"parent_id,omitempty"`
+	SortOrder       int        `json:"sort_order,omitempty"`
+	IsActive        *bool      `json:"is_active,omitempty"`
+	MetaTitle       string     `json:"meta_title,omitempty" validate:"max=255"`
+	MetaDescription string     `json:"meta_description,omitempty" validate:"max=500"`
+}
+
+type CreateVariantRequest struct {
+	Name              string            `json:"name" validate:"required,min=1,max=255"`
+	SKU               string            `json:"sku,omitempty" validate:"max=100"`
+	Price             float64           `json:"price" validate:"min=0"`
+	InventoryQuantity int               `json:"inventory_quantity" validate:"min=0"`
+	AllowBackorder    bool              `json:"allow_backorder"`
+	Options           map[string]string `json:"options,omitempty"`
+	Images            []string          `json:"images,omitempty"`
+}
+
+type UpdateVariantRequest struct {
+	Name              string            `json:"name,omitempty" validate:"omitempty,min=1,max=255"`
+	SKU               string            `json:"sku,omitempty" validate:"max=100"`
+	Price             float64           `json:"price,omitempty" validate:"min=0"`
+	InventoryQuantity *int              `json:"inventory_quantity,omitempty" validate:"omitempty,min=0"`
+	AllowBackorder    *bool             `json:"allow_backorder,omitempty"`
+	Options           map[string]string `json:"options,omitempty"`
+	Images            []string          `json:"images,omitempty"`
+}
+
 type ProductListFilter struct {
 	Status     ProductStatus `json:"status,omitempty"`
 	Type       ProductType   `json:"type,omitempty"`
@@ -411,3 +441,377 @@ func getUUIDValue(ptr *uuid.UUID) uuid.UUID {
 // - ImportProducts(tenantID uuid.UUID, data []byte) error
 // - GetProductStats(tenantID uuid.UUID) (*ProductStats, error)
 // - DuplicateProduct(tenantID uuid.UUID, productID uuid.UUID) (*Product, error)
+
+// GetProductStats returns product statistics for a tenant
+func (s *Service) GetProductStats(tenantID uuid.UUID) (map[string]interface{}, error) {
+	return s.repo.GetProductStats(tenantID)
+}
+
+// BulkUpdateProducts updates multiple products at once
+func (s *Service) BulkUpdateProducts(tenantID uuid.UUID, productIDs []string, updates map[string]interface{}) error {
+	// Parse product IDs
+	uuidIDs := make([]uuid.UUID, 0, len(productIDs))
+	for _, idStr := range productIDs {
+		if id, err := uuid.Parse(idStr); err == nil {
+			uuidIDs = append(uuidIDs, id)
+		}
+	}
+
+	if len(uuidIDs) == 0 {
+		return errors.New("no valid product IDs provided")
+	}
+
+	// Validate updates - only allow specific fields
+	allowedFields := map[string]bool{
+		"status":        true,
+		"price":         true,
+		"compare_price": true,
+		"category_id":   true,
+		"tags":          true,
+	}
+
+	validUpdates := make(map[string]interface{})
+	for key, value := range updates {
+		if allowedFields[key] {
+			validUpdates[key] = value
+		}
+	}
+
+	if len(validUpdates) == 0 {
+		return errors.New("no valid update fields provided")
+	}
+
+	return s.repo.BulkUpdateProducts(tenantID, uuidIDs, validUpdates)
+}
+
+// DuplicateProduct creates a copy of an existing product
+func (s *Service) DuplicateProduct(tenantID uuid.UUID, productIDStr string) (*Product, error) {
+	productID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		return nil, errors.New("invalid product ID")
+	}
+
+	// Get original product
+	original, err := s.repo.FindProductByID(tenantID, productID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create duplicate with modified name and slug
+	duplicate := &Product{
+		ID:                uuid.New(),
+		TenantID:          tenantID,
+		Name:              original.Name + " (Copy)",
+		Slug:              s.generateUniqueSlug(tenantID, original.Slug+"-copy"),
+		Description:       original.Description,
+		Type:              original.Type,
+		Status:            StatusDraft, // Always create as draft
+		Price:             original.Price,
+		ComparePrice:      original.ComparePrice,
+		CostPrice:         original.CostPrice,
+		SKU:               "", // Clear SKU to avoid conflicts
+		Barcode:           "", // Clear barcode to avoid conflicts
+		InventoryQuantity: 0,  // Start with zero inventory
+		TrackQuantity:     original.TrackQuantity,
+		AllowBackorder:    original.AllowBackorder,
+		Weight:            original.Weight,
+		Length:            original.Length,
+		Width:             original.Width,
+		Height:            original.Height,
+		MetaTitle:         original.MetaTitle,
+		MetaDescription:   original.MetaDescription,
+		MetaKeywords:      original.MetaKeywords,
+		FeaturedImage:     original.FeaturedImage,
+		Images:            original.Images,
+		CategoryID:        original.CategoryID,
+		Tags:              original.Tags,
+	}
+
+	return s.repo.SaveProduct(duplicate)
+}
+
+// SearchProducts performs search across products
+func (s *Service) SearchProducts(tenantID uuid.UUID, query string, offset, limit int) ([]*Product, int64, error) {
+	if query == "" {
+		return nil, 0, errors.New("search query is required")
+	}
+
+	return s.repo.SearchProducts(tenantID, query, offset, limit)
+}
+
+// GetLowStockProducts returns products with low inventory
+func (s *Service) GetLowStockProducts(tenantID uuid.UUID, threshold int) ([]*Product, error) {
+	if threshold <= 0 {
+		threshold = 10 // Default threshold
+	}
+
+	return s.repo.GetLowStockProducts(tenantID, threshold)
+}
+
+// UpdateProductStatus updates product status
+func (s *Service) UpdateProductStatus(tenantID uuid.UUID, productIDStr string, status ProductStatus) error {
+	productID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		return errors.New("invalid product ID")
+	}
+
+	// Validate status
+	validStatuses := map[ProductStatus]bool{
+		StatusDraft:     true,
+		StatusActive:    true,
+		StatusInactive:  true,
+		StatusArchived:  true,
+	}
+
+	if !validStatuses[status] {
+		return errors.New("invalid product status")
+	}
+
+	updates := map[string]interface{}{
+		"status": status,
+	}
+
+	return s.repo.BulkUpdateProducts(tenantID, []uuid.UUID{productID}, updates)
+}
+
+// Product Variant methods
+
+// CreateProductVariant creates a new product variant
+func (s *Service) CreateProductVariant(tenantID uuid.UUID, productIDStr string, req CreateVariantRequest) (*ProductVariant, error) {
+	// Validate request
+	if err := s.validator.Struct(req); err != nil {
+		return nil, err
+	}
+
+	productID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		return nil, errors.New("invalid product ID")
+	}
+
+	// Verify product exists and belongs to tenant
+	_, err = s.repo.FindProductByID(tenantID, productID)
+	if err != nil {
+		return nil, errors.New("product not found")
+	}
+
+	// Create variant
+	variant := &ProductVariant{
+		ID:                uuid.New(),
+		ProductID:         productID,
+		Name:              strings.TrimSpace(req.Name),
+		SKU:               strings.TrimSpace(req.SKU),
+		Price:             req.Price,
+		InventoryQuantity: req.InventoryQuantity,
+		AllowBackorder:    req.AllowBackorder,
+		Options:           req.Options,
+		Images:            req.Images,
+	}
+
+	return s.repo.SaveProductVariant(variant)
+}
+
+// GetProductVariants returns all variants for a product
+func (s *Service) GetProductVariants(tenantID uuid.UUID, productIDStr string) ([]*ProductVariant, error) {
+	productID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		return nil, errors.New("invalid product ID")
+	}
+
+	// Verify product exists and belongs to tenant
+	_, err = s.repo.FindProductByID(tenantID, productID)
+	if err != nil {
+		return nil, errors.New("product not found")
+	}
+
+	return s.repo.FindProductVariants(productID)
+}
+
+// UpdateProductVariant updates a product variant
+func (s *Service) UpdateProductVariant(tenantID uuid.UUID, productIDStr, variantIDStr string, req UpdateVariantRequest) (*ProductVariant, error) {
+	// Validate request
+	if err := s.validator.Struct(req); err != nil {
+		return nil, err
+	}
+
+	productID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		return nil, errors.New("invalid product ID")
+	}
+
+	variantID, err := uuid.Parse(variantIDStr)
+	if err != nil {
+		return nil, errors.New("invalid variant ID")
+	}
+
+	// Verify product exists and belongs to tenant
+	_, err = s.repo.FindProductByID(tenantID, productID)
+	if err != nil {
+		return nil, errors.New("product not found")
+	}
+
+	// Get existing variant
+	variants, err := s.repo.FindProductVariants(productID)
+	if err != nil {
+		return nil, err
+	}
+
+	var variant *ProductVariant
+	for _, v := range variants {
+		if v.ID == variantID {
+			variant = v
+			break
+		}
+	}
+
+	if variant == nil {
+		return nil, errors.New("variant not found")
+	}
+
+	// Update fields
+	if req.Name != "" {
+		variant.Name = strings.TrimSpace(req.Name)
+	}
+	if req.SKU != "" {
+		variant.SKU = strings.TrimSpace(req.SKU)
+	}
+	if req.Price >= 0 {
+		variant.Price = req.Price
+	}
+	if req.InventoryQuantity != nil {
+		variant.InventoryQuantity = *req.InventoryQuantity
+	}
+	if req.AllowBackorder != nil {
+		variant.AllowBackorder = *req.AllowBackorder
+	}
+	if req.Options != nil {
+		variant.Options = req.Options
+	}
+	if req.Images != nil {
+		variant.Images = req.Images
+	}
+
+	return s.repo.UpdateProductVariant(variant)
+}
+
+// DeleteProductVariant deletes a product variant
+func (s *Service) DeleteProductVariant(tenantID uuid.UUID, productIDStr, variantIDStr string) error {
+	productID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		return errors.New("invalid product ID")
+	}
+
+	variantID, err := uuid.Parse(variantIDStr)
+	if err != nil {
+		return errors.New("invalid variant ID")
+	}
+
+	// Verify product exists and belongs to tenant
+	_, err = s.repo.FindProductByID(tenantID, productID)
+	if err != nil {
+		return errors.New("product not found")
+	}
+
+	return s.repo.DeleteProductVariant(variantID)
+}
+
+// Category management methods
+
+// UpdateCategory updates an existing category
+func (s *Service) UpdateCategory(tenantID uuid.UUID, categoryIDStr string, req UpdateCategoryRequest) (*Category, error) {
+	// Validate request
+	if err := s.validator.Struct(req); err != nil {
+		return nil, err
+	}
+
+	categoryID, err := uuid.Parse(categoryIDStr)
+	if err != nil {
+		return nil, errors.New("invalid category ID")
+	}
+
+	// Get existing category
+	category, err := s.repo.FindCategoryByID(tenantID, categoryID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update fields
+	if req.Name != "" {
+		category.Name = strings.TrimSpace(req.Name)
+		// Regenerate slug if name changed
+		newSlug := s.generateSlug(req.Name)
+		if newSlug != category.Slug {
+			if exists, err := s.repo.CategorySlugExists(tenantID, newSlug); err != nil {
+				return nil, err
+			} else if exists {
+				newSlug = s.generateUniqueCategorySlug(tenantID, newSlug)
+			}
+			category.Slug = newSlug
+		}
+	}
+
+	if req.Description != "" {
+		category.Description = strings.TrimSpace(req.Description)
+	}
+	if req.ParentID != nil {
+		category.ParentID = req.ParentID
+	}
+	if req.SortOrder != 0 {
+		category.SortOrder = req.SortOrder
+	}
+	if req.IsActive != nil {
+		category.IsActive = *req.IsActive
+	}
+	if req.MetaTitle != "" {
+		category.MetaTitle = strings.TrimSpace(req.MetaTitle)
+	}
+	if req.MetaDescription != "" {
+		category.MetaDescription = strings.TrimSpace(req.MetaDescription)
+	}
+
+	return s.repo.UpdateCategory(category)
+}
+
+// DeleteCategory deletes a category
+func (s *Service) DeleteCategory(tenantID uuid.UUID, categoryIDStr string) error {
+	categoryID, err := uuid.Parse(categoryIDStr)
+	if err != nil {
+		return errors.New("invalid category ID")
+	}
+
+	// Check if category has products
+	products, _, err := s.repo.GetProductsByCategoryID(tenantID, categoryID, 0, 1)
+	if err != nil {
+		return err
+	}
+
+	if len(products) > 0 {
+		return errors.New("cannot delete category with products")
+	}
+
+	// Check if category has children
+	children, err := s.repo.GetCategoryChildren(tenantID, categoryID)
+	if err != nil {
+		return err
+	}
+
+	if len(children) > 0 {
+		return errors.New("cannot delete category with subcategories")
+	}
+
+	return s.repo.DeleteCategory(tenantID, categoryID)
+}
+
+// GetRootCategories returns top-level categories
+func (s *Service) GetRootCategories(tenantID uuid.UUID) ([]*Category, error) {
+	return s.repo.GetRootCategories(tenantID)
+}
+
+// GetCategoryChildren returns child categories
+func (s *Service) GetCategoryChildren(tenantID uuid.UUID, categoryIDStr string) ([]*Category, error) {
+	categoryID, err := uuid.Parse(categoryIDStr)
+	if err != nil {
+		return nil, errors.New("invalid category ID")
+	}
+
+	return s.repo.GetCategoryChildren(tenantID, categoryID)
+}

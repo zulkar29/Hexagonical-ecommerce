@@ -61,9 +61,23 @@ func SetupRoutes(r *gin.Engine, cfg *RouteConfig) {
 	// Protected routes (authentication required)
 	protected := v1.Group("")
 	protected.Use(middleware.AuthMiddleware(cfg.JWTManager))
+	protected.Use(middleware.TenantMiddleware()) // Add tenant resolution middleware
 	{
-		// TODO: Add protected routes here
-		// tenant routes, product management, order management, etc.
+		// Setup product routes
+		setupProductRoutes(protected, cfg)
+		
+		// TODO: Add other protected routes here
+		// setupTenantRoutes(protected, cfg)
+		// setupOrderRoutes(protected, cfg)
+		// setupAnalyticsRoutes(protected, cfg)
+		// setupObservabilityRoutes(protected, cfg)
+	}
+
+	// Public routes (for storefront)
+	public := v1.Group("/public")
+	{
+		// Public product routes (no auth needed for browsing)
+		setupPublicProductRoutes(public, cfg)
 	}
 
 	// TODO: Implement other module routes when ready
@@ -85,13 +99,34 @@ func setupTenantRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 }
 
 func setupProductRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	// productRepo := product.NewRepository(cfg.DB)
-	// productService := product.NewService(productRepo)
-	// productHandler := product.NewHandler(productService)
+	// Initialize product module
+	productModule := product.NewModule(cfg.DB)
 	
-	// productGroup := v1.Group("/products")
-	// productGroup.Use(middleware.TenantMiddleware())
-	// productHandler.RegisterRoutes(productGroup)
+	// Register product routes
+	productModule.RegisterRoutes(v1)
+}
+
+func setupPublicProductRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
+	// Initialize product module for public access
+	productModule := product.NewModule(cfg.DB)
+	
+	// Public product routes (read-only, no auth required)
+	public := v1.Group("")
+	public.Use(middleware.TenantMiddleware()) // Still need tenant resolution
+	{
+		// Public product browsing endpoints
+		public.GET("/products", productModule.Handler.ListProducts)
+		public.GET("/products/search", productModule.Handler.SearchProducts)
+		public.GET("/products/slug/:slug", productModule.Handler.GetProductBySlug)
+		public.GET("/products/:id", productModule.Handler.GetProduct)
+		public.GET("/products/:id/variants", productModule.Handler.GetProductVariants)
+		
+		// Public category browsing
+		public.GET("/categories", productModule.Handler.ListCategories)
+		public.GET("/categories/root", productModule.Handler.GetRootCategories)
+		public.GET("/categories/:id", productModule.Handler.GetCategory)
+		public.GET("/categories/:id/children", productModule.Handler.GetCategoryChildren)
+	}
 }
 
 func setupOrderRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
