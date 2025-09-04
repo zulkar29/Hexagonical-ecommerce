@@ -82,21 +82,19 @@ func SetupRoutes(r *gin.Engine, cfg *RouteConfig) {
 		
 		// TODO: Add other protected routes here
 		// setupAnalyticsRoutes(protected, cfg)
+		// setupBillingRoutes(protected, cfg)
+		// setupMarketingRoutes(protected, cfg)
+		// setupSupportRoutes(protected, cfg)
 		// setupObservabilityRoutes(protected, cfg)
 	}
 
 	// Public routes (for storefront)
-	public := v1.Group("/public")
+	storefront := v1.Group("/public")
 	{
 		// Public product routes (no auth needed for browsing)
-		setupPublicProductRoutes(public, cfg)
+		setupPublicProductRoutes(storefront, cfg)
 	}
 
-	// TODO: Implement other module routes when ready
-	// setupTenantRoutes(v1, cfg)
-	// setupProductRoutes(v1, cfg)
-	// setupOrderRoutes(v1, cfg)
-	// setupAnalyticsRoutes(v1, cfg)
 }
 
 // Setup tenant routes
@@ -180,44 +178,4 @@ func setupNotificationRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 	
 	// Register notification routes
 	notificationModule.RegisterRoutes(v1)
-}
-		// analyticsGroup.Use(middleware.TenantMiddleware())
-		// analyticsGroup.Use(middleware.AuthMiddleware())
-		// analyticsHandler.RegisterRoutes(analyticsGroup)
-	}
-
-	// Public routes (no auth required)
-	public := r.Group("/api/public")
-	{
-		// TODO: Add public routes like product catalog, registration, etc.
-		public.GET("/products", func(c *gin.Context) {
-			c.JSON(200, gin.H{"message": "Public product catalog"})
-		})
-	}
-
-	// Webhook routes
-	webhooks := r.Group("/webhooks")
-	{
-		// Convert GORM DB to sql.DB for payment module
-		sqlDB, err := cfg.DB.DB()
-		if err != nil {
-			panic("Failed to get sql.DB from GORM: " + err.Error())
-		}
-		
-		// Initialize payment module for webhooks
-		paymentModule := payment.NewModule(sqlDB)
-		
-		// Payment webhooks
-		webhooks.POST("/sslcommerz", paymentModule.GetHandler().HandleSSLCommerzWebhook)
-		webhooks.POST("/bkash", paymentModule.GetHandler().HandleBkashWebhook)
-		webhooks.POST("/nagad", paymentModule.GetHandler().HandleNagadWebhook)
-		
-		// Legacy webhook handlers (keeping for backward compatibility)
-		webhooks.POST("/stripe", func(c *gin.Context) {
-			c.JSON(200, gin.H{"message": "Stripe webhook"})
-		})
-		webhooks.POST("/paypal", func(c *gin.Context) {
-			c.JSON(200, gin.H{"message": "PayPal webhook"})
-		})
-	}
 }

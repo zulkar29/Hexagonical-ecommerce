@@ -1,6 +1,6 @@
 # API Documentation
 
-Comprehensive REST API specification for the e-commerce SaaS platform with **460+ endpoints** covering all business operations including advanced features, AI-powered capabilities, enterprise-grade functionality, and comprehensive observability.
+Comprehensive REST API specification for the e-commerce SaaS platform with **195+ implemented endpoints** covering all business operations across 13 active modules with multi-tenant architecture, authentication, and WebSocket real-time capabilities.
 
 ## Base URL
 ```
@@ -49,694 +49,580 @@ Tenant context is resolved from:
 
 ## Core Endpoints
 
-### Authentication & Users
-```
-POST   /auth/login                    # User login
-POST   /auth/register                 # User registration  
-POST   /auth/refresh                  # Refresh JWT token
-POST   /auth/logout                   # User logout
-POST   /auth/password/forgot          # Send password reset email
-POST   /auth/password/reset           # Reset password with token
-GET    /auth/me                       # Get current user profile
-PUT    /auth/me                       # Update current user profile
-PUT    /auth/password                 # Change password
-PUT    /auth/mfa/enable               # Enable multi-factor auth
-PUT    /auth/mfa/disable              # Disable multi-factor auth
-POST   /auth/mfa/verify               # Verify MFA token
-GET    /users                         # List all users (admin)
-GET    /users/:id                     # Get user details
-PUT    /users/:id                     # Update user (admin)
-DELETE /users/:id                     # Delete user (admin)
-PATCH  /users/:id/status              # Update user status
-GET    /users/:id/permissions         # Get user permissions
-PUT    /users/:id/permissions         # Update user permissions
-GET    /users/:id/activity            # Get user activity log
-```
+### System Health
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/health` | Basic health check | ❌ | ❌ |
 
-### Tenants & Store Management
-```
-GET    /tenants                       # List all tenants (super admin)
-POST   /tenants                       # Create new tenant
-GET    /tenants/:id                   # Get tenant details
-PUT    /tenants/:id                   # Update tenant information
-DELETE /tenants/:id                   # Delete tenant
-PATCH  /tenants/:id/status            # Update tenant status
-GET    /tenants/:id/settings          # Get tenant settings
-PUT    /tenants/:id/settings          # Update tenant settings
-POST   /tenants/:id/domain            # Set custom domain
-DELETE /tenants/:id/domain            # Remove custom domain
-GET    /tenants/:id/stats             # Get tenant statistics
-GET    /tenants/:id/users             # List tenant users
-POST   /tenants/:id/users             # Add user to tenant
-DELETE /tenants/:id/users/:userId     # Remove user from tenant
-GET    /tenants/:id/subscription      # Get tenant subscription
-PUT    /tenants/:id/subscription      # Update tenant subscription
-POST   /tenants/:id/subscription/upgrade  # Upgrade subscription plan
-POST   /tenants/:id/subscription/downgrade  # Downgrade subscription plan
-POST   /tenants/:id/subscription/cancel    # Cancel subscription
-```
+## Product Module (29 endpoints)
 
-### Subscription Plans
-```
-GET    /plans                         # List all subscription plans
-GET    /plans/:id                     # Get plan details
-POST   /plans                         # Create new plan (admin)
-PUT    /plans/:id                     # Update plan (admin)
-DELETE /plans/:id                     # Delete plan (admin)
-PATCH  /plans/:id/status              # Enable/disable plan
-GET    /plans/:id/features            # Get plan features
-PUT    /plans/:id/features            # Update plan features
-```
+### Products
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/products` | Create a new product | ✅ | ✅ |
+| GET | `/products` | List products with filtering and pagination | ✅ | ✅ |
+| GET | `/products/search` | Search products by query | ✅ | ✅ |
+| GET | `/products/stats` | Get product statistics | ✅ | ✅ |
+| GET | `/products/low-stock` | Get low stock products | ✅ | ✅ |
+| PATCH | `/products/bulk` | Bulk update multiple products | ✅ | ✅ |
+| GET | `/products/:id` | Get a specific product | ✅ | ✅ |
+| PUT | `/products/:id` | Update a product | ✅ | ✅ |
+| DELETE | `/products/:id` | Delete a product | ✅ | ✅ |
+| PATCH | `/products/:id/status` | Update product status | ✅ | ✅ |
+| PATCH | `/products/:id/inventory` | Update product inventory | ✅ | ✅ |
+| POST | `/products/:id/duplicate` | Duplicate a product | ✅ | ✅ |
+| GET | `/products/slug/:slug` | Get product by slug (storefront) | ✅ | ✅ |
 
-### Products & Catalog
-```
-GET    /products                      # List products with filters
-POST   /products                      # Create new product
-GET    /products/:id                  # Get product by ID
-PUT    /products/:id                  # Update product
-DELETE /products/:id                  # Delete product
-PATCH  /products/:id/status           # Update product status
-GET    /products/:id/variants         # Get product variants
-POST   /products/:id/variants         # Create product variant
-PUT    /products/:id/variants/:variantId  # Update product variant
-DELETE /products/:id/variants/:variantId  # Delete product variant
-POST   /products/:id/images           # Upload product images
-PUT    /products/:id/images/:imageId  # Update product image
-DELETE /products/:id/images/:imageId  # Delete product image
-GET    /products/:id/reviews          # Get product reviews
-POST   /products/:id/reviews          # Create product review
-PUT    /products/:id/reviews/:reviewId   # Update product review
-DELETE /products/:id/reviews/:reviewId   # Delete product review
-GET    /products/:id/attributes       # Get product attributes
-PUT    /products/:id/attributes       # Update product attributes
-GET    /products/:id/tags             # Get product tags
-PUT    /products/:id/tags             # Update product tags
-GET    /products/:id/collections      # Get product collections
-PUT    /products/:id/collections      # Update product collections
-GET    /products/:id/metafields       # Get product metafields
-PUT    /products/:id/metafields       # Update product metafields
-GET    /products/:id/pricing-rules    # Get product pricing rules
-PUT    /products/:id/pricing-rules    # Update product pricing rules
-GET    /products/search               # Search products
-GET    /products/featured             # Get featured products
-GET    /products/bestsellers          # Get bestselling products
-GET    /products/new-arrivals         # Get new arrival products
-GET    /products/related/:id          # Get related products
-GET    /products/recommendations/:customerId  # Get personalized recommendations
-PUT    /products/bulk                 # Bulk update products
-DELETE /products/bulk                 # Bulk delete products
-POST   /products/import               # Import products from CSV
-GET    /products/export               # Export products to CSV
-POST   /products/:id/duplicate        # Duplicate product
-```
+### Product Variants
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/products/:id/variants` | Create product variant | ✅ | ✅ |
+| GET | `/products/:id/variants` | Get product variants | ✅ | ✅ |
+| PUT | `/products/:id/variants/:variantId` | Update product variant | ✅ | ✅ |
+| DELETE | `/products/:id/variants/:variantId` | Delete product variant | ✅ | ✅ |
 
-### Categories & Collections
-```
-GET    /categories                    # List all categories
-POST   /categories                    # Create new category  
-GET    /categories/:id                # Get category by ID
-PUT    /categories/:id                # Update category
-DELETE /categories/:id                # Delete category
-GET    /categories/:id/products       # Get products in category
-POST   /categories/:id/products       # Add product to category
-DELETE /categories/:id/products/:productId  # Remove product from category
-PUT    /categories/reorder            # Reorder categories
-GET    /collections                   # List smart collections
-POST   /collections                   # Create smart collection
-GET    /collections/:id               # Get collection details
-PUT    /collections/:id               # Update collection
-DELETE /collections/:id               # Delete collection
-GET    /collections/:id/products      # Get products in collection
-POST   /collections/:id/products      # Add product to collection
-DELETE /collections/:id/products/:productId  # Remove product from collection
-PUT    /collections/:id/rules         # Update collection rules
-GET    /collections/smart             # List smart collections
-GET    /collections/manual            # List manual collections
-```
+### Categories
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/categories` | Create a category | ✅ | ✅ |
+| GET | `/categories` | List all categories | ✅ | ✅ |
+| GET | `/categories/root` | Get root categories | ✅ | ✅ |
+| GET | `/categories/:id` | Get a specific category | ✅ | ✅ |
+| PUT | `/categories/:id` | Update a category | ✅ | ✅ |
+| DELETE | `/categories/:id` | Delete a category | ✅ | ✅ |
+| GET | `/categories/:id/children` | Get category children | ✅ | ✅ |
 
-### Inventory Management
-```
-GET    /inventory                     # List inventory items
-GET    /inventory/products/:id        # Get product inventory
-PUT    /inventory/products/:id        # Update product inventory
-GET    /inventory/variants/:id        # Get variant inventory
-PUT    /inventory/variants/:id        # Update variant inventory
-POST   /inventory/adjustments         # Create inventory adjustment
-GET    /inventory/adjustments         # List inventory adjustments
-GET    /inventory/adjustments/:id     # Get adjustment details
-PUT    /inventory/adjustments/:id     # Update inventory adjustment
-DELETE /inventory/adjustments/:id     # Delete inventory adjustment
-GET    /inventory/low-stock           # Get low stock items
-GET    /inventory/out-of-stock        # Get out of stock items
-POST   /inventory/transfers           # Transfer inventory between locations
-GET    /inventory/transfers           # List inventory transfers
-GET    /inventory/transfers/:id       # Get transfer details
-PUT    /inventory/transfers/:id       # Update transfer status
-GET    /inventory/locations           # List inventory locations
-POST   /inventory/locations           # Create inventory location
-PUT    /inventory/locations/:id       # Update inventory location
-DELETE /inventory/locations/:id       # Delete inventory location
-PUT    /inventory/bulk                # Bulk inventory update
-GET    /inventory/history/:id         # Get inventory history
-```
+### Public Product Access (Storefront)
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/public/products` | Browse products (public) | ❌ | ✅ |
+| GET | `/public/products/search` | Search products (public) | ❌ | ✅ |
+| GET | `/public/products/slug/:slug` | Get product by slug (public) | ❌ | ✅ |
+| GET | `/public/products/:id` | Get product details (public) | ❌ | ✅ |
+| GET | `/public/products/:id/variants` | Get product variants (public) | ❌ | ✅ |
+| GET | `/public/categories` | Browse categories (public) | ❌ | ✅ |
+| GET | `/public/categories/root` | Get root categories (public) | ❌ | ✅ |
+| GET | `/public/categories/:id` | Get category details (public) | ❌ | ✅ |
+| GET | `/public/categories/:id/children` | Get category children (public) | ❌ | ✅ |
 
-### Orders & Fulfillment
-```
-GET    /orders                        # List orders with filters
-POST   /orders                        # Create new order
-GET    /orders/:id                    # Get order details
-PUT    /orders/:id                    # Update order
-DELETE /orders/:id                    # Cancel order
-PATCH  /orders/:id/status             # Update order status
-GET    /orders/:id/items              # Get order items
-POST   /orders/:id/items              # Add item to order
-PUT    /orders/:id/items/:itemId      # Update order item
-DELETE /orders/:id/items/:itemId      # Remove order item
-POST   /orders/:id/fulfill            # Fulfill order
-POST   /orders/:id/refund             # Refund order
-GET    /orders/:id/payments           # Get order payments
-POST   /orders/:id/payments           # Process payment
-GET    /orders/:id/shipments          # Get order shipments
-POST   /orders/:id/shipments          # Create shipment
-PUT    /orders/:id/shipments/:shipId  # Update shipment
-GET    /orders/:id/tracking           # Get tracking information
-POST   /orders/bulk/export            # Bulk export orders
-```
+## Order Module (15 endpoints)
 
-### Customers & Accounts
-```
-GET    /customers                     # List customers
-POST   /customers                     # Create customer
-GET    /customers/:id                 # Get customer details
-PUT    /customers/:id                 # Update customer
-DELETE /customers/:id                 # Delete customer
-PATCH  /customers/:id/status          # Update customer status
-GET    /customers/:id/orders          # Get customer orders
-GET    /customers/:id/addresses       # Get customer addresses
-POST   /customers/:id/addresses       # Add customer address
-PUT    /customers/:id/addresses/:addressId  # Update customer address
-DELETE /customers/:id/addresses/:addressId  # Delete customer address
-GET    /customers/:id/wishlist        # Get customer wishlist
-POST   /customers/:id/wishlist        # Add item to wishlist
-DELETE /customers/:id/wishlist/:productId   # Remove from wishlist
-GET    /customers/:id/reviews         # Get customer reviews
-GET    /customers/:id/activity        # Get customer activity log
-GET    /customers/:id/stats           # Get customer statistics
-POST   /customers/search              # Search customers
-POST   /customers/import              # Import customers from CSV
-GET    /customers/export              # Export customers to CSV
-POST   /customers/bulk-update         # Bulk update customers
-DELETE /customers/bulk                # Bulk delete customers
-```
+### Orders
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/orders` | Create a new order | ✅ | ✅ |
+| GET | `/orders` | List orders with filtering and pagination | ✅ | ✅ |
+| GET | `/orders/stats` | Get order statistics | ✅ | ✅ |
+| GET | `/orders/my-orders` | Get customer orders | ✅ | ✅ |
+| GET | `/orders/:id` | Get order details | ✅ | ✅ |
+| PATCH | `/orders/:id/status` | Update order status | ✅ | ✅ |
+| POST | `/orders/:id/cancel` | Cancel an order | ✅ | ✅ |
+| POST | `/orders/:id/payment` | Process order payment | ✅ | ✅ |
+| POST | `/orders/:id/refund` | Refund an order | ✅ | ✅ |
+| GET | `/orders/:id/invoice` | Get order invoice | ✅ | ✅ |
+| GET | `/orders/number/:number` | Get order by number | ✅ | ✅ |
+| GET | `/public/orders/track/:number` | Track order by number (public) | ❌ | ✅ |
+| GET | `/public/orders/number/:number` | Get order by number (public) | ❌ | ✅ |
 
-### Shopping Cart & Checkout
-```
-GET    /cart                          # Get current cart
-POST   /cart/items                    # Add item to cart
-PUT    /cart/items/:itemId            # Update cart item quantity
-DELETE /cart/items/:itemId            # Remove item from cart
-DELETE /cart                          # Clear cart
-POST   /cart/discounts                # Apply discount code
-DELETE /cart/discounts                # Remove discount code
-POST   /cart/save                     # Save cart for later
-POST   /cart/restore                  # Restore saved cart
-GET    /cart/abandoned                # List abandoned carts (admin)
-GET    /checkout/shipping             # Get shipping options
-POST   /checkout/shipping             # Set shipping method
-GET    /checkout/payment-methods      # Get available payment methods
-POST   /checkout/calculate            # Calculate totals
-POST   /checkout/validate             # Validate checkout data
-POST   /checkout/complete             # Complete checkout
-GET    /checkout/success/:orderId     # Checkout success page data
-```
+## User Module (12 endpoints)
 
-### Discounts, Coupons & Gift Cards
-```
-GET    /discounts                     # List discount codes
-POST   /discounts                     # Create discount code
-GET    /discounts/:id                 # Get discount details
-PUT    /discounts/:id                 # Update discount
-DELETE /discounts/:id                 # Delete discount
-PATCH  /discounts/:id/status          # Enable/disable discount
-GET    /discounts/:id/usage           # Get discount usage stats
-POST   /discounts/validate            # Validate discount code
-GET    /gift-cards                    # List gift cards
-POST   /gift-cards                    # Create gift card
-GET    /gift-cards/:id                # Get gift card details
-PUT    /gift-cards/:id                # Update gift card
-DELETE /gift-cards/:id                # Delete gift card
-PATCH  /gift-cards/:id/status         # Enable/disable gift card
-POST   /gift-cards/:id/balance        # Check gift card balance
-POST   /gift-cards/:id/transactions   # Add gift card transaction
-GET    /gift-cards/:id/transactions   # Get gift card transactions
-GET    /store-credits                 # List store credits
-POST   /store-credits                 # Issue store credit
-GET    /store-credits/:customerId     # Get customer store credits
-POST   /store-credits/:customerId/apply  # Apply store credit
-```
+### Authentication
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/auth/register` | User registration | ❌ | ❌ |
+| POST | `/auth/login` | User login | ❌ | ❌ |
+| POST | `/auth/refresh` | Refresh JWT token | ❌ | ❌ |
+| POST | `/auth/logout` | User logout | ✅ | ❌ |
+| POST | `/auth/forgot-password` | Request password reset | ❌ | ❌ |
+| POST | `/auth/reset-password` | Reset password | ❌ | ❌ |
+| POST | `/auth/verify-email` | Verify email address | ❌ | ❌ |
 
-### Payments & Billing
-```
-GET    /payments                      # List payments
-GET    /payments/:id                  # Get payment details
-POST   /payments/process              # Process payment
-POST   /payments/refund               # Process refund
-GET    /payment-methods               # List payment methods
-POST   /payment-methods               # Add payment method
-PUT    /payment-methods/:id           # Update payment method
-DELETE /payment-methods/:id           # Remove payment method
-GET    /billing/invoices              # List invoices
-GET    /billing/invoices/:id          # Get invoice
-POST   /billing/invoices/:id/send     # Send invoice email
-```
+### User Management
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/users/profile` | Get user profile | ✅ | ❌ |
+| PUT | `/users/profile` | Update user profile | ✅ | ❌ |
+| POST | `/users/change-password` | Change user password | ✅ | ❌ |
+| GET | `/users` | List users (admin) | ✅ | ❌ |
+| GET | `/users/:id` | Get user by ID (admin) | ✅ | ❌ |
 
-### Shipping & Logistics
-```
-GET    /shipping/zones                # List shipping zones
-POST   /shipping/zones                # Create shipping zone
-PUT    /shipping/zones/:id            # Update shipping zone
-DELETE /shipping/zones/:id            # Delete shipping zone
-GET    /shipping/rates                # List shipping rates
-POST   /shipping/rates                # Create shipping rate
-PUT    /shipping/rates/:id            # Update shipping rate
-DELETE /shipping/rates/:id            # Delete shipping rate
-POST   /shipping/calculate            # Calculate shipping cost
-GET    /shipping/carriers             # List shipping carriers
-POST   /shipping/labels               # Create shipping label
-GET    /shipping/tracking/:number     # Track shipment
-```
+## Tenant Module (11 endpoints)
+
+### Tenant Management
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/tenants` | Create a new tenant | ✅ | ❌ |
+| GET | `/tenants` | List all tenants | ✅ | ❌ |
+| GET | `/tenants/:id` | Get tenant details | ✅ | ❌ |
+| PUT | `/tenants/:id` | Update tenant | ✅ | ❌ |
+| PUT | `/tenants/:id/plan` | Update tenant plan | ✅ | ❌ |
+| POST | `/tenants/:id/activate` | Activate tenant | ✅ | ❌ |
+| POST | `/tenants/:id/deactivate` | Deactivate tenant | ✅ | ❌ |
+| GET | `/tenants/:id/stats` | Get tenant statistics | ✅ | ❌ |
+| GET | `/tenants/subdomain/:subdomain` | Get tenant by subdomain | ❌ | ❌ |
+| GET | `/tenants/check-subdomain/:subdomain` | Check subdomain availability | ❌ | ❌ |
+
+## Payment Module (6 endpoints)
+
+### Payment Processing
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/payments` | Create a payment | ✅ | ✅ |
+| GET | `/payments` | List payments | ✅ | ✅ |
+| GET | `/payments/:id` | Get payment details | ✅ | ✅ |
+| POST | `/payments/:id/process` | Process a payment | ✅ | ✅ |
+| POST | `/payments/:id/refund` | Refund a payment | ✅ | ✅ |
+
+### Payment Webhooks
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/webhooks/sslcommerz` | SSLCommerz payment webhook | ❌ | ❌ |
+
+## Notification Module (14 endpoints)
+
+### Notification Management
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/notifications` | Send notification | ✅ | ✅ |
+| GET | `/notifications` | List notifications | ✅ | ✅ |
+| GET | `/notifications/:id` | Get notification details | ✅ | ✅ |
+| PUT | `/notifications/:id/read` | Mark notification as read | ✅ | ✅ |
+| POST | `/notifications/email` | Send email notification | ✅ | ✅ |
+| POST | `/notifications/sms` | Send SMS notification | ✅ | ✅ |
+
+### Notification Templates
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/notifications/templates` | Create notification template | ✅ | ✅ |
+| GET | `/notifications/templates` | List notification templates | ✅ | ✅ |
+| GET | `/notifications/templates/:id` | Get notification template | ✅ | ✅ |
+| PUT | `/notifications/templates/:id` | Update notification template | ✅ | ✅ |
+
+### User Preferences
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/notifications/preferences` | Get notification preferences | ✅ | ✅ |
+| PUT | `/notifications/preferences` | Update notification preferences | ✅ | ✅ |
+| GET | `/notifications/stats` | Get notification statistics | ✅ | ✅ |
+
+## Billing Module (31 endpoints)
+
+### Billing Plans
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/billing/plans` | Get billing plans | ✅ | ❌ |
+| GET | `/billing/plans/:planId` | Get specific billing plan | ✅ | ❌ |
+| POST | `/billing/plans` | Create billing plan | ✅ | ❌ |
+| PUT | `/billing/plans/:planId` | Update billing plan | ✅ | ❌ |
+| DELETE | `/billing/plans/:planId` | Delete billing plan | ✅ | ❌ |
+
+### Subscriptions
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/billing/subscriptions` | Create subscription | ✅ | ✅ |
+| GET | `/billing/subscriptions` | Get subscription | ✅ | ✅ |
+| PUT | `/billing/subscriptions` | Update subscription | ✅ | ✅ |
+| DELETE | `/billing/subscriptions` | Cancel subscription | ✅ | ✅ |
+| POST | `/billing/subscriptions/upgrade` | Upgrade plan | ✅ | ✅ |
+| POST | `/billing/subscriptions/downgrade` | Downgrade plan | ✅ | ✅ |
+
+### Usage Tracking
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/billing/usage` | Record usage | ✅ | ✅ |
+| GET | `/billing/usage` | Get usage summary | ✅ | ✅ |
+| GET | `/billing/usage/limits` | Check usage limits | ✅ | ✅ |
+
+### Invoices
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/billing/invoices` | Get invoices | ✅ | ✅ |
+| GET | `/billing/invoices/:invoiceId` | Get specific invoice | ✅ | ✅ |
+| POST | `/billing/invoices/:invoiceId/payment` | Process invoice payment | ✅ | ✅ |
+| POST | `/billing/invoices/:invoiceId/refund` | Refund invoice payment | ✅ | ✅ |
 
 ### Analytics & Reports
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/billing/analytics` | Get billing analytics | ✅ | ❌ |
+| GET | `/billing/reports/revenue` | Get revenue report | ✅ | ❌ |
+| GET | `/billing/reports/churn` | Get churn analysis | ✅ | ❌ |
+
+### Admin Operations
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/billing/admin/process-billing` | Process recurring billing | ✅ | ❌ |
+| POST | `/billing/admin/retry-payments` | Retry failed payments | ✅ | ❌ |
+| POST | `/billing/admin/process-dunning` | Process dunning | ✅ | ❌ |
+| POST | `/billing/admin/tenants/:tenantId/suspend` | Suspend tenant service | ✅ | ❌ |
+| POST | `/billing/admin/tenants/:tenantId/reactivate` | Reactivate tenant service | ✅ | ❌ |
+
+## Analytics Module (20 endpoints)
+
+### Event Tracking
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/track/event` | Track custom event | ❌ | ✅ |
+| POST | `/track/page-view` | Track page view | ❌ | ✅ |
+| POST | `/track/product-view` | Track product view | ❌ | ✅ |
+| POST | `/track/purchase` | Track purchase | ❌ | ✅ |
+
+### Dashboard Analytics
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/dashboard` | Get dashboard stats | ✅ | ✅ |
+| GET | `/traffic` | Get traffic statistics | ✅ | ✅ |
+| GET | `/sales` | Get sales statistics | ✅ | ✅ |
+| GET | `/realtime` | Get real-time statistics | ✅ | ✅ |
+
+### Top Performers
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/top/products` | Get top products | ✅ | ✅ |
+| GET | `/top/pages` | Get top pages | ✅ | ✅ |
+| GET | `/top/referrers` | Get top referrers | ✅ | ✅ |
+
+### Advanced Analytics
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/advanced/cohorts` | Get cohort analysis | ✅ | ✅ |
+| GET | `/advanced/funnel` | Get funnel analysis | ✅ | ✅ |
+| GET | `/advanced/clv` | Get customer lifetime value | ✅ | ✅ |
+| GET | `/advanced/retention` | Get retention rate | ✅ | ✅ |
+
+### Reports
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/reports/generate` | Generate report | ✅ | ✅ |
+| POST | `/reports/schedule` | Schedule report | ✅ | ✅ |
+| GET | `/reports/scheduled` | Get scheduled reports | ✅ | ✅ |
+| DELETE | `/reports/scheduled/:id` | Delete scheduled report | ✅ | ✅ |
+| POST | `/export` | Export data | ✅ | ✅ |
+
+## Marketing Module (29 endpoints)
+
+### Campaigns
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/marketing/campaigns` | Create campaign | ✅ | ✅ |
+| GET | `/marketing/campaigns` | Get campaigns | ✅ | ✅ |
+| GET | `/marketing/campaigns/:id` | Get specific campaign | ✅ | ✅ |
+| PUT | `/marketing/campaigns/:id` | Update campaign | ✅ | ✅ |
+| DELETE | `/marketing/campaigns/:id` | Delete campaign | ✅ | ✅ |
+| POST | `/marketing/campaigns/:id/schedule` | Schedule campaign | ✅ | ✅ |
+| POST | `/marketing/campaigns/:id/start` | Start campaign | ✅ | ✅ |
+| POST | `/marketing/campaigns/:id/pause` | Pause campaign | ✅ | ✅ |
+| POST | `/marketing/campaigns/:id/stop` | Stop campaign | ✅ | ✅ |
+| GET | `/marketing/campaigns/:id/emails` | Get campaign emails | ✅ | ✅ |
+| GET | `/marketing/campaigns/:id/stats` | Get campaign statistics | ✅ | ✅ |
+
+### Templates
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/marketing/templates` | Create template | ✅ | ✅ |
+| GET | `/marketing/templates` | Get templates | ✅ | ✅ |
+| GET | `/marketing/templates/:id` | Get specific template | ✅ | ✅ |
+| PUT | `/marketing/templates/:id` | Update template | ✅ | ✅ |
+| DELETE | `/marketing/templates/:id` | Delete template | ✅ | ✅ |
+
+### Segments
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/marketing/segments` | Create segment | ✅ | ✅ |
+| GET | `/marketing/segments` | Get segments | ✅ | ✅ |
+| GET | `/marketing/segments/:id` | Get specific segment | ✅ | ✅ |
+| PUT | `/marketing/segments/:id` | Update segment | ✅ | ✅ |
+| DELETE | `/marketing/segments/:id` | Delete segment | ✅ | ✅ |
+| POST | `/marketing/segments/:id/refresh` | Refresh segment | ✅ | ✅ |
+
+### Newsletter
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/marketing/newsletter/subscribe` | Subscribe to newsletter | ❌ | ✅ |
+| POST | `/marketing/newsletter/unsubscribe` | Unsubscribe from newsletter | ❌ | ✅ |
+| GET | `/marketing/newsletter/subscribers` | Get subscribers | ✅ | ✅ |
+| GET | `/marketing/newsletter/subscribers/:email` | Get specific subscriber | ✅ | ✅ |
+
+### Abandoned Carts & Settings
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/marketing/abandoned-carts` | Create abandoned cart record | ✅ | ✅ |
+| GET | `/marketing/abandoned-carts` | Get abandoned carts | ✅ | ✅ |
+| GET | `/marketing/settings` | Get marketing settings | ✅ | ✅ |
+| PUT | `/marketing/settings` | Update marketing settings | ✅ | ✅ |
+| GET | `/marketing/overview` | Get marketing overview | ✅ | ✅ |
+| GET | `/marketing/track/open/:emailId` | Track email open | ❌ | ✅ |
+| GET | `/marketing/track/click/:emailId` | Track email click | ❌ | ✅ |
+
+## Discount Module (22 endpoints)
+
+### Discount Management
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/discounts` | Create discount/coupon | ✅ | ✅ |
+| GET | `/discounts` | Get discounts | ✅ | ✅ |
+| GET | `/discounts/:id` | Get specific discount | ✅ | ✅ |
+| PUT | `/discounts/:id` | Update discount | ✅ | ✅ |
+| DELETE | `/discounts/:id` | Delete discount | ✅ | ✅ |
+| GET | `/discounts/:id/usage` | Get discount usage | ✅ | ✅ |
+| GET | `/discounts/stats` | Get discount statistics | ✅ | ✅ |
+| GET | `/discounts/performance` | Get top discounts | ✅ | ✅ |
+| GET | `/discounts/revenue-impact` | Get discount revenue impact | ✅ | ✅ |
+
+### Discount Application (Public)
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/validate-discount` | Validate discount code | ❌ | ✅ |
+| POST | `/apply-discount` | Apply discount to order | ❌ | ✅ |
+| DELETE | `/remove-discount/:orderId` | Remove discount from order | ❌ | ✅ |
+
+### Gift Cards
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/gift-cards` | Create gift card | ✅ | ✅ |
+| GET | `/gift-cards` | Get gift cards | ✅ | ✅ |
+| GET | `/gift-cards/:code` | Get gift card by code | ✅ | ✅ |
+| PUT | `/gift-cards/:id` | Update gift card | ✅ | ✅ |
+| DELETE | `/gift-cards/:id` | Delete gift card | ✅ | ✅ |
+| POST | `/validate-gift-card` | Validate gift card | ❌ | ✅ |
+| POST | `/use-gift-card` | Use gift card | ❌ | ✅ |
+
+### Store Credit
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/store-credit/:customerId` | Get customer store credit | ✅ | ✅ |
+| POST | `/store-credit/:customerId/add` | Add store credit | ✅ | ✅ |
+| POST | `/store-credit/:customerId/use` | Use store credit | ✅ | ✅ |
+
+## Reviews Module (25 endpoints)
+
+### Review Management
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/reviews` | Create review | ✅ | ✅ |
+| GET | `/reviews` | Get reviews | ✅ | ✅ |
+| GET | `/reviews/:id` | Get specific review | ✅ | ✅ |
+| PUT | `/reviews/:id` | Update review | ✅ | ✅ |
+| DELETE | `/reviews/:id` | Delete review | ✅ | ✅ |
+
+### Review Moderation
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/reviews/:id/approve` | Approve review | ✅ | ✅ |
+| POST | `/reviews/:id/reject` | Reject review | ✅ | ✅ |
+| POST | `/reviews/:id/spam` | Mark review as spam | ✅ | ✅ |
+| POST | `/reviews/bulk-moderate` | Bulk moderate reviews | ✅ | ✅ |
+| GET | `/reviews/pending` | Get pending reviews | ✅ | ✅ |
+
+### Review Interactions
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/reviews/:id/replies` | Add review reply | ✅ | ✅ |
+| GET | `/reviews/:id/replies` | Get review replies | ✅ | ✅ |
+| POST | `/reviews/:id/react` | React to review | ✅ | ✅ |
+| DELETE | `/reviews/:id/react` | Remove reaction | ✅ | ✅ |
+
+### Product Reviews
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/products/:productId/reviews` | Get product reviews | ✅ | ✅ |
+| GET | `/products/:productId/reviews/summary` | Get product review summary | ✅ | ✅ |
+
+### Review Invitations & Analytics
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/review-invitations` | Create review invitation | ✅ | ✅ |
+| GET | `/review-invitations` | Get review invitations | ✅ | ✅ |
+| POST | `/review-invitations/:id/send` | Send review invitation | ✅ | ✅ |
+| GET | `/review-invite/:token` | Process invitation click | ❌ | ❌ |
+| GET | `/reviews/stats` | Get review statistics | ✅ | ✅ |
+| GET | `/reviews/trends` | Get review trends | ✅ | ✅ |
+| GET | `/reviews/top-products` | Get top rated products | ✅ | ✅ |
+| GET | `/reviews/recent` | Get recent reviews | ✅ | ✅ |
+| GET | `/reviews/settings` | Get review settings | ✅ | ✅ |
+| PUT | `/reviews/settings` | Update review settings | ✅ | ✅ |
+
+## Support Module (15 endpoints)
+
+### Support Tickets
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/support/tickets` | Create support ticket | ✅ | ✅ |
+| GET | `/support/tickets` | Get support tickets | ✅ | ✅ |
+| GET | `/support/tickets/:id` | Get specific ticket | ✅ | ✅ |
+| PUT | `/support/tickets/:id` | Update ticket | ✅ | ✅ |
+| DELETE | `/support/tickets/:id` | Delete ticket | ✅ | ✅ |
+| POST | `/support/tickets/:id/assign` | Assign ticket | ✅ | ✅ |
+| POST | `/support/tickets/:id/resolve` | Resolve ticket | ✅ | ✅ |
+| GET | `/support/tickets/:id/messages` | Get ticket messages | ✅ | ✅ |
+| POST | `/support/tickets/:id/messages` | Add ticket message | ✅ | ✅ |
+
+### FAQ & Knowledge Base
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/support/faqs` | Create FAQ | ✅ | ✅ |
+| GET | `/support/faqs` | Get FAQs | ✅ | ✅ |
+| GET | `/support/knowledge-base` | Get knowledge base articles | ✅ | ✅ |
+| GET | `/support/knowledge-base/:slug` | Get article by slug | ✅ | ✅ |
+
+### Support Settings & Analytics
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/support/settings` | Get support settings | ✅ | ✅ |
+| GET | `/support/stats` | Get ticket statistics | ✅ | ✅ |
+
+## Contact Module (31 endpoints)
+
+### Contact Management
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/contacts` | Create contact | ✅ | ✅ |
+| GET | `/contacts` | List contacts | ✅ | ✅ |
+| GET | `/contacts/:id` | Get contact details | ✅ | ✅ |
+| PUT | `/contacts/:id` | Update contact | ✅ | ✅ |
+| DELETE | `/contacts/:id` | Delete contact | ✅ | ✅ |
+| POST | `/contacts/bulk` | Bulk update contacts | ✅ | ✅ |
+| POST | `/contacts/export` | Export contacts | ✅ | ✅ |
+
+### Contact Status Management
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| PUT | `/contacts/:id/status` | Update contact status | ✅ | ✅ |
+| PUT | `/contacts/:id/assign` | Assign contact | ✅ | ✅ |
+| PUT | `/contacts/:id/priority` | Update contact priority | ✅ | ✅ |
+| POST | `/contacts/:id/tags` | Add contact tags | ✅ | ✅ |
+| DELETE | `/contacts/:id/tags` | Remove contact tags | ✅ | ✅ |
+
+### Contact Interactions
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/contacts/:id/replies` | Create contact reply | ✅ | ✅ |
+| GET | `/contacts/:id/replies` | List contact replies | ✅ | ✅ |
+| POST | `/contacts/:id/notes` | Add contact note | ✅ | ✅ |
+| GET | `/contacts/:id/notes` | List contact notes | ✅ | ✅ |
+
+### Contact Forms
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/contact-forms` | Create contact form | ✅ | ✅ |
+| GET | `/contact-forms` | List contact forms | ✅ | ✅ |
+| GET | `/contact-forms/public/:form_type` | Get public contact form | ❌ | ✅ |
+| POST | `/contact-forms/public/:form_type/submit` | Submit public contact form | ❌ | ✅ |
+
+### Contact Templates & Analytics
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/contact-templates` | Create contact template | ✅ | ✅ |
+| GET | `/contact-templates` | List contact templates | ✅ | ✅ |
+| GET | `/contact-settings` | Get contact settings | ✅ | ✅ |
+| PUT | `/contact-settings` | Update contact settings | ✅ | ✅ |
+| GET | `/contact-analytics` | Get contact analytics | ✅ | ✅ |
+| GET | `/contact-analytics/metrics` | Get contact metrics | ✅ | ✅ |
+| GET | `/contact-analytics/performance` | Get agent performance | ✅ | ✅ |
+| GET | `/contact-analytics/satisfaction` | Get customer satisfaction | ✅ | ✅ |
+| GET | `/contact-analytics/resolution-time` | Get resolution time analytics | ✅ | ✅ |
+| GET | `/contact-analytics/response-time` | Get response time analytics | ✅ | ✅ |
+
+## Observability Module (12 endpoints)
+
+### Health Monitoring
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/observability/health` | Get basic health status | ✅ | ❌ |
+| GET | `/observability/health/detailed` | Get detailed health status | ✅ | ❌ |
+
+### Metrics & Monitoring
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/observability/metrics` | Get system metrics | ✅ | ❌ |
+| GET | `/observability/metrics/summary` | Get metrics summary | ✅ | ❌ |
+
+### Logging & Tracing
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/observability/logs` | Get log entries | ✅ | ❌ |
+| POST | `/observability/logs` | Create log entry | ✅ | ❌ |
+| GET | `/observability/traces` | Get traces | ✅ | ❌ |
+| GET | `/observability/traces/:traceId` | Get specific trace | ✅ | ❌ |
+
+### Alerting & System Info
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/observability/alerts` | Get alerts | ✅ | ❌ |
+| POST | `/observability/alerts` | Create alert | ✅ | ❌ |
+| GET | `/observability/system/info` | Get system information | ✅ | ❌ |
+| GET | `/observability/system/stats` | Get system statistics | ✅ | ❌ |
+
+## Modules in Development
+
+### Shipping Module
+**Status:** TODO - Implementation pending
+**Planned Features:**
+- Shipping rate calculation
+- Shipping label creation and management
+- Package tracking integration
+- Multi-carrier support (Pathao, RedX, Paperfly, DHL, FedEx)
+
+### Content Module  
+**Status:** TODO - Implementation pending
+**Planned Features:**
+- Page and blog management
+- Media library management
+- SEO management
+- Navigation and menu management
+
+### Webhook Module
+**Status:** TODO - Implementation pending
+**Planned Features:**
+- Webhook endpoint management
+- Webhook delivery monitoring
+- Provider webhooks (Stripe, PayPal, Bkash, Nagad, etc.)
+
+## Real-time Features (WebSocket)
+
+### WebSocket Connection
 ```
-GET    /analytics/dashboard           # Get dashboard metrics
-GET    /analytics/sales               # Sales analytics
-GET    /analytics/products            # Product performance
-GET    /analytics/customers           # Customer analytics
-GET    /analytics/traffic             # Website traffic
-GET    /reports/sales                 # Sales reports
-GET    /reports/inventory             # Inventory reports
-GET    /reports/customers             # Customer reports
-GET    /reports/tax                   # Tax reports
-POST   /reports/generate              # Generate custom report
-GET    /reports/export/:id            # Export report
-```
-
-### Content Management
-```
-GET    /pages                         # List pages
-POST   /pages                         # Create page
-GET    /pages/:id                     # Get page
-PUT    /pages/:id                     # Update page
-DELETE /pages/:id                     # Delete page
-PATCH  /pages/:id/status              # Update page status
-GET    /blogs                         # List blog posts
-POST   /blogs                         # Create blog post
-GET    /blogs/:id                     # Get blog post
-PUT    /blogs/:id                     # Update blog post
-DELETE /blogs/:id                     # Delete blog post
-PATCH  /blogs/:id/status              # Update blog status
-GET    /menus                         # List navigation menus
-POST   /menus                         # Create menu
-PUT    /menus/:id                     # Update menu
-DELETE /menus/:id                     # Delete menu
-GET    /redirects                     # List URL redirects
-POST   /redirects                     # Create redirect
-PUT    /redirects/:id                 # Update redirect
-DELETE /redirects/:id                 # Delete redirect
-GET    /sitemap                       # Generate sitemap
-GET    /robots.txt                    # Get robots.txt
-PUT    /robots.txt                    # Update robots.txt
-```
-
-### Media & Assets
-```
-GET    /media                         # List media files
-POST   /media/upload                  # Upload media file
-DELETE /media/:id                     # Delete media file
-POST   /media/bulk-upload             # Bulk upload files
-GET    /media/search                  # Search media files
-POST   /media/organize                # Organize into folders
-```
-
-### Settings & Configuration
-```
-GET    /settings/store                # Get store settings
-PUT    /settings/store                # Update store settings
-GET    /settings/theme                # Get theme settings
-PUT    /settings/theme                # Update theme
-GET    /settings/seo                  # Get SEO settings
-PUT    /settings/seo                  # Update SEO settings
-GET    /settings/notifications        # Get notification settings
-PUT    /settings/notifications        # Update notifications
-GET    /settings/integrations         # List integrations
-POST   /settings/integrations         # Add integration
-PUT    /settings/integrations/:id     # Update integration
-DELETE /settings/integrations/:id     # Remove integration
-GET    /settings/domains              # Get domain settings
-PUT    /settings/domains              # Update domain settings
-GET    /settings/email                # Get email settings
-PUT    /settings/email                # Update email settings
-```
-
-### Themes & Templates
-```
-GET    /themes                        # List available themes
-GET    /themes/:id                    # Get theme details
-POST   /themes                        # Upload custom theme (admin)
-PUT    /themes/:id                    # Update theme (admin)
-DELETE /themes/:id                    # Delete theme (admin)
-POST   /themes/:id/install            # Install theme
-GET    /themes/current                # Get current active theme
-POST   /themes/:id/preview            # Preview theme
-GET    /templates                     # List page templates
-GET    /templates/:id                 # Get template content
-PUT    /templates/:id                 # Update template content
-```
-
-### Webhooks & Events
-```
-GET    /webhooks                      # List webhooks
-POST   /webhooks                      # Create webhook
-GET    /webhooks/:id                  # Get webhook
-PUT    /webhooks/:id                  # Update webhook
-DELETE /webhooks/:id                  # Delete webhook
-POST   /webhooks/:id/test             # Test webhook
-GET    /webhooks/:id/deliveries       # Get webhook deliveries
-POST   /webhooks/:id/redeliver        # Redeliver webhook
-```
-
-### Reviews & Ratings
-```
-GET    /reviews                       # List all reviews (admin)
-GET    /reviews/:id                   # Get review details
-PUT    /reviews/:id                   # Update review
-DELETE /reviews/:id                   # Delete review
-PATCH  /reviews/:id/status            # Approve/reject review
-POST   /reviews/:id/reply             # Reply to review
-GET    /reviews/pending               # Get pending reviews
-POST   /reviews/bulk-moderate         # Bulk moderate reviews
-```
-
-### Taxes & Legal
-```
-GET    /taxes/rates                   # Get tax rates
-POST   /taxes/rates                   # Create tax rate
-PUT    /taxes/rates/:id               # Update tax rate
-DELETE /taxes/rates/:id               # Delete tax rate
-POST   /taxes/calculate               # Calculate tax for order
-GET    /legal/terms                   # Get terms of service
-PUT    /legal/terms                   # Update terms of service
-GET    /legal/privacy                 # Get privacy policy
-PUT    /legal/privacy                 # Update privacy policy
-GET    /legal/cookies                 # Get cookie policy
-PUT    /legal/cookies                 # Update cookie policy
-```
-
-### Notifications & Messages
-```
-GET    /notifications                 # List user notifications
-POST   /notifications                 # Create notification
-PATCH  /notifications/:id/read        # Mark as read
-DELETE /notifications/:id             # Delete notification
-PUT    /notifications/read-all        # Mark all as read
-GET    /messages                      # List messages
-POST   /messages                      # Send message
-GET    /messages/:id                  # Get message
-DELETE /messages/:id                  # Delete message
-GET    /messages/unread               # Get unread count
-```
-
-### Advanced Features & Extensions
-```
-# Customer Segments & Loyalty
-GET    /customer-segments             # List customer segments
-POST   /customer-segments             # Create customer segment
-GET    /customer-segments/:id         # Get segment details
-PUT    /customer-segments/:id         # Update segment
-DELETE /customer-segments/:id         # Delete segment
-GET    /customer-segments/:id/customers # Get customers in segment
-GET    /loyalty-programs              # List loyalty programs
-POST   /loyalty-programs              # Create loyalty program
-GET    /loyalty-programs/:id          # Get program details
-PUT    /loyalty-programs/:id          # Update program
-DELETE /loyalty-programs/:id          # Delete program
-GET    /customers/:id/loyalty-points  # Get customer loyalty points
-POST   /customers/:id/loyalty-points  # Add loyalty points
-GET    /rewards                       # List available rewards
-POST   /rewards                       # Create reward
-POST   /rewards/:id/redeem            # Redeem reward
-
-# Abandoned Cart Recovery
-POST   /cart/abandoned/recovery       # Send recovery email
-GET    /cart/abandoned/stats          # Abandoned cart statistics
-POST   /cart/abandoned/:id/restore    # Restore abandoned cart
-
-# Advanced Search & Filters
-GET    /search                        # Advanced search across all entities
-GET    /search/suggestions            # Get search suggestions
-POST   /search/filters                # Create custom search filter
-GET    /search/filters                # List saved search filters
-GET    /search/popular                # Get popular search terms
-POST   /search/index/rebuild          # Rebuild search index (admin)
-
-# Multi-currency & Localization
-GET    /currencies                    # List supported currencies
-POST   /currencies                    # Add currency (admin)
-GET    /currencies/:code/rates        # Get exchange rates
-PUT    /currencies/:code/rates        # Update exchange rates
-GET    /locales                       # List supported locales
-POST   /locales                       # Add locale (admin)
-GET    /translations/:locale          # Get translations for locale
-PUT    /translations/:locale          # Update translations
-
-# Advanced Analytics & Reporting
-GET    /analytics/cohorts             # Cohort analysis
-GET    /analytics/ltv                 # Customer lifetime value
-GET    /analytics/funnel              # Conversion funnel analysis
-GET    /analytics/retention           # Customer retention rates
-GET    /analytics/segments            # Segment performance analysis
-GET    /analytics/predictions         # AI-powered predictions
-GET    /reports/scheduled             # List scheduled reports
-POST   /reports/scheduled             # Create scheduled report
-GET    /reports/custom                # List custom reports
-POST   /reports/custom                # Create custom report
-POST   /reports/export                # Export report data
-
-# AI & Personalization
-GET    /ai/recommendations/products   # AI product recommendations
-GET    /ai/recommendations/customers  # Customer recommendations
-POST   /ai/analyze/sentiment          # Sentiment analysis
-GET    /ai/insights/trends            # Market trend insights
-POST   /ai/optimize/pricing           # AI pricing optimization
-GET    /personalization/rules         # List personalization rules
-POST   /personalization/rules         # Create personalization rule
-
-# Advanced Marketing
-GET    /campaigns                     # List marketing campaigns
-POST   /campaigns                     # Create campaign
-GET    /campaigns/:id                 # Get campaign details
-PUT    /campaigns/:id                 # Update campaign
-DELETE /campaigns/:id                 # Delete campaign
-GET    /campaigns/:id/performance     # Campaign performance metrics
-POST   /email-marketing/automations   # Create email automation
-GET    /email-marketing/templates     # List email templates
-POST   /email-marketing/send          # Send marketing email
-GET    /social-media/integrations     # List social media integrations
-POST   /social-media/post             # Create social media post
-
-# Marketplace & Multi-vendor
-GET    /vendors                       # List vendors (if multi-vendor)
-POST   /vendors                       # Create vendor account
-GET    /vendors/:id                   # Get vendor details
-PUT    /vendors/:id                   # Update vendor
-GET    /vendors/:id/products          # Get vendor products
-GET    /vendors/:id/orders            # Get vendor orders
-GET    /vendors/:id/earnings          # Get vendor earnings
-POST   /vendors/:id/payout            # Process vendor payout
-GET    /marketplace/fees              # Get marketplace fee structure
-PUT    /marketplace/fees              # Update fee structure
-
-# Advanced Fulfillment
-GET    /fulfillment/centers           # List fulfillment centers
-POST   /fulfillment/centers           # Add fulfillment center
-GET    /fulfillment/rules             # List fulfillment rules
-POST   /fulfillment/rules             # Create fulfillment rule
-GET    /fulfillment/capacity          # Check fulfillment capacity
-POST   /fulfillment/allocate          # Allocate inventory to center
-GET    /dropshipping/suppliers        # List dropshipping suppliers
-POST   /dropshipping/suppliers        # Add supplier
-GET    /dropshipping/products         # List supplier products
-POST   /dropshipping/sync             # Sync supplier inventory
-
-# Advanced Security & Compliance
-GET    /security/sessions             # List active sessions
-DELETE /security/sessions/:id         # Terminate session
-GET    /security/audit-logs           # Security audit logs
-POST   /security/2fa/setup            # Setup 2FA for user
-POST   /security/2fa/verify           # Verify 2FA code
-GET    /compliance/gdpr/data/:email   # Get user data (GDPR)
-DELETE /compliance/gdpr/delete/:email # Delete user data (GDPR)
-POST   /compliance/gdpr/export        # Export user data
-GET    /compliance/pci/status         # PCI compliance status
-
-# API Management
-GET    /api/keys                      # List API keys
-POST   /api/keys                      # Generate API key
-DELETE /api/keys/:id                 # Revoke API key
-GET    /api/usage                     # API usage statistics
-GET    /api/rate-limits               # Current rate limits
-GET    /api/webhooks/events           # List webhook event types
-```
-
-### System & Health
-```
-GET    /health                        # Health check endpoint
-GET    /version                       # API version information
-GET    /status                        # System status
-GET    /metrics                       # System metrics (admin only)
-PUT    /system/maintenance/enable     # Enable maintenance mode
-PUT    /system/maintenance/disable    # Disable maintenance mode
-GET    /system/logs                   # System logs (admin only)
-POST   /system/backup                 # Create system backup
-GET    /system/backups                # List backups
-POST   /system/restore/:backupId      # Restore from backup
-```
-
-### Observability & Monitoring
-```
-GET    /observability/health          # Basic health status
-GET    /observability/health/detailed # Detailed health with all services
-GET    /observability/metrics         # Collected system metrics
-GET    /observability/metrics/summary # Metrics summary statistics
-GET    /observability/logs            # System log entries with filters
-POST   /observability/logs            # Create log entry
-GET    /observability/traces          # Distributed traces
-GET    /observability/traces/:traceId # Get specific trace details
-GET    /observability/alerts          # Current system alerts
-POST   /observability/alerts          # Create new alert
-PUT    /observability/alerts/:alertId/resolve  # Resolve alert
-GET    /observability/system/info     # System information
-GET    /observability/system/stats    # Real-time system statistics
-```
-
-## Request/Response Format
-
-### Standard Response Structure
-```json
-{
-  "success": true,
-  "data": {},
-  "message": "Success message",
-  "pagination": {
-    "page": 1,
-    "limit": 10,
-    "total": 100,
-    "pages": 10
-  }
-}
-```
-
-### Error Response Structure
-```json
-{
-  "success": false,
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Validation failed",
-    "details": [
-      {
-        "field": "email",
-        "message": "Invalid email format"
-      }
-    ]
-  }
-}
-```
-
-## HTTP Status Codes
-- `200` - Success
-- `201` - Created
-- `400` - Bad Request
-- `401` - Unauthorized
-- `403` - Forbidden
-- `404` - Not Found
-- `422` - Validation Error
-- `500` - Internal Server Error
-
-## Rate Limiting
-- **Anonymous requests**: 100 requests/hour
-- **Authenticated requests**: 1000 requests/hour
-- **Tenant API calls**: Based on subscription plan
-
-## Pagination
-Query parameters for list endpoints:
-- `page` - Page number (default: 1)
-- `limit` - Items per page (default: 10, max: 100)
-- `sort` - Sort field (default: created_at)
-- `order` - Sort order: asc/desc (default: desc)
-
-## Filtering
-Common query parameters:
-- `search` - Text search across relevant fields
-- `status` - Filter by status
-- `created_after` - Filter by creation date
-- `created_before` - Filter by creation date
-
-## API Examples
-
-### Create Product
-```bash
-POST /api/v1/products
-Content-Type: application/json
-Authorization: Bearer <token>
-
-{
-  "name": "Premium T-Shirt",
-  "description": "High-quality cotton t-shirt",
-  "price": 29.99,
-  "sku": "TSHIRT-001",
-  "inventory": {
-    "quantity": 100,
-    "track_quantity": true
-  },
-  "categories": ["clothing", "t-shirts"]
-}
+ws://localhost:8080/ws
+wss://api.yourplatform.com/ws
 ```
 
-### Get Products with Filters
-```bash
-GET /api/v1/products?search=shirt&status=active&page=1&limit=20
-```
+### Real-time Event Types
+- `inventory_updated` - Product inventory changes
+- `order_created` - New orders
+- `order_status_changed` - Order status updates
+- `product_updated` - Product modifications
+- `dashboard_metrics_updated` - Real-time dashboard updates
+- `system_notification` - System alerts and notifications
 
-## Webhooks
-Platform supports webhooks for real-time notifications:
+## Summary
 
-### Supported Events
-- `order.created`
-- `order.updated`
-- `payment.completed`
-- `product.updated`
-- `customer.created`
+The e-commerce platform currently implements **195+ API endpoints** across **13 active modules**:
 
-### Webhook Payload
-```json
-{
-  "event": "order.created",
-  "tenant_id": "uuid",
-  "data": {},
-  "timestamp": "2025-01-01T00:00:00Z"
-}
-```
+- ✅ **Product Module** - 29 endpoints (complete CRUD, variants, categories)
+- ✅ **Order Module** - 15 endpoints (order management, tracking, payments)
+- ✅ **User Module** - 12 endpoints (authentication, user management)
+- ✅ **Tenant Module** - 11 endpoints (multi-tenancy management)
+- ✅ **Payment Module** - 6 endpoints (payment processing, webhooks)
+- ✅ **Notification Module** - 14 endpoints (notifications, templates, preferences)
+- ✅ **Billing Module** - 31 endpoints (plans, subscriptions, usage, invoices)
+- ✅ **Analytics Module** - 20 endpoints (tracking, dashboard, reports)
+- ✅ **Marketing Module** - 29 endpoints (campaigns, templates, segments)
+- ✅ **Discount Module** - 22 endpoints (discounts, gift cards, store credit)
+- ✅ **Reviews Module** - 25 endpoints (reviews, moderation, invitations)
+- ✅ **Support Module** - 15 endpoints (tickets, FAQ, knowledge base)
+- ✅ **Contact Module** - 31 endpoints (contact management, forms, templates)
+- ✅ **Observability Module** - 12 endpoints (health, metrics, logs, alerts)
 
-## SDK Support
-Official SDKs available for:
-- JavaScript/Node.js
-- PHP  
-- Python
-- Go
+### Authentication & Security
+- JWT-based authentication for all protected endpoints
+- Multi-tenant architecture with proper isolation
+- Public endpoints for customer-facing features
+- WebSocket support for real-time updates
 
-## Postman Collection
-Import our Postman collection for easy API testing:
-```
-[Download Postman Collection](./postman/ecommerce-SaaS-api.json)
-```
+### Technology Stack
+- **Backend Framework**: Gin (Go HTTP router)
+- **Database**: PostgreSQL with GORM
+- **Authentication**: JWT tokens
+- **Real-time**: WebSocket connections
+- **Caching**: Redis integration
+- **Architecture**: Hexagonal (Clean) Architecture pattern

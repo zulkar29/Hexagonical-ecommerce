@@ -9,7 +9,7 @@ A multi-tenant e-commerce SaaS platform built with hexagonal architecture, enabl
 ### **Quick Links**
 - [🏗️ Architecture](./docs/ARCHITECTURE.md) - System architecture and hexagonal design patterns
 - [📡 API Documentation](./docs/API_REFERENCE.md) - Complete REST API documentation (450+ endpoints)
-- [🚀 API Architecture](./docs/API_ARCHITECTURE.md) - GraphQL, SSE, advanced pagination
+- [🚀 API Architecture](./docs/API_ARCHITECTURE.md) - Socket communication, advanced pagination
 - [🗄️ Database Strategy](./docs/DATABASE.md) - Hybrid multi-tenant database design
 - [✨ Features](./docs/FEATURES.md) - Complete feature list and pricing tiers  
 - [🐳 Docker Setup](./docs/README-DOCKER.md) - Development environment with Docker
@@ -58,26 +58,26 @@ cd dashboard && npm start
 
 ## 🎯 Tech Stack
 
-- **Backend**: Go 1.21+ with Fiber framework
+- **Backend**: Go 1.21+ with Gin framework
 - **Frontend**: Next.js 14+ (storefront) + React 18+ (dashboard)
 - **Database**: PostgreSQL 15+ with tenant isolation
 - **Cache**: Redis 7+
-- **Storage**: MinIO (S3-compatible)
+- **Storage**: Local file storage with Cloudflare Images CDN
 - **State**: Jotai for client state management
-- **Styling**: Tailwind CSS
-- **Deployment**: Docker containers
+- **Styling**: Tailwind CSS + Shadcn/UI (storefront) + Material-UI (dashboard)
+- **Deployment**: Docker containers on VPS
 
 ## 📊 Services Overview
 
 | Service | Port | Description |
 |---------|------|-------------|
-| Backend API | 8080 | Go Fiber REST API |
+| Backend API | 8080 | Go Gin REST API |
 | Storefront | 3000 | Customer-facing store |
 | Dashboard | 3001 | Merchant admin panel |
 | PostgreSQL | 5432 | Primary database |
 | Redis | 6379 | Cache & sessions |
-| MinIO | 9000 | File storage |
-| MailHog | 8025 | Email testing |
+| File Storage | - | Local VPS storage |
+| MailHog | 8025 | Email testing (dev) |
 
 ## 🔧 Development
 
@@ -100,7 +100,8 @@ make format         # Format code
 - **Multi-tenancy**: Database-per-tenant isolation
 - **Authentication**: JWT with role-based access
 - **Payments**: Stripe integration
-- **Deployment**: AWS ECS with Docker
+- **Real-time**: WebSocket communication
+- **Deployment**: Docker containers on VPS
 
 ---
 

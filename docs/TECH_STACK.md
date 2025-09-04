@@ -4,7 +4,7 @@
 
 ### Core Framework & Libraries
 - **Go 1.21+**: Latest stable Go version
-- **Fiber**: Express.js-like HTTP web framework for REST APIs
+- **Gin**: High-performance HTTP web framework for REST APIs
 - **GORM**: ORM for database operations
 - **Wire**: Dependency injection framework
 - **Viper**: Configuration management
