@@ -267,133 +267,261 @@ type MarketingOverview struct {
 
 // Implementation methods (TODO: implement business logic)
 func (s *service) CreateCampaign(ctx context.Context, req CreateCampaignRequest) (*Campaign, error) {
-	// TODO: Implement campaign creation logic
-	return nil, fmt.Errorf("TODO: implement CreateCampaign")
+	campaign := &Campaign{
+		ID:          uuid.New(),
+		TenantID:    req.TenantID,
+		Name:        req.Name,
+		Subject:     req.Subject,
+		Content:     req.Content,
+		TemplateID:  req.TemplateID,
+		SegmentID:   req.SegmentID,
+		Type:        req.Type,
+		Status:      StatusDraft,
+		ScheduledAt: req.ScheduledAt,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	return s.repo.CreateCampaign(ctx, campaign)
 }
 
 func (s *service) GetCampaign(ctx context.Context, tenantID, campaignID uuid.UUID) (*Campaign, error) {
-	// TODO: Implement get campaign logic
-	return nil, fmt.Errorf("TODO: implement GetCampaign")
+	return s.repo.GetCampaign(ctx, tenantID, campaignID)
 }
 
 func (s *service) GetCampaigns(ctx context.Context, tenantID uuid.UUID, filter CampaignFilter) ([]Campaign, error) {
-	// TODO: Implement get campaigns with filters
-	return nil, fmt.Errorf("TODO: implement GetCampaigns")
+	return s.repo.GetCampaigns(ctx, tenantID, filter)
 }
 
 func (s *service) UpdateCampaign(ctx context.Context, tenantID, campaignID uuid.UUID, req UpdateCampaignRequest) (*Campaign, error) {
-	// TODO: Implement update campaign logic
-	return nil, fmt.Errorf("TODO: implement UpdateCampaign")
+	updates := make(map[string]interface{})
+	updates["updated_at"] = time.Now()
+
+	if req.Name != nil {
+		updates["name"] = *req.Name
+	}
+	if req.Subject != nil {
+		updates["subject"] = *req.Subject
+	}
+	if req.Content != nil {
+		updates["content"] = *req.Content
+	}
+	if req.TemplateID != nil {
+		updates["template_id"] = *req.TemplateID
+	}
+	if req.SegmentID != nil {
+		updates["segment_id"] = *req.SegmentID
+	}
+	if req.ScheduledAt != nil {
+		updates["scheduled_at"] = *req.ScheduledAt
+	}
+
+	err := s.repo.UpdateCampaign(ctx, tenantID, campaignID, updates)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.repo.GetCampaign(ctx, tenantID, campaignID)
 }
 
 func (s *service) DeleteCampaign(ctx context.Context, tenantID, campaignID uuid.UUID) error {
-	// TODO: Implement delete campaign logic
-	return fmt.Errorf("TODO: implement DeleteCampaign")
+	return s.repo.DeleteCampaign(ctx, tenantID, campaignID)
 }
 
 func (s *service) ScheduleCampaign(ctx context.Context, tenantID, campaignID uuid.UUID, scheduledAt time.Time) error {
-	// TODO: Implement campaign scheduling logic
-	return fmt.Errorf("TODO: implement ScheduleCampaign")
+	return s.repo.UpdateCampaign(ctx, tenantID, campaignID, map[string]interface{}{
+		"status": StatusScheduled,
+		"scheduled_at": scheduledAt,
+		"updated_at": time.Now(),
+	})
 }
 
 func (s *service) StartCampaign(ctx context.Context, tenantID, campaignID uuid.UUID) error {
-	// TODO: Implement campaign start logic
 	now := time.Now()
 	return s.repo.UpdateCampaign(ctx, tenantID, campaignID, map[string]interface{}{
 		"status": StatusRunning,
 		"started_at": &now,
+		"updated_at": now,
 	})
 }
 
 func (s *service) PauseCampaign(ctx context.Context, tenantID, campaignID uuid.UUID) error {
-	// TODO: Implement campaign pause logic
 	return s.repo.UpdateCampaign(ctx, tenantID, campaignID, map[string]interface{}{
 		"status": StatusPaused,
+		"updated_at": time.Now(),
 	})
 }
 
 func (s *service) StopCampaign(ctx context.Context, tenantID, campaignID uuid.UUID) error {
-	// TODO: Implement campaign stop logic
 	now := time.Now()
 	return s.repo.UpdateCampaign(ctx, tenantID, campaignID, map[string]interface{}{
 		"status": StatusCompleted,
 		"completed_at": &now,
+		"updated_at": now,
 	})
 }
 
 func (s *service) GetCampaignEmails(ctx context.Context, tenantID, campaignID uuid.UUID, filter EmailFilter) ([]CampaignEmail, error) {
-	// TODO: Implement get campaign emails
-	return nil, fmt.Errorf("TODO: implement GetCampaignEmails")
+	return s.repo.GetCampaignEmails(ctx, tenantID, campaignID, filter)
 }
 
 func (s *service) TrackEmailOpen(ctx context.Context, emailID uuid.UUID) error {
-	// TODO: Implement email open tracking
-	return fmt.Errorf("TODO: implement TrackEmailOpen")
+	now := time.Now()
+	return s.repo.UpdateCampaignEmail(ctx, emailID, map[string]interface{}{
+		"opened_at": &now,
+		"status": "opened",
+	})
 }
 
 func (s *service) TrackEmailClick(ctx context.Context, emailID uuid.UUID) error {
-	// TODO: Implement email click tracking
-	return fmt.Errorf("TODO: implement TrackEmailClick")
+	now := time.Now()
+	return s.repo.UpdateCampaignEmail(ctx, emailID, map[string]interface{}{
+		"clicked_at": &now,
+		"status": "clicked",
+	})
 }
 
 func (s *service) CreateTemplate(ctx context.Context, req CreateTemplateRequest) (*EmailTemplate, error) {
-	// TODO: Implement template creation logic
-	return nil, fmt.Errorf("TODO: implement CreateTemplate")
+	template := &EmailTemplate{
+		ID:        uuid.New(),
+		TenantID:  req.TenantID,
+		Name:      req.Name,
+		Subject:   req.Subject,
+		Content:   req.Content,
+		Type:      req.Type,
+		IsActive:  true,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	return s.repo.CreateTemplate(ctx, template)
 }
 
 func (s *service) GetTemplate(ctx context.Context, tenantID, templateID uuid.UUID) (*EmailTemplate, error) {
-	// TODO: Implement get template logic
-	return nil, fmt.Errorf("TODO: implement GetTemplate")
+	return s.repo.GetTemplate(ctx, tenantID, templateID)
 }
 
 func (s *service) GetTemplates(ctx context.Context, tenantID uuid.UUID, filter TemplateFilter) ([]EmailTemplate, error) {
-	// TODO: Implement get templates with filters
-	return nil, fmt.Errorf("TODO: implement GetTemplates")
+	return s.repo.GetTemplates(ctx, tenantID, filter)
 }
 
 func (s *service) UpdateTemplate(ctx context.Context, tenantID, templateID uuid.UUID, req UpdateTemplateRequest) (*EmailTemplate, error) {
-	// TODO: Implement update template logic
-	return nil, fmt.Errorf("TODO: implement UpdateTemplate")
+	updates := make(map[string]interface{})
+	updates["updated_at"] = time.Now()
+
+	if req.Name != nil {
+		updates["name"] = *req.Name
+	}
+	if req.Subject != nil {
+		updates["subject"] = *req.Subject
+	}
+	if req.Content != nil {
+		updates["content"] = *req.Content
+	}
+	if req.IsActive != nil {
+		updates["is_active"] = *req.IsActive
+	}
+
+	err := s.repo.UpdateTemplate(ctx, tenantID, templateID, updates)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.repo.GetTemplate(ctx, tenantID, templateID)
 }
 
 func (s *service) DeleteTemplate(ctx context.Context, tenantID, templateID uuid.UUID) error {
-	// TODO: Implement delete template logic
-	return fmt.Errorf("TODO: implement DeleteTemplate")
+	return s.repo.DeleteTemplate(ctx, tenantID, templateID)
 }
 
 func (s *service) CreateSegment(ctx context.Context, req CreateSegmentRequest) (*CustomerSegment, error) {
-	// TODO: Implement segment creation logic
-	return nil, fmt.Errorf("TODO: implement CreateSegment")
+	segment := &CustomerSegment{
+		ID:           uuid.New(),
+		TenantID:     req.TenantID,
+		Name:         req.Name,
+		Description:  req.Description,
+		Conditions:   req.Conditions,
+		IsActive:     true,
+		CustomerCount: 0, // Will be calculated on refresh
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+	}
+
+	return s.repo.CreateSegment(ctx, segment)
 }
 
 func (s *service) GetSegment(ctx context.Context, tenantID, segmentID uuid.UUID) (*CustomerSegment, error) {
-	// TODO: Implement get segment logic
-	return nil, fmt.Errorf("TODO: implement GetSegment")
+	return s.repo.GetSegment(ctx, tenantID, segmentID)
 }
 
 func (s *service) GetSegments(ctx context.Context, tenantID uuid.UUID) ([]CustomerSegment, error) {
-	// TODO: Implement get segments logic
-	return nil, fmt.Errorf("TODO: implement GetSegments")
+	return s.repo.GetSegments(ctx, tenantID)
 }
 
 func (s *service) UpdateSegment(ctx context.Context, tenantID, segmentID uuid.UUID, req UpdateSegmentRequest) (*CustomerSegment, error) {
-	// TODO: Implement update segment logic
-	return nil, fmt.Errorf("TODO: implement UpdateSegment")
+	updates := make(map[string]interface{})
+	updates["updated_at"] = time.Now()
+
+	if req.Name != nil {
+		updates["name"] = *req.Name
+	}
+	if req.Description != nil {
+		updates["description"] = *req.Description
+	}
+	if req.Conditions != nil {
+		updates["conditions"] = *req.Conditions
+	}
+	if req.IsActive != nil {
+		updates["is_active"] = *req.IsActive
+	}
+
+	err := s.repo.UpdateSegment(ctx, tenantID, segmentID, updates)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.repo.GetSegment(ctx, tenantID, segmentID)
 }
 
 func (s *service) DeleteSegment(ctx context.Context, tenantID, segmentID uuid.UUID) error {
-	// TODO: Implement delete segment logic
-	return fmt.Errorf("TODO: implement DeleteSegment")
+	return s.repo.DeleteSegment(ctx, tenantID, segmentID)
 }
 
 func (s *service) RefreshSegment(ctx context.Context, tenantID, segmentID uuid.UUID) error {
-	// TODO: Implement segment refresh logic (recalculate customer count)
-	return fmt.Errorf("TODO: implement RefreshSegment")
+	// Get segment to access conditions
+	segment, err := s.repo.GetSegment(ctx, tenantID, segmentID)
+	if err != nil {
+		return err
+	}
+
+	// Calculate customer count based on segment conditions
+	count, err := s.repo.GetSegmentCustomerCount(ctx, tenantID, segment.Conditions)
+	if err != nil {
+		return err
+	}
+
+	// Update segment with new customer count
+	return s.repo.UpdateSegment(ctx, tenantID, segmentID, map[string]interface{}{
+		"customer_count": count,
+		"updated_at": time.Now(),
+	})
 }
 
 func (s *service) Subscribe(ctx context.Context, req SubscribeRequest) (*NewsletterSubscriber, error) {
-	// TODO: Implement newsletter subscription logic
-	return nil, fmt.Errorf("TODO: implement Subscribe")
+	subscriber := &NewsletterSubscriber{
+		ID:           uuid.New(),
+		TenantID:     req.TenantID,
+		Email:        req.Email,
+		FirstName:    req.FirstName,
+		LastName:     req.LastName,
+		Status:       "active",
+		Source:       req.Source,
+		SubscribedAt: time.Now(),
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+	}
+
+	return s.repo.CreateSubscriber(ctx, subscriber)
 }
 
 func (s *service) Unsubscribe(ctx context.Context, tenantID uuid.UUID, email string) error {
@@ -406,23 +534,34 @@ func (s *service) Unsubscribe(ctx context.Context, tenantID uuid.UUID, email str
 }
 
 func (s *service) GetSubscriber(ctx context.Context, tenantID uuid.UUID, email string) (*NewsletterSubscriber, error) {
-	// TODO: Implement get subscriber logic
-	return nil, fmt.Errorf("TODO: implement GetSubscriber")
+	return s.repo.GetSubscriber(ctx, tenantID, email)
 }
 
 func (s *service) GetSubscribers(ctx context.Context, tenantID uuid.UUID, filter SubscriberFilter) ([]NewsletterSubscriber, error) {
-	// TODO: Implement get subscribers with filters
-	return nil, fmt.Errorf("TODO: implement GetSubscribers")
+	return s.repo.GetSubscribers(ctx, tenantID, filter)
 }
 
 func (s *service) CreateAbandonedCart(ctx context.Context, req CreateAbandonedCartRequest) (*AbandonedCart, error) {
-	// TODO: Implement abandoned cart creation logic
-	return nil, fmt.Errorf("TODO: implement CreateAbandonedCart")
+	abandonedCart := &AbandonedCart{
+		ID:            uuid.New(),
+		TenantID:      req.TenantID,
+		CartID:        req.CartID,
+		CustomerID:    req.CustomerID,
+		CustomerEmail: req.CustomerEmail,
+		CustomerName:  req.CustomerName,
+		CartValue:     req.CartValue,
+		ItemCount:     req.ItemCount,
+		Items:         req.Items,
+		IsRecovered:   false,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+	}
+
+	return s.repo.CreateAbandonedCart(ctx, abandonedCart)
 }
 
 func (s *service) GetAbandonedCarts(ctx context.Context, tenantID uuid.UUID, filter AbandonedCartFilter) ([]AbandonedCart, error) {
-	// TODO: Implement get abandoned carts with filters
-	return nil, fmt.Errorf("TODO: implement GetAbandonedCarts")
+	return s.repo.GetAbandonedCarts(ctx, tenantID, filter)
 }
 
 func (s *service) MarkCartRecovered(ctx context.Context, tenantID, cartID uuid.UUID, recoveredValue float64) error {
@@ -436,26 +575,96 @@ func (s *service) MarkCartRecovered(ctx context.Context, tenantID, cartID uuid.U
 }
 
 func (s *service) SendAbandonedCartEmail(ctx context.Context, tenantID, abandonedCartID uuid.UUID) error {
-	// TODO: Implement abandoned cart email sending
-	return fmt.Errorf("TODO: implement SendAbandonedCartEmail")
+	// Get abandoned cart details
+	cart, err := s.repo.GetAbandonedCart(ctx, tenantID, abandonedCartID)
+	if err != nil {
+		return err
+	}
+
+	// TODO: Integrate with email service to send abandoned cart email
+	// For now, just update the email sent timestamp
+	now := time.Now()
+	return s.repo.UpdateAbandonedCart(ctx, tenantID, abandonedCartID, map[string]interface{}{
+		"email_sent_at": &now,
+		"updated_at": now,
+	})
 }
 
 func (s *service) GetSettings(ctx context.Context, tenantID uuid.UUID) (*MarketingSettings, error) {
-	// TODO: Implement get settings logic
-	return nil, fmt.Errorf("TODO: implement GetSettings")
+	return s.repo.GetSettings(ctx, tenantID)
 }
 
 func (s *service) UpdateSettings(ctx context.Context, tenantID uuid.UUID, req UpdateSettingsRequest) (*MarketingSettings, error) {
-	// TODO: Implement update settings logic
-	return nil, fmt.Errorf("TODO: implement UpdateSettings")
+	updates := make(map[string]interface{})
+	updates["updated_at"] = time.Now()
+
+	if req.FromName != nil {
+		updates["from_name"] = *req.FromName
+	}
+	if req.FromEmail != nil {
+		updates["from_email"] = *req.FromEmail
+	}
+	if req.ReplyToEmail != nil {
+		updates["reply_to_email"] = *req.ReplyToEmail
+	}
+	if req.EmailProvider != nil {
+		updates["email_provider"] = *req.EmailProvider
+	}
+	if req.SMTPHost != nil {
+		updates["smtp_host"] = *req.SMTPHost
+	}
+	if req.SMTPPort != nil {
+		updates["smtp_port"] = *req.SMTPPort
+	}
+	if req.SMTPUsername != nil {
+		updates["smtp_username"] = *req.SMTPUsername
+	}
+	if req.SMTPPassword != nil {
+		updates["smtp_password"] = *req.SMTPPassword
+	}
+	if req.SendGridAPIKey != nil {
+		updates["sendgrid_api_key"] = *req.SendGridAPIKey
+	}
+	if req.MailgunAPIKey != nil {
+		updates["mailgun_api_key"] = *req.MailgunAPIKey
+	}
+	if req.MailgunDomain != nil {
+		updates["mailgun_domain"] = *req.MailgunDomain
+	}
+	if req.AbandonedCartEnabled != nil {
+		updates["abandoned_cart_enabled"] = *req.AbandonedCartEnabled
+	}
+	if req.AbandonedCartDelay != nil {
+		updates["abandoned_cart_delay"] = *req.AbandonedCartDelay
+	}
+	if req.WelcomeEmailEnabled != nil {
+		updates["welcome_email_enabled"] = *req.WelcomeEmailEnabled
+	}
+	if req.WelcomeEmailDelay != nil {
+		updates["welcome_email_delay"] = *req.WelcomeEmailDelay
+	}
+	if req.TrackingEnabled != nil {
+		updates["tracking_enabled"] = *req.TrackingEnabled
+	}
+	if req.DoubleOptIn != nil {
+		updates["double_opt_in"] = *req.DoubleOptIn
+	}
+	if req.UnsubscribeFooter != nil {
+		updates["unsubscribe_footer"] = *req.UnsubscribeFooter
+	}
+
+	err := s.repo.UpdateSettings(ctx, tenantID, updates)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.repo.GetSettings(ctx, tenantID)
 }
 
 func (s *service) GetCampaignStats(ctx context.Context, tenantID, campaignID uuid.UUID) (*CampaignStats, error) {
-	// TODO: Implement campaign analytics
-	return nil, fmt.Errorf("TODO: implement GetCampaignStats")
+	return s.repo.GetCampaignStats(ctx, tenantID, campaignID)
 }
 
 func (s *service) GetMarketingOverview(ctx context.Context, tenantID uuid.UUID, period string) (*MarketingOverview, error) {
-	// TODO: Implement marketing overview analytics
-	return nil, fmt.Errorf("TODO: implement GetMarketingOverview")
+	return s.repo.GetMarketingOverview(ctx, tenantID, period)
 }

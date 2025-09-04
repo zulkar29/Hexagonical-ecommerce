@@ -644,26 +644,282 @@ func (s *Service) updateTrackingFromProvider(label *ShippingLabel) error {
 // Webhook Processing Methods
 
 func (s *Service) ProcessPathaoWebhook(payload map[string]interface{}) error {
-	// TODO: Process Pathao webhook
-	return nil
+	// Extract tracking number and status from Pathao webhook
+	trackingNumber, ok := payload["tracking_number"].(string)
+	if !ok {
+		return errors.New("missing tracking_number in webhook payload")
+	}
+
+	status, ok := payload["status"].(string)
+	if !ok {
+		return errors.New("missing status in webhook payload")
+	}
+
+	// Find shipping label by tracking number
+	label, err := s.repository.GetShippingLabelByTrackingNumber(trackingNumber)
+	if err != nil {
+		return fmt.Errorf("failed to find shipping label: %w", err)
+	}
+
+	// Update tracking status based on Pathao status
+	var trackingStatus TrackingStatus
+	switch status {
+	case "picked_up":
+		trackingStatus = StatusPickedUp
+	case "in_transit":
+		trackingStatus = StatusInTransit
+	case "out_for_delivery":
+		trackingStatus = StatusOutForDelivery
+	case "delivered":
+		trackingStatus = StatusDelivered
+	case "failed":
+		trackingStatus = StatusFailed
+	case "returned":
+		trackingStatus = StatusReturned
+	default:
+		trackingStatus = StatusInTransit
+	}
+
+	// Create tracking update
+	tracking := &ShippingTracking{
+		ID:          uuid.New(),
+		LabelID:     label.ID,
+		Status:      string(trackingStatus),
+		Location:    getStringFromPayload(payload, "location"),
+		Description: getStringFromPayload(payload, "description"),
+		Timestamp:   time.Now(),
+		CreatedAt:   time.Now(),
+	}
+
+	return s.repository.CreateShippingTracking(tracking)
 }
 
 func (s *Service) ProcessRedXWebhook(payload map[string]interface{}) error {
-	// TODO: Process RedX webhook
-	return nil
+	// Extract tracking number and status from RedX webhook
+	trackingNumber, ok := payload["tracking_id"].(string)
+	if !ok {
+		return errors.New("missing tracking_id in webhook payload")
+	}
+
+	status, ok := payload["delivery_status"].(string)
+	if !ok {
+		return errors.New("missing delivery_status in webhook payload")
+	}
+
+	// Find shipping label by tracking number
+	label, err := s.repository.GetShippingLabelByTrackingNumber(trackingNumber)
+	if err != nil {
+		return fmt.Errorf("failed to find shipping label: %w", err)
+	}
+
+	// Update tracking status based on RedX status
+	var trackingStatus TrackingStatus
+	switch status {
+	case "PICKED_UP":
+		trackingStatus = StatusPickedUp
+	case "IN_TRANSIT":
+		trackingStatus = StatusInTransit
+	case "OUT_FOR_DELIVERY":
+		trackingStatus = StatusOutForDelivery
+	case "DELIVERED":
+		trackingStatus = StatusDelivered
+	case "DELIVERY_FAILED":
+		trackingStatus = StatusFailed
+	case "RETURNED":
+		trackingStatus = StatusReturned
+	default:
+		trackingStatus = StatusInTransit
+	}
+
+	// Create tracking update
+	tracking := &ShippingTracking{
+		ID:          uuid.New(),
+		LabelID:     label.ID,
+		Status:      string(trackingStatus),
+		Location:    getStringFromPayload(payload, "current_location"),
+		Description: getStringFromPayload(payload, "remarks"),
+		Timestamp:   time.Now(),
+		CreatedAt:   time.Now(),
+	}
+
+	return s.repository.CreateShippingTracking(tracking)
 }
 
 func (s *Service) ProcessPaperflyWebhook(payload map[string]interface{}) error {
-	// TODO: Process Paperfly webhook
-	return nil
+	// Extract tracking number and status from Paperfly webhook
+	trackingNumber, ok := payload["consignment_id"].(string)
+	if !ok {
+		return errors.New("missing consignment_id in webhook payload")
+	}
+
+	status, ok := payload["status"].(string)
+	if !ok {
+		return errors.New("missing status in webhook payload")
+	}
+
+	// Find shipping label by tracking number
+	label, err := s.repository.GetShippingLabelByTrackingNumber(trackingNumber)
+	if err != nil {
+		return fmt.Errorf("failed to find shipping label: %w", err)
+	}
+
+	// Update tracking status based on Paperfly status
+	var trackingStatus TrackingStatus
+	switch status {
+	case "picked":
+		trackingStatus = StatusPickedUp
+	case "in_transit":
+		trackingStatus = StatusInTransit
+	case "out_for_delivery":
+		trackingStatus = StatusOutForDelivery
+	case "delivered":
+		trackingStatus = StatusDelivered
+	case "failed":
+		trackingStatus = StatusFailed
+	case "returned":
+		trackingStatus = StatusReturned
+	default:
+		trackingStatus = StatusInTransit
+	}
+
+	// Create tracking update
+	tracking := &ShippingTracking{
+		ID:          uuid.New(),
+		LabelID:     label.ID,
+		Status:      string(trackingStatus),
+		Location:    getStringFromPayload(payload, "location"),
+		Description: getStringFromPayload(payload, "note"),
+		Timestamp:   time.Now(),
+		CreatedAt:   time.Now(),
+	}
+
+	return s.repository.CreateShippingTracking(tracking)
 }
 
 func (s *Service) ProcessDHLWebhook(payload map[string]interface{}) error {
-	// TODO: Process DHL webhook
-	return nil
+	// Extract tracking number and status from DHL webhook
+	trackingNumber, ok := payload["trackingNumber"].(string)
+	if !ok {
+		return errors.New("missing trackingNumber in webhook payload")
+	}
+
+	// DHL sends events array
+	events, ok := payload["events"].([]interface{})
+	if !ok || len(events) == 0 {
+		return errors.New("missing events in webhook payload")
+	}
+
+	// Get the latest event
+	latestEvent, ok := events[0].(map[string]interface{})
+	if !ok {
+		return errors.New("invalid event format in webhook payload")
+	}
+
+	status, ok := latestEvent["status"].(string)
+	if !ok {
+		return errors.New("missing status in event")
+	}
+
+	// Find shipping label by tracking number
+	label, err := s.repository.GetShippingLabelByTrackingNumber(trackingNumber)
+	if err != nil {
+		return fmt.Errorf("failed to find shipping label: %w", err)
+	}
+
+	// Update tracking status based on DHL status
+	var trackingStatus TrackingStatus
+	switch status {
+	case "transit":
+		trackingStatus = StatusInTransit
+	case "delivered":
+		trackingStatus = StatusDelivered
+	case "failure":
+		trackingStatus = StatusFailed
+	case "unknown":
+		trackingStatus = StatusPending
+	default:
+		trackingStatus = StatusInTransit
+	}
+
+	// Create tracking update
+	tracking := &ShippingTracking{
+		ID:          uuid.New(),
+		LabelID:     label.ID,
+		Status:      string(trackingStatus),
+		Location:    getStringFromPayload(latestEvent, "location"),
+		Description: getStringFromPayload(latestEvent, "description"),
+		Timestamp:   time.Now(),
+		CreatedAt:   time.Now(),
+	}
+
+	return s.repository.CreateShippingTracking(tracking)
 }
 
 func (s *Service) ProcessFedExWebhook(payload map[string]interface{}) error {
-	// TODO: Process FedEx webhook
-	return nil
+	// Extract tracking number and status from FedEx webhook
+	trackingNumber, ok := payload["trackingNumber"].(string)
+	if !ok {
+		return errors.New("missing trackingNumber in webhook payload")
+	}
+
+	// FedEx sends scanEvents array
+	scanEvents, ok := payload["scanEvents"].([]interface{})
+	if !ok || len(scanEvents) == 0 {
+		return errors.New("missing scanEvents in webhook payload")
+	}
+
+	// Get the latest scan event
+	latestScan, ok := scanEvents[0].(map[string]interface{})
+	if !ok {
+		return errors.New("invalid scanEvent format in webhook payload")
+	}
+
+	status, ok := latestScan["eventType"].(string)
+	if !ok {
+		return errors.New("missing eventType in scanEvent")
+	}
+
+	// Find shipping label by tracking number
+	label, err := s.repository.GetShippingLabelByTrackingNumber(trackingNumber)
+	if err != nil {
+		return fmt.Errorf("failed to find shipping label: %w", err)
+	}
+
+	// Update tracking status based on FedEx status
+	var trackingStatus TrackingStatus
+	switch status {
+	case "PU":
+		trackingStatus = StatusPickedUp
+	case "IT":
+		trackingStatus = StatusInTransit
+	case "OD":
+		trackingStatus = StatusOutForDelivery
+	case "DL":
+		trackingStatus = StatusDelivered
+	case "DE":
+		trackingStatus = StatusFailed
+	default:
+		trackingStatus = StatusInTransit
+	}
+
+	// Create tracking update
+	tracking := &ShippingTracking{
+		ID:          uuid.New(),
+		LabelID:     label.ID,
+		Status:      string(trackingStatus),
+		Location:    getStringFromPayload(latestScan, "scanLocation"),
+		Description: getStringFromPayload(latestScan, "eventDescription"),
+		Timestamp:   time.Now(),
+		CreatedAt:   time.Now(),
+	}
+
+	return s.repository.CreateShippingTracking(tracking)
+}
+
+// Helper function to safely extract string from payload
+func getStringFromPayload(payload map[string]interface{}, key string) string {
+	if value, ok := payload[key].(string); ok {
+		return value
+	}
+	return ""
 }

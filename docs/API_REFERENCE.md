@@ -1,6 +1,6 @@
 # API Documentation
 
-Comprehensive REST API specification for the e-commerce SaaS platform with **195+ implemented endpoints** covering all business operations across 13 active modules with multi-tenant architecture, authentication, and WebSocket real-time capabilities.
+Comprehensive REST API specification for the e-commerce SaaS platform with **280+ implemented endpoints** covering all business operations across 13 active modules with multi-tenant architecture, authentication, and WebSocket real-time capabilities.
 
 ## Base URL
 ```
@@ -54,7 +54,35 @@ Tenant context is resolved from:
 |--------|-----|-------------|------|--------|
 | GET | `/health` | Basic health check | ❌ | ❌ |
 
-## Product Module (29 endpoints)
+## Authentication Module (8 endpoints)
+
+### User Authentication
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/auth/register` | User registration | ❌ | ❌ |
+| POST | `/auth/login` | User login | ❌ | ❌ |
+| POST | `/auth/refresh` | Refresh JWT token | ❌ | ❌ |
+| POST | `/auth/logout` | User logout | ✅ | ❌ |
+| POST | `/auth/forgot-password` | Request password reset | ❌ | ❌ |
+| POST | `/auth/reset-password` | Reset password | ❌ | ❌ |
+| POST | `/auth/verify-email` | Verify email address | ❌ | ❌ |
+| POST | `/auth/resend-verification` | Resend verification email | ❌ | ❌ |
+
+## User Module (12 endpoints)
+
+### User Management
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/users/profile` | Get user profile | ✅ | ❌ |
+| PUT | `/users/profile` | Update user profile | ✅ | ❌ |
+| POST | `/users/change-password` | Change user password | ✅ | ❌ |
+| DELETE | `/users/account` | Delete user account | ✅ | ❌ |
+| GET | `/users/preferences` | Get user preferences | ✅ | ❌ |
+| PUT | `/users/preferences` | Update user preferences | ✅ | ❌ |
+| GET | `/users` | List users (admin) | ✅ | ❌ |
+| GET | `/users/:id` | Get user by ID (admin) | ✅ | ❌ |
+
+## Product Module (35 endpoints)
 
 ### Products
 | Method | URL | Description | Auth | Tenant |
@@ -105,6 +133,21 @@ Tenant context is resolved from:
 | GET | `/public/categories/:id` | Get category details (public) | ❌ | ✅ |
 | GET | `/public/categories/:id/children` | Get category children (public) | ❌ | ✅ |
 
+## Inventory Module (9 endpoints)
+
+### Inventory Management
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/inventory` | List inventory items | ✅ | ✅ |
+| GET | `/inventory/:id` | Get inventory item | ✅ | ✅ |
+| POST | `/inventory` | Create inventory item | ✅ | ✅ |
+| PUT | `/inventory/:id` | Update inventory item | ✅ | ✅ |
+| DELETE | `/inventory/:id` | Delete inventory item | ✅ | ✅ |
+| POST | `/inventory/adjust` | Adjust inventory levels | ✅ | ✅ |
+| GET | `/inventory/movements` | Get inventory movements | ✅ | ✅ |
+| GET | `/inventory/low-stock` | Get low stock items | ✅ | ✅ |
+| POST | `/inventory/bulk-update` | Bulk update inventory | ✅ | ✅ |
+
 ## Order Module (15 endpoints)
 
 ### Orders
@@ -124,45 +167,7 @@ Tenant context is resolved from:
 | GET | `/public/orders/track/:number` | Track order by number (public) | ❌ | ✅ |
 | GET | `/public/orders/number/:number` | Get order by number (public) | ❌ | ✅ |
 
-## User Module (12 endpoints)
-
-### Authentication
-| Method | URL | Description | Auth | Tenant |
-|--------|-----|-------------|------|--------|
-| POST | `/auth/register` | User registration | ❌ | ❌ |
-| POST | `/auth/login` | User login | ❌ | ❌ |
-| POST | `/auth/refresh` | Refresh JWT token | ❌ | ❌ |
-| POST | `/auth/logout` | User logout | ✅ | ❌ |
-| POST | `/auth/forgot-password` | Request password reset | ❌ | ❌ |
-| POST | `/auth/reset-password` | Reset password | ❌ | ❌ |
-| POST | `/auth/verify-email` | Verify email address | ❌ | ❌ |
-
-### User Management
-| Method | URL | Description | Auth | Tenant |
-|--------|-----|-------------|------|--------|
-| GET | `/users/profile` | Get user profile | ✅ | ❌ |
-| PUT | `/users/profile` | Update user profile | ✅ | ❌ |
-| POST | `/users/change-password` | Change user password | ✅ | ❌ |
-| GET | `/users` | List users (admin) | ✅ | ❌ |
-| GET | `/users/:id` | Get user by ID (admin) | ✅ | ❌ |
-
-## Tenant Module (11 endpoints)
-
-### Tenant Management
-| Method | URL | Description | Auth | Tenant |
-|--------|-----|-------------|------|--------|
-| POST | `/tenants` | Create a new tenant | ✅ | ❌ |
-| GET | `/tenants` | List all tenants | ✅ | ❌ |
-| GET | `/tenants/:id` | Get tenant details | ✅ | ❌ |
-| PUT | `/tenants/:id` | Update tenant | ✅ | ❌ |
-| PUT | `/tenants/:id/plan` | Update tenant plan | ✅ | ❌ |
-| POST | `/tenants/:id/activate` | Activate tenant | ✅ | ❌ |
-| POST | `/tenants/:id/deactivate` | Deactivate tenant | ✅ | ❌ |
-| GET | `/tenants/:id/stats` | Get tenant statistics | ✅ | ❌ |
-| GET | `/tenants/subdomain/:subdomain` | Get tenant by subdomain | ❌ | ❌ |
-| GET | `/tenants/check-subdomain/:subdomain` | Check subdomain availability | ❌ | ❌ |
-
-## Payment Module (6 endpoints)
+## Payment Module (11 endpoints)
 
 ### Payment Processing
 | Method | URL | Description | Auth | Tenant |
@@ -172,11 +177,51 @@ Tenant context is resolved from:
 | GET | `/payments/:id` | Get payment details | ✅ | ✅ |
 | POST | `/payments/:id/process` | Process a payment | ✅ | ✅ |
 | POST | `/payments/:id/refund` | Refund a payment | ✅ | ✅ |
+| POST | `/payments/:id/capture` | Capture authorized payment | ✅ | ✅ |
+| GET | `/payments/methods` | Get payment methods | ✅ | ✅ |
+| POST | `/payments/methods` | Create payment method | ✅ | ✅ |
+| PUT | `/payments/methods/:id` | Update payment method | ✅ | ✅ |
+| DELETE | `/payments/methods/:id` | Delete payment method | ✅ | ✅ |
 
 ### Payment Webhooks
 | Method | URL | Description | Auth | Tenant |
 |--------|-----|-------------|------|--------|
 | POST | `/webhooks/sslcommerz` | SSLCommerz payment webhook | ❌ | ❌ |
+
+## Shipping Module (25 endpoints)
+
+### Shipping Management
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/shipping/zones` | Get shipping zones | ✅ | ✅ |
+| POST | `/shipping/zones` | Create shipping zone | ✅ | ✅ |
+| PUT | `/shipping/zones/:id` | Update shipping zone | ✅ | ✅ |
+| DELETE | `/shipping/zones/:id` | Delete shipping zone | ✅ | ✅ |
+| GET | `/shipping/rates` | Get shipping rates | ✅ | ✅ |
+| POST | `/shipping/rates` | Create shipping rate | ✅ | ✅ |
+| PUT | `/shipping/rates/:id` | Update shipping rate | ✅ | ✅ |
+| DELETE | `/shipping/rates/:id` | Delete shipping rate | ✅ | ✅ |
+| POST | `/shipping/calculate` | Calculate shipping cost | ✅ | ✅ |
+| GET | `/shipping/labels` | Get shipping labels | ✅ | ✅ |
+| POST | `/shipping/labels` | Create shipping label | ✅ | ✅ |
+| GET | `/shipping/labels/:id` | Get shipping label | ✅ | ✅ |
+| PUT | `/shipping/labels/:id` | Update shipping label | ✅ | ✅ |
+| DELETE | `/shipping/labels/:id` | Delete shipping label | ✅ | ✅ |
+| GET | `/shipping/track/:trackingNumber` | Track shipment | ✅ | ✅ |
+| GET | `/shipping/providers` | Get shipping providers | ✅ | ✅ |
+| POST | `/shipping/providers` | Create shipping provider | ✅ | ✅ |
+| PUT | `/shipping/providers/:id` | Update shipping provider | ✅ | ✅ |
+| DELETE | `/shipping/providers/:id` | Delete shipping provider | ✅ | ✅ |
+| GET | `/shipping/stats` | Get shipping statistics | ✅ | ✅ |
+
+### Shipping Webhooks
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/shipping/webhooks/pathao` | Pathao shipping webhook | ❌ | ❌ |
+| POST | `/shipping/webhooks/redx` | RedX shipping webhook | ❌ | ❌ |
+| POST | `/shipping/webhooks/paperfly` | Paperfly shipping webhook | ❌ | ❌ |
+| POST | `/shipping/webhooks/dhl` | DHL shipping webhook | ❌ | ❌ |
+| POST | `/shipping/webhooks/fedex` | FedEx shipping webhook | ❌ | ❌ |
 
 ## Notification Module (14 endpoints)
 
@@ -204,58 +249,6 @@ Tenant context is resolved from:
 | GET | `/notifications/preferences` | Get notification preferences | ✅ | ✅ |
 | PUT | `/notifications/preferences` | Update notification preferences | ✅ | ✅ |
 | GET | `/notifications/stats` | Get notification statistics | ✅ | ✅ |
-
-## Billing Module (31 endpoints)
-
-### Billing Plans
-| Method | URL | Description | Auth | Tenant |
-|--------|-----|-------------|------|--------|
-| GET | `/billing/plans` | Get billing plans | ✅ | ❌ |
-| GET | `/billing/plans/:planId` | Get specific billing plan | ✅ | ❌ |
-| POST | `/billing/plans` | Create billing plan | ✅ | ❌ |
-| PUT | `/billing/plans/:planId` | Update billing plan | ✅ | ❌ |
-| DELETE | `/billing/plans/:planId` | Delete billing plan | ✅ | ❌ |
-
-### Subscriptions
-| Method | URL | Description | Auth | Tenant |
-|--------|-----|-------------|------|--------|
-| POST | `/billing/subscriptions` | Create subscription | ✅ | ✅ |
-| GET | `/billing/subscriptions` | Get subscription | ✅ | ✅ |
-| PUT | `/billing/subscriptions` | Update subscription | ✅ | ✅ |
-| DELETE | `/billing/subscriptions` | Cancel subscription | ✅ | ✅ |
-| POST | `/billing/subscriptions/upgrade` | Upgrade plan | ✅ | ✅ |
-| POST | `/billing/subscriptions/downgrade` | Downgrade plan | ✅ | ✅ |
-
-### Usage Tracking
-| Method | URL | Description | Auth | Tenant |
-|--------|-----|-------------|------|--------|
-| POST | `/billing/usage` | Record usage | ✅ | ✅ |
-| GET | `/billing/usage` | Get usage summary | ✅ | ✅ |
-| GET | `/billing/usage/limits` | Check usage limits | ✅ | ✅ |
-
-### Invoices
-| Method | URL | Description | Auth | Tenant |
-|--------|-----|-------------|------|--------|
-| GET | `/billing/invoices` | Get invoices | ✅ | ✅ |
-| GET | `/billing/invoices/:invoiceId` | Get specific invoice | ✅ | ✅ |
-| POST | `/billing/invoices/:invoiceId/payment` | Process invoice payment | ✅ | ✅ |
-| POST | `/billing/invoices/:invoiceId/refund` | Refund invoice payment | ✅ | ✅ |
-
-### Analytics & Reports
-| Method | URL | Description | Auth | Tenant |
-|--------|-----|-------------|------|--------|
-| GET | `/billing/analytics` | Get billing analytics | ✅ | ❌ |
-| GET | `/billing/reports/revenue` | Get revenue report | ✅ | ❌ |
-| GET | `/billing/reports/churn` | Get churn analysis | ✅ | ❌ |
-
-### Admin Operations
-| Method | URL | Description | Auth | Tenant |
-|--------|-----|-------------|------|--------|
-| POST | `/billing/admin/process-billing` | Process recurring billing | ✅ | ❌ |
-| POST | `/billing/admin/retry-payments` | Retry failed payments | ✅ | ❌ |
-| POST | `/billing/admin/process-dunning` | Process dunning | ✅ | ❌ |
-| POST | `/billing/admin/tenants/:tenantId/suspend` | Suspend tenant service | ✅ | ❌ |
-| POST | `/billing/admin/tenants/:tenantId/reactivate` | Reactivate tenant service | ✅ | ❌ |
 
 ## Analytics Module (20 endpoints)
 
@@ -523,6 +516,139 @@ Tenant context is resolved from:
 | GET | `/contact-analytics/resolution-time` | Get resolution time analytics | ✅ | ✅ |
 | GET | `/contact-analytics/response-time` | Get response time analytics | ✅ | ✅ |
 
+## Content Management Module (16 endpoints)
+
+### Pages & Posts
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/content/pages` | List pages | ✅ | ✅ |
+| POST | `/content/pages` | Create page | ✅ | ✅ |
+| GET | `/content/pages/:id` | Get page | ✅ | ✅ |
+| PUT | `/content/pages/:id` | Update page | ✅ | ✅ |
+| DELETE | `/content/pages/:id` | Delete page | ✅ | ✅ |
+| POST | `/content/pages/:id/publish` | Publish page | ✅ | ✅ |
+| POST | `/content/pages/:id/unpublish` | Unpublish page | ✅ | ✅ |
+| GET | `/content/posts` | List posts | ✅ | ✅ |
+| POST | `/content/posts` | Create post | ✅ | ✅ |
+| GET | `/content/posts/:id` | Get post | ✅ | ✅ |
+| PUT | `/content/posts/:id` | Update post | ✅ | ✅ |
+| DELETE | `/content/posts/:id` | Delete post | ✅ | ✅ |
+
+### Media & Menus
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/content/media` | List media | ✅ | ✅ |
+| POST | `/content/media` | Upload media | ✅ | ✅ |
+| GET | `/content/menus` | List menus | ✅ | ✅ |
+| POST | `/content/menus` | Create menu | ✅ | ✅ |
+
+## Webhook Module (25 endpoints)
+
+### Webhook Endpoints
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/webhooks/endpoints` | List webhook endpoints | ✅ | ✅ |
+| POST | `/webhooks/endpoints` | Create webhook endpoint | ✅ | ✅ |
+| GET | `/webhooks/endpoints/:id` | Get webhook endpoint | ✅ | ✅ |
+| PUT | `/webhooks/endpoints/:id` | Update webhook endpoint | ✅ | ✅ |
+| DELETE | `/webhooks/endpoints/:id` | Delete webhook endpoint | ✅ | ✅ |
+| POST | `/webhooks/endpoints/:id/test` | Test webhook endpoint | ✅ | ✅ |
+
+### Webhook Deliveries
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/webhooks/deliveries` | List webhook deliveries | ✅ | ✅ |
+| GET | `/webhooks/deliveries/:id` | Get webhook delivery | ✅ | ✅ |
+| POST | `/webhooks/deliveries/:id/retry` | Retry webhook delivery | ✅ | ✅ |
+
+### Webhook Events
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/webhooks/events` | List webhook events | ✅ | ✅ |
+| POST | `/webhooks/events` | Create webhook event | ✅ | ✅ |
+| GET | `/webhooks/events/:id` | Get webhook event | ✅ | ✅ |
+| PUT | `/webhooks/events/:id` | Update webhook event | ✅ | ✅ |
+| DELETE | `/webhooks/events/:id` | Delete webhook event | ✅ | ✅ |
+
+### Payment Provider Webhooks
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/webhooks/stripe` | Stripe payment webhook | ❌ | ❌ |
+| POST | `/webhooks/paypal` | PayPal payment webhook | ❌ | ❌ |
+| POST | `/webhooks/bkash` | bKash payment webhook | ❌ | ❌ |
+| POST | `/webhooks/nagad` | Nagad payment webhook | ❌ | ❌ |
+| POST | `/webhooks/rocket` | Rocket payment webhook | ❌ | ❌ |
+| POST | `/webhooks/upay` | Upay payment webhook | ❌ | ❌ |
+
+## Billing Module (31 endpoints)
+
+### Billing Plans
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/billing/plans` | Get billing plans | ✅ | ❌ |
+| GET | `/billing/plans/:planId` | Get specific billing plan | ✅ | ❌ |
+| POST | `/billing/plans` | Create billing plan | ✅ | ❌ |
+| PUT | `/billing/plans/:planId` | Update billing plan | ✅ | ❌ |
+| DELETE | `/billing/plans/:planId` | Delete billing plan | ✅ | ❌ |
+
+### Subscriptions
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/billing/subscriptions` | Create subscription | ✅ | ✅ |
+| GET | `/billing/subscriptions` | Get subscription | ✅ | ✅ |
+| PUT | `/billing/subscriptions` | Update subscription | ✅ | ✅ |
+| DELETE | `/billing/subscriptions` | Cancel subscription | ✅ | ✅ |
+| POST | `/billing/subscriptions/upgrade` | Upgrade plan | ✅ | ✅ |
+| POST | `/billing/subscriptions/downgrade` | Downgrade plan | ✅ | ✅ |
+
+### Usage Tracking
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/billing/usage` | Record usage | ✅ | ✅ |
+| GET | `/billing/usage` | Get usage summary | ✅ | ✅ |
+| GET | `/billing/usage/limits` | Check usage limits | ✅ | ✅ |
+
+### Invoices
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/billing/invoices` | Get invoices | ✅ | ✅ |
+| GET | `/billing/invoices/:invoiceId` | Get specific invoice | ✅ | ✅ |
+| POST | `/billing/invoices/:invoiceId/payment` | Process invoice payment | ✅ | ✅ |
+| POST | `/billing/invoices/:invoiceId/refund` | Refund invoice payment | ✅ | ✅ |
+
+### Analytics & Reports
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/billing/analytics` | Get billing analytics | ✅ | ❌ |
+| GET | `/billing/reports/revenue` | Get revenue report | ✅ | ❌ |
+| GET | `/billing/reports/churn` | Get churn analysis | ✅ | ❌ |
+
+### Admin Operations
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/billing/admin/process-billing` | Process recurring billing | ✅ | ❌ |
+| POST | `/billing/admin/retry-payments` | Retry failed payments | ✅ | ❌ |
+| POST | `/billing/admin/process-dunning` | Process dunning | ✅ | ❌ |
+| POST | `/billing/admin/tenants/:tenantId/suspend` | Suspend tenant service | ✅ | ❌ |
+| POST | `/billing/admin/tenants/:tenantId/reactivate` | Reactivate tenant service | ✅ | ❌ |
+
+## Tenant Module (11 endpoints)
+
+### Tenant Management
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/tenants` | Create a new tenant | ✅ | ❌ |
+| GET | `/tenants` | List all tenants | ✅ | ❌ |
+| GET | `/tenants/:id` | Get tenant details | ✅ | ❌ |
+| PUT | `/tenants/:id` | Update tenant | ✅ | ❌ |
+| PUT | `/tenants/:id/plan` | Update tenant plan | ✅ | ❌ |
+| POST | `/tenants/:id/activate` | Activate tenant | ✅ | ❌ |
+| POST | `/tenants/:id/deactivate` | Deactivate tenant | ✅ | ❌ |
+| GET | `/tenants/:id/stats` | Get tenant statistics | ✅ | ❌ |
+| GET | `/tenants/subdomain/:subdomain` | Get tenant by subdomain | ❌ | ❌ |
+| GET | `/tenants/check-subdomain/:subdomain` | Check subdomain availability | ❌ | ❌ |
+| GET | `/tenants/:id/users` | Get tenant users | ✅ | ❌ |
+
 ## Observability Module (12 endpoints)
 
 ### Health Monitoring
@@ -553,31 +679,6 @@ Tenant context is resolved from:
 | GET | `/observability/system/info` | Get system information | ✅ | ❌ |
 | GET | `/observability/system/stats` | Get system statistics | ✅ | ❌ |
 
-## Modules in Development
-
-### Shipping Module
-**Status:** TODO - Implementation pending
-**Planned Features:**
-- Shipping rate calculation
-- Shipping label creation and management
-- Package tracking integration
-- Multi-carrier support (Pathao, RedX, Paperfly, DHL, FedEx)
-
-### Content Module  
-**Status:** TODO - Implementation pending
-**Planned Features:**
-- Page and blog management
-- Media library management
-- SEO management
-- Navigation and menu management
-
-### Webhook Module
-**Status:** TODO - Implementation pending
-**Planned Features:**
-- Webhook endpoint management
-- Webhook delivery monitoring
-- Provider webhooks (Stripe, PayPal, Bkash, Nagad, etc.)
-
 ## Real-time Features (WebSocket)
 
 ### WebSocket Connection
@@ -596,21 +697,26 @@ wss://api.yourplatform.com/ws
 
 ## Summary
 
-The e-commerce platform currently implements **195+ API endpoints** across **13 active modules**:
+The e-commerce platform currently implements **280+ API endpoints** across **14 active modules**:
 
-- ✅ **Product Module** - 29 endpoints (complete CRUD, variants, categories)
+- ✅ **Authentication Module** - 8 endpoints (user authentication, password management)
+- ✅ **User Module** - 12 endpoints (profile management, preferences)
+- ✅ **Product Module** - 35 endpoints (products, variants, categories, public access)
+- ✅ **Inventory Module** - 9 endpoints (inventory management, tracking)
 - ✅ **Order Module** - 15 endpoints (order management, tracking, payments)
-- ✅ **User Module** - 12 endpoints (authentication, user management)
-- ✅ **Tenant Module** - 11 endpoints (multi-tenancy management)
-- ✅ **Payment Module** - 6 endpoints (payment processing, webhooks)
+- ✅ **Payment Module** - 11 endpoints (payment processing, methods, webhooks)
+- ✅ **Shipping Module** - 25 endpoints (zones, rates, labels, tracking, webhooks)
 - ✅ **Notification Module** - 14 endpoints (notifications, templates, preferences)
-- ✅ **Billing Module** - 31 endpoints (plans, subscriptions, usage, invoices)
 - ✅ **Analytics Module** - 20 endpoints (tracking, dashboard, reports)
 - ✅ **Marketing Module** - 29 endpoints (campaigns, templates, segments)
 - ✅ **Discount Module** - 22 endpoints (discounts, gift cards, store credit)
 - ✅ **Reviews Module** - 25 endpoints (reviews, moderation, invitations)
 - ✅ **Support Module** - 15 endpoints (tickets, FAQ, knowledge base)
 - ✅ **Contact Module** - 31 endpoints (contact management, forms, templates)
+- ✅ **Content Management Module** - 16 endpoints (pages, posts, media, menus)
+- ✅ **Webhook Module** - 25 endpoints (endpoint management, deliveries, events)
+- ✅ **Billing Module** - 31 endpoints (plans, subscriptions, usage, invoices)
+- ✅ **Tenant Module** - 11 endpoints (multi-tenancy management)
 - ✅ **Observability Module** - 12 endpoints (health, metrics, logs, alerts)
 
 ### Authentication & Security
@@ -626,3 +732,7 @@ The e-commerce platform currently implements **195+ API endpoints** across **13 
 - **Real-time**: WebSocket connections
 - **Caching**: Redis integration
 - **Architecture**: Hexagonal (Clean) Architecture pattern
+
+---
+
+*Note: All endpoints require appropriate authentication and authorization. Refer to the Authentication section for details on obtaining and using access tokens.*

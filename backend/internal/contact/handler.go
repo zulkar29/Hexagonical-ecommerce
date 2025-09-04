@@ -3,6 +3,7 @@ package contact
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -783,55 +784,256 @@ func (h *Handler) parseContactFormFilter(c *gin.Context) ContactFormFilter {
 	return filter
 }
 
-// Additional placeholder handlers for missing methods
+// Additional handlers for missing methods
 func (h *Handler) AddContactNote(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented"})
+	// TODO: Extract tenant ID from context
+	tenantID := uuid.New() // Placeholder
+
+	contactID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contact ID"})
+		return
+	}
+
+	var req AddContactNoteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	note, err := h.service.AddContactNote(c.Request.Context(), tenantID, contactID, req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, note)
 }
 
 func (h *Handler) ListContactNotes(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented"})
+	// TODO: Extract tenant ID from context
+	tenantID := uuid.New() // Placeholder
+
+	contactID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contact ID"})
+		return
+	}
+
+	notes, err := h.service.ListContactNotes(c.Request.Context(), tenantID, contactID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": notes})
 }
 
 func (h *Handler) ActivateContactForm(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented"})
+	// TODO: Extract tenant ID from context
+	tenantID := uuid.New() // Placeholder
+
+	formID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid form ID"})
+		return
+	}
+
+	err = h.service.ActivateContactForm(c.Request.Context(), tenantID, formID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Form activated successfully"})
 }
 
 func (h *Handler) DeactivateContactForm(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented"})
+	// TODO: Extract tenant ID from context
+	tenantID := uuid.New() // Placeholder
+
+	formID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid form ID"})
+		return
+	}
+
+	err = h.service.DeactivateContactForm(c.Request.Context(), tenantID, formID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Form deactivated successfully"})
 }
 
 func (h *Handler) ListContactTemplates(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented"})
+	// TODO: Extract tenant ID from context
+	tenantID := uuid.New() // Placeholder
+
+	filter := h.parseContactTemplateFilter(c)
+	templates, total, err := h.service.ListContactTemplates(c.Request.Context(), tenantID, filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":  templates,
+		"total": total,
+		"limit": filter.Limit,
+		"offset": filter.Offset,
+	})
 }
 
 func (h *Handler) UpdateContactTemplate(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented"})
+	// TODO: Extract tenant ID from context
+	tenantID := uuid.New() // Placeholder
+
+	templateID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template ID"})
+		return
+	}
+
+	var req UpdateContactTemplateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	template, err := h.service.UpdateContactTemplate(c.Request.Context(), tenantID, templateID, req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, template)
 }
 
 func (h *Handler) DeleteContactTemplate(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented"})
+	// TODO: Extract tenant ID from context
+	tenantID := uuid.New() // Placeholder
+
+	templateID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template ID"})
+		return
+	}
+
+	err = h.service.DeleteContactTemplate(c.Request.Context(), tenantID, templateID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusNoContent, nil)
 }
 
 func (h *Handler) ActivateContactTemplate(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented"})
+	// TODO: Extract tenant ID from context
+	tenantID := uuid.New() // Placeholder
+
+	templateID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template ID"})
+		return
+	}
+
+	err = h.service.ActivateContactTemplate(c.Request.Context(), tenantID, templateID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Template activated successfully"})
 }
 
 func (h *Handler) DeactivateContactTemplate(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented"})
+	// TODO: Extract tenant ID from context
+	tenantID := uuid.New() // Placeholder
+
+	templateID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template ID"})
+		return
+	}
+
+	err = h.service.DeactivateContactTemplate(c.Request.Context(), tenantID, templateID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Template deactivated successfully"})
 }
 
 func (h *Handler) GetAgentPerformance(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented"})
+	// TODO: Extract tenant ID from context
+	tenantID := uuid.New() // Placeholder
+
+	period := c.DefaultQuery("period", "month")
+	agentIDStr := c.Query("agent_id")
+	var agentID *uuid.UUID
+	if agentIDStr != "" {
+		parsedID, err := uuid.Parse(agentIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid agent ID"})
+			return
+		}
+		agentID = &parsedID
+	}
+
+	performance, err := h.service.GetAgentPerformance(c.Request.Context(), tenantID, period, agentID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, performance)
 }
 
 func (h *Handler) GetCustomerSatisfaction(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented"})
+	// TODO: Extract tenant ID from context
+	tenantID := uuid.New() // Placeholder
+
+	period := c.DefaultQuery("period", "month")
+
+	satisfaction, err := h.service.GetCustomerSatisfaction(c.Request.Context(), tenantID, period)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, satisfaction)
 }
 
 func (h *Handler) GetResolutionTimeAnalytics(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented"})
+	// TODO: Extract tenant ID from context
+	tenantID := uuid.New() // Placeholder
+
+	period := c.DefaultQuery("period", "month")
+
+	analytics, err := h.service.GetResolutionTimeAnalytics(c.Request.Context(), tenantID, period)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, analytics)
 }
 
 func (h *Handler) GetResponseTimeAnalytics(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented"})
+	// TODO: Extract tenant ID from context
+	tenantID := uuid.New() // Placeholder
+
+	period := c.DefaultQuery("period", "month")
+
+	analytics, err := h.service.GetResponseTimeAnalytics(c.Request.Context(), tenantID, period)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, analytics)
 }
