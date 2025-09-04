@@ -1,6 +1,6 @@
 # API Documentation
 
-Comprehensive REST API specification for the e-commerce SaaS platform with **450+ endpoints** covering all business operations including advanced features, AI-powered capabilities, and enterprise-grade functionality.
+Comprehensive REST API specification for the e-commerce SaaS platform with **460+ endpoints** covering all business operations including advanced features, AI-powered capabilities, enterprise-grade functionality, and comprehensive observability.
 
 ## Base URL
 ```
@@ -600,6 +600,23 @@ GET    /system/logs                   # System logs (admin only)
 POST   /system/backup                 # Create system backup
 GET    /system/backups                # List backups
 POST   /system/restore/:backupId      # Restore from backup
+```
+
+### Observability & Monitoring
+```
+GET    /observability/health          # Basic health status
+GET    /observability/health/detailed # Detailed health with all services
+GET    /observability/metrics         # Collected system metrics
+GET    /observability/metrics/summary # Metrics summary statistics
+GET    /observability/logs            # System log entries with filters
+POST   /observability/logs            # Create log entry
+GET    /observability/traces          # Distributed traces
+GET    /observability/traces/:traceId # Get specific trace details
+GET    /observability/alerts          # Current system alerts
+POST   /observability/alerts          # Create new alert
+PUT    /observability/alerts/:alertId/resolve  # Resolve alert
+GET    /observability/system/info     # System information
+GET    /observability/system/stats    # Real-time system statistics
 ```
 
 ## Request/Response Format

@@ -17,11 +17,23 @@ import (
 // - Permission checking
 // - Rate limiting
 
+package middleware
+
+import (
+	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	
+	"ecommerce-saas/internal/shared/utils"
+)
+
 // AuthMiddleware validates JWT tokens and sets user context
-func AuthMiddleware() gin.HandlerFunc {
+func AuthMiddleware(jwtManager *utils.JWTManager) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// TODO: Implement JWT validation
-		// For now, just allow all requests
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
@@ -29,16 +41,54 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// TODO: Validate JWT token here
-		// token := strings.TrimPrefix(authHeader, "Bearer ")
-		// claims, err := validateJWT(token)
-		// if err != nil {
-		//     c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
-		//     c.Abort()
-		//     return
-		// }
-		// c.Set("user_id", claims.UserID)
-		// c.Set("tenant_id", claims.TenantID)
+		// Check Bearer token format
+		if !strings.HasPrefix(authHeader, "Bearer ") {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization header format"})
+			c.Abort()
+			return
+		}
+
+		// Extract token
+		token := strings.TrimPrefix(authHeader, "Bearer ")
+		
+		// Validate token
+		claims, err := jwtManager.ValidateToken(token)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			c.Abort()
+			return
+		}
+
+		// Set user context
+		c.Set("user_id", claims.UserID)
+		c.Set("tenant_id", claims.TenantID)
+		c.Set("user_email", claims.Email)
+		c.Set("user_role", claims.Role)
+		c.Set("token_id", claims.TokenID)
+
+		c.Next()
+	}
+}
+
+// OptionalAuthMiddleware validates JWT token if present but doesn't require it
+func OptionalAuthMiddleware(jwtManager *utils.JWTManager) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.Next()
+			return
+		}
+
+		if strings.HasPrefix(authHeader, "Bearer ") {
+			token := strings.TrimPrefix(authHeader, "Bearer ")
+			if claims, err := jwtManager.ValidateToken(token); err == nil {
+				c.Set("user_id", claims.UserID)
+				c.Set("tenant_id", claims.TenantID)
+				c.Set("user_email", claims.Email)
+				c.Set("user_role", claims.Role)
+				c.Set("token_id", claims.TokenID)
+			}
+		}
 
 		c.Next()
 	}

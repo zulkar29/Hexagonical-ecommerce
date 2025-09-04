@@ -10,6 +10,7 @@ require (
 	gorm.io/driver/postgres v1.5.4
 	github.com/spf13/viper v1.17.0
 	golang.org/x/crypto v0.15.0
+	github.com/golang-jwt/jwt/v5 v5.2.0
 )
 
 require (

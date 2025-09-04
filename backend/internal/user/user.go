@@ -190,10 +190,74 @@ func (p *Permission) GetPermissionKey() string {
 	return p.Resource + ":" + p.Action
 }
 
-// TODO: Add more business logic methods
-// - ValidatePassword(password string) error
-// - HashPassword(password string) (string, error)
-// - CheckPassword(password, hash string) bool
-// - GenerateVerificationToken() string
-// - GenerateResetToken() string
-// - UpdateLastLogin() error
+// Request/Response DTOs
+
+// RegisterRequest represents user registration request
+type RegisterRequest struct {
+	Email     string     `json:"email" validate:"required,email"`
+	Password  string     `json:"password" validate:"required,min=8"`
+	FirstName string     `json:"first_name" validate:"required"`
+	LastName  string     `json:"last_name" validate:"required"`
+	Phone     string     `json:"phone,omitempty"`
+	Role      UserRole   `json:"role,omitempty"`
+	TenantID  *uuid.UUID `json:"tenant_id,omitempty"`
+}
+
+// LoginRequest represents user login request
+type LoginRequest struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required"`
+}
+
+// LoginResponse represents login response with tokens
+type LoginResponse struct {
+	User         *User  `json:"user"`
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresIn    int    `json:"expires_in"`
+}
+
+// TokenResponse represents token refresh response
+type TokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresIn    int    `json:"expires_in"`
+}
+
+// UpdateProfileRequest represents profile update request
+type UpdateProfileRequest struct {
+	FirstName string `json:"first_name,omitempty"`
+	LastName  string `json:"last_name,omitempty"`
+	Phone     string `json:"phone,omitempty"`
+	Avatar    string `json:"avatar,omitempty"`
+}
+
+// ChangePasswordRequest represents password change request
+type ChangePasswordRequest struct {
+	OldPassword string `json:"old_password" validate:"required"`
+	NewPassword string `json:"new_password" validate:"required,min=8"`
+}
+
+// ForgotPasswordRequest represents forgot password request
+type ForgotPasswordRequest struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
+// ResetPasswordRequest represents password reset request
+type ResetPasswordRequest struct {
+	Token       string `json:"token" validate:"required"`
+	NewPassword string `json:"new_password" validate:"required,min=8"`
+}
+
+// VerifyEmailRequest represents email verification request
+type VerifyEmailRequest struct {
+	Token string `json:"token" validate:"required"`
+}
+
+// UserFilter represents user listing filters
+type UserFilter struct {
+	TenantID *uuid.UUID `json:"tenant_id,omitempty"`
+	Role     UserRole   `json:"role,omitempty"`
+	Status   UserStatus `json:"status,omitempty"`
+	Search   string     `json:"search,omitempty"` // Search in name or email
+}

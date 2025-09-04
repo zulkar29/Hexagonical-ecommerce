@@ -5,6 +5,7 @@ import (
 
 	"ecommerce-saas/internal/shared/config"
 	"ecommerce-saas/internal/shared/database"
+	"ecommerce-saas/internal/shared/utils"
 	"ecommerce-saas/internal/server"
 )
 
@@ -26,8 +27,11 @@ func main() {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
 
+	// Initialize JWT manager
+	jwtManager := utils.NewJWTManager(cfg.JWT.Secret, cfg.App.Name)
+
 	// Create server
-	srv := server.New(cfg, db)
+	srv := server.New(cfg, db, jwtManager)
 
 	// Start server
 	if err := srv.Start(); err != nil {

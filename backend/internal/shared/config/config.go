@@ -65,9 +65,9 @@ type RedisConfig struct {
 }
 
 type JWTConfig struct {
-	SecretKey      string        `mapstructure:"secret_key"`
-	ExpirationTime time.Duration `mapstructure:"expiration_time"`
-	RefreshTime    time.Duration `mapstructure:"refresh_time"`
+	Secret      string        `mapstructure:"secret_key"`
+	ExpiresIn   time.Duration `mapstructure:"expiration_time"`
+	RefreshTime time.Duration `mapstructure:"refresh_time"`
 }
 
 type EmailConfig struct {

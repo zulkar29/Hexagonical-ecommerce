@@ -14,23 +14,20 @@ import (
 	"gorm.io/gorm"
 
 	"ecommerce-saas/internal/shared/config"
-	"ecommerce-saas/internal/shared/database"
-	"ecommerce-saas/internal/shared/middleware"
-	"ecommerce-saas/internal/tenant"
-	"ecommerce-saas/internal/product"
-	"ecommerce-saas/internal/order"
-	"ecommerce-saas/internal/user"
+	"ecommerce-saas/internal/shared/routes"
+	"ecommerce-saas/internal/shared/utils"
 )
 
 // Server represents the HTTP server
 type Server struct {
-	router *gin.Engine
-	config *config.Config
-	db     *gorm.DB
+	router     *gin.Engine
+	config     *config.Config
+	db         *gorm.DB
+	jwtManager *utils.JWTManager
 }
 
 // New creates a new server instance
-func New(cfg *config.Config, db *gorm.DB) *Server {
+func New(cfg *config.Config, db *gorm.DB, jwtManager *utils.JWTManager) *Server {
 	// Set Gin mode
 	if cfg.IsProduction() {
 		gin.SetMode(gin.ReleaseMode)
@@ -42,48 +39,62 @@ func New(cfg *config.Config, db *gorm.DB) *Server {
 	router := gin.New()
 
 	server := &Server{
-		router: router,
-		config: cfg,
-		db:     db,
+		router:     router,
+		config:     cfg,
+		db:         db,
+		jwtManager: jwtManager,
 	}
 
-	// Setup middleware
-	server.setupMiddleware()
-
-	// Setup routes
-	server.setupRoutes()
+	// Setup routes with dependencies
+	routeConfig := &routes.RouteConfig{
+		DB:         db,
+		Config:     cfg,
+		JWTManager: jwtManager,
+	}
+	routes.SetupRoutes(router, routeConfig)
 
 	return server
 }
 
-// setupMiddleware configures middleware
-func (s *Server) setupMiddleware() {
-	// Recovery middleware
-	s.router.Use(gin.Recovery())
-
-	// Logger middleware
-	if s.config.App.Debug {
-		s.router.Use(middleware.LoggingMiddleware())
+// Start starts the HTTP server
+func (s *Server) Start() error {
+	address := fmt.Sprintf("%s:%d", s.config.Server.Host, s.config.Server.Port)
+	
+	server := &http.Server{
+		Addr:           address,
+		Handler:        s.router,
+		ReadTimeout:    s.config.Server.ReadTimeout,
+		WriteTimeout:   s.config.Server.WriteTimeout,
+		IdleTimeout:    s.config.Server.IdleTimeout,
+		MaxHeaderBytes: 1 << 20, // 1MB
 	}
 
-	// CORS middleware
-	s.router.Use(middleware.CORSMiddleware(
-		s.config.App.CORS.AllowedOrigins,
-		s.config.App.CORS.AllowedMethods,
-		s.config.App.CORS.AllowedHeaders,
-		s.config.App.CORS.AllowCredentials,
-	))
+	// Start server in a goroutine
+	go func() {
+		log.Printf("🚀 Server starting on %s", address)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Failed to start server: %v", err)
+		}
+	}()
 
-	// Rate limiting middleware
-	s.router.Use(middleware.RateLimitMiddleware())
+	// Wait for interrupt signal
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
 
-	// Request ID middleware
-	s.router.Use(middleware.RequestIDMiddleware())
+	log.Println("🛑 Server shutting down...")
 
-	// TODO: Add more middleware as needed
-	// - Authentication middleware
-	// - Tenant context middleware
-	// - Metrics middleware
+	// Graceful shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		log.Printf("Server forced to shutdown: %v", err)
+		return err
+	}
+
+	log.Println("✅ Server exited gracefully")
+	return nil
 }
 
 // setupRoutes configures API routes
