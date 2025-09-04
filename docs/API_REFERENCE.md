@@ -695,14 +695,158 @@ wss://api.yourplatform.com/ws
 - `dashboard_metrics_updated` - Real-time dashboard updates
 - `system_notification` - System alerts and notifications
 
+## Category Module (15 endpoints)
+
+### Category Management
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/categories` | List all categories | ❌ | ✅ |
+| POST | `/categories` | Create category | ✅ | ✅ |
+| GET | `/categories/:id` | Get category details | ❌ | ✅ |
+| PUT | `/categories/:id` | Update category | ✅ | ✅ |
+| DELETE | `/categories/:id` | Delete category | ✅ | ✅ |
+| GET | `/categories/:id/children` | Get child categories | ❌ | ✅ |
+| GET | `/categories/:id/products` | Get category products | ❌ | ✅ |
+| POST | `/categories/:id/move` | Move category | ✅ | ✅ |
+
+### Category Operations
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/categories/bulk` | Bulk create categories | ✅ | ✅ |
+| PUT | `/categories/bulk` | Bulk update categories | ✅ | ✅ |
+| DELETE | `/categories/bulk` | Bulk delete categories | ✅ | ✅ |
+| GET | `/categories/tree` | Get category tree | ❌ | ✅ |
+| GET | `/categories/stats` | Get category statistics | ✅ | ✅ |
+| POST | `/categories/reorder` | Reorder categories | ✅ | ✅ |
+| POST | `/categories/cleanup` | Cleanup empty categories | ✅ | ✅ |
+
+## Cart Module (12 endpoints)
+
+### Cart Management
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/cart` | Get user cart | ✅ | ✅ |
+| POST | `/cart/items` | Add item to cart | ✅ | ✅ |
+| PUT | `/cart/items/:id` | Update cart item | ✅ | ✅ |
+| DELETE | `/cart/items/:id` | Remove cart item | ✅ | ✅ |
+| DELETE | `/cart/clear` | Clear cart | ✅ | ✅ |
+| POST | `/cart/merge` | Merge guest cart | ✅ | ✅ |
+
+### Cart Operations
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/cart/apply-discount` | Apply discount code | ✅ | ✅ |
+| DELETE | `/cart/remove-discount` | Remove discount | ✅ | ✅ |
+| GET | `/cart/summary` | Get cart summary | ✅ | ✅ |
+| POST | `/cart/save-for-later/:id` | Save item for later | ✅ | ✅ |
+| POST | `/cart/move-to-cart/:id` | Move saved item to cart | ✅ | ✅ |
+| POST | `/cart/cleanup` | Cleanup abandoned carts | ✅ | ✅ |
+
+## Wishlist Module (15 endpoints)
+
+### Wishlist Management
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/wishlists` | Get user wishlists | ✅ | ✅ |
+| POST | `/wishlists` | Create wishlist | ✅ | ✅ |
+| GET | `/wishlists/:id` | Get wishlist details | ✅ | ✅ |
+| PUT | `/wishlists/:id` | Update wishlist | ✅ | ✅ |
+| DELETE | `/wishlists/:id` | Delete wishlist | ✅ | ✅ |
+| POST | `/wishlists/:id/items` | Add item to wishlist | ✅ | ✅ |
+| DELETE | `/wishlists/:id/items/:itemId` | Remove wishlist item | ✅ | ✅ |
+
+### Wishlist Operations
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/wishlists/:id/share` | Share wishlist | ✅ | ✅ |
+| GET | `/wishlists/shared/:token` | View shared wishlist | ❌ | ✅ |
+| POST | `/wishlists/:id/move-to-cart` | Move items to cart | ✅ | ✅ |
+| POST | `/wishlists/bulk/items` | Bulk add items | ✅ | ✅ |
+| DELETE | `/wishlists/bulk/items` | Bulk remove items | ✅ | ✅ |
+| GET | `/wishlists/analytics` | Get wishlist analytics | ✅ | ✅ |
+| POST | `/wishlists/cleanup` | Cleanup old wishlists | ✅ | ✅ |
+| GET | `/wishlists/popular-items` | Get popular wishlist items | ✅ | ✅ |
+
+## Address Module (18 endpoints)
+
+### Address Management
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/addresses` | Get user addresses | ✅ | ✅ |
+| POST | `/addresses` | Create address | ✅ | ✅ |
+| GET | `/addresses/:id` | Get address details | ✅ | ✅ |
+| PUT | `/addresses/:id` | Update address | ✅ | ✅ |
+| DELETE | `/addresses/:id` | Delete address | ✅ | ✅ |
+| POST | `/addresses/:id/set-default` | Set default address | ✅ | ✅ |
+| POST | `/addresses/:id/validate` | Validate address | ✅ | ✅ |
+
+### Address Operations
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/addresses/customers/:customerId` | Get customer addresses | ✅ | ✅ |
+| POST | `/addresses/bulk` | Bulk create addresses | ✅ | ✅ |
+| PUT | `/addresses/bulk` | Bulk update addresses | ✅ | ✅ |
+| DELETE | `/addresses/bulk` | Bulk delete addresses | ✅ | ✅ |
+| POST | `/addresses/validate-bulk` | Bulk validate addresses | ✅ | ✅ |
+| GET | `/addresses/stats` | Get address statistics | ✅ | ✅ |
+| GET | `/addresses/validation-stats` | Get validation statistics | ✅ | ✅ |
+| POST | `/addresses/cleanup` | Cleanup unvalidated addresses | ✅ | ✅ |
+| GET | `/addresses/validation-trends` | Get validation trends | ✅ | ✅ |
+| POST | `/addresses/geocode` | Geocode address | ✅ | ✅ |
+| GET | `/addresses/suggestions` | Get address suggestions | ✅ | ✅ |
+
+## Tax Module (22 endpoints)
+
+### Tax Rules Management
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/tax/rules` | List tax rules | ✅ | ✅ |
+| POST | `/tax/rules` | Create tax rule | ✅ | ✅ |
+| GET | `/tax/rules/:id` | Get tax rule | ✅ | ✅ |
+| PUT | `/tax/rules/:id` | Update tax rule | ✅ | ✅ |
+| DELETE | `/tax/rules/:id` | Delete tax rule | ✅ | ✅ |
+| POST | `/tax/rules/:id/activate` | Activate tax rule | ✅ | ✅ |
+| POST | `/tax/rules/:id/deactivate` | Deactivate tax rule | ✅ | ✅ |
+
+### Tax Rates Management
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/tax/rates` | List tax rates | ✅ | ✅ |
+| POST | `/tax/rates` | Create tax rate | ✅ | ✅ |
+| GET | `/tax/rates/:id` | Get tax rate | ✅ | ✅ |
+| PUT | `/tax/rates/:id` | Update tax rate | ✅ | ✅ |
+| DELETE | `/tax/rates/:id` | Delete tax rate | ✅ | ✅ |
+
+### Tax Calculation
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/tax/calculate` | Calculate tax | ✅ | ✅ |
+| POST | `/tax/preview` | Preview tax calculation | ✅ | ✅ |
+| GET | `/tax/calculations/order/:orderId` | Get order tax calculations | ✅ | ✅ |
+| GET | `/tax/calculations/product/:productId` | Get product tax calculations | ✅ | ✅ |
+| GET | `/tax/calculations/customer/:customerId` | Get customer tax calculations | ✅ | ✅ |
+
+### Tax Operations
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/tax/stats` | Get tax statistics | ✅ | ✅ |
+| GET | `/tax/applicable-rules` | Get applicable tax rules | ✅ | ✅ |
+| POST | `/tax/validate-location` | Validate tax location | ✅ | ✅ |
+| POST | `/tax/cleanup` | Cleanup expired rules | ✅ | ✅ |
+
 ## Summary
 
-The e-commerce platform currently implements **280+ API endpoints** across **14 active modules**:
+The e-commerce platform currently implements **360+ API endpoints** across **19 active modules**:
 
 - ✅ **Authentication Module** - 8 endpoints (user authentication, password management)
 - ✅ **User Module** - 12 endpoints (profile management, preferences)
 - ✅ **Product Module** - 35 endpoints (products, variants, categories, public access)
+- ✅ **Category Module** - 15 endpoints (hierarchical category management)
 - ✅ **Inventory Module** - 9 endpoints (inventory management, tracking)
+- ✅ **Cart Module** - 12 endpoints (shopping cart management, operations)
+- ✅ **Wishlist Module** - 15 endpoints (wishlist management, sharing, analytics)
+- ✅ **Address Module** - 18 endpoints (address management, validation, geocoding)
+- ✅ **Tax Module** - 22 endpoints (tax rules, rates, calculations)
 - ✅ **Order Module** - 15 endpoints (order management, tracking, payments)
 - ✅ **Payment Module** - 11 endpoints (payment processing, methods, webhooks)
 - ✅ **Shipping Module** - 25 endpoints (zones, rates, labels, tracking, webhooks)
