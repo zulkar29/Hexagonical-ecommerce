@@ -1,0 +1,514 @@
+{
+  "navigation": {
+    "home": "Home",
+    "about": "About",
+    "features": "Features",
+    "pricing": "Pricing",
+    "contact": "Contact",
+    "login": "Login",
+    "getStarted": "Get Started"
+  },
+  "hero": {
+    "badge": "Launch Your Store Today",
+    "title": "Create Your Online Store",
+    "titleHighlight": "in Minutes",
+    "subtitle": "Build a beautiful online store with ready-made templates. No coding needed - start selling today!"
+  },
+  "themes": {
+    "title": "Beautiful Store Templates",
+    "description": "Choose from 20+ professionally designed templates. Each template is mobile-friendly and ready to use."
+  },
+  "cta": {
+    "title": "Ready to Start Your Online Business?",
+    "description": "Join thousands of successful store owners who chose our platform to grow their business.",
+    "scheduleDemo": "Get Started Free"
+  },
+  "home": {
+    "title": "Launch Your Dream Store in Minutes",
+    "subtitle": "Create your online store instantly with beautiful ready-made templates. No coding required - start selling today!",
+    "cta": "Start Your Free Trial"
+  },
+  "about": {
+    "title": "About Our Online Store Builder",
+    "description": "We help businesses create beautiful online stores in minutes with ready-made templates and automatic setup. No technical knowledge required!"
+  },
+  "services": {
+    "title": "Everything You Need to Sell Online",
+    "description": "Simple tools and ready-made templates to help you create and grow your online business."
+  },
+  "projects": {
+    "title": "Our Projects",
+    "description": "Explore our portfolio of successful e-commerce implementations."
+  },
+  "contact": {
+    "title": "Contact Us",
+    "description": "Get in touch with our team for customer support and assistance."
+  },
+  "pricing": {
+    "title": "Pricing Plans",
+    "description": "Choose the perfect plan for your business needs."
+  },
+  "getStarted": {
+    "title": "Create Your Online Store",
+    "subtitle": "Start your dream business in just 4 simple steps",
+    "estimatedTime": "Estimated time: 5-10 minutes",
+    "successMessage": "🎉 Store is being created!\n\n📱 Business: {{businessName}}\n🌐 Domain: {{domain}}\n🎨 Template: {{template}}\n💳 Plan: {{plan}}\n\nSetup guide will be sent to your email.",
+    "steps": {
+      "step": "Step",
+      "businessInfo": "Business Info",
+      "domain": "Choose Domain",
+      "template": "Select Template",
+      "plan": "Choose Plan"
+    },
+    "stepDescriptions": {
+      "businessInfo": "Tell us about your business",
+      "domain": "Choose website address",
+      "template": "Select design",
+      "plan": "Choose subscription"
+    },
+    "businessInfo": {
+      "title": "Tell us about your business",
+      "subtitle": "Let's start with basic information about your business. This will help us create the most suitable setup for you.",
+      "nameLabel": "Business Name",
+      "namePlaceholder": "Example: Rahim Traders, Fashion Bazaar",
+      "categoryLabel": "Business Type",
+      "categoryPlaceholder": "Choose your business type",
+      "descriptionLabel": "Business Description (Optional)",
+      "descriptionPlaceholder": "Write briefly about your business...",
+      "categories": {
+        "fashion": "Fashion & Clothing",
+        "electronics": "Electronics",
+        "food": "Food & Beverages",
+        "cosmetics": "Cosmetics & Beauty",
+        "books": "Books & Education",
+        "jewelry": "Jewelry & Accessories",
+        "health": "Health & Fitness",
+        "home": "Home & Garden",
+        "other": "Other"
+      }
+    },
+    "domain": {
+      "title": "Choose your store website address",
+      "subtitle": "Select a beautiful domain name that matches your brand",
+      "typeLabel": "Choose domain type:",
+      "freeSubdomain": "Free Subdomain",
+      "customDomain": "Custom Domain",
+      "free": "Free",
+      "pro": "Pro",
+      "customDescription": "More professional and brand-friendly",
+      "freeDescription": "Instant start, no additional cost",
+      "storeNameLabel": "Enter your store name:",
+      "storeNamePlaceholder": "Example: my-store",
+      "preview": "Your website address:",
+      "instructions": "Use only letters, numbers and hyphens (-)"
+    },
+    "template": {
+      "title": "Choose template for your business",
+      "subtitle": "Each template is specially designed according to your business type"
+    },
+    "plan": {
+      "title": "Choose plan according to your needs",
+      "subtitle": "All plans include 14-day free trial and upgrade/downgrade anytime",
+      "recommended": "Recommended",
+      "monthly": "/monthly",
+      "freeTrial": "14 days free trial",
+      "moreFeatures": "more features",
+      "specialOffer": {
+        "title": "Special Offer!",
+        "description": "20% off first month + free setup support"
+      }
+    },
+    "navigation": {
+      "previous": "Previous",
+      "next": "Next",
+      "createStore": "Create Store"
+    },
+    "summary": {
+      "title": "Your Selected Information",
+      "business": "Business:",
+      "businessType": "Type:",
+      "domain": "Domain:",
+      "template": "Template:",
+      "plan": "Plan:",
+      "firstMonthPrice": "First month price:",
+      "freeTrial": "Free Trial",
+      "thenMonthly": "Then",
+      "perMonth": "per month",
+      "monthly": "/monthly"
+    },
+    "templates": {
+      "fashion": {
+        "name": "Fashion Store",
+        "category": "Fashion & Clothing",
+        "description": "For selling clothing, shoes, and fashion items",
+        "features": ["Size Charts", "Color Options", "Fashion Gallery"]
+      },
+      "electronics": {
+        "name": "Electronics Hub",
+        "category": "Electronics",
+        "description": "For selling mobile, computers, and gadgets",
+        "features": ["Product Comparison", "Tech Reviews", "Warranty Info"]
+      },
+      "food": {
+        "name": "Food Store",
+        "category": "Food & Beverage",
+        "description": "For restaurants and food stores",
+        "features": ["Menu Display", "Nutrition Info", "Delivery Areas"]
+      },
+      "cosmetics": {
+        "name": "Cosmetics & Beauty",
+        "category": "Beauty & Care",
+        "description": "For selling cosmetics and beauty products",
+        "features": ["Product Reviews", "Skin Type Guide", "Brand Filters"]
+      },
+      "books": {
+        "name": "Books & Stationery",
+        "category": "Books & Education",
+        "description": "For selling books, stationery, and educational materials",
+        "features": ["Book Search", "Author Info", "Review System"]
+      },
+      "jewelry": {
+        "name": "Jewelry & Ornaments",
+        "category": "Jewelry",
+        "description": "For selling jewelry, ornaments, and custom jewelry",
+        "features": ["360° View", "Customization", "Certificates"]
+      }
+    },
+    "plans": {
+      "starter": {
+        "name": "Starter",
+        "description": "Perfect for new businesses",
+        "features": [
+          "Up to 500 products",
+          "1 staff account",
+          "Basic themes",
+          "Email support",
+          "5GB storage",
+          "Mobile friendly",
+          "SSL certificate"
+        ]
+      },
+      "professional": {
+        "name": "Professional",
+        "description": "For growing businesses",
+        "features": [
+          "Up to 2000 products",
+          "3 staff accounts",
+          "Premium themes",
+          "Priority support",
+          "20GB storage",
+          "Basic analytics",
+          "Custom domain",
+          "Mobile payments"
+        ]
+      },
+      "pro": {
+        "name": "Pro",
+        "description": "For established businesses",
+        "features": [
+          "Up to 10000 products",
+          "10 staff accounts",
+          "Custom themes",
+          "Advanced analytics",
+          "100GB storage",
+          "Abandoned cart recovery",
+          "Email marketing",
+          "Basic API access",
+          "Multi-currency"
+        ]
+      },
+      "enterprise": {
+        "name": "Enterprise",
+        "description": "For large companies",
+        "features": [
+          "Unlimited products",
+          "Unlimited staff",
+          "White-label options",
+          "24/7 dedicated support",
+          "Unlimited storage",
+          "Full API access",
+          "Advanced integrations",
+          "Dedicated database",
+          "Custom features"
+        ]
+      }
+    }
+  },
+  "homepage": {
+    "features": {
+      "title": "Everything for Your Online Business",
+      "description": "Start and grow your business with simple tools and professional features"
+    },
+    "stats": {
+      "title": "Our Success Statistics",
+      "description": "Thousands of business owners trust us",
+      "happyCustomers": "Happy Customers",
+      "activeStores": "Active Stores", 
+      "totalSales": "Total Sales",
+      "districts": "Districts Served"
+    },
+    "templates": {
+      "title": "Beautiful & Professional Templates",
+      "description": "Choose ready-made templates according to your business type and start instantly",
+      "viewAllTemplates": "View All Templates (15+)"
+    },
+    "stepsSection": {
+      "title": "Get Started in Just 3 Steps",
+      "description": "Launch your online store in just a few minutes",
+      "startNowFree": "Start Now - Free Trial",
+      "noCreditCard": "No credit card required • 14 days free trial"
+    },
+    "finalCta": {
+      "title": "Ready to Start Your Dream Business?",
+      "description": "Join thousands of successful entrepreneurs who built their business with our platform today"
+    },
+    "featureList": {
+      "easyStore": {
+        "title": "Easy Store Creation",
+        "description": "Create your professional online store with just a few clicks",
+        "features": ["Ready Templates", "Drag & Drop Editor", "Mobile Friendly"]
+      },
+      "securePayment": {
+        "title": "Secure Payment",
+        "description": "Safe payment system and multiple payment methods",
+        "features": ["bKash/Nagad", "Card Payment", "Cash on Delivery"]
+      },
+      "analytics": {
+        "title": "Sales Analytics",
+        "description": "Track and understand your business performance",
+        "features": ["Real Time Data", "Sales Reports", "Customer Analysis"]
+      },
+      "inventory": {
+        "title": "Inventory Management", 
+        "description": "Easily manage your product stock and orders",
+        "features": ["Stock Tracking", "Order Management", "Delivery Status"]
+      },
+      "mobileApp": {
+        "title": "Mobile App",
+        "description": "Manage your store from anywhere",
+        "features": ["iOS & Android", "Order Notifications", "Live Chat"]
+      },
+      "support247": {
+        "title": "24/7 Support",
+        "description": "Customer service and technical assistance in Bangla",
+        "features": ["Live Chat", "Phone Support", "Video Tutorials"]
+      }
+    },
+    "stepsDetails": {
+      "step1": {
+        "title": "Domain Selection",
+        "description": "Choose a beautiful name and website address for your store"
+      },
+      "step2": {
+        "title": "Choose Template",
+        "description": "Select professional template according to your business type"
+      },
+      "step3": {
+        "title": "Plan Selection",
+        "description": "Choose subscription plan according to your needs and get started"
+      }
+    }
+  },
+  "footer": {
+    "companyDescription": "Create online stores easily. No coding knowledge required.",
+    "quickLinks": "Quick Links",
+    "contactTitle": "Contact",
+    "email": "hello@storebuilder.com",
+    "startFreeTrial": "Start Free Trial",
+    "copyright": "© 2024 StoreBuilder. All rights reserved.",
+    "privacy": "Privacy",
+    "terms": "Terms"
+  },
+  "common": {
+    "getStarted": "Get Started",
+    "learnMore": "Learn More",
+    "contactUs": "Contact Us", 
+    "readMore": "Read More",
+    "viewProjects": "View Projects",
+    "startFree": "Start Free Trial",
+    "watchDemo": "Watch Demo",
+    "freeTrialStart": "Start Free Trial",
+    "talkToUs": "Talk to Us",
+    "noCodingRequired": "No coding knowledge required",
+    "support247": "24/7 Customer Support",
+    "freeDomainSSL": "Free Domain & SSL",
+    "rating48": "4.8 Rating",
+    "projectCount": "10+",
+    "successfulProjects": "Successful Projects",
+    "liveStore": "Live Store",
+    "growth85": "+85% Growth",
+    "orders": "Orders",
+    "sales": "Sales",
+    "customers": "Customers",
+    "ordersCount": "245",
+    "salesAmount": "12,345",
+    "customersCount": "89"
+  },
+  "contactPage": {
+    "title": "Contact Us",
+    "description": "Ready to launch your online store in minutes? Get in touch with our team and let's discuss how we can help your business succeed with ready-made templates and automatic setup.",
+    "contactInfo": {
+      "email": {
+        "title": "Email Us",
+        "details": "hello@business.com",
+        "description": "Send us an email anytime"
+      },
+      "phone": {
+        "title": "Call Us",
+        "details": "+1 (555) 123-4567",
+        "description": "Mon-Fri from 8am to 6pm"
+      },
+      "address": {
+        "title": "Visit Us",
+        "details": "123 Business St, Suite 100",
+        "description": "San Francisco, CA 94105"
+      },
+      "hours": {
+        "title": "Business Hours",
+        "details": "Mon - Fri: 8am - 6pm",
+        "description": "Weekend support available"
+      }
+    },
+    "form": {
+      "title": "Send us a Message",
+      "subtitle": "Fill out the form below and we'll get back to you within 24 hours.",
+      "fullName": "Full Name *",
+      "email": "Email Address *",
+      "company": "Company",
+      "subject": "Subject *",
+      "message": "Message *",
+      "placeholders": {
+        "fullName": "Your full name",
+        "email": "your@email.com",
+        "company": "Your company name",
+        "subject": "Select a subject",
+        "message": "Tell us about your e-commerce store plans or inquiry..."
+      },
+      "subjects": {
+        "store": "Online Store Builder",
+        "support": "Store Support",
+        "technical": "Technical Support",
+        "migration": "Store Migration",
+        "partnership": "Partnership",
+        "other": "Other"
+      },
+      "sendMessage": "Send Message"
+    },
+    "location": {
+      "title": "Our Location",
+      "mapText": "Interactive Map"
+    },
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "questions": {
+        "response": {
+          "question": "How quickly do you respond?",
+          "answer": "We typically respond to all inquiries within 24 hours during business days."
+        },
+        "onboarding": {
+          "question": "Do you offer platform onboarding support?",
+          "answer": "Yes, we provide comprehensive onboarding support to help you set up and configure your e-commerce store."
+        },
+        "timeline": {
+          "question": "How long does it take to launch a store?",
+          "answer": "Store launch timelines vary based on complexity, but most stores are live within 2-8 weeks."
+        }
+      }
+    },
+    "liveChat": {
+      "title": "Need Immediate Help?",
+      "description": "Chat with our support team for instant assistance with your questions.",
+      "startChat": "Start Live Chat"
+    },
+    "officeHours": {
+      "title": "Office Hours",
+      "regular": {
+        "title": "Regular Hours",
+        "monday": "Monday - Friday",
+        "mondayTime": "8:00 AM - 6:00 PM",
+        "saturday": "Saturday",
+        "saturdayTime": "9:00 AM - 2:00 PM",
+        "sunday": "Sunday",
+        "sundayTime": "Closed"
+      },
+      "emergency": {
+        "title": "Emergency Support",
+        "line": "24/7 Emergency Line",
+        "phone": "+1 (555) 999-0000",
+        "responseTime": "Response Time",
+        "responseValue": "< 1 Hour",
+        "available": "Available",
+        "availableValue": "All Days"
+      }
+    }
+  },
+  "templatesPage": {
+    "title": "Templates",
+    "description": "Find the perfect template for your business.",
+    "descriptionExtended": "Each template is professionally designed and ready for customization.",
+    "categoryFilter": "Browse by category:",
+    "popularTemplates": "Popular Templates",
+    "moreTemplates": "More Templates",
+    "allTemplatesFeatures": "What You Get in All Templates",
+    "popular": "Popular",
+    "useTemplate": "Use This Template",
+    "startWithTemplate": "Start with Your Favorite Template",
+    "quickStart": "Create your professional online store in just a few clicks",
+    "startNowFree": "Start Now - Free Trial",
+    "customDesign": "Want Custom Design?",
+    "categories": {
+      "all": "All Categories",
+      "fashion": "Fashion & Clothing",
+      "electronics": "Electronics",
+      "food": "Food & Beverage",
+      "health": "Health & Beauty",
+      "books": "Books & Education"
+    },
+    "additionalTemplates": {
+      "health": {
+        "name": "Health & Fitness",
+        "category": "Healthcare",
+        "description": "For selling health products, supplements and fitness equipment",
+        "features": ["Product Guide", "Dosage Info", "Expert Reviews"]
+      },
+      "home": {
+        "name": "Home & Garden",
+        "category": "Home & Garden",
+        "description": "For selling household items, furniture and gardening products",
+        "features": ["Room Planner", "Size Guide", "Installation Service"]
+      },
+      "toys": {
+        "name": "Toys & Games",
+        "category": "Kids & Toys",
+        "description": "For selling children's toys, games and educational products",
+        "features": ["Age Group Filter", "Safety Info", "Gift Wrapping"]
+      }
+    },
+    "templateFeatures": {
+      "mobileFriendly": {
+        "title": "Mobile Friendly",
+        "description": "Perfect on all devices"
+      },
+      "fastLoading": {
+        "title": "Fast Loading",
+        "description": "Optimized performance"
+      },
+      "fastLoad": {
+        "title": "Fast Loading",
+        "description": "Optimized performance"
+      },
+      "seoOptimized": {
+        "title": "SEO Optimized",
+        "description": "Better search rankings"
+      },
+      "securePayment": {
+        "title": "Secure Payment",
+        "description": "With SSL encryption"
+      },
+      "customization": {
+        "title": "Customization",
+        "description": "Change according to your brand"
+      }
+    }
+  }
+}

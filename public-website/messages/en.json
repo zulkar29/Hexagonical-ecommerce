@@ -1,0 +1,124 @@
+{
+  "navigation": {
+    "home": "Home",
+    "about": "About",
+    "services": "Services",
+    "projects": "Projects",
+    "contact": "Contact",
+    "ourServices": "Our Services",
+    "viewAllServices": "View All Services",
+    "login": "Login",
+    "demo": "Demo",
+    "getStarted": "Get Started",
+    "watchDemo": "Watch Demo"
+  },
+  "hero": {
+    "badge": "Professional E-commerce Solutions",
+    "title": "Transform Your Vision Into",
+    "titleHighlight": "Digital Success",
+    "description": "Empower your business with cutting-edge e-commerce technology. Build, launch, and scale your online presence with confidence using our comprehensive platform designed for modern entrepreneurs.",
+    "startTrial": "Begin Your Journey",
+    "watchDemo": "Explore Solutions"
+  },
+  "stats": {
+    "onlineStores": "Online Stores",
+    "salesProcessed": "Sales Processed",
+    "uptime": "Uptime"
+  },
+  "services": {
+    "title": "Comprehensive Solutions for Digital Excellence",
+    "description": "Discover powerful tools and expert services designed to elevate your business and maximize your online potential.",
+    "storeBuilder": {
+      "title": "Intelligent Store Builder",
+      "description": "Craft stunning, conversion-optimized stores with our intuitive visual builder. Professional results without technical complexity."
+    },
+    "paymentGateway": {
+      "title": "Global Payment Solutions",
+      "description": "Process transactions seamlessly worldwide with enterprise-grade security and multiple payment methods."
+    },
+    "analytics": {
+      "title": "Advanced Analytics Suite",
+      "description": "Unlock actionable insights with comprehensive data analytics to drive informed business decisions and accelerate growth."
+    },
+    "platform": {
+      "title": "Enterprise-Grade Platform",
+      "description": "Access professional e-commerce capabilities at exceptional value. Launch your digital business with confidence and scalability."
+    },
+    "consultancy": {
+      "title": "Strategic Technology Consulting",
+      "description": "Leverage expert insights to optimize your digital strategy and maximize your e-commerce platform's performance potential."
+    },
+    "customDevelopment": {
+      "title": "Bespoke Development Solutions",
+      "description": "Experience tailored e-commerce excellence with custom-built solutions engineered to meet your unique business requirements."
+    }
+  },
+  "themes": {
+    "title": "Choose Your Perfect Theme",
+    "description": "Professional, mobile-responsive themes designed to convert visitors into customers."
+  },
+  "performance": {
+    "title": "Built for Performance",
+    "description": "Our platform is engineered for speed, reliability, and scalability.",
+    "speed": {
+      "title": "Lightning Fast",
+      "description": "Average page load time under 2 seconds"
+    },
+    "uptime": {
+      "title": "99.9% Uptime",
+      "description": "Reliable hosting with guaranteed uptime"
+    },
+    "scaling": {
+      "title": "Auto Scaling",
+      "description": "Handles traffic spikes automatically"
+    }
+  },
+  "cta": {
+    "title": "Ready to Transform Your Business Vision?",
+    "description": "Join forward-thinking entrepreneurs who are building exceptional digital experiences with our proven platform.",
+    "button": "Start Your Success Story"
+  },
+  "projects": {
+    "title": "Discover Your Ideal Digital Foundation",
+    "subtitle": "Explore our curated collection of premium e-commerce templates, each crafted to deliver exceptional user experiences and drive conversions.",
+    "filterAll": "All Categories",
+    "viewDemo": "Experience Demo",
+    "viewSource": "View Source",
+    "selectTemplate": "Choose This Design",
+    "features": "Features",
+    "technologies": "Technologies",
+    "popular": "Popular",
+    "free": "Free",
+    "closeModal": "Close",
+    "templates": {
+      "fashion": {
+        "title": "Fashion & Lifestyle",
+        "description": "Sophisticated design showcasing style and elegance, perfect for fashion brands and lifestyle products."
+      },
+      "electronics": {
+        "title": "Technology & Electronics",
+        "description": "Cutting-edge template optimized for tech products, featuring clean layouts and product-focused design."
+      },
+      "food": {
+        "title": "Culinary & Hospitality",
+        "description": "Appetizing design that brings flavors to life, ideal for restaurants, cafes, and food delivery services."
+      }
+    }
+  },
+  "footer": {
+    "description": "Empowering visionary entrepreneurs to build extraordinary digital experiences that transform businesses and delight customers worldwide.",
+    "quickLinks": "Quick Links",
+    "services": "Solutions",
+    "support": "Support Center",
+    "followUs": "Connect With Us",
+    "allRightsReserved": "All rights reserved."
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "tryAgain": "Try Again",
+    "close": "Close",
+    "open": "Open",
+    "menu": "Menu"
+  }
+}

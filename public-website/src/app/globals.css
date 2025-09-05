@@ -116,7 +116,7 @@
 
 /* Button variants */
 .btn-primary {
-  @apply bg-black text-white px-6 py-3 rounded-md font-medium hover:bg-gray-800 transition-colors duration-200;
+  @apply bg-gray-900 text-white px-6 py-3 rounded-md font-medium hover:bg-gray-800 transition-colors duration-200;
 }
 
 .btn-secondary {
@@ -167,17 +167,17 @@
   @apply animate-spin rounded-full border-2 border-gray-300 border-t-blue-600;
 }
 
-/* Gradient backgrounds */
-.gradient-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+/* Professional color scheme - avoiding blue/green */
+.bg-primary {
+  @apply bg-gray-900;
 }
 
-.gradient-secondary {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+.bg-secondary {
+  @apply bg-orange-600;
 }
 
-.gradient-accent {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+.bg-accent {
+  @apply bg-amber-600;
 }
 
 /* Glass morphism effect */
