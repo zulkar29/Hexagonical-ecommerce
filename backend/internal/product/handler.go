@@ -89,7 +89,7 @@ func (h *Handler) GetProductBySlug(c *gin.Context) {
 	})
 }
 
-// UpdateProduct handles PUT /api/products/:id
+// UpdateProduct handles PUT /api/products/:id with action support
 func (h *Handler) UpdateProduct(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
@@ -103,7 +103,54 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
 		return
 	}
+
+	// Check for specific actions
+	action := c.Query("action")
+	switch action {
+	case "update_inventory":
+		var req struct {
+			Quantity int `json:"quantity" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+			return
+		}
+		err = h.service.UpdateInventory(tenantID.(uuid.UUID), productID.String(), req.Quantity)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Inventory updated successfully"})
+		return
+	case "update_status":
+		var req struct {
+			Status ProductStatus `json:"status" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+			return
+		}
+		err = h.service.UpdateProductStatus(tenantID.(uuid.UUID), productID.String(), req.Status)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Product status updated successfully"})
+		return
+	case "duplicate":
+		product, err := h.service.DuplicateProduct(tenantID.(uuid.UUID), productID.String())
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusCreated, gin.H{
+			"message": "Product duplicated successfully",
+			"data":    product,
+		})
+		return
+	}
 	
+	// Regular product update
 	var product Product
 	if err := c.ShouldBindJSON(&product); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
@@ -122,7 +169,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 	})
 }
 
-// ListProducts handles GET /api/products
+// ListProducts handles GET /api/products with analytics and export support
 func (h *Handler) ListProducts(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
@@ -130,13 +177,85 @@ func (h *Handler) ListProducts(c *gin.Context) {
 		return
 	}
 
-	// Parse query parameters
+	// Check for analytics or export type
+	queryType := c.Query("type")
+	switch queryType {
+	case "stats":
+		stats, err := h.service.GetProductStats(tenantID.(uuid.UUID))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch product statistics"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"data": stats})
+		return
+	case "low-stock":
+		thresholdStr := c.DefaultQuery("threshold", "10")
+		threshold, err := strconv.Atoi(thresholdStr)
+		if err != nil || threshold <= 0 {
+			threshold = 10
+		}
+		products, err := h.service.GetLowStockProducts(tenantID.(uuid.UUID), threshold)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch low stock products"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"data": gin.H{
+				"products": products,
+				"threshold": threshold,
+				"count":    len(products),
+			},
+		})
+		return
+	case "search":
+		query := c.Query("q")
+		if query == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Search query is required"})
+			return
+		}
+		// Parse pagination for search
+		offsetStr := c.DefaultQuery("offset", "0")
+		limitStr := c.DefaultQuery("limit", "20")
+		offset, err := strconv.Atoi(offsetStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset parameter"})
+			return
+		}
+		limit, err := strconv.Atoi(limitStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
+			return
+		}
+		if limit > 100 {
+			limit = 100
+		}
+		if limit < 1 {
+			limit = 20
+		}
+		products, total, err := h.service.SearchProducts(tenantID.(uuid.UUID), query, offset, limit)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"data": gin.H{
+				"products": products,
+				"total":    total,
+				"offset":   offset,
+				"limit":    limit,
+				"query":    query,
+			},
+		})
+		return
+	}
+
+	// Regular product listing with filters
 	var filter ProductListFilter
 	
 	if status := c.Query("status"); status != "" {
 		filter.Status = ProductStatus(status)
 	}
-	if productType := c.Query("type"); productType != "" {
+	if productType := c.Query("product_type"); productType != "" {
 		filter.Type = ProductType(productType)
 	}
 	if categoryID := c.Query("category_id"); categoryID != "" {
@@ -228,40 +347,7 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 	})
 }
 
-// UpdateInventory handles PATCH /api/products/:id/inventory
-func (h *Handler) UpdateInventory(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
-		return
-	}
 
-	productIDStr := c.Param("id")
-	productID, err := uuid.Parse(productIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
-		return
-	}
-	
-	var req struct {
-		Quantity int `json:"quantity" binding:"required"`
-	}
-	
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
-		return
-	}
-
-	err = h.service.UpdateInventory(tenantID.(uuid.UUID), productID.String(), req.Quantity)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Inventory updated successfully",
-	})
-}
 
 // Category Handlers
 
@@ -317,7 +403,7 @@ func (h *Handler) GetCategory(c *gin.Context) {
 	})
 }
 
-// ListCategories handles GET /api/categories
+// ListCategories handles GET /api/categories with hierarchy support
 func (h *Handler) ListCategories(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
@@ -325,6 +411,39 @@ func (h *Handler) ListCategories(c *gin.Context) {
 		return
 	}
 
+	// Check for hierarchy queries
+	hierarchy := c.Query("hierarchy")
+	switch hierarchy {
+	case "root":
+		categories, err := h.service.GetRootCategories(tenantID.(uuid.UUID))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Root categories retrieved successfully",
+			"data":    categories,
+		})
+		return
+	case "children":
+		parentID := c.Query("parent_id")
+		if parentID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "parent_id is required for children hierarchy"})
+			return
+		}
+		categories, err := h.service.GetCategoryChildren(tenantID.(uuid.UUID), parentID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Child categories retrieved successfully",
+			"data":    categories,
+		})
+		return
+	}
+
+	// Regular category listing
 	categories, err := h.service.ListCategories(tenantID.(uuid.UUID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch categories"})
@@ -332,203 +451,16 @@ func (h *Handler) ListCategories(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"data": categories,
+		"message": "Categories retrieved successfully",
+		"data":    categories,
 	})
 }
 
-// GetProductStats handles GET /api/products/stats
-func (h *Handler) GetProductStats(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
-		return
-	}
 
-	stats, err := h.service.GetProductStats(tenantID.(uuid.UUID))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch product statistics"})
-		return
-	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data": stats,
-	})
-}
 
-// BulkUpdateProducts handles PATCH /api/products/bulk
-func (h *Handler) BulkUpdateProducts(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
-		return
-	}
 
-	var req struct {
-		ProductIDs []string               `json:"product_ids" binding:"required"`
-		Updates    map[string]interface{} `json:"updates" binding:"required"`
-	}
-	
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
-		return
-	}
 
-	err := h.service.BulkUpdateProducts(tenantID.(uuid.UUID), req.ProductIDs, req.Updates)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Products updated successfully",
-		"updated_count": len(req.ProductIDs),
-	})
-}
-
-// DuplicateProduct handles POST /api/products/:id/duplicate
-func (h *Handler) DuplicateProduct(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
-		return
-	}
-
-	productIDStr := c.Param("id")
-	productID, err := uuid.Parse(productIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
-		return
-	}
-	
-	product, err := h.service.DuplicateProduct(tenantID.(uuid.UUID), productID.String())
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "Product duplicated successfully",
-		"data":    product,
-	})
-}
-
-// SearchProducts handles GET /api/products/search
-func (h *Handler) SearchProducts(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
-		return
-	}
-
-	query := c.Query("q")
-	if query == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Search query is required"})
-		return
-	}
-
-	// Parse pagination
-	offsetStr := c.DefaultQuery("offset", "0")
-	limitStr := c.DefaultQuery("limit", "20")
-	
-	offset, err := strconv.Atoi(offsetStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset parameter"})
-		return
-	}
-	
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
-		return
-	}
-	
-	if limit > 100 {
-		limit = 100
-	}
-	if limit < 1 {
-		limit = 20
-	}
-
-	products, total, err := h.service.SearchProducts(tenantID.(uuid.UUID), query, offset, limit)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"data": gin.H{
-			"products": products,
-			"total":    total,
-			"offset":   offset,
-			"limit":    limit,
-			"query":    query,
-		},
-	})
-}
-
-// GetLowStockProducts handles GET /api/products/low-stock
-func (h *Handler) GetLowStockProducts(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
-		return
-	}
-
-	thresholdStr := c.DefaultQuery("threshold", "10")
-	threshold, err := strconv.Atoi(thresholdStr)
-	if err != nil || threshold <= 0 {
-		threshold = 10
-	}
-
-	products, err := h.service.GetLowStockProducts(tenantID.(uuid.UUID), threshold)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch low stock products"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"data": gin.H{
-			"products": products,
-			"threshold": threshold,
-			"count":    len(products),
-		},
-	})
-}
-
-// UpdateProductStatus handles PATCH /api/products/:id/status
-func (h *Handler) UpdateProductStatus(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
-		return
-	}
-
-	productIDStr := c.Param("id")
-	productID, err := uuid.Parse(productIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
-		return
-	}
-	
-	var req struct {
-		Status ProductStatus `json:"status" binding:"required"`
-	}
-	
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
-		return
-	}
-
-	err = h.service.UpdateProductStatus(tenantID.(uuid.UUID), productID.String(), req.Status)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Product status updated successfully",
-	})
-}
 
 // Product Variant Handlers
 
@@ -725,6 +657,54 @@ func (h *Handler) DeleteCategory(c *gin.Context) {
 	})
 }
 
+// SearchProducts handles GET /api/products/search
+func (h *Handler) SearchProducts(c *gin.Context) {
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+		return
+	}
+
+	query := c.Query("q")
+	if query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Search query is required"})
+		return
+	}
+
+	// Parse pagination
+	offsetStr := c.DefaultQuery("offset", "0")
+	limitStr := c.DefaultQuery("limit", "20")
+
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset parameter"})
+		return
+	}
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
+		return
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	products, total, err := h.service.SearchProducts(tenantID.(uuid.UUID), query, offset, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to search products"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": gin.H{
+			"products": products,
+			"total":    total,
+			"offset":   offset,
+			"limit":    limit,
+		},
+	})
+}
+
 // GetRootCategories handles GET /api/categories/root
 func (h *Handler) GetRootCategories(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
@@ -753,64 +733,97 @@ func (h *Handler) GetCategoryChildren(c *gin.Context) {
 	}
 
 	categoryIDStr := c.Param("id")
-	categoryID, err := uuid.Parse(categoryIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
+	if categoryIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Category ID is required"})
 		return
 	}
-	
-	categories, err := h.service.GetCategoryChildren(tenantID.(uuid.UUID), categoryID.String())
+
+	children, err := h.service.GetCategoryChildren(tenantID.(uuid.UUID), categoryIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"data": categories,
+		"data": children,
 	})
 }
 
-// RegisterRoutes registers all product routes
-func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
-	products := router.Group("/products")
-	{
-		// Product CRUD
-		products.POST("", h.CreateProduct)
-		products.GET("", h.ListProducts)
-		products.GET("/search", h.SearchProducts)
-		products.GET("/stats", h.GetProductStats)
-		products.GET("/low-stock", h.GetLowStockProducts)
-		products.PATCH("/bulk", h.BulkUpdateProducts)
-		
-		products.GET("/:id", h.GetProduct)
-		products.PUT("/:id", h.UpdateProduct)
-		products.DELETE("/:id", h.DeleteProduct)
-		products.PATCH("/:id/status", h.UpdateProductStatus)
-		products.PATCH("/:id/inventory", h.UpdateInventory)
-		products.POST("/:id/duplicate", h.DuplicateProduct)
-		
-		// Product variants
-		products.POST("/:id/variants", h.CreateProductVariant)
-		products.GET("/:id/variants", h.GetProductVariants)
-		products.PUT("/:id/variants/:variantId", h.UpdateProductVariant)
-		products.DELETE("/:id/variants/:variantId", h.DeleteProductVariant)
-		
-		// Product by slug (for storefront)
-		products.GET("/slug/:slug", h.GetProductBySlug)
+
+
+// HandleProductOperations handles POST /api/products/operations for bulk operations
+func (h *Handler) HandleProductOperations(c *gin.Context) {
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+		return
 	}
 
+	operation := c.Query("operation")
+	switch operation {
+	case "bulk_update":
+		var req struct {
+			ProductIDs []string `json:"product_ids" binding:"required"`
+			Updates    map[string]interface{} `json:"updates" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+			return
+		}
+		err := h.service.BulkUpdateProducts(tenantID.(uuid.UUID), req.ProductIDs, req.Updates)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Products updated successfully"})
+		return
+	case "import":
+		// TODO: Implement product import functionality
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "Import functionality not implemented"})
+		return
+	case "export":
+		// TODO: Implement product export functionality
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "Export functionality not implemented"})
+		return
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid operation type"})
+	}
+}
+
+// RegisterRoutes registers all product-related routes
+func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
+	// Product routes
+	products := router.Group("/products")
+	{
+		products.POST("", h.CreateProduct)
+		products.GET("", h.ListProducts) // Supports ?type=stats|low-stock|search, ?q=query
+		products.POST("/operations", h.HandleProductOperations) // Supports ?operation=bulk_update|import|export
+		products.GET("/:id", h.GetProduct)
+		products.PUT("/:id", h.UpdateProduct) // Supports ?action=update_inventory|update_status|duplicate
+		products.DELETE("/:id", h.DeleteProduct)
+		products.GET("/slug/:slug", h.GetProductBySlug)
+
+		// Product variant routes
+		products.POST("/:id/variants", h.CreateProductVariant)
+		products.GET("/:id/variants", h.GetProductVariants)
+		products.PUT("/:id/variants/:variant_id", h.UpdateProductVariant)
+		products.DELETE("/:id/variants/:variant_id", h.DeleteProductVariant)
+	}
+
+	// Category routes
 	categories := router.Group("/categories")
 	{
-		// Category CRUD
 		categories.POST("", h.CreateCategory)
-		categories.GET("", h.ListCategories)
-		categories.GET("/root", h.GetRootCategories)
-		
+		categories.GET("", h.ListCategories) // Supports ?hierarchy=root|children, ?parent_id=id
 		categories.GET("/:id", h.GetCategory)
 		categories.PUT("/:id", h.UpdateCategory)
 		categories.DELETE("/:id", h.DeleteCategory)
-		categories.GET("/:id/children", h.GetCategoryChildren)
 	}
+
+	// TODO: Add routes for:
+	// - Product image uploads
+	// - Category image uploads
+	// - Advanced search and filtering
 }
 
 // TODO: Add more handlers

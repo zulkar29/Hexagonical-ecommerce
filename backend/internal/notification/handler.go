@@ -112,7 +112,18 @@ func (h *Handler) ListNotifications(c *gin.Context) {
 		return
 	}
 
-	// Parse query parameters
+	// Check if stats are requested
+	if c.Query("type") == "stats" {
+		stats, err := h.service.GetStats(tenantID.(uuid.UUID))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"data": stats})
+		return
+	}
+
+	// Parse query parameters for regular listing
 	offsetStr := c.DefaultQuery("offset", "0")
 	limitStr := c.DefaultQuery("limit", "20")
 	userIDStr := c.Query("user_id")
@@ -299,22 +310,7 @@ func (h *Handler) UpdatePreferences(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Preferences updated successfully"})
 }
 
-// GetStats handles GET /notifications/stats
-func (h *Handler) GetStats(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
-		return
-	}
 
-	stats, err := h.service.GetStats(tenantID.(uuid.UUID))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"data": stats})
-}
 
 // RegisterRoutes registers all notification routes
 func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
@@ -322,7 +318,7 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	{
 		// Notification management
 		notifications.POST("", h.SendNotification)
-		notifications.GET("", h.ListNotifications)
+		notifications.GET("", h.ListNotifications)                    // GET /api/v1/notifications (supports ?type=stats for statistics)
 		notifications.GET("/:id", h.GetNotification)
 		notifications.PUT("/:id/read", h.MarkAsRead)
 		
@@ -339,8 +335,5 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 		// User preferences
 		notifications.GET("/preferences", h.GetPreferences)
 		notifications.PUT("/preferences", h.UpdatePreferences)
-		
-		// Statistics
-		notifications.GET("/stats", h.GetStats)
 	}
 }

@@ -20,11 +20,6 @@ type Repository interface {
 	GetProductsByCategoryID(tenantID, categoryID uuid.UUID, offset, limit int) ([]*Product, int64, error)
 	GetLowStockProducts(tenantID uuid.UUID, threshold int) ([]*Product, error)
 	BulkUpdateProducts(tenantID uuid.UUID, productIDs []uuid.UUID, updates map[string]interface{}) error
-	GetPopularProducts(tenantID uuid.UUID, limit int) ([]*Product, error)
-	GetNewProducts(tenantID uuid.UUID, limit int) ([]*Product, error)
-	GetFeaturedProducts(tenantID uuid.UUID, limit int) ([]*Product, error)
-	GetRelatedProducts(tenantID uuid.UUID, productID uuid.UUID, categoryID *uuid.UUID, limit int) ([]*Product, error)
-	BulkImportProducts(products []*Product) error
 
 	// Category operations
 	SaveCategory(category *Category) (*Category, error)
@@ -403,61 +398,4 @@ func (r *repository) SearchProducts(tenantID uuid.UUID, query string, offset, li
 	}
 
 	return products, total, nil
-}
-
-// GetPopularProducts returns products sorted by popularity (order count)
-func (r *repository) GetPopularProducts(tenantID uuid.UUID, limit int) ([]*Product, error) {
-	var products []*Product
-	err := r.db.Where("tenant_id = ? AND status = ?", tenantID, ProductStatusActive).
-		Order("order_count DESC").
-		Limit(limit).
-		Find(&products).Error
-	return products, err
-}
-
-// GetNewProducts returns recently created products
-func (r *repository) GetNewProducts(tenantID uuid.UUID, limit int) ([]*Product, error) {
-	var products []*Product
-	err := r.db.Where("tenant_id = ? AND status = ?", tenantID, ProductStatusActive).
-		Order("created_at DESC").
-		Limit(limit).
-		Find(&products).Error
-	return products, err
-}
-
-// GetFeaturedProducts returns featured products
-func (r *repository) GetFeaturedProducts(tenantID uuid.UUID, limit int) ([]*Product, error) {
-	var products []*Product
-	err := r.db.Where("tenant_id = ? AND status = ? AND is_featured = ?", tenantID, ProductStatusActive, true).
-		Order("created_at DESC").
-		Limit(limit).
-		Find(&products).Error
-	return products, err
-}
-
-// GetRelatedProducts returns products related to a given product (same category)
-func (r *repository) GetRelatedProducts(tenantID uuid.UUID, productID uuid.UUID, categoryID *uuid.UUID, limit int) ([]*Product, error) {
-	var products []*Product
-	query := r.db.Where("tenant_id = ? AND status = ? AND id != ?", tenantID, ProductStatusActive, productID)
-	
-	if categoryID != nil {
-		query = query.Where("category_id = ?", *categoryID)
-	}
-	
-	err := query.Order("created_at DESC").
-		Limit(limit).
-		Find(&products).Error
-	return products, err
-}
-
-// BulkImportProducts imports multiple products at once
-func (r *repository) BulkImportProducts(products []*Product) error {
-	return r.db.Transaction(func(tx *gorm.DB) error {
-		for _, product := range products {
-			if err := tx.Create(product).Error; err != nil {
-				return err
-			}
-		}
-		return nil
-	})
 }

@@ -366,11 +366,8 @@ func (s *Service) generateUniqueCategorySlug(tenantID uuid.UUID, baseSlug string
 
 
 // TODO: Add more service methods
-// - BulkUpdateProducts(tenantID uuid.UUID, productIDs []uuid.UUID, updates map[string]interface{}) error
 // - ExportProducts(tenantID uuid.UUID, format string) ([]byte, error)
 // - ImportProducts(tenantID uuid.UUID, data []byte) error
-// - GetProductStats(tenantID uuid.UUID) (*ProductStats, error)
-// - DuplicateProduct(tenantID uuid.UUID, productID uuid.UUID) (*Product, error)
 
 // GetProductStats returns product statistics for a tenant
 func (s *Service) GetProductStats(tenantID uuid.UUID) (*ProductStats, error) {

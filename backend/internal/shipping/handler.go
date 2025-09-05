@@ -224,6 +224,7 @@ func (h *Handler) GetShippingLabels(c *gin.Context) {
 	// Parse pagination
 	offsetStr := c.DefaultQuery("offset", "0")
 	limitStr := c.DefaultQuery("limit", "20")
+	queryType := c.DefaultQuery("type", "list")
 	
 	offset, err := strconv.Atoi(offsetStr)
 	if err != nil {
@@ -241,20 +242,44 @@ func (h *Handler) GetShippingLabels(c *gin.Context) {
 		limit = 100
 	}
 
-	labels, total, err := h.service.GetShippingLabels(tenantID.(uuid.UUID), offset, limit)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch shipping labels"})
-		return
+	// Handle different query types
+	switch queryType {
+	case "stats":
+		stats, err := h.service.GetShippingStats(tenantID.(uuid.UUID))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch shipping statistics"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"data": stats})
+	case "history":
+		history, total, err := h.service.GetShippingHistory(tenantID.(uuid.UUID), offset, limit)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch shipping history"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"data": gin.H{
+				"history": history,
+				"total":   total,
+				"offset":  offset,
+				"limit":   limit,
+			},
+		})
+	default:
+		labels, total, err := h.service.GetShippingLabels(tenantID.(uuid.UUID), offset, limit)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch shipping labels"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"data": gin.H{
+				"labels": labels,
+				"total":  total,
+				"offset": offset,
+				"limit":  limit,
+			},
+		})
 	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"data": gin.H{
-			"labels": labels,
-			"total":  total,
-			"offset": offset,
-			"limit":  limit,
-		},
-	})
 }
 
 func (h *Handler) CancelShipment(c *gin.Context) {
@@ -377,66 +402,7 @@ func (h *Handler) ConfigureProvider(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Provider configured successfully"})
 }
 
-// Statistics
 
-func (h *Handler) GetShippingStats(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
-		return
-	}
-
-	stats, err := h.service.GetShippingStats(tenantID.(uuid.UUID))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch shipping statistics"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"data": stats})
-}
-
-func (h *Handler) GetShippingHistory(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
-		return
-	}
-
-	// Parse pagination
-	offsetStr := c.DefaultQuery("offset", "0")
-	limitStr := c.DefaultQuery("limit", "20")
-	
-	offset, err := strconv.Atoi(offsetStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset parameter"})
-		return
-	}
-	
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
-		return
-	}
-
-	if limit > 100 {
-		limit = 100
-	}
-
-	history, total, err := h.service.GetShippingHistory(tenantID.(uuid.UUID), offset, limit)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch shipping history"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"data": gin.H{
-			"history": history,
-			"total":   total,
-			"offset":  offset,
-			"limit":   limit,
-		},
-	})
-}
 
 // Provider Webhooks
 
@@ -553,9 +519,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		shipping.GET("/providers", h.GetShippingProviders)
 		shipping.POST("/providers/:provider/configure", h.ConfigureProvider)
 
-		// Statistics & History
-		shipping.GET("/stats", h.GetShippingStats)
-		shipping.GET("/history", h.GetShippingHistory)
+		// Note: Stats and history are now accessible via /labels?type=stats and /labels?type=history
 	}
 
 	// Webhook routes (these should be registered in a separate webhook router)

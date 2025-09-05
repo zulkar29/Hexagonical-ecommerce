@@ -27,9 +27,9 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	accounts := router.Group("/accounts")
 	{
 		accounts.POST("", h.CreateAccount)                    // POST /api/v1/accounts
-		accounts.GET("", h.ListAccounts)                     // GET /api/v1/accounts
+		accounts.GET("", h.ListAccounts)                     // GET /api/v1/accounts (supports filtering via query params)
 		accounts.GET("/:id", h.GetAccount)                   // GET /api/v1/accounts/:id
-		accounts.PATCH("/:id", h.UpdateAccount)              // PATCH /api/v1/accounts/:id
+		accounts.PUT("/:id", h.UpdateAccount)                // PUT /api/v1/accounts/:id
 		accounts.DELETE("/:id", h.DeleteAccount)             // DELETE /api/v1/accounts/:id
 	}
 
@@ -37,9 +37,9 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	transactions := router.Group("/transactions")
 	{
 		transactions.POST("", h.CreateTransaction)                    // POST /api/v1/transactions
-		transactions.GET("", h.ListTransactions)                     // GET /api/v1/transactions
+		transactions.GET("", h.ListTransactions)                     // GET /api/v1/transactions (supports filtering via query params)
 		transactions.GET("/:id", h.GetTransaction)                   // GET /api/v1/transactions/:id
-		transactions.PATCH("/:id", h.UpdateTransaction)              // PATCH /api/v1/transactions/:id
+		transactions.PUT("/:id", h.UpdateTransaction)                // PUT /api/v1/transactions/:id
 		transactions.DELETE("/:id", h.DeleteTransaction)             // DELETE /api/v1/transactions/:id
 	}
 
@@ -211,7 +211,7 @@ func (h *Handler) GetAccount(c *gin.Context) {
 // @Failure 400 {object} ErrorResponse
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
-// @Router /accounts/{id} [patch]
+// @Router /accounts/{id} [put]
 func (h *Handler) UpdateAccount(c *gin.Context) {
 	accountID, err := uuid.Parse(c.Param("id"))
 	if err != nil {

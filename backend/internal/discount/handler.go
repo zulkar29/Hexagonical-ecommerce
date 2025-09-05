@@ -30,9 +30,10 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		discounts.PUT("/:id", h.updateDiscount)
 		discounts.DELETE("/:id", h.deleteDiscount)
 		discounts.GET("/:id/usage", h.getDiscountUsage)
-		discounts.GET("/stats", h.getDiscountStats)
-		discounts.GET("/performance", h.getTopDiscounts)
-		discounts.GET("/revenue-impact", h.getDiscountRevenue)
+		// Stats endpoints consolidated into main GET /discounts with query parameters:
+		// ?type=stats - return discount statistics
+		// ?type=performance - return top performing discounts  
+		// ?type=revenue-impact - return revenue impact data
 	}
 	
 	// Public discount validation (for cart/checkout)
@@ -87,6 +88,21 @@ func (h *Handler) getDiscounts(c *gin.Context) {
 	// TODO: Get tenant ID from context
 	tenantID := uuid.New() // Placeholder
 	
+	// Check if this is a stats request
+	queryType := c.Query("type")
+	switch queryType {
+	case "stats":
+		h.getDiscountStats(c)
+		return
+	case "performance":
+		h.getTopDiscounts(c)
+		return
+	case "revenue-impact":
+		h.getDiscountRevenue(c)
+		return
+	}
+	
+	// Default behavior: return regular discounts list
 	filter := h.parseDiscountFilter(c)
 	
 	discounts, err := h.service.GetDiscounts(c.Request.Context(), tenantID, filter)
@@ -567,12 +583,15 @@ func (h *Handler) parseDiscountFilter(c *gin.Context) DiscountFilter {
 		}
 	}
 	
-	// Parse type array
-	if types := c.QueryArray("type"); len(types) > 0 {
+	// Parse discount type array (for filtering by discount types like percentage, fixed, etc.)
+	if types := c.QueryArray("discount_type"); len(types) > 0 {
 		for _, t := range types {
 			filter.Type = append(filter.Type, DiscountType(t))
 		}
 	}
+	
+	// Note: 'type' query parameter is now reserved for analytics endpoints
+	// (stats, performance, revenue-impact) and handled in getDiscounts
 	
 	// Parse target array
 	if targets := c.QueryArray("target"); len(targets) > 0 {

@@ -47,9 +47,6 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		cartGroup.POST("/merge", h.MergeGuestCart)
 		cartGroup.POST("/:cart_id/abandon", h.AbandonCart)
 		cartGroup.POST("/:cart_id/convert", h.ConvertCart)
-		
-		// Analytics
-		cartGroup.GET("/analytics/stats", h.GetCartStats)
 	}
 }
 
@@ -203,7 +200,7 @@ func (h *Handler) GetCartSummary(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": summary})
 }
 
-// ListCarts lists carts with filtering and pagination
+// ListCarts lists carts with filtering and pagination, or returns stats when type=stats
 func (h *Handler) ListCarts(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
@@ -211,7 +208,18 @@ func (h *Handler) ListCarts(c *gin.Context) {
 		return
 	}
 
-	// Parse query parameters
+	// Check if stats are requested
+	if c.Query("type") == "stats" {
+		stats, err := h.service.GetCartStats(tenantID.(uuid.UUID))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve cart statistics"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"data": stats})
+		return
+	}
+
+	// Parse query parameters for regular listing
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	if limit > 100 {
@@ -658,21 +666,4 @@ func (h *Handler) ConvertCart(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Cart marked as converted"})
-}
-
-// GetCartStats returns cart analytics
-func (h *Handler) GetCartStats(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
-		return
-	}
-
-	stats, err := h.service.GetCartStats(tenantID.(uuid.UUID))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve cart statistics"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"data": stats})
 }

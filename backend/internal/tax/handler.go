@@ -403,3 +403,38 @@ func (h *Handler) ValidateLocation(c *gin.Context) {
 		"zip_code": req.ZipCode,
 	})
 }
+
+// RegisterRoutes registers tax routes
+func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
+	taxGroup := rg.Group("/tax")
+	{
+		// Tax rules
+		rulesGroup := taxGroup.Group("/rules")
+		{
+			rulesGroup.POST("", h.CreateTaxRule)
+			rulesGroup.GET("", h.ListTaxRules)
+			rulesGroup.GET("/:rule_id", h.GetTaxRule)
+			rulesGroup.PUT("/:rule_id", h.UpdateTaxRule)
+			rulesGroup.DELETE("/:rule_id", h.DeleteTaxRule)
+			rulesGroup.POST("/applicable", h.GetApplicableTaxRules)
+		}
+		
+		// Tax calculations
+		taxGroup.POST("/calculate", h.CalculateTax)
+		
+		// Tax analytics
+		taxGroup.GET("/stats", h.GetTaxStats)
+		
+		// Tax utilities
+		utilsGroup := taxGroup.Group("/validate")
+		{
+			utilsGroup.POST("/location", h.ValidateLocation)
+		}
+		
+		// Tax maintenance
+		maintenanceGroup := taxGroup.Group("/cleanup")
+		{
+			maintenanceGroup.POST("/rules", h.CleanupExpiredRules)
+		}
+	}
+}

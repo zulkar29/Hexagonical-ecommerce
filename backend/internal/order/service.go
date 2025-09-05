@@ -1132,3 +1132,89 @@ func (s *Service) AddOrderPaymentChangeHistory(orderID uuid.UUID, fromPaymentSta
 	_, err := s.repository.CreateOrderHistory(entry)
 	return err
 }
+
+// UpdateOrder updates an existing order
+func (s *Service) UpdateOrder(ctx context.Context, tenantID uuid.UUID, orderID string, req *UpdateOrderRequest) (*Order, error) {
+	// Get existing order
+	order, err := s.GetOrder(tenantID, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("order not found: %w", err)
+	}
+	
+	// Check if order is editable
+	if !order.IsEditable() {
+		return nil, fmt.Errorf("order cannot be edited in current status: %s", order.Status)
+	}
+	
+	// Update fields if provided
+	if req.CustomerEmail != nil {
+		order.CustomerEmail = *req.CustomerEmail
+	}
+	if req.CustomerPhone != nil {
+		order.CustomerPhone = *req.CustomerPhone
+	}
+	if req.ShippingAddress != nil {
+		order.ShippingAddress = *req.ShippingAddress
+	}
+	if req.BillingAddress != nil {
+		order.BillingAddress = *req.BillingAddress
+	}
+	if req.Notes != nil {
+		order.Notes = *req.Notes
+	}
+	
+	order.UpdatedAt = time.Now()
+	
+	// Update in repository
+	updatedOrder, err := s.repository.UpdateOrder(order)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update order: %w", err)
+	}
+	
+	// Add history entry
+	s.AddOrderHistoryEntry(order.ID, "order_updated", "Order details updated", uuid.Nil, "user", nil)
+	
+	return updatedOrder, nil
+}
+
+// BulkDeleteOrders deletes multiple orders
+func (s *Service) BulkDeleteOrders(ctx context.Context, tenantID uuid.UUID, orderIDs []string, reason string) (int, int, []string, error) {
+	if len(orderIDs) == 0 {
+		return 0, 0, nil, fmt.Errorf("no order IDs provided")
+	}
+	
+	var successfulDeletes, failedDeletes int
+	var errors []string
+	
+	// Process each order
+	for _, orderID := range orderIDs {
+		// Get order to validate it exists and belongs to tenant
+		order, err := s.GetOrder(tenantID, orderID)
+		if err != nil {
+			failedDeletes++
+			errors = append(errors, fmt.Sprintf("Order %s: %v", orderID, err))
+			continue
+		}
+		
+		// Check if order can be deleted (only pending/draft orders)
+		if order.Status != OrderStatusPending && order.Status != OrderStatusDraft {
+			failedDeletes++
+			errors = append(errors, fmt.Sprintf("Order %s: cannot delete order in status %s", orderID, order.Status))
+			continue
+		}
+		
+		// Add history entry before deletion
+		s.AddOrderHistoryEntry(order.ID, "order_deleted", fmt.Sprintf("Order deleted: %s", reason), uuid.Nil, "user", nil)
+		
+		// Delete order
+		if err := s.repository.DeleteOrder(tenantID, order.ID); err != nil {
+			failedDeletes++
+			errors = append(errors, fmt.Sprintf("Order %s: failed to delete: %v", orderID, err))
+			continue
+		}
+		
+		successfulDeletes++
+	}
+	
+	return successfulDeletes, failedDeletes, errors, nil
+}

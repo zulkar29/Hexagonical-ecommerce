@@ -25,43 +25,33 @@ func NewHandler(service Service) *Handler {
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	returns := router.Group("/returns")
 	{
-		// Return management endpoints
-		returns.POST("", h.CreateReturn)                    // POST /api/v1/returns
-		returns.GET("", h.ListReturns)                     // GET /api/v1/returns
-		returns.GET("/:id", h.GetReturn)                   // GET /api/v1/returns/:id
-		returns.PATCH("/:id", h.UpdateReturn)              // PATCH /api/v1/returns/:id
-		returns.DELETE("/:id", h.DeleteReturn)             // DELETE /api/v1/returns/:id
-		returns.GET("/number/:number", h.GetReturnByNumber) // GET /api/v1/returns/number/:number
+		// Return management
+		returns.POST("", h.CreateReturn)
+		returns.GET("", h.ListReturns) // Supports ?type=stats&category=customer|order for analytics
+		returns.GET("/:id", h.GetReturn)
+		returns.PUT("/:id", h.UpdateReturn) // Supports ?action=approve|reject|process|complete for workflow
+		returns.DELETE("/:id", h.DeleteReturn)
 		
-		// Return workflow endpoints
-		returns.POST("/:id/approve", h.ApproveReturn)      // POST /api/v1/returns/:id/approve
-		returns.POST("/:id/reject", h.RejectReturn)        // POST /api/v1/returns/:id/reject
-		returns.POST("/:id/process", h.ProcessReturn)      // POST /api/v1/returns/:id/process
-		returns.POST("/:id/complete", h.CompleteReturn)    // POST /api/v1/returns/:id/complete
+		// Return items (consolidated)
+		returns.POST("/:id/items", h.AddReturnItem)
+		returns.PUT("/:id/items/:itemId", h.UpdateReturnItem)
+		returns.DELETE("/:id/items/:itemId", h.RemoveReturnItem)
 		
-		// Return item endpoints
-		returns.POST("/:id/items", h.AddReturnItem)        // POST /api/v1/returns/:id/items
-		returns.PATCH("/:id/items/:item_id", h.UpdateReturnItem) // PATCH /api/v1/returns/:id/items/:item_id
-		returns.DELETE("/:id/items/:item_id", h.RemoveReturnItem) // DELETE /api/v1/returns/:id/items/:item_id
+		// Return operations (consolidated)
+		returns.POST("/:id/operations", h.HandleReturnOperation) // Supports operation=label|track for shipping
 		
-		// Shipping and tracking endpoints
-		returns.POST("/:id/shipping-label", h.GenerateReturnLabel) // POST /api/v1/returns/:id/shipping-label
-		returns.GET("/:id/tracking", h.TrackReturnShipment)        // GET /api/v1/returns/:id/tracking
-		
-		// Analytics endpoints
-		returns.GET("/stats", h.GetReturnStats)           // GET /api/v1/returns/stats
-		returns.GET("/customer/:customer_id", h.GetReturnsByCustomer) // GET /api/v1/returns/customer/:customer_id
-		returns.GET("/order/:order_id", h.GetReturnsByOrder)         // GET /api/v1/returns/order/:order_id
+		// Return lookup by number
+		returns.GET("/number/:number", h.GetReturnByNumber)
 	}
 	
-	// Return reasons endpoints
+	// Return reasons
 	reasons := router.Group("/return-reasons")
 	{
-		reasons.POST("", h.CreateReturnReason)             // POST /api/v1/return-reasons
-		reasons.GET("", h.ListReturnReasons)              // GET /api/v1/return-reasons
-		reasons.GET("/:id", h.GetReturnReason)            // GET /api/v1/return-reasons/:id
-		reasons.PATCH("/:id", h.UpdateReturnReason)       // PATCH /api/v1/return-reasons/:id
-		reasons.DELETE("/:id", h.DeleteReturnReason)      // DELETE /api/v1/return-reasons/:id
+		reasons.POST("", h.CreateReturnReason)
+		reasons.GET("", h.ListReturnReasons)
+		reasons.GET("/:id", h.GetReturnReason)
+		reasons.PUT("/:id", h.UpdateReturnReason)
+		reasons.DELETE("/:id", h.DeleteReturnReason)
 	}
 }
 
@@ -118,6 +108,72 @@ func (h *Handler) CreateReturn(c *gin.Context) {
 // @Router /returns [get]
 func (h *Handler) ListReturns(c *gin.Context) {
 	tenantID := getTenantIDFromContext(c)
+	
+	// Check for analytics type
+	analyticsType := c.Query("type")
+	switch analyticsType {
+	case "stats":
+		category := c.Query("category")
+		switch category {
+		case "customer":
+			customerIDStr := c.Query("customer_id")
+			if customerIDStr == "" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "customer_id is required"})
+				return
+			}
+			customerID, err := uuid.Parse(customerIDStr)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid customer ID"})
+				return
+			}
+			returns, total, err := h.service.GetReturnsByCustomer(c.Request.Context(), tenantID, customerID, ReturnFilter{Limit: getIntQueryParam(c, "limit", 10)})
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get returns by customer", "details": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"data": returns, "total": total})
+			return
+		case "order":
+			orderIDStr := c.Query("order_id")
+			if orderIDStr == "" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "order_id is required"})
+				return
+			}
+			orderID, err := uuid.Parse(orderIDStr)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
+				return
+			}
+			returns, err := h.service.GetReturnsByOrder(c.Request.Context(), tenantID, orderID)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get returns by order", "details": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"data": returns})
+			return
+		default:
+			filter := StatsFilter{
+				GroupBy: c.DefaultQuery("group_by", "day"),
+			}
+			if dateFrom := c.Query("date_from"); dateFrom != "" {
+				if date, err := time.Parse(time.RFC3339, dateFrom); err == nil {
+					filter.DateFrom = &date
+				}
+			}
+			if dateTo := c.Query("date_to"); dateTo != "" {
+				if date, err := time.Parse(time.RFC3339, dateTo); err == nil {
+					filter.DateTo = &date
+				}
+			}
+			stats, err := h.service.GetReturnStats(c.Request.Context(), tenantID, filter)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get return stats", "details": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, stats)
+			return
+		}
+	}
 	
 	// Parse query parameters
 	filter := ReturnFilter{
@@ -289,6 +345,72 @@ func (h *Handler) UpdateReturn(c *gin.Context) {
 		return
 	}
 	
+	// Check for workflow action
+	action := c.Query("action")
+	switch action {
+	case "approve":
+		var req ApprovalRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+			return
+		}
+		tenantID := getTenantIDFromContext(c)
+		return_, err := h.service.ApproveReturn(c.Request.Context(), tenantID, returnID, req.ApprovedBy, req.ApprovalNote)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to approve return", "details": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, return_)
+		return
+	case "reject":
+		var req RejectionRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+			return
+		}
+		tenantID := getTenantIDFromContext(c)
+		return_, err := h.service.RejectReturn(c.Request.Context(), tenantID, returnID, req.RejectedBy, req.RejectionReason)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reject return", "details": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, return_)
+		return
+	case "process":
+		var req ProcessingRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+			return
+		}
+		tenantID := getTenantIDFromContext(c)
+		return_, err := h.service.ProcessReturn(c.Request.Context(), tenantID, returnID, req.ProcessedBy, req.ProcessingNote, req.TrackingNumber)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process return", "details": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, return_)
+		return
+	case "complete":
+		var req CompletionRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+			return
+		}
+		tenantID := getTenantIDFromContext(c)
+		var refundAmount float64
+		if req.RefundAmount != nil {
+			refundAmount = *req.RefundAmount
+		}
+		return_, err := h.service.CompleteReturn(c.Request.Context(), tenantID, returnID, req.CompletedBy, req.CompletionNote, refundAmount, req.RefundMethod)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to complete return", "details": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, return_)
+		return
+	}
+	
+	// Regular update
 	var updatedReturn Return
 	if err := c.ShouldBindJSON(&updatedReturn); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
@@ -992,6 +1114,60 @@ type PaginatedReturnsResponse struct {
 type ErrorResponse struct {
 	Error   string `json:"error"`
 	Details string `json:"details,omitempty"`
+}
+
+// HandleReturnOperation handles POST /api/returns/:id/operations for shipping operations
+func (h *Handler) HandleReturnOperation(c *gin.Context) {
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+		return
+	}
+
+	returnIDStr := c.Param("id")
+	returnID, err := uuid.Parse(returnIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid return ID"})
+		return
+	}
+
+	operationType := c.Query("type")
+	switch operationType {
+	case "generate_label":
+		var req struct {
+			ShippingAddress string `json:"shipping_address"`
+			Carrier         string `json:"carrier"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+			return
+		}
+		label, err := h.service.GenerateReturnLabel(c.Request.Context(), tenantID.(uuid.UUID), returnID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"data": label})
+		return
+	case "track_shipment":
+		var req struct {
+			TrackingNumber string `json:"tracking_number"`
+			Carrier        string `json:"carrier"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+			return
+		}
+		tracking, err := h.service.TrackReturnShipment(c.Request.Context(), tenantID.(uuid.UUID), returnID, req.TrackingNumber)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"data": tracking})
+		return
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid operation type"})
+	}
 }
 
 // Helper functions

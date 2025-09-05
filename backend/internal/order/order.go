@@ -3,6 +3,7 @@ package order
 import (
 	"fmt"
 	"time"
+	"mime/multipart"
 
 	"github.com/google/uuid"
 )
@@ -18,12 +19,23 @@ type FulfillmentStatus string
 
 const (
 	StatusPending   OrderStatus = "pending"
+	StatusDraft     OrderStatus = "draft"
 	StatusConfirmed OrderStatus = "confirmed"
 	StatusProcessing OrderStatus = "processing"
 	StatusShipped   OrderStatus = "shipped"
 	StatusDelivered OrderStatus = "delivered"
 	StatusCancelled OrderStatus = "cancelled"
 	StatusReturned  OrderStatus = "returned"
+	
+	// Aliases for backward compatibility
+	OrderStatusPending = StatusPending
+	OrderStatusDraft   = StatusDraft
+	OrderStatusConfirmed = StatusConfirmed
+	OrderStatusProcessing = StatusProcessing
+	OrderStatusShipped = StatusShipped
+	OrderStatusDelivered = StatusDelivered
+	OrderStatusCancelled = StatusCancelled
+	OrderStatusReturned = StatusReturned
 )
 
 const (
@@ -80,6 +92,9 @@ type Order struct {
 	FulfillmentStatus FulfillmentStatus `json:"fulfillment_status" gorm:"default:pending"`
 	TrackingNumber    string            `json:"tracking_number,omitempty"`
 	TrackingURL       string            `json:"tracking_url,omitempty"`
+	
+	// Additional information
+	Notes string `json:"notes,omitempty"`
 	
 	// Timestamps
 	CreatedAt   time.Time  `json:"created_at"`
@@ -520,4 +535,49 @@ func (oh *OrderHistory) GetChangeSummary() map[string]interface{} {
 	}
 	
 	return summary
+}
+
+// Request/Response Types for API handlers
+
+// UpdateOrderRequest represents a request to update an order
+type UpdateOrderRequest struct {
+	CustomerEmail   *string  `json:"customer_email,omitempty"`
+	CustomerPhone   *string  `json:"customer_phone,omitempty"`
+	ShippingAddress *Address `json:"shipping_address,omitempty"`
+	BillingAddress  *Address `json:"billing_address,omitempty"`
+	Notes           *string  `json:"notes,omitempty"`
+}
+
+// CancelOrderRequest represents a request to cancel an order
+type CancelOrderRequest struct {
+	Reason string `json:"reason" validate:"required"`
+}
+
+
+
+// RefundOrderRequest represents a request to refund an order
+type RefundOrderRequest struct {
+	PaymentID string  `json:"payment_id" validate:"required"`
+	Amount    float64 `json:"amount" validate:"required,gt=0"`
+	Reason    string  `json:"reason" validate:"required"`
+}
+
+// UpdateOrderStatusRequest represents a request to update order status
+type UpdateOrderStatusRequest struct {
+	Status         OrderStatus `json:"status" validate:"required"`
+	TrackingNumber *string     `json:"tracking_number,omitempty"`
+	TrackingURL    *string     `json:"tracking_url,omitempty"`
+	Notes          *string     `json:"notes,omitempty"`
+}
+
+// ImportOrdersRequest represents a request to import orders
+type ImportOrdersRequest struct {
+	File   *multipart.FileHeader `form:"file" validate:"required"`
+	Format string               `form:"format" validate:"required,oneof=csv excel"`
+}
+
+// BulkDeleteOrdersRequest represents a request to bulk delete orders
+type BulkDeleteOrdersRequest struct {
+	OrderIDs []string `json:"order_ids" validate:"required,min=1"`
+	Reason   string   `json:"reason,omitempty"`
 }

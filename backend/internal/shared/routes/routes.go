@@ -4,31 +4,27 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"ecommerce-saas/internal/shared/config"
-	"ecommerce-saas/internal/shared/middleware"
-	"ecommerce-saas/internal/shared/utils"
-	"ecommerce-saas/internal/user"
-	"ecommerce-saas/internal/tenant"
-	"ecommerce-saas/internal/product"
-	"ecommerce-saas/internal/payment"
-	"ecommerce-saas/internal/notification"
 	"ecommerce-saas/internal/address"
 	"ecommerce-saas/internal/analytics"
-	// "ecommerce-saas/internal/billing"
-	// "ecommerce-saas/internal/cart"
-	// "ecommerce-saas/internal/category"
 	"ecommerce-saas/internal/contact"
 	"ecommerce-saas/internal/content"
 	"ecommerce-saas/internal/discount"
 	"ecommerce-saas/internal/finance"
+	"ecommerce-saas/internal/loyalty"
 	"ecommerce-saas/internal/marketing"
-	// "ecommerce-saas/internal/observability"
+	"ecommerce-saas/internal/notification"
+	"ecommerce-saas/internal/payment"
+	"ecommerce-saas/internal/product"
 	"ecommerce-saas/internal/returns"
 	"ecommerce-saas/internal/reviews"
 	"ecommerce-saas/internal/shipping"
 	"ecommerce-saas/internal/support"
-	// "ecommerce-saas/internal/webhook"
-	// "ecommerce-saas/internal/wishlist"
+	"ecommerce-saas/internal/tax"
+	"ecommerce-saas/internal/tenant"
+	"ecommerce-saas/internal/user"
+	"ecommerce-saas/internal/shared/config"
+	"ecommerce-saas/internal/shared/middleware"
+	"ecommerce-saas/internal/shared/utils"
 )
 
 // RouteConfig holds dependencies for route setup
@@ -102,19 +98,15 @@ func SetupRoutes(r *gin.Engine, cfg *RouteConfig) {
 		// Setup other protected routes
 		setupAddressRoutes(protected, cfg)
 		setupAnalyticsRoutes(protected, cfg)
-		setupBillingRoutes(protected, cfg)
-		setupCartRoutes(protected, cfg)
-		setupCategoryRoutes(protected, cfg)
 		setupContactRoutes(protected, cfg)
 		setupContentRoutes(protected, cfg)
 		setupDiscountRoutes(protected, cfg)
+		setupLoyaltyRoutes(protected, cfg)
 		setupMarketingRoutes(protected, cfg)
-		setupObservabilityRoutes(protected, cfg)
 		setupReviewsRoutes(protected, cfg)
 		setupShippingRoutes(protected, cfg)
 		setupSupportRoutes(protected, cfg)
-		setupWebhookRoutes(protected, cfg)
-		setupWishlistRoutes(protected, cfg)
+		setupTaxRoutes(protected, cfg)
 	}
 
 	// Public routes (for storefront)
@@ -241,32 +233,7 @@ func setupAnalyticsRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 	analyticsHandler.RegisterRoutes(v1)
 }
 
-// Setup billing routes
-func setupBillingRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	// billingRepo := billing.NewBillingRepository(cfg.DB)
-	// TODO: Initialize payment provider, email service, and analytics service
-	// billingService := billing.NewBillingService(billingRepo, paymentProvider, emailService, analyticsService)
-	// billingHandler := billing.NewBillingHandler(billingService)
-	// billingHandler.RegisterRoutes(v1)
-}
 
-// Setup cart routes
-func setupCartRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	// cartRepo := cart.NewRepository(cfg.DB)
-	// TODO: Initialize product, discount, tax, and shipping services
-	// cartService := cart.NewService(cartRepo, productService, discountService, taxService, shippingService)
-	// cartHandler := cart.NewHandler(cartService)
-	// cartHandler.RegisterRoutes(v1)
-}
-
-// Setup category routes
-func setupCategoryRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	// TODO: Implement category module
-	// categoryRepo := category.NewRepository(cfg.DB)
-	// categoryService := category.NewService(categoryRepo)
-	// categoryHandler := category.NewHandler(categoryService)
-	// categoryHandler.RegisterRoutes(v1)
-}
 
 // Setup contact routes
 func setupContactRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
@@ -304,14 +271,7 @@ func setupMarketingRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 	marketingHandler.RegisterRoutes(v1)
 }
 
-// Setup observability routes
-func setupObservabilityRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	// TODO: Implement observability module
-	// observabilityRepo := observability.NewRepository(cfg.DB)
-	// observabilityService := observability.NewService(observabilityRepo)
-	// observabilityHandler := observability.NewHandler(observabilityService)
-	// observabilityHandler.RegisterRoutes(v1)
-}
+
 
 // Setup reviews routes
 func setupReviewsRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
@@ -340,21 +300,20 @@ func setupSupportRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 	supportHandler.RegisterRoutes(v1)
 }
 
-// Setup webhook routes
-func setupWebhookRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	// webhookRepo := webhook.NewRepository(cfg.DB)
-	// TODO: Initialize signing key for webhook service
-	// signingKey := []byte("your-webhook-signing-key")
-	// webhookService := webhook.NewService(webhookRepo, signingKey)
-	// webhookHandler := webhook.NewHandler(webhookService)
-	// webhookHandler.RegisterRoutes(v1)
+
+
+func setupTaxRoutes(protected *gin.RouterGroup, cfg *RouteConfig) {
+	taxRepo := tax.NewGormRepository(cfg.DB)
+	taxService := tax.NewService(taxRepo)
+	taxHandler := tax.NewHandler(taxService)
+	taxHandler.RegisterRoutes(protected)
 }
 
-// Setup wishlist routes
-func setupWishlistRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	// TODO: Implement wishlist module
-	// wishlistRepo := wishlist.NewRepository(cfg.DB)
-	// wishlistService := wishlist.NewService(wishlistRepo)
-	// wishlistHandler := wishlist.NewHandler(wishlistService)
-	// wishlistHandler.RegisterRoutes(v1)
+// Setup loyalty routes
+func setupLoyaltyRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
+	// Initialize loyalty module
+	loyaltyModule := loyalty.NewModule(cfg.DB)
+	
+	// Register loyalty routes
+	loyaltyModule.RegisterRoutes(v1)
 }
