@@ -34,6 +34,17 @@ Production: https://api.yourplatform.com/api/v1
 - **Pagination**: `?page=1&limit=20`
 - **Sorting**: `?sort=created_at&order=desc`
 - **Search**: `?search=keyword`
+- **Views**: `?view=stats` (statistics), `?view=trends` (trends analysis)
+- **Stock Filtering**: `?stock=low` (low stock items)
+- **User Context**: `?customer=current` (current user's data)
+
+### Flexible Endpoint Design
+Most list endpoints support multiple query parameters for flexible data retrieval:
+```
+GET /products?search=laptop&stock=low&view=stats
+GET /orders?customer=current&status=shipped  
+GET /reviews?status=pending&sort=created_at&order=desc
+```
 
 ## Authentication
 All API requests require authentication via JWT token in the Authorization header:
@@ -54,7 +65,7 @@ Tenant context is resolved from:
 |--------|-----|-------------|------|--------|
 | GET | `/health` | Basic health check | ❌ | ❌ |
 
-## Authentication Module (8 endpoints)
+## User Module (25 endpoints)
 
 ### User Authentication
 | Method | URL | Description | Auth | Tenant |
@@ -68,8 +79,6 @@ Tenant context is resolved from:
 | POST | `/auth/verify-email` | Verify email address | ❌ | ❌ |
 | POST | `/auth/resend-verification` | Resend verification email | ❌ | ❌ |
 
-## User Module (12 endpoints)
-
 ### User Management
 | Method | URL | Description | Auth | Tenant |
 |--------|-----|-------------|------|--------|
@@ -81,24 +90,33 @@ Tenant context is resolved from:
 | PUT | `/users/preferences` | Update user preferences | ✅ | ❌ |
 | GET | `/users` | List users (admin) | ✅ | ❌ |
 | GET | `/users/:id` | Get user by ID (admin) | ✅ | ❌ |
+| GET | `/users/:id/activity` | Get user activity logs | ✅ | ❌ |
+| PATCH | `/users/:id` | Update user (status, role, profile, etc.) | ✅ | ❌ |
+| POST | `/users/bulk-import` | Bulk import users | ✅ | ❌ |
+| POST | `/users/export` | Export user data | ✅ | ❌ |
+| GET | `/users/:id/orders` | Get user's orders | ✅ | ❌ |
+| GET | `/users/:id/addresses` | Get user's addresses | ✅ | ❌ |
 
-## Product Module (35 endpoints)
+## Product Module (49 endpoints)
 
 ### Products
 | Method | URL | Description | Auth | Tenant |
 |--------|-----|-------------|------|--------|
 | POST | `/products` | Create a new product | ✅ | ✅ |
-| GET | `/products` | List products with filtering and pagination | ✅ | ✅ |
-| GET | `/products/search` | Search products by query | ✅ | ✅ |
-| GET | `/products/stats` | Get product statistics | ✅ | ✅ |
-| GET | `/products/low-stock` | Get low stock products | ✅ | ✅ |
+| GET | `/products` | List products (supports: ?search=query, ?stock=low, ?view=stats, filtering, pagination) | ✅ | ✅ |
 | PATCH | `/products/bulk` | Bulk update multiple products | ✅ | ✅ |
 | GET | `/products/:id` | Get a specific product | ✅ | ✅ |
-| PUT | `/products/:id` | Update a product | ✅ | ✅ |
+| PATCH | `/products/:id` | Update product (status, inventory, details, etc.) | ✅ | ✅ |
 | DELETE | `/products/:id` | Delete a product | ✅ | ✅ |
-| PATCH | `/products/:id/status` | Update product status | ✅ | ✅ |
-| PATCH | `/products/:id/inventory` | Update product inventory | ✅ | ✅ |
 | POST | `/products/:id/duplicate` | Duplicate a product | ✅ | ✅ |
+| POST | `/products/:id/images` | Upload product images | ✅ | ✅ |
+| DELETE | `/products/:id/images/:image-id` | Delete product image | ✅ | ✅ |
+| POST | `/products/import` | Bulk import products | ✅ | ✅ |
+| GET | `/products/:id/related` | Get related products | ✅ | ✅ |
+| GET | `/products/:id/inventory-history` | Get inventory movement history | ✅ | ✅ |
+| POST | `/products/:id/variants/:variant-id/images` | Upload variant images | ✅ | ✅ |
+| GET | `/products/export` | Export products | ✅ | ✅ |
+| POST | `/products/bulk-update-prices` | Bulk update prices | ✅ | ✅ |
 | GET | `/products/slug/:slug` | Get product by slug (storefront) | ✅ | ✅ |
 
 ### Product Variants
@@ -106,8 +124,8 @@ Tenant context is resolved from:
 |--------|-----|-------------|------|--------|
 | POST | `/products/:id/variants` | Create product variant | ✅ | ✅ |
 | GET | `/products/:id/variants` | Get product variants | ✅ | ✅ |
-| PUT | `/products/:id/variants/:variantId` | Update product variant | ✅ | ✅ |
-| DELETE | `/products/:id/variants/:variantId` | Delete product variant | ✅ | ✅ |
+| PUT | `/products/:id/variants/:variant-id` | Update product variant | ✅ | ✅ |
+| DELETE | `/products/:id/variants/:variant-id` | Delete product variant | ✅ | ✅ |
 
 ### Categories
 | Method | URL | Description | Auth | Tenant |
@@ -118,13 +136,14 @@ Tenant context is resolved from:
 | GET | `/categories/:id` | Get a specific category | ✅ | ✅ |
 | PUT | `/categories/:id` | Update a category | ✅ | ✅ |
 | DELETE | `/categories/:id` | Delete a category | ✅ | ✅ |
+| POST | `/categories/:id/image` | Upload category image | ✅ | ✅ |
+| DELETE | `/categories/:id/image` | Delete category image | ✅ | ✅ |
 | GET | `/categories/:id/children` | Get category children | ✅ | ✅ |
 
 ### Public Product Access (Storefront)
 | Method | URL | Description | Auth | Tenant |
 |--------|-----|-------------|------|--------|
 | GET | `/public/products` | Browse products (public) | ❌ | ✅ |
-| GET | `/public/products/search` | Search products (public) | ❌ | ✅ |
 | GET | `/public/products/slug/:slug` | Get product by slug (public) | ❌ | ✅ |
 | GET | `/public/products/:id` | Get product details (public) | ❌ | ✅ |
 | GET | `/public/products/:id/variants` | Get product variants (public) | ❌ | ✅ |
@@ -133,37 +152,32 @@ Tenant context is resolved from:
 | GET | `/public/categories/:id` | Get category details (public) | ❌ | ✅ |
 | GET | `/public/categories/:id/children` | Get category children (public) | ❌ | ✅ |
 
-## Inventory Module (9 endpoints)
-
-### Inventory Management
+### Product Inventory Management
 | Method | URL | Description | Auth | Tenant |
 |--------|-----|-------------|------|--------|
-| GET | `/inventory` | List inventory items | ✅ | ✅ |
-| GET | `/inventory/:id` | Get inventory item | ✅ | ✅ |
-| POST | `/inventory` | Create inventory item | ✅ | ✅ |
-| PUT | `/inventory/:id` | Update inventory item | ✅ | ✅ |
-| DELETE | `/inventory/:id` | Delete inventory item | ✅ | ✅ |
-| POST | `/inventory/adjust` | Adjust inventory levels | ✅ | ✅ |
-| GET | `/inventory/movements` | Get inventory movements | ✅ | ✅ |
-| GET | `/inventory/low-stock` | Get low stock items | ✅ | ✅ |
-| POST | `/inventory/bulk-update` | Bulk update inventory | ✅ | ✅ |
 
-## Order Module (15 endpoints)
+## Order Module (22 endpoints)
 
 ### Orders
 | Method | URL | Description | Auth | Tenant |
 |--------|-----|-------------|------|--------|
 | POST | `/orders` | Create a new order | ✅ | ✅ |
-| GET | `/orders` | List orders with filtering and pagination | ✅ | ✅ |
-| GET | `/orders/stats` | Get order statistics | ✅ | ✅ |
-| GET | `/orders/my-orders` | Get customer orders | ✅ | ✅ |
+| GET | `/orders` | List orders (supports: ?customer=current, ?view=stats, filtering, pagination) | ✅ | ✅ |
 | GET | `/orders/:id` | Get order details | ✅ | ✅ |
-| PATCH | `/orders/:id/status` | Update order status | ✅ | ✅ |
 | POST | `/orders/:id/cancel` | Cancel an order | ✅ | ✅ |
 | POST | `/orders/:id/payment` | Process order payment | ✅ | ✅ |
 | POST | `/orders/:id/refund` | Refund an order | ✅ | ✅ |
 | GET | `/orders/:id/invoice` | Get order invoice | ✅ | ✅ |
 | GET | `/orders/number/:number` | Get order by number | ✅ | ✅ |
+| POST | `/orders/:id/items` | Add item to existing order | ✅ | ✅ |
+| DELETE | `/orders/:id/items/:item-id` | Remove item from order | ✅ | ✅ |
+| GET | `/orders/:id/history` | Get order status history | ✅ | ✅ |
+| POST | `/orders/:id/notes` | Add internal order notes | ✅ | ✅ |
+| GET | `/orders/:id/notes` | Get internal order notes | ✅ | ✅ |
+| POST | `/orders/:id/split` | Split order into multiple orders | ✅ | ✅ |
+| POST | `/orders/:id/merge` | Merge orders | ✅ | ✅ |
+| GET | `/orders/:id/documents` | Get order documents | ✅ | ✅ |
+| PATCH | `/orders/:id` | Update order (status, shipping_status, details, etc.) | ✅ | ✅ |
 | GET | `/public/orders/track/:number` | Track order by number (public) | ❌ | ✅ |
 | GET | `/public/orders/number/:number` | Get order by number (public) | ❌ | ✅ |
 
@@ -207,7 +221,7 @@ Tenant context is resolved from:
 | GET | `/shipping/labels/:id` | Get shipping label | ✅ | ✅ |
 | PUT | `/shipping/labels/:id` | Update shipping label | ✅ | ✅ |
 | DELETE | `/shipping/labels/:id` | Delete shipping label | ✅ | ✅ |
-| GET | `/shipping/track/:trackingNumber` | Track shipment | ✅ | ✅ |
+| GET | `/shipping/track/:tracking-number` | Track shipment | ✅ | ✅ |
 | GET | `/shipping/providers` | Get shipping providers | ✅ | ✅ |
 | POST | `/shipping/providers` | Create shipping provider | ✅ | ✅ |
 | PUT | `/shipping/providers/:id` | Update shipping provider | ✅ | ✅ |
@@ -280,7 +294,7 @@ Tenant context is resolved from:
 |--------|-----|-------------|------|--------|
 | GET | `/advanced/cohorts` | Get cohort analysis | ✅ | ✅ |
 | GET | `/advanced/funnel` | Get funnel analysis | ✅ | ✅ |
-| GET | `/advanced/clv` | Get customer lifetime value | ✅ | ✅ |
+| GET | `/advanced/customer-lifetime-value` | Get customer lifetime value | ✅ | ✅ |
 | GET | `/advanced/retention` | Get retention rate | ✅ | ✅ |
 
 ### Reports
@@ -292,7 +306,7 @@ Tenant context is resolved from:
 | DELETE | `/reports/scheduled/:id` | Delete scheduled report | ✅ | ✅ |
 | POST | `/export` | Export data | ✅ | ✅ |
 
-## Marketing Module (29 endpoints)
+## Marketing Module (26 endpoints)
 
 ### Campaigns
 | Method | URL | Description | Auth | Tenant |
@@ -300,12 +314,9 @@ Tenant context is resolved from:
 | POST | `/marketing/campaigns` | Create campaign | ✅ | ✅ |
 | GET | `/marketing/campaigns` | Get campaigns | ✅ | ✅ |
 | GET | `/marketing/campaigns/:id` | Get specific campaign | ✅ | ✅ |
-| PUT | `/marketing/campaigns/:id` | Update campaign | ✅ | ✅ |
+| PATCH | `/marketing/campaigns/:id` | Update campaign (status, details, etc.) | ✅ | ✅ |
 | DELETE | `/marketing/campaigns/:id` | Delete campaign | ✅ | ✅ |
 | POST | `/marketing/campaigns/:id/schedule` | Schedule campaign | ✅ | ✅ |
-| POST | `/marketing/campaigns/:id/start` | Start campaign | ✅ | ✅ |
-| POST | `/marketing/campaigns/:id/pause` | Pause campaign | ✅ | ✅ |
-| POST | `/marketing/campaigns/:id/stop` | Stop campaign | ✅ | ✅ |
 | GET | `/marketing/campaigns/:id/emails` | Get campaign emails | ✅ | ✅ |
 | GET | `/marketing/campaigns/:id/stats` | Get campaign statistics | ✅ | ✅ |
 
@@ -344,8 +355,8 @@ Tenant context is resolved from:
 | GET | `/marketing/settings` | Get marketing settings | ✅ | ✅ |
 | PUT | `/marketing/settings` | Update marketing settings | ✅ | ✅ |
 | GET | `/marketing/overview` | Get marketing overview | ✅ | ✅ |
-| GET | `/marketing/track/open/:emailId` | Track email open | ❌ | ✅ |
-| GET | `/marketing/track/click/:emailId` | Track email click | ❌ | ✅ |
+| GET | `/marketing/track/open/:email-id` | Track email open | ❌ | ✅ |
+| GET | `/marketing/track/click/:email-id` | Track email click | ❌ | ✅ |
 
 ## Discount Module (22 endpoints)
 
@@ -367,7 +378,7 @@ Tenant context is resolved from:
 |--------|-----|-------------|------|--------|
 | POST | `/validate-discount` | Validate discount code | ❌ | ✅ |
 | POST | `/apply-discount` | Apply discount to order | ❌ | ✅ |
-| DELETE | `/remove-discount/:orderId` | Remove discount from order | ❌ | ✅ |
+| DELETE | `/remove-discount/:order-id` | Remove discount from order | ❌ | ✅ |
 
 ### Gift Cards
 | Method | URL | Description | Auth | Tenant |
@@ -383,11 +394,11 @@ Tenant context is resolved from:
 ### Store Credit
 | Method | URL | Description | Auth | Tenant |
 |--------|-----|-------------|------|--------|
-| GET | `/store-credit/:customerId` | Get customer store credit | ✅ | ✅ |
-| POST | `/store-credit/:customerId/add` | Add store credit | ✅ | ✅ |
-| POST | `/store-credit/:customerId/use` | Use store credit | ✅ | ✅ |
+| GET | `/store-credit/:customer-id` | Get customer store credit | ✅ | ✅ |
+| POST | `/store-credit/:customer-id/add` | Add store credit | ✅ | ✅ |
+| POST | `/store-credit/:customer-id/use` | Use store credit | ✅ | ✅ |
 
-## Reviews Module (25 endpoints)
+## Reviews Module (19 endpoints)
 
 ### Review Management
 | Method | URL | Description | Auth | Tenant |
@@ -395,17 +406,14 @@ Tenant context is resolved from:
 | POST | `/reviews` | Create review | ✅ | ✅ |
 | GET | `/reviews` | Get reviews | ✅ | ✅ |
 | GET | `/reviews/:id` | Get specific review | ✅ | ✅ |
-| PUT | `/reviews/:id` | Update review | ✅ | ✅ |
+| PATCH | `/reviews/:id` | Update review (status, content, etc.) | ✅ | ✅ |
 | DELETE | `/reviews/:id` | Delete review | ✅ | ✅ |
 
 ### Review Moderation
 | Method | URL | Description | Auth | Tenant |
 |--------|-----|-------------|------|--------|
-| POST | `/reviews/:id/approve` | Approve review | ✅ | ✅ |
-| POST | `/reviews/:id/reject` | Reject review | ✅ | ✅ |
 | POST | `/reviews/:id/spam` | Mark review as spam | ✅ | ✅ |
 | POST | `/reviews/bulk-moderate` | Bulk moderate reviews | ✅ | ✅ |
-| GET | `/reviews/pending` | Get pending reviews | ✅ | ✅ |
 
 ### Review Interactions
 | Method | URL | Description | Auth | Tenant |
@@ -418,8 +426,8 @@ Tenant context is resolved from:
 ### Product Reviews
 | Method | URL | Description | Auth | Tenant |
 |--------|-----|-------------|------|--------|
-| GET | `/products/:productId/reviews` | Get product reviews | ✅ | ✅ |
-| GET | `/products/:productId/reviews/summary` | Get product review summary | ✅ | ✅ |
+| GET | `/products/:product-id/reviews` | Get product reviews | ✅ | ✅ |
+| GET | `/products/:product-id/reviews/summary` | Get product review summary | ✅ | ✅ |
 
 ### Review Invitations & Analytics
 | Method | URL | Description | Auth | Tenant |
@@ -427,11 +435,8 @@ Tenant context is resolved from:
 | POST | `/review-invitations` | Create review invitation | ✅ | ✅ |
 | GET | `/review-invitations` | Get review invitations | ✅ | ✅ |
 | POST | `/review-invitations/:id/send` | Send review invitation | ✅ | ✅ |
-| GET | `/review-invite/:token` | Process invitation click | ❌ | ❌ |
-| GET | `/reviews/stats` | Get review statistics | ✅ | ✅ |
-| GET | `/reviews/trends` | Get review trends | ✅ | ✅ |
-| GET | `/reviews/top-products` | Get top rated products | ✅ | ✅ |
-| GET | `/reviews/recent` | Get recent reviews | ✅ | ✅ |
+| GET | `/review-invitations/:token` | Process invitation click | ❌ | ❌ |
+| GET | `/reviews` | List reviews (supports: ?status=pending, ?view=stats, ?view=trends, ?view=top_products, ?sort=recent) | ✅ | ✅ |
 | GET | `/reviews/settings` | Get review settings | ✅ | ✅ |
 | PUT | `/reviews/settings` | Update review settings | ✅ | ✅ |
 
@@ -464,7 +469,7 @@ Tenant context is resolved from:
 | GET | `/support/settings` | Get support settings | ✅ | ✅ |
 | GET | `/support/stats` | Get ticket statistics | ✅ | ✅ |
 
-## Contact Module (31 endpoints)
+## Contact Module (28 endpoints)
 
 ### Contact Management
 | Method | URL | Description | Auth | Tenant |
@@ -472,17 +477,10 @@ Tenant context is resolved from:
 | POST | `/contacts` | Create contact | ✅ | ✅ |
 | GET | `/contacts` | List contacts | ✅ | ✅ |
 | GET | `/contacts/:id` | Get contact details | ✅ | ✅ |
-| PUT | `/contacts/:id` | Update contact | ✅ | ✅ |
+| PATCH | `/contacts/:id` | Update contact (status, assignment, priority, details, etc.) | ✅ | ✅ |
 | DELETE | `/contacts/:id` | Delete contact | ✅ | ✅ |
 | POST | `/contacts/bulk` | Bulk update contacts | ✅ | ✅ |
 | POST | `/contacts/export` | Export contacts | ✅ | ✅ |
-
-### Contact Status Management
-| Method | URL | Description | Auth | Tenant |
-|--------|-----|-------------|------|--------|
-| PUT | `/contacts/:id/status` | Update contact status | ✅ | ✅ |
-| PUT | `/contacts/:id/assign` | Assign contact | ✅ | ✅ |
-| PUT | `/contacts/:id/priority` | Update contact priority | ✅ | ✅ |
 | POST | `/contacts/:id/tags` | Add contact tags | ✅ | ✅ |
 | DELETE | `/contacts/:id/tags` | Remove contact tags | ✅ | ✅ |
 
@@ -516,7 +514,7 @@ Tenant context is resolved from:
 | GET | `/contact-analytics/resolution-time` | Get resolution time analytics | ✅ | ✅ |
 | GET | `/contact-analytics/response-time` | Get response time analytics | ✅ | ✅ |
 
-## Content Management Module (16 endpoints)
+## Content Management Module (13 endpoints)
 
 ### Pages & Posts
 | Method | URL | Description | Auth | Tenant |
@@ -526,8 +524,7 @@ Tenant context is resolved from:
 | GET | `/content/pages/:id` | Get page | ✅ | ✅ |
 | PUT | `/content/pages/:id` | Update page | ✅ | ✅ |
 | DELETE | `/content/pages/:id` | Delete page | ✅ | ✅ |
-| POST | `/content/pages/:id/publish` | Publish page | ✅ | ✅ |
-| POST | `/content/pages/:id/unpublish` | Unpublish page | ✅ | ✅ |
+| PATCH | `/content/pages/:id/status` | Update page status (publish/unpublish) | ✅ | ✅ |
 | GET | `/content/posts` | List posts | ✅ | ✅ |
 | POST | `/content/posts` | Create post | ✅ | ✅ |
 | GET | `/content/posts/:id` | Get post | ✅ | ✅ |
@@ -580,7 +577,7 @@ Tenant context is resolved from:
 | POST | `/webhooks/rocket` | Rocket payment webhook | ❌ | ❌ |
 | POST | `/webhooks/upay` | Upay payment webhook | ❌ | ❌ |
 
-## Billing Module (31 endpoints)
+## Billing Module (30 endpoints)
 
 ### Billing Plans
 | Method | URL | Description | Auth | Tenant |
@@ -629,10 +626,9 @@ Tenant context is resolved from:
 | POST | `/billing/admin/process-billing` | Process recurring billing | ✅ | ❌ |
 | POST | `/billing/admin/retry-payments` | Retry failed payments | ✅ | ❌ |
 | POST | `/billing/admin/process-dunning` | Process dunning | ✅ | ❌ |
-| POST | `/billing/admin/tenants/:tenantId/suspend` | Suspend tenant service | ✅ | ❌ |
-| POST | `/billing/admin/tenants/:tenantId/reactivate` | Reactivate tenant service | ✅ | ❌ |
+| PATCH | `/billing/admin/tenants/:tenant-id/status` | Update tenant service status | ✅ | ❌ |
 
-## Tenant Module (11 endpoints)
+## Tenant Module (8 endpoints)
 
 ### Tenant Management
 | Method | URL | Description | Auth | Tenant |
@@ -642,8 +638,7 @@ Tenant context is resolved from:
 | GET | `/tenants/:id` | Get tenant details | ✅ | ❌ |
 | PUT | `/tenants/:id` | Update tenant | ✅ | ❌ |
 | PUT | `/tenants/:id/plan` | Update tenant plan | ✅ | ❌ |
-| POST | `/tenants/:id/activate` | Activate tenant | ✅ | ❌ |
-| POST | `/tenants/:id/deactivate` | Deactivate tenant | ✅ | ❌ |
+| PATCH | `/tenants/:id/status` | Update tenant status | ✅ | ❌ |
 | GET | `/tenants/:id/stats` | Get tenant statistics | ✅ | ❌ |
 | GET | `/tenants/subdomain/:subdomain` | Get tenant by subdomain | ❌ | ❌ |
 | GET | `/tenants/check-subdomain/:subdomain` | Check subdomain availability | ❌ | ❌ |
@@ -695,7 +690,7 @@ wss://api.yourplatform.com/ws
 - `dashboard_metrics_updated` - Real-time dashboard updates
 - `system_notification` - System alerts and notifications
 
-## Category Module (15 endpoints)
+## Category Module (17 endpoints)
 
 ### Category Management
 | Method | URL | Description | Auth | Tenant |
@@ -720,7 +715,7 @@ wss://api.yourplatform.com/ws
 | POST | `/categories/reorder` | Reorder categories | ✅ | ✅ |
 | POST | `/categories/cleanup` | Cleanup empty categories | ✅ | ✅ |
 
-## Cart Module (12 endpoints)
+## Cart Module (15 endpoints)
 
 ### Cart Management
 | Method | URL | Description | Auth | Tenant |
@@ -740,6 +735,9 @@ wss://api.yourplatform.com/ws
 | GET | `/cart/summary` | Get cart summary | ✅ | ✅ |
 | POST | `/cart/save-for-later/:id` | Save item for later | ✅ | ✅ |
 | POST | `/cart/move-to-cart/:id` | Move saved item to cart | ✅ | ✅ |
+| POST | `/cart/validate` | Validate cart before checkout | ✅ | ✅ |
+| GET | `/cart/shipping-methods` | Get available shipping methods | ✅ | ✅ |
+| POST | `/cart/estimate-taxes` | Estimate taxes for cart | ✅ | ✅ |
 | POST | `/cart/cleanup` | Cleanup abandoned carts | ✅ | ✅ |
 
 ## Wishlist Module (15 endpoints)
@@ -795,7 +793,144 @@ wss://api.yourplatform.com/ws
 | POST | `/addresses/geocode` | Geocode address | ✅ | ✅ |
 | GET | `/addresses/suggestions` | Get address suggestions | ✅ | ✅ |
 
-## Tax Module (22 endpoints)
+## Inventory Module (18 endpoints)
+
+### Inventory Management
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/inventory` | List inventory items | ✅ | ✅ |
+| GET | `/inventory/:id` | Get inventory item details | ✅ | ✅ |
+| POST | `/inventory/adjust` | Adjust inventory levels | ✅ | ✅ |
+| GET | `/inventory/movements` | Get inventory movements | ✅ | ✅ |
+| GET | `/inventory/low-stock` | Get low stock items | ✅ | ✅ |
+| POST | `/inventory/transfer` | Transfer stock between locations | ✅ | ✅ |
+| GET | `/inventory/transfers` | List stock transfers | ✅ | ✅ |
+| GET | `/inventory/valuation` | Get inventory valuation | ✅ | ✅ |
+
+### Purchase Orders
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/inventory/purchase-orders` | Create purchase order | ✅ | ✅ |
+| GET | `/inventory/purchase-orders` | List purchase orders | ✅ | ✅ |
+| GET | `/inventory/purchase-orders/:id` | Get purchase order details | ✅ | ✅ |
+| PUT | `/inventory/purchase-orders/:id` | Update purchase order | ✅ | ✅ |
+| POST | `/inventory/purchase-orders/:id/receive` | Receive purchase order | ✅ | ✅ |
+
+### Suppliers
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/inventory/suppliers` | Create supplier | ✅ | ✅ |
+| GET | `/inventory/suppliers` | List suppliers | ✅ | ✅ |
+| GET | `/inventory/suppliers/:id` | Get supplier details | ✅ | ✅ |
+| PUT | `/inventory/suppliers/:id` | Update supplier | ✅ | ✅ |
+| GET | `/inventory/reports` | Get inventory reports | ✅ | ✅ |
+
+## Returns Module (10 endpoints)
+
+### Return Management
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/returns` | Create return request | ✅ | ✅ |
+| GET | `/returns` | List returns | ✅ | ✅ |
+| GET | `/returns/:id` | Get return details | ✅ | ✅ |
+| PUT | `/returns/:id` | Update return status | ✅ | ✅ |
+| PATCH | `/returns/:id/status` | Update return status (approve/reject) | ✅ | ✅ |
+| POST | `/returns/:id/process` | Process return | ✅ | ✅ |
+| GET | `/returns/reasons` | Get return reasons | ✅ | ✅ |
+| POST | `/returns/reasons` | Create return reason | ✅ | ✅ |
+| GET | `/returns/stats` | Get return statistics | ✅ | ✅ |
+| POST | `/returns/:id/exchange` | Process exchange | ✅ | ✅ |
+| GET | `/returns/:id/label` | Get return shipping label | ✅ | ✅ |
+
+## Loyalty Module (15 endpoints)
+
+### Points Management
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/loyalty/points/:customer-id` | Get customer points balance | ✅ | ✅ |
+| POST | `/loyalty/points/:customer-id/earn` | Award points to customer | ✅ | ✅ |
+| POST | `/loyalty/points/:customer-id/redeem` | Redeem customer points | ✅ | ✅ |
+| GET | `/loyalty/points/:customer-id/history` | Get points transaction history | ✅ | ✅ |
+
+### Loyalty Program
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/loyalty/tiers` | Get loyalty tiers | ✅ | ✅ |
+| POST | `/loyalty/tiers` | Create loyalty tier | ✅ | ✅ |
+| PUT | `/loyalty/tiers/:id` | Update loyalty tier | ✅ | ✅ |
+| GET | `/loyalty/rewards` | Get reward catalog | ✅ | ✅ |
+| POST | `/loyalty/rewards` | Create reward | ✅ | ✅ |
+| PUT | `/loyalty/rewards/:id` | Update reward | ✅ | ✅ |
+| GET | `/loyalty/customers/:customer-id/tier` | Get customer tier | ✅ | ✅ |
+| PUT | `/loyalty/customers/:customer-id/tier` | Update customer tier | ✅ | ✅ |
+| GET | `/loyalty/stats` | Get loyalty program statistics | ✅ | ✅ |
+| GET | `/loyalty/leaderboard` | Get points leaderboard | ✅ | ✅ |
+| POST | `/loyalty/campaigns` | Create loyalty campaign | ✅ | ✅ |
+
+## Finance Module (16 endpoints)
+
+### Accounting
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/finance/ledger` | Get general ledger | ✅ | ✅ |
+| POST | `/finance/transactions` | Create financial transaction | ✅ | ✅ |
+| GET | `/finance/transactions` | List financial transactions | ✅ | ✅ |
+| GET | `/finance/accounts-receivable` | Get accounts receivable | ✅ | ✅ |
+| GET | `/finance/accounts-payable` | Get accounts payable | ✅ | ✅ |
+
+### Reports
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/finance/profit-loss` | Get profit & loss statement | ✅ | ✅ |
+| GET | `/finance/balance-sheet` | Get balance sheet | ✅ | ✅ |
+| GET | `/finance/cash-flow` | Get cash flow statement | ✅ | ✅ |
+| GET | `/finance/tax-reports` | Get tax reports | ✅ | ✅ |
+| GET | `/finance/revenue` | Get revenue reports | ✅ | ✅ |
+| GET | `/finance/expenses` | Get expense reports | ✅ | ✅ |
+
+### Payouts
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/finance/payouts` | List payouts | ✅ | ✅ |
+| POST | `/finance/payouts` | Create payout | ✅ | ✅ |
+| GET | `/finance/payouts/:id` | Get payout details | ✅ | ✅ |
+| POST | `/finance/payouts/:id/process` | Process payout | ✅ | ✅ |
+| GET | `/finance/reconciliation` | Get account reconciliation | ✅ | ✅ |
+
+## Vendors Module (18 endpoints)
+
+### Vendor Management
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/vendors` | Create vendor account | ✅ | ✅ |
+| GET | `/vendors` | List vendors | ✅ | ✅ |
+| GET | `/vendors/:id` | Get vendor details | ✅ | ✅ |
+| PUT | `/vendors/:id` | Update vendor | ✅ | ✅ |
+| PATCH | `/vendors/:id/status` | Update vendor status | ✅ | ✅ |
+| GET | `/vendors/:id/products` | Get vendor products | ✅ | ✅ |
+| GET | `/vendors/:id/orders` | Get vendor orders | ✅ | ✅ |
+
+### Vendor Operations
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/vendors/:id/commission` | Get vendor commission | ✅ | ✅ |
+| POST | `/vendors/:id/payout` | Process vendor payout | ✅ | ✅ |
+| GET | `/vendors/:id/analytics` | Get vendor analytics | ✅ | ✅ |
+| PUT | `/vendors/:id/commission-rate` | Update commission rate | ✅ | ✅ |
+| GET | `/vendors/:id/documents` | Get vendor documents | ✅ | ✅ |
+| POST | `/vendors/:id/documents` | Upload vendor documents | ✅ | ✅ |
+
+### Vendor Settings
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/vendors/settings` | Get vendor program settings | ✅ | ✅ |
+| PUT | `/vendors/settings` | Update vendor program settings | ✅ | ✅ |
+| GET | `/vendors/stats` | Get vendor program statistics | ✅ | ✅ |
+| GET | `/vendors/commission-tiers` | Get commission tiers | ✅ | ✅ |
+| POST | `/vendors/commission-tiers` | Create commission tier | ✅ | ✅ |
+| GET | `/vendors/applications` | Get vendor applications | ✅ | ✅ |
+
+## Tax Module (20 endpoints)
 
 ### Tax Rules Management
 | Method | URL | Description | Auth | Tenant |
@@ -805,8 +940,7 @@ wss://api.yourplatform.com/ws
 | GET | `/tax/rules/:id` | Get tax rule | ✅ | ✅ |
 | PUT | `/tax/rules/:id` | Update tax rule | ✅ | ✅ |
 | DELETE | `/tax/rules/:id` | Delete tax rule | ✅ | ✅ |
-| POST | `/tax/rules/:id/activate` | Activate tax rule | ✅ | ✅ |
-| POST | `/tax/rules/:id/deactivate` | Deactivate tax rule | ✅ | ✅ |
+| PATCH | `/tax/rules/:id/status` | Update tax rule status | ✅ | ✅ |
 
 ### Tax Rates Management
 | Method | URL | Description | Auth | Tenant |
@@ -836,31 +970,34 @@ wss://api.yourplatform.com/ws
 
 ## Summary
 
-The e-commerce platform currently implements **360+ API endpoints** across **19 active modules**:
+The e-commerce platform currently implements **420+ API endpoints** across **28 active modules**:
 
-- ✅ **Authentication Module** - 8 endpoints (user authentication, password management)
-- ✅ **User Module** - 12 endpoints (profile management, preferences)
-- ✅ **Product Module** - 35 endpoints (products, variants, categories, public access)
-- ✅ **Category Module** - 15 endpoints (hierarchical category management)
-- ✅ **Inventory Module** - 9 endpoints (inventory management, tracking)
-- ✅ **Cart Module** - 12 endpoints (shopping cart management, operations)
+- ✅ **User Module** - 25 endpoints (user authentication, password management, profile management, preferences, admin operations, bulk operations)
+- ✅ **Product Module** - 49 endpoints (products, variants, categories, inventory management, public access, image management, bulk operations)
+- ✅ **Category Module** - 17 endpoints (hierarchical category management, image management)
+- ✅ **Order Module** - 22 endpoints (order management, tracking, payments, items management, notes, order operations)
+- ✅ **Cart Module** - 15 endpoints (shopping cart management, operations, validation, tax estimation)
+- ✅ **Inventory Module** - 18 endpoints (inventory management, purchase orders, suppliers, stock transfers)
+- ✅ **Returns Module** - 11 endpoints (return management, approval workflow, exchange processing)
+- ✅ **Loyalty Module** - 15 endpoints (points management, tiers, rewards, campaigns)
+- ✅ **Finance Module** - 16 endpoints (accounting, financial reports, payouts, reconciliation)
+- ✅ **Vendors Module** - 19 endpoints (vendor management, commission, analytics, document management)
 - ✅ **Wishlist Module** - 15 endpoints (wishlist management, sharing, analytics)
 - ✅ **Address Module** - 18 endpoints (address management, validation, geocoding)
-- ✅ **Tax Module** - 22 endpoints (tax rules, rates, calculations)
-- ✅ **Order Module** - 15 endpoints (order management, tracking, payments)
+- ✅ **Tax Module** - 21 endpoints (tax rules, rates, calculations)
 - ✅ **Payment Module** - 11 endpoints (payment processing, methods, webhooks)
 - ✅ **Shipping Module** - 25 endpoints (zones, rates, labels, tracking, webhooks)
 - ✅ **Notification Module** - 14 endpoints (notifications, templates, preferences)
 - ✅ **Analytics Module** - 20 endpoints (tracking, dashboard, reports)
-- ✅ **Marketing Module** - 29 endpoints (campaigns, templates, segments)
+- ✅ **Marketing Module** - 26 endpoints (campaigns, templates, segments)
 - ✅ **Discount Module** - 22 endpoints (discounts, gift cards, store credit)
-- ✅ **Reviews Module** - 25 endpoints (reviews, moderation, invitations)
+- ✅ **Reviews Module** - 19 endpoints (reviews, moderation, invitations)
 - ✅ **Support Module** - 15 endpoints (tickets, FAQ, knowledge base)
 - ✅ **Contact Module** - 31 endpoints (contact management, forms, templates)
-- ✅ **Content Management Module** - 16 endpoints (pages, posts, media, menus)
+- ✅ **Content Management Module** - 13 endpoints (pages, posts, media, menus)
 - ✅ **Webhook Module** - 25 endpoints (endpoint management, deliveries, events)
-- ✅ **Billing Module** - 31 endpoints (plans, subscriptions, usage, invoices)
-- ✅ **Tenant Module** - 11 endpoints (multi-tenancy management)
+- ✅ **Billing Module** - 30 endpoints (plans, subscriptions, usage, invoices)
+- ✅ **Tenant Module** - 8 endpoints (multi-tenancy management)
 - ✅ **Observability Module** - 12 endpoints (health, metrics, logs, alerts)
 
 ### Authentication & Security
