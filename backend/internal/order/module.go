@@ -27,16 +27,16 @@ type Product struct {
 
 // DiscountService interface for discount operations
 type DiscountService interface {
-	ValidateDiscountCode(ctx context.Context, req ValidateDiscountRequest) (*DiscountValidation, error)
-	ApplyDiscount(ctx context.Context, req ApplyDiscountRequest) (*DiscountApplication, error)
+	ValidateDiscountCode(ctx context.Context, tenantID uuid.UUID, code string, customerID *uuid.UUID, customerEmail string, orderAmount float64, itemQuantity int, productIDs []string, categoryIDs []string) (*DiscountValidation, error)
+	ApplyDiscount(ctx context.Context, tenantID uuid.UUID, code string, orderID uuid.UUID, customerID *uuid.UUID, customerEmail string, orderAmount float64, itemQuantity int, productIDs []string, categoryIDs []string, ipAddress string, userAgent string) (*DiscountApplication, error)
 	RemoveDiscount(ctx context.Context, tenantID uuid.UUID, orderID uuid.UUID) error
 }
 
 // PaymentService interface for payment operations
 type PaymentService interface {
-	CreatePayment(ctx context.Context, req CreatePaymentRequest) (*CreatePaymentResponse, error)
-	ProcessPayment(ctx context.Context, req ProcessPaymentRequest) error
-	RefundPayment(ctx context.Context, paymentID string, amount float64, reason string) error
+	CreatePayment(ctx context.Context, tenantID uuid.UUID, orderID string, amount float64, currency string, gateway string, paymentMethodID string, customerEmail string, customerPhone string, returnURL string) (*CreatePaymentResponse, error)
+	ProcessPayment(ctx context.Context, tenantID uuid.UUID, paymentID string, gateway string, gatewayResponse map[string]interface{}) error
+	RefundPayment(ctx context.Context, tenantID uuid.UUID, paymentID string, amount float64, reason string) error
 }
 
 // InventoryService interface for inventory management
@@ -48,9 +48,9 @@ type InventoryService interface {
 
 // NotificationService interface for notification operations
 type NotificationService interface {
-	SendNotification(tenantID uuid.UUID, req *SendNotificationRequest) (*SendNotificationResponse, error)
-	SendEmail(tenantID uuid.UUID, req *SendEmailRequest) error
-	SendSMS(tenantID uuid.UUID, req *SendSMSRequest) error
+	SendNotification(ctx context.Context, tenantID uuid.UUID, notificationType string, channel string, recipients []string, subject string, content string, userID string, priority string, variables map[string]interface{}, templateID string, scheduledAt *time.Time) (*SendNotificationResponse, error)
+	SendEmail(ctx context.Context, tenantID uuid.UUID, to []string, subject string, content string, contentType string, variables map[string]interface{}, templateID string) error
+	SendSMS(ctx context.Context, tenantID uuid.UUID, to []string, message string, variables map[string]interface{}, templateID string) error
 }
 
 // Notification related structs

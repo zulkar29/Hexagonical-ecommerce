@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -26,14 +25,14 @@ func NewHandler(service *Service) *Handler {
 // @Tags orders
 // @Accept json
 // @Produce json
-// @Param order body CreateOrderRequest true "Order data"
+// @Param order body Order true "Order data"
 // @Success 201 {object} Order
 // @Failure 400 {object} map[string]interface{}
 // @Failure 500 {object} map[string]interface{}
 // @Router /orders [post]
 func (h *Handler) CreateOrder(c *gin.Context) {
-	var req CreateOrderRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var order Order
+	if err := c.ShouldBindJSON(&order); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -51,17 +50,17 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		return
 	}
 
-	order, err := h.service.CreateOrder(
-		tenantID.(uuid.UUID),
-		userID.(uuid.UUID),
-		req,
-	)
+	// Set tenant and user context
+	order.TenantID = tenantID.(uuid.UUID)
+	order.UserID = userID.(uuid.UUID)
+
+	createdOrder, err := h.service.CreateOrder(c.Request.Context(), tenantID.(uuid.UUID), &order)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, order)
+	c.JSON(http.StatusCreated, createdOrder)
 }
 
 // GetOrder retrieves an order by ID
@@ -199,7 +198,7 @@ func (h *Handler) ListOrders(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path string true "Order ID"
-// @Param status body UpdateOrderStatusRequest true "Status update data"
+// @Param status body map[string]interface{} true "Status update data"
 // @Success 200 {object} Order
 // @Failure 400 {object} map[string]interface{}
 // @Failure 404 {object} map[string]interface{}
@@ -211,14 +210,24 @@ func (h *Handler) UpdateOrderStatus(c *gin.Context) {
 		return
 	}
 
-	var req UpdateOrderStatusRequest
+	var req struct {
+		Status         string `json:"status" binding:"required"`
+		TrackingNumber string `json:"tracking_number"`
+		TrackingURL    string `json:"tracking_url"`
+		Notes          string `json:"notes"`
+	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	orderID := c.Param("id")
-	order, err := h.service.UpdateOrderStatus(tenantID.(uuid.UUID), orderID, req)
+	orderID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid order ID"})
+		return
+	}
+
+	order, err := h.service.UpdateOrderStatus(c.Request.Context(), tenantID.(uuid.UUID), orderID, OrderStatus(req.Status), req.TrackingNumber, req.TrackingURL, req.Notes)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -263,10 +272,12 @@ func (h *Handler) CancelOrder(c *gin.Context) {
 
 // ProcessPayment processes payment for an order
 // @Summary Process payment
-// @Description Process payment for a pending order
+// @Description Process payment for an order
 // @Tags orders
+// @Accept json
 // @Produce json
 // @Param id path string true "Order ID"
+// @Param payment body map[string]interface{} true "Payment data"
 // @Success 200 {object} Order
 // @Failure 400 {object} map[string]interface{}
 // @Failure 404 {object} map[string]interface{}
@@ -278,8 +289,29 @@ func (h *Handler) ProcessPayment(c *gin.Context) {
 		return
 	}
 
-	orderID := c.Param("id")
-	order, err := h.service.ProcessPayment(tenantID.(uuid.UUID), orderID)
+	var req struct {
+		PaymentID       string `json:"payment_id" binding:"required"`
+		PaymentMethodID string `json:"payment_method_id" binding:"required"`
+		Confirmation    string `json:"confirmation"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	paymentID, err := uuid.Parse(req.PaymentID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payment ID"})
+		return
+	}
+
+	_, err = uuid.Parse(req.PaymentMethodID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payment method ID"})
+		return
+	}
+
+	order, err := h.service.ProcessPayment(tenantID.(uuid.UUID), paymentID.String())
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -288,14 +320,14 @@ func (h *Handler) ProcessPayment(c *gin.Context) {
 	c.JSON(http.StatusOK, order)
 }
 
-// RefundOrder processes a refund for an order
+// RefundOrder refunds an order
 // @Summary Refund order
-// @Description Process a full or partial refund for an order
+// @Description Refund an order and update status
 // @Tags orders
 // @Accept json
 // @Produce json
 // @Param id path string true "Order ID"
-// @Param body body map[string]float64 true "Refund amount"
+// @Param refund body map[string]interface{} true "Refund data"
 // @Success 200 {object} Order
 // @Failure 400 {object} map[string]interface{}
 // @Failure 404 {object} map[string]interface{}
@@ -308,21 +340,28 @@ func (h *Handler) RefundOrder(c *gin.Context) {
 	}
 
 	var req struct {
-		Amount float64 `json:"amount" binding:"required,gt=0"`
+		PaymentID string  `json:"payment_id" binding:"required"`
+		Amount    float64 `json:"amount" binding:"required"`
+		Reason    string  `json:"reason"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	orderID := c.Param("id")
-	order, err := h.service.RefundOrder(tenantID.(uuid.UUID), orderID, req.Amount)
+	paymentID, err := uuid.Parse(req.PaymentID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payment ID"})
+		return
+	}
+
+	payment, err := h.service.RefundOrder(c.Request.Context(), tenantID.(uuid.UUID), uuid.Nil, paymentID.String(), req.Amount, req.Reason)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, order)
+	c.JSON(http.StatusOK, payment)
 }
 
 // TrackOrder provides tracking information for an order
@@ -547,13 +586,13 @@ func (h *Handler) ExportOrders(c *gin.Context) {
 	c.Data(http.StatusOK, contentType, data)
 }
 
-// ImportOrders imports orders from CSV format
+// ImportOrders imports orders from CSV
 // @Summary Import orders
 // @Description Import orders from CSV file
 // @Tags orders
 // @Accept multipart/form-data
 // @Produce json
-// @Param file formData file true "CSV file to import"
+// @Param file formData file true "CSV file"
 // @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Router /orders/import [post]
@@ -564,49 +603,44 @@ func (h *Handler) ImportOrders(c *gin.Context) {
 		return
 	}
 
-	// Get uploaded file
-	file, header, err := c.Request.FormFile("file")
+	file, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "file is required"})
 		return
 	}
-	defer file.Close()
 
-	// Validate file type
-	if !strings.HasSuffix(strings.ToLower(header.Filename), ".csv") {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "only CSV files are supported"})
-		return
-	}
-
-	// Read file content
-	data := make([]byte, header.Size)
-	_, err = file.Read(data)
+	// Open file
+	src, err := file.Open()
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to read file"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open file"})
 		return
 	}
+	defer src.Close()
 
-	// Import orders
-	result, err := h.service.ImportOrders(tenantID.(uuid.UUID), data, "csv")
+	totalRecords, successfulImports, failedImports, errors, err := h.service.ImportOrders(c.Request.Context(), tenantID.(uuid.UUID), src)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Import completed",
-		"result":  result,
-	})
+	result := map[string]interface{}{
+		"total_records":      totalRecords,
+		"successful_imports": successfulImports,
+		"failed_imports":     failedImports,
+		"errors":             errors,
+	}
+
+	c.JSON(http.StatusOK, result)
 }
 
-// BulkUpdateOrders performs bulk operations on multiple orders
+// BulkUpdateOrders updates multiple orders
 // @Summary Bulk update orders
-// @Description Perform bulk operations (status update, cancel, refund) on multiple orders
+// @Description Update multiple orders with the same action
 // @Tags orders
 // @Accept json
 // @Produce json
-// @Param request body BulkUpdateOrdersRequest true "Bulk update request"
-// @Success 200 {object} BulkUpdateResult
+// @Param bulk body map[string]interface{} true "Bulk update data"
+// @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Router /orders/bulk [patch]
 func (h *Handler) BulkUpdateOrders(c *gin.Context) {
@@ -616,34 +650,40 @@ func (h *Handler) BulkUpdateOrders(c *gin.Context) {
 		return
 	}
 
-	var req BulkUpdateOrdersRequest
+	var req struct {
+		OrderIDs []string               `json:"order_ids" binding:"required"`
+		Action   string                 `json:"action" binding:"required"`
+		Data     map[string]interface{} `json:"data"`
+	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Validate request
-	if len(req.OrderIDs) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "order_ids is required"})
-		return
+	// Parse order IDs
+	orderIDs := make([]uuid.UUID, len(req.OrderIDs))
+	for i, idStr := range req.OrderIDs {
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid order ID: %s", idStr)})
+			return
+		}
+		orderIDs[i] = id
 	}
 
-	if len(req.OrderIDs) > 100 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "maximum 100 orders can be updated at once"})
-		return
-	}
-
-	// Perform bulk update
-	result, err := h.service.BulkUpdateOrders(tenantID.(uuid.UUID), req)
+	successfulUpdates, failedUpdates, errors, err := h.service.BulkUpdateOrders(c.Request.Context(), tenantID.(uuid.UUID), orderIDs, req.Action, req.Data)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Bulk update completed",
-		"result":  result,
-	})
+	result := map[string]interface{}{
+		"successful_updates": successfulUpdates,
+		"failed_updates":     failedUpdates,
+		"errors":             errors,
+	}
+
+	c.JSON(http.StatusOK, result)
 }
 
 // TODO: Add more handlers

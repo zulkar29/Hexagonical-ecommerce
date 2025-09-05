@@ -93,6 +93,10 @@ func (r *Repository) GetDeliveryByID(tenantID uuid.UUID, deliveryID uuid.UUID) (
 	return &delivery, nil
 }
 
+func (r *Repository) GetDelivery(tenantID uuid.UUID, deliveryID uuid.UUID) (*WebhookDelivery, error) {
+	return r.GetDeliveryByID(tenantID, deliveryID)
+}
+
 func (r *Repository) GetDeliveries(tenantID uuid.UUID, endpointID uuid.UUID, limit int, offset int) ([]*WebhookDelivery, error) {
 	var deliveries []*WebhookDelivery
 	query := r.db.Where("tenant_id = ?", tenantID)
@@ -207,18 +211,18 @@ func (r *Repository) CleanupExpiredRateLimits() error {
 
 // Analytics Types
 type WebhookStats struct {
-	TotalDeliveries    int     `json:"total_deliveries"`
-	SuccessfulDeliveries int   `json:"successful_deliveries"`
-	FailedDeliveries   int     `json:"failed_deliveries"`
+	TotalDeliveries    int64   `json:"total_deliveries"`
+	SuccessfulDeliveries int64 `json:"successful_deliveries"`
+	FailedDeliveries   int64   `json:"failed_deliveries"`
 	SuccessRate        float64 `json:"success_rate"`
 	AverageResponseTime int    `json:"average_response_time"`
 }
 
 type EndpointHealth struct {
 	EndpointID         uuid.UUID `json:"endpoint_id"`
-	TotalDeliveries    int       `json:"total_deliveries"`
-	SuccessfulDeliveries int     `json:"successful_deliveries"`
-	FailedDeliveries   int       `json:"failed_deliveries"`
+	TotalDeliveries    int64     `json:"total_deliveries"`
+	SuccessfulDeliveries int64   `json:"successful_deliveries"`
+	FailedDeliveries   int64     `json:"failed_deliveries"`
 	SuccessRate        float64   `json:"success_rate"`
 	AverageResponseTime int      `json:"average_response_time"`
 	LastDeliveryAt     *time.Time `json:"last_delivery_at"`
@@ -226,7 +230,7 @@ type EndpointHealth struct {
 }
 
 type FailureAnalysis struct {
-	TotalFailures      int                    `json:"total_failures"`
+	TotalFailures      int64                  `json:"total_failures"`
 	FailuresByStatus   map[int]int           `json:"failures_by_status"`
 	FailuresByEndpoint map[uuid.UUID]int     `json:"failures_by_endpoint"`
 	CommonErrors       []string              `json:"common_errors"`
@@ -346,6 +350,26 @@ func (r *Repository) GetProviderStats(tenantID uuid.UUID, startDate, endDate tim
 	}
 	
 	return stats, nil
+}
+
+func (r *Repository) DeleteOldDeliveries(cutoffTime time.Time) error {
+	return r.db.Where("created_at < ?", cutoffTime).Delete(&WebhookDelivery{}).Error
+}
+
+func (r *Repository) GetFailingEndpoints(failureRate float64, minAttempts int) ([]*WebhookEndpoint, error) {
+	var endpoints []*WebhookEndpoint
+	
+	// Query to find endpoints with high failure rates
+	subquery := r.db.Model(&WebhookDelivery{}).
+		Select("endpoint_id, COUNT(*) as total_deliveries, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as failed_deliveries", StatusFailed).
+		Group("endpoint_id").
+		Having("COUNT(*) >= ? AND (SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) * 1.0 / COUNT(*)) >= ?", minAttempts, StatusFailed, failureRate)
+	
+	if err := r.db.Where("id IN (?)", subquery.Select("endpoint_id")).Find(&endpoints).Error; err != nil {
+		return nil, err
+	}
+	
+	return endpoints, nil
 }
 
 func (r *Repository) GetFailureAnalysis(tenantID uuid.UUID, startDate, endDate time.Time) (*FailureAnalysis, error) {

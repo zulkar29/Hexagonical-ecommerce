@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -164,6 +165,7 @@ type RealTimeStats struct {
 type ActivePageStats struct {
 	Path        string `json:"path"`
 	ActiveUsers int64  `json:"active_users"`
+	Views       int64  `json:"views"`
 }
 
 type ScheduleReportRequest struct {
@@ -197,6 +199,7 @@ type ExportRequest struct {
 	DateRange  DateRange    `json:"date_range"`
 	Format     ReportFormat `json:"format"`
 	Filters    map[string]interface{} `json:"filters,omitempty"`
+	Limit      int          `json:"limit,omitempty"`
 }
 
 type service struct {

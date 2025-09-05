@@ -1,17 +1,17 @@
 package database
 
 import (
-	"github.com/esass/internal/analytics"
-	"github.com/esass/internal/content"
-	"github.com/esass/internal/notification"
-	"github.com/esass/internal/order"
-	"github.com/esass/internal/payment"
-	"github.com/esass/internal/product"
-	"github.com/esass/internal/shipping"
-	"github.com/esass/internal/tenant"
-	"github.com/esass/internal/user"
-	"github.com/esass/internal/webhook"
 	"gorm.io/gorm"
+	"ecommerce-saas/internal/analytics"
+	"ecommerce-saas/internal/content"
+	"ecommerce-saas/internal/notification"
+	"ecommerce-saas/internal/order"
+	"ecommerce-saas/internal/payment"
+	"ecommerce-saas/internal/product"
+	"ecommerce-saas/internal/shipping"
+	"ecommerce-saas/internal/tenant"
+	"ecommerce-saas/internal/user"
+	"ecommerce-saas/internal/webhook"
 )
 
 // TODO: Implement database migrations

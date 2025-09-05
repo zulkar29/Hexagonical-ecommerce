@@ -13,6 +13,8 @@ import (
 	"ecommerce-saas/internal/order"
 	"ecommerce-saas/internal/payment"
 	"ecommerce-saas/internal/notification"
+	"ecommerce-saas/internal/finance"
+	"ecommerce-saas/internal/returns"
 )
 
 // RouteConfig holds dependencies for route setup
@@ -79,6 +81,12 @@ func SetupRoutes(r *gin.Engine, cfg *RouteConfig) {
 		
 		// Setup notification routes
 		setupNotificationRoutes(protected, cfg)
+		
+		// Setup finance routes
+		setupFinanceRoutes(protected, cfg)
+		
+		// Setup returns routes
+		setupReturnsRoutes(protected, cfg)
 		
 		// TODO: Add other protected routes here
 		// setupAnalyticsRoutes(protected, cfg)
@@ -178,4 +186,20 @@ func setupNotificationRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 	
 	// Register notification routes
 	notificationModule.RegisterRoutes(v1)
+}
+
+func setupFinanceRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
+	// Initialize finance module
+	financeModule := finance.NewModule(cfg.DB)
+	
+	// Register finance routes
+	financeModule.RegisterRoutes(v1)
+}
+
+func setupReturnsRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
+	// Initialize returns module
+	returnsModule := returns.NewModule(cfg.DB)
+	
+	// Register returns routes
+	returnsModule.RegisterRoutes(v1)
 }

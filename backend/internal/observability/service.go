@@ -262,8 +262,8 @@ func (s *ObservabilityService) TrackAPIPerformance(ctx context.Context, endpoint
 
 // Middleware functions
 
-// LoggingMiddleware adds request logging
-func (s *ObservabilityService) LoggingMiddleware() gin.HandlerFunc {
+// ObservabilityLoggingMiddleware adds request logging with observability integration
+func (s *ObservabilityService) ObservabilityLoggingMiddleware() gin.HandlerFunc {
 	return gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
 		// Custom log format that integrates with our structured logging
 		fields := map[string]interface{}{

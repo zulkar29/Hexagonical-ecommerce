@@ -26,10 +26,10 @@ const (
 	EventOrderFulfilled  WebhookEvent = "order.fulfilled"
 	
 	// Payment Events
-	EventPaymentCreated  WebhookEvent = "payment.created"
-	EventPaymentSucceded WebhookEvent = "payment.succeeded"
-	EventPaymentFailed   WebhookEvent = "payment.failed"
-	EventPaymentRefunded WebhookEvent = "payment.refunded"
+	EventPaymentCreated   WebhookEvent = "payment.created"
+	EventPaymentSucceeded WebhookEvent = "payment.succeeded"
+	EventPaymentFailed    WebhookEvent = "payment.failed"
+	EventPaymentRefunded  WebhookEvent = "payment.refunded"
 	
 	// Product Events
 	EventProductCreated  WebhookEvent = "product.created"
@@ -121,10 +121,11 @@ type WebhookDelivery struct {
 	ResponseTime     int            `json:"response_time"` // milliseconds
 	
 	// Delivery tracking
+	LastAttemptAt  *time.Time      `json:"last_attempt_at"`
 	NextRetryAt    *time.Time      `json:"next_retry_at"`
 	DeliveredAt    *time.Time      `json:"delivered_at"`
 	FailedAt       *time.Time      `json:"failed_at"`
-	ErrorMessage   string          `json:"error_message" gorm:"type:text"`
+	ErrorMessage   string          `json:"error_message" gorm:"type:text"` 
 	
 	CreatedAt      time.Time       `json:"created_at"`
 	UpdatedAt      time.Time       `json:"updated_at"`
@@ -193,10 +194,7 @@ func (wd *WebhookDelivery) GetNextRetryDelay() time.Duration {
 	return baseDelay * multiplier
 }
 
-// IsActive checks if webhook endpoint is active and healthy
-func (we *WebhookEndpoint) IsActive() bool {
-	return we.IsActive && we.FailureCount < 10 // Disable after 10 consecutive failures
-}
+
 
 // SupportsEvent checks if endpoint supports a specific event
 func (we *WebhookEndpoint) SupportsEvent(event WebhookEvent) bool {

@@ -3,7 +3,6 @@ package user
 import (
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -48,13 +47,13 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 
 // Register handles user registration
 func (h *Handler) Register(c *gin.Context) {
-	var req RegisterRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var user User
+	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	user, err := h.service.RegisterUser(req)
+	createdUser, err := h.service.RegisterUser(c.Request.Context(), &user)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -62,19 +61,22 @@ func (h *Handler) Register(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "User registered successfully. Please verify your email.",
-		"user":    user,
+		"user":    createdUser,
 	})
 }
 
 // Login handles user login
 func (h *Handler) Login(c *gin.Context) {
-	var req LoginRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var loginData struct {
+		Email    string `json:"email" binding:"required,email"`
+		Password string `json:"password" binding:"required,min=8"`
+	}
+	if err := c.ShouldBindJSON(&loginData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	response, err := h.service.LoginUser(req.Email, req.Password)
+	response, err := h.service.LoginUser(c.Request.Context(), loginData.Email, loginData.Password)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
@@ -167,8 +169,10 @@ func (h *Handler) Logout(c *gin.Context) {
 
 // VerifyEmail handles email verification
 func (h *Handler) VerifyEmail(c *gin.Context) {
-	var req VerifyEmailRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var verifyData struct {
+		Token string `json:"token" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&verifyData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -181,7 +185,7 @@ func (h *Handler) VerifyEmail(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.VerifyEmail(userID, req.Token); err != nil {
+	if err := h.service.VerifyEmail(userID, verifyData.Token); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -191,13 +195,15 @@ func (h *Handler) VerifyEmail(c *gin.Context) {
 
 // ForgotPassword handles password reset request
 func (h *Handler) ForgotPassword(c *gin.Context) {
-	var req ForgotPasswordRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var forgotData struct {
+		Email string `json:"email" binding:"required,email"`
+	}
+	if err := c.ShouldBindJSON(&forgotData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.service.ResetPassword(req.Email); err != nil {
+	if err := h.service.ForgotPassword(c.Request.Context(), forgotData.Email); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -207,13 +213,20 @@ func (h *Handler) ForgotPassword(c *gin.Context) {
 
 // ResetPassword handles password reset
 func (h *Handler) ResetPassword(c *gin.Context) {
-	var req ResetPasswordRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var resetData struct {
+		Token       string `json:"token" binding:"required"`
+		NewPassword string `json:"new_password" binding:"required,min=8"`
+	}
+	if err := c.ShouldBindJSON(&resetData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// TODO: Implement actual password reset with token validation
+	if err := h.service.ResetPassword(c.Request.Context(), resetData.Token, resetData.NewPassword); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "Password reset successfully"})
 }
 
@@ -242,13 +255,13 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	var req UpdateProfileRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var updates User
+	if err := c.ShouldBindJSON(&updates); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	user, err := h.service.UpdateProfile(userID, req)
+	user, err := h.service.UpdateProfile(c.Request.Context(), userID, &updates)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -268,13 +281,16 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 		return
 	}
 
-	var req ChangePasswordRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var passwordData struct {
+		OldPassword string `json:"old_password" binding:"required"`
+		NewPassword string `json:"new_password" binding:"required,min=8"`
+	}
+	if err := c.ShouldBindJSON(&passwordData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.service.ChangePassword(userID, req.OldPassword, req.NewPassword); err != nil {
+	if err := h.service.ChangePassword(c.Request.Context(), userID, passwordData.OldPassword, passwordData.NewPassword); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

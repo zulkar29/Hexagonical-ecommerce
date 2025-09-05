@@ -1,6 +1,7 @@
 package analytics
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -382,9 +383,9 @@ func (h *Handler) GetScheduledReports(c *gin.Context) {
 
 func (h *Handler) DeleteScheduledReport(c *gin.Context) {
 	// TODO: Extract tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	_ = uuid.New() // Placeholder
 
-	reportID, err := uuid.Parse(c.Param("id"))
+	_, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid report ID"})
 		return

@@ -1,13 +1,15 @@
 package middleware
 
 import (
-	"fmt"
+	"context"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"golang.org/x/time/rate"
 	
 	"ecommerce-saas/internal/shared/utils"
 )
@@ -75,42 +77,7 @@ func OptionalAuthMiddleware(jwtManager *utils.JWTManager) gin.HandlerFunc {
 	}
 }
 
-// CORSMiddleware handles CORS headers
-func CORSMiddleware(allowedOrigins, allowedMethods, allowedHeaders []string, allowCredentials bool) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		origin := c.Request.Header.Get("Origin")
-		
-		// Check if origin is allowed
-		allowed := false
-		for _, allowedOrigin := range allowedOrigins {
-			if allowedOrigin == "*" || allowedOrigin == origin {
-				allowed = true
-				break
-			}
-		}
 
-		if allowed {
-			c.Header("Access-Control-Allow-Origin", origin)
-		}
-
-		c.Header("Access-Control-Allow-Methods", strings.Join(allowedMethods, ", "))
-		c.Header("Access-Control-Allow-Headers", strings.Join(allowedHeaders, ", "))
-		
-		if allowCredentials {
-			c.Header("Access-Control-Allow-Credentials", "true")
-		}
-
-		c.Header("Access-Control-Max-Age", "86400") // 24 hours
-
-		// Handle preflight requests
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(http.StatusNoContent)
-			return
-		}
-
-		c.Next()
-	}
-}
 
 // TenantMiddleware ensures the request has valid tenant context
 func TenantMiddleware() gin.HandlerFunc {
@@ -238,21 +205,4 @@ func RequestIDMiddleware() gin.HandlerFunc {
 		c.Set("request_id", requestID)
 		c.Next()
 	}
-}
-
-// LoggingMiddleware logs HTTP requests
-func LoggingMiddleware() gin.HandlerFunc {
-	return gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
-		return fmt.Sprintf("%s - [%s] \"%s %s %s %d %s \"%s\" %s\"\n",
-			param.ClientIP,
-			param.TimeStamp.Format("02/Jan/2006:15:04:05 -0700"),
-			param.Method,
-			param.Path,
-			param.Request.Proto,
-			param.StatusCode,
-			param.Latency,
-			param.Request.UserAgent(),
-			param.ErrorMessage,
-		)
-	})
 }

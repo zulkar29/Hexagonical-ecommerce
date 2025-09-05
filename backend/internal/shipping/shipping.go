@@ -17,6 +17,7 @@ import (
 type ShippingProvider string
 type ShippingMethod string
 type DeliveryType string
+type TrackingStatus string
 
 const (
 	// Bangladesh Local Providers
@@ -46,6 +47,16 @@ const (
 	DeliveryOffice DeliveryType = "office"
 	DeliveryHub    DeliveryType = "hub"
 	DeliveryPickup DeliveryType = "pickup_point"
+)
+
+const (
+	StatusPending       TrackingStatus = "pending"
+	StatusPickedUp      TrackingStatus = "picked_up"
+	StatusInTransit     TrackingStatus = "in_transit"
+	StatusOutForDelivery TrackingStatus = "out_for_delivery"
+	StatusDelivered     TrackingStatus = "delivered"
+	StatusFailed        TrackingStatus = "failed"
+	StatusReturned      TrackingStatus = "returned"
 )
 
 type ShippingZone struct {
@@ -133,7 +144,7 @@ type ShippingTracking struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
-type ShippingProvider struct {
+type ShippingProviderConfig struct {
 	ID             uuid.UUID `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
 	TenantID       uuid.UUID `json:"tenant_id" gorm:"type:uuid;not null;index"`
 	Provider       ShippingProvider `json:"provider" gorm:"size:50;not null"`

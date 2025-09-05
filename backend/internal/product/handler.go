@@ -29,13 +29,13 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 		return
 	}
 
-	var req CreateProductRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var product Product
+	if err := c.ShouldBindJSON(&product); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
 
-	product, err := h.service.CreateProduct(tenantID.(uuid.UUID), req)
+	createdProduct, err := h.service.CreateProduct(tenantID.(uuid.UUID), product)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -43,7 +43,7 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Product created successfully",
-		"data":    product,
+		"data":    createdProduct,
 	})
 }
 
@@ -99,13 +99,13 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 
 	productID := c.Param("id")
 	
-	var req UpdateProductRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var product Product
+	if err := c.ShouldBindJSON(&product); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
 
-	product, err := h.service.UpdateProduct(tenantID.(uuid.UUID), productID, req)
+	updatedProduct, err := h.service.UpdateProduct(tenantID.(uuid.UUID), productID, product)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -113,7 +113,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Product updated successfully",
-		"data":    product,
+		"data":    updatedProduct,
 	})
 }
 
@@ -258,13 +258,13 @@ func (h *Handler) CreateCategory(c *gin.Context) {
 		return
 	}
 
-	var req CreateCategoryRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var category Category
+	if err := c.ShouldBindJSON(&category); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
 
-	category, err := h.service.CreateCategory(tenantID.(uuid.UUID), req)
+	createdCategory, err := h.service.CreateCategory(tenantID.(uuid.UUID), &category)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -272,7 +272,7 @@ func (h *Handler) CreateCategory(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Category created successfully",
-		"data":    category,
+		"data":    createdCategory,
 	})
 }
 
@@ -510,15 +510,20 @@ func (h *Handler) CreateProductVariant(c *gin.Context) {
 		return
 	}
 
-	productID := c.Param("id")
+	productIDStr := c.Param("id")
+	productID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		return
+	}
 	
-	var req CreateVariantRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var variant ProductVariant
+	if err := c.ShouldBindJSON(&variant); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
 
-	variant, err := h.service.CreateProductVariant(tenantID.(uuid.UUID), productID, req)
+	createdVariant, err := h.service.CreateProductVariant(tenantID.(uuid.UUID), productID, &variant)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -526,7 +531,7 @@ func (h *Handler) CreateProductVariant(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Product variant created successfully",
-		"data":    variant,
+		"data":    createdVariant,
 	})
 }
 
@@ -559,16 +564,27 @@ func (h *Handler) UpdateProductVariant(c *gin.Context) {
 		return
 	}
 
-	productID := c.Param("id")
-	variantID := c.Param("variantId")
+	productIDStr := c.Param("id")
+	productID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		return
+	}
+
+	variantIDStr := c.Param("variantId")
+	variantID, err := uuid.Parse(variantIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid variant ID"})
+		return
+	}
 	
-	var req UpdateVariantRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var variant ProductVariant
+	if err := c.ShouldBindJSON(&variant); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
 
-	variant, err := h.service.UpdateProductVariant(tenantID.(uuid.UUID), productID, variantID, req)
+	updatedVariant, err := h.service.UpdateProductVariant(tenantID.(uuid.UUID), productID, variantID, &variant)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -576,7 +592,7 @@ func (h *Handler) UpdateProductVariant(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Product variant updated successfully",
-		"data":    variant,
+		"data":    updatedVariant,
 	})
 }
 
@@ -614,13 +630,13 @@ func (h *Handler) UpdateCategory(c *gin.Context) {
 
 	categoryID := c.Param("id")
 	
-	var req UpdateCategoryRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var category Category
+	if err := c.ShouldBindJSON(&category); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
 
-	category, err := h.service.UpdateCategory(tenantID.(uuid.UUID), categoryID, req)
+	updatedCategory, err := h.service.UpdateCategory(tenantID.(uuid.UUID), categoryID, category)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -628,7 +644,7 @@ func (h *Handler) UpdateCategory(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Category updated successfully",
-		"data":    category,
+		"data":    updatedCategory,
 	})
 }
 

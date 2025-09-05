@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/hmac"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -14,7 +13,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
 type Service struct {
@@ -115,18 +113,26 @@ func (s *Service) DispatchEvent(tenantID uuid.UUID, event WebhookEvent, eventID 
 			continue
 		}
 		
+		// Marshal payload to JSON
+		payloadBytes, err := json.Marshal(payload)
+		if err != nil {
+			continue // Skip this endpoint if payload marshaling fails
+		}
+		
 		// Create delivery record
 		delivery := &WebhookDelivery{
-			ID:         uuid.New(),
-			TenantID:   tenantID,
-			EndpointID: endpoint.ID,
-			Event:      event,
-			EventID:    eventID,
-			Payload:    payload,
-			Status:     StatusPending,
-			Attempts:   0,
-			CreatedAt:  time.Now(),
-			UpdatedAt:  time.Now(),
+			ID:           uuid.New(),
+			TenantID:     tenantID,
+			EndpointID:   endpoint.ID,
+			Event:        event,
+			EventID:      eventID,
+			RequestURL:   endpoint.URL,
+			RequestBody:  string(payloadBytes),
+			Status:       StatusPending,
+			AttemptCount: 0,
+			MaxAttempts:  3,
+			CreatedAt:    time.Now(),
+			UpdatedAt:    time.Now(),
 		}
 		
 		// Save delivery record
@@ -148,10 +154,13 @@ func (s *Service) DeliverWebhook(delivery *WebhookDelivery) error {
 		return err
 	}
 	
-	// Prepare payload
-	payloadBytes, err := json.Marshal(delivery.Payload)
-	if err != nil {
-		return err
+	// Prepare payload from request body
+	var payloadBytes []byte
+	if delivery.RequestBody != "" {
+		payloadBytes = []byte(delivery.RequestBody)
+	} else {
+		// If no request body, create empty JSON
+		payloadBytes = []byte("{}")
 	}
 	
 	// Create HTTP request
@@ -172,9 +181,9 @@ func (s *Service) DeliverWebhook(delivery *WebhookDelivery) error {
 	req.Header.Set("X-Webhook-Signature", signature)
 	
 	// Update delivery attempt
-	delivery.Attempts++
-	delivery.LastAttemptAt = &time.Time{}
-	*delivery.LastAttemptAt = time.Now()
+	delivery.AttemptCount++
+	now := time.Now()
+	delivery.LastAttemptAt = &now
 	delivery.UpdatedAt = time.Now()
 	
 	// Make HTTP request
@@ -220,7 +229,7 @@ func (s *Service) DeliverWebhook(delivery *WebhookDelivery) error {
 
 func (s *Service) RetryFailedDeliveries() error {
 	// Get pending retries
-	deliveries, err := s.repo.GetPendingRetries()
+	deliveries, err := s.repo.GetPendingRetries(100) // Default limit of 100
 	if err != nil {
 		return err
 	}
@@ -308,15 +317,15 @@ func (s *Service) ProcessStripeWebhook(tenantID uuid.UUID, signature string, bod
 	
 	// Create incoming webhook record
 	incoming := &WebhookIncoming{
-		ID:        uuid.New(),
-		TenantID:  tenantID,
-		Provider:  ProviderStripe,
-		EventType: fmt.Sprintf("%v", event["type"]),
-		Payload:   event,
-		Signature: signature,
-		Processed: false,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:          uuid.New(),
+		TenantID:    tenantID,
+		Provider:    ProviderStripe,
+		Event:       fmt.Sprintf("%v", event["type"]),
+		Body:        string(body),
+		Signature:   signature,
+		IsProcessed: false,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 	
 	return s.processIncomingWebhook(incoming)
@@ -329,15 +338,15 @@ func (s *Service) ProcessPayPalWebhook(tenantID uuid.UUID, signature string, bod
 	}
 	
 	incoming := &WebhookIncoming{
-		ID:        uuid.New(),
-		TenantID:  tenantID,
-		Provider:  ProviderPayPal,
-		EventType: fmt.Sprintf("%v", event["event_type"]),
-		Payload:   event,
-		Signature: signature,
-		Processed: false,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:          uuid.New(),
+		TenantID:    tenantID,
+		Provider:    ProviderPayPal,
+		Event:       fmt.Sprintf("%v", event["event_type"]),
+		Body:        string(body),
+		Signature:   signature,
+		IsProcessed: false,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 	
 	return s.processIncomingWebhook(incoming)
@@ -350,15 +359,15 @@ func (s *Service) ProcessBkashWebhook(tenantID uuid.UUID, signature string, body
 	}
 	
 	incoming := &WebhookIncoming{
-		ID:        uuid.New(),
-		TenantID:  tenantID,
-		Provider:  ProviderBkash,
-		EventType: fmt.Sprintf("%v", event["event_type"]),
-		Payload:   event,
-		Signature: signature,
-		Processed: false,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:          uuid.New(),
+		TenantID:    tenantID,
+		Provider:    ProviderBkash,
+		Event:       fmt.Sprintf("%v", event["event_type"]),
+		Body:        string(body),
+		Signature:   signature,
+		IsProcessed: false,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 	
 	return s.processIncomingWebhook(incoming)
@@ -371,15 +380,15 @@ func (s *Service) ProcessNagadWebhook(tenantID uuid.UUID, signature string, body
 	}
 	
 	incoming := &WebhookIncoming{
-		ID:        uuid.New(),
-		TenantID:  tenantID,
-		Provider:  ProviderNagad,
-		EventType: fmt.Sprintf("%v", event["event_type"]),
-		Payload:   event,
-		Signature: signature,
-		Processed: false,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:          uuid.New(),
+		TenantID:    tenantID,
+		Provider:    ProviderNagad,
+		Event:       fmt.Sprintf("%v", event["event_type"]),
+		Body:        string(body),
+		Signature:   signature,
+		IsProcessed: false,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 	
 	return s.processIncomingWebhook(incoming)
@@ -392,15 +401,15 @@ func (s *Service) ProcessPathaoWebhook(tenantID uuid.UUID, signature string, bod
 	}
 	
 	incoming := &WebhookIncoming{
-		ID:        uuid.New(),
-		TenantID:  tenantID,
-		Provider:  ProviderPathao,
-		EventType: fmt.Sprintf("%v", event["event_type"]),
-		Payload:   event,
-		Signature: signature,
-		Processed: false,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:          uuid.New(),
+		TenantID:    tenantID,
+		Provider:    ProviderPathao,
+		Event:       fmt.Sprintf("%v", event["event_type"]),
+		Body:        string(body),
+		Signature:   signature,
+		IsProcessed: false,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 	
 	return s.processIncomingWebhook(incoming)
@@ -413,15 +422,15 @@ func (s *Service) ProcessRedXWebhook(tenantID uuid.UUID, signature string, body 
 	}
 	
 	incoming := &WebhookIncoming{
-		ID:        uuid.New(),
-		TenantID:  tenantID,
-		Provider:  ProviderRedX,
-		EventType: fmt.Sprintf("%v", event["event_type"]),
-		Payload:   event,
-		Signature: signature,
-		Processed: false,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:          uuid.New(),
+		TenantID:    tenantID,
+		Provider:    ProviderRedX,
+		Event:       fmt.Sprintf("%v", event["event_type"]),
+		Body:        string(body),
+		Signature:   signature,
+		IsProcessed: false,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 	
 	return s.processIncomingWebhook(incoming)
@@ -434,15 +443,15 @@ func (s *Service) ProcessPaperflyWebhook(tenantID uuid.UUID, signature string, b
 	}
 	
 	incoming := &WebhookIncoming{
-		ID:        uuid.New(),
-		TenantID:  tenantID,
-		Provider:  ProviderPaperfly,
-		EventType: fmt.Sprintf("%v", event["event_type"]),
-		Payload:   event,
-		Signature: signature,
-		Processed: false,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:          uuid.New(),
+		TenantID:    tenantID,
+		Provider:    ProviderPaperfly,
+		Event:       fmt.Sprintf("%v", event["event_type"]),
+		Body:        string(body),
+		Signature:   signature,
+		IsProcessed: false,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 	
 	return s.processIncomingWebhook(incoming)
@@ -463,9 +472,9 @@ func (s *Service) processIncomingWebhook(incoming *WebhookIncoming) error {
 func (s *Service) handleIncomingWebhook(incoming *WebhookIncoming) {
 	// Mark as processed
 	defer func() {
-		incoming.Processed = true
-		incoming.ProcessedAt = &time.Time{}
-		*incoming.ProcessedAt = time.Now()
+		incoming.IsProcessed = true
+		now := time.Now()
+		incoming.ProcessedAt = &now
 		incoming.UpdatedAt = time.Now()
 		s.repo.UpdateIncomingWebhook(incoming)
 	}()
@@ -525,8 +534,12 @@ func (s *Service) GenerateWebhookSignature(payload []byte, secret string) string
 }
 
 func (s *Service) IsRateLimited(tenantID uuid.UUID, endpointID uuid.UUID) bool {
+	// Calculate current window start (beginning of current hour)
+	now := time.Now()
+	windowStart := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 0, 0, 0, now.Location())
+	
 	// Get current rate limit for endpoint
-	rateLimit, err := s.repo.GetRateLimit(tenantID, endpointID)
+	rateLimit, err := s.repo.GetRateLimit(tenantID, endpointID, windowStart)
 	if err != nil {
 		// No rate limit exists, not limited
 		return false
@@ -535,7 +548,7 @@ func (s *Service) IsRateLimited(tenantID uuid.UUID, endpointID uuid.UUID) bool {
 	// Check if we're in a new time window (1 hour)
 	if time.Since(rateLimit.WindowStart) > time.Hour {
 		// Reset the window
-		rateLimit.Count = 0
+		rateLimit.RequestCount = 0
 		rateLimit.WindowStart = time.Now()
 		rateLimit.UpdatedAt = time.Now()
 		s.repo.UpdateRateLimit(rateLimit)
@@ -544,19 +557,23 @@ func (s *Service) IsRateLimited(tenantID uuid.UUID, endpointID uuid.UUID) bool {
 	
 	// Check if rate limit exceeded (default: 1000 requests per hour)
 	maxRequests := 1000
-	return rateLimit.Count >= maxRequests
+	return rateLimit.RequestCount >= maxRequests
 }
 
 func (s *Service) IncrementRateLimit(tenantID uuid.UUID, endpointID uuid.UUID) error {
+	// Calculate current window start (beginning of current hour)
+	now := time.Now()
+	windowStart := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 0, 0, 0, now.Location())
+	
 	// Get current rate limit
-	rateLimit, err := s.repo.GetRateLimit(tenantID, endpointID)
+	rateLimit, err := s.repo.GetRateLimit(tenantID, endpointID, windowStart)
 	if err != nil {
 		// No rate limit exists, create one
 		rateLimit = &WebhookRateLimit{
 			ID:         uuid.New(),
 			TenantID:   tenantID,
 			EndpointID: endpointID,
-			Count:      1,
+			RequestCount: 1,
 			WindowStart: time.Now(),
 			CreatedAt:  time.Now(),
 			UpdatedAt:  time.Now(),
@@ -568,15 +585,16 @@ func (s *Service) IncrementRateLimit(tenantID uuid.UUID, endpointID uuid.UUID) e
 	// Check if we're in a new time window (1 hour)
 	if time.Since(rateLimit.WindowStart) > time.Hour {
 		// Reset the window
-		rateLimit.Count = 1
+		rateLimit.RequestCount = 1
 		rateLimit.WindowStart = time.Now()
 	} else {
 		// Increment count
-		rateLimit.Count++
+		rateLimit.RequestCount++
 	}
 	
 	rateLimit.UpdatedAt = time.Now()
-	return s.repo.UpdateRateLimit(rateLimit)
+	_, err = s.repo.UpdateRateLimit(rateLimit)
+	return err
 }
 
 // Monitoring and Analytics
@@ -589,8 +607,16 @@ func (s *Service) GetFailedDeliveries(tenantID uuid.UUID, limit int) ([]*Webhook
 	return s.repo.GetFailedDeliveries(tenantID, limit)
 }
 
+func (s *Service) GetDeliveries(tenantID uuid.UUID, endpointID uuid.UUID) ([]*WebhookDelivery, error) {
+	return s.repo.GetDeliveries(tenantID, endpointID, 100, 0) // Default limit and offset
+}
+
+func (s *Service) GetDelivery(tenantID uuid.UUID, deliveryID uuid.UUID) (*WebhookDelivery, error) {
+	return s.repo.GetDelivery(tenantID, deliveryID)
+}
+
 func (s *Service) GetEndpointHealth(tenantID uuid.UUID, endpointID uuid.UUID) (*EndpointHealth, error) {
-	return s.repo.GetEndpointHealth(tenantID, endpointID)
+	return s.repo.GetEndpointHealth(tenantID, endpointID, 7) // Default to 7 days
 }
 
 func (s *Service) TestEndpoint(tenantID uuid.UUID, endpointID uuid.UUID) (*TestResult, error) {
@@ -665,7 +691,7 @@ func (s *Service) TestEndpoint(tenantID uuid.UUID, endpointID uuid.UUID) (*TestR
 
 func (s *Service) ScheduleRetry(delivery *WebhookDelivery) error {
 	// Calculate next retry time using exponential backoff
-	backoffDuration := time.Duration(delivery.Attempts*delivery.Attempts) * time.Minute
+	backoffDuration := time.Duration(delivery.AttemptCount*delivery.AttemptCount) * time.Minute
 	if backoffDuration > 24*time.Hour {
 		backoffDuration = 24 * time.Hour
 	}
@@ -674,7 +700,8 @@ func (s *Service) ScheduleRetry(delivery *WebhookDelivery) error {
 	delivery.NextRetryAt = &nextRetry
 	delivery.UpdatedAt = time.Now()
 	
-	return s.repo.UpdateDelivery(delivery)
+	_, err := s.repo.UpdateDelivery(delivery)
+	return err
 }
 
 func (s *Service) CleanupOldDeliveries(olderThan time.Duration) error {
@@ -692,7 +719,8 @@ func (s *Service) DisableFailingEndpoints() error {
 	for _, endpoint := range failingEndpoints {
 		endpoint.IsActive = false
 		endpoint.UpdatedAt = time.Now()
-		if err := s.repo.UpdateEndpoint(endpoint); err != nil {
+		_, err := s.repo.UpdateEndpoint(endpoint)
+		if err != nil {
 			// Log error but continue with other endpoints
 			continue
 		}

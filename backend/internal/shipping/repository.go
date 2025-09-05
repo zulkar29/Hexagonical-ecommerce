@@ -212,9 +212,9 @@ func (r *Repository) GetLatestShippingTracking(labelID uuid.UUID) (*ShippingTrac
 
 // Shipping Provider Repository Methods
 
-func (r *Repository) CreateOrUpdateProvider(provider *ShippingProvider) error {
+func (r *Repository) CreateOrUpdateProvider(provider *ShippingProviderConfig) error {
 	// First try to find existing provider
-	var existing ShippingProvider
+	var existing ShippingProviderConfig
 	err := r.db.Where("tenant_id = ? AND provider = ?", provider.TenantID, provider.Provider).First(&existing).Error
 	
 	if err == gorm.ErrRecordNotFound {
@@ -235,8 +235,8 @@ func (r *Repository) CreateOrUpdateProvider(provider *ShippingProvider) error {
 	return r.db.Save(&existing).Error
 }
 
-func (r *Repository) GetShippingProvider(tenantID uuid.UUID, providerName string) (*ShippingProvider, error) {
-	var provider ShippingProvider
+func (r *Repository) GetShippingProvider(tenantID uuid.UUID, providerName string) (*ShippingProviderConfig, error) {
+	var provider ShippingProviderConfig
 	err := r.db.Where("tenant_id = ? AND provider = ?", tenantID, providerName).First(&provider).Error
 	if err != nil {
 		return nil, err
@@ -244,16 +244,16 @@ func (r *Repository) GetShippingProvider(tenantID uuid.UUID, providerName string
 	return &provider, nil
 }
 
-func (r *Repository) GetShippingProviders(tenantID uuid.UUID) ([]ShippingProvider, error) {
-	var providers []ShippingProvider
+func (r *Repository) GetShippingProviders(tenantID uuid.UUID) ([]ShippingProviderConfig, error) {
+	var providers []ShippingProviderConfig
 	err := r.db.Where("tenant_id = ?", tenantID).
 		Order("name ASC").
 		Find(&providers).Error
 	return providers, err
 }
 
-func (r *Repository) GetActiveShippingProviders(tenantID uuid.UUID) ([]ShippingProvider, error) {
-	var providers []ShippingProvider
+func (r *Repository) GetActiveShippingProviders(tenantID uuid.UUID) ([]ShippingProviderConfig, error) {
+	var providers []ShippingProviderConfig
 	err := r.db.Where("tenant_id = ? AND is_active = ?", tenantID, true).
 		Order("name ASC").
 		Find(&providers).Error

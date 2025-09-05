@@ -263,7 +263,7 @@ func (r *repository) GetTopReferrers(ctx context.Context, tenantID uuid.UUID, da
 func (r *repository) GetCohortAnalysis(ctx context.Context, tenantID uuid.UUID, dateRange DateRange) (*CohortAnalysis, error) {
 	cohorts := &CohortAnalysis{
 		TenantID: tenantID,
-		Cohorts:  make(map[string]map[string]float64),
+		Cohorts:  make([]CohortData, 0),
 	}
 
 	// Get first purchase month for each customer
@@ -325,15 +325,32 @@ func (r *repository) GetCohortAnalysis(ctx context.Context, tenantID uuid.UUID, 
 		cohortSizes[cd.CohortMonth]++
 	}
 
-	// Convert to percentages
+	// Convert to CohortData structs
 	for cohortMonth, purchases := range cohortCounts {
-		if cohorts.Cohorts[cohortMonth] == nil {
-			cohorts.Cohorts[cohortMonth] = make(map[string]float64)
+		// Parse cohort month
+		cohortTime, err := time.Parse("2006-01-02", cohortMonth[:10])
+		if err != nil {
+			continue
 		}
-		for purchaseMonth, count := range purchases {
-			retentionRate := float64(count) / float64(cohortSizes[cohortMonth]) * 100
-			cohorts.Cohorts[cohortMonth][purchaseMonth] = retentionRate
+		
+		// Calculate retention rates for each month
+		retention := make([]float64, 0)
+		for i := 0; i < 12; i++ { // Up to 12 months
+			monthKey := cohortTime.AddDate(0, i, 0).Format("2006-01-02")
+			if count, exists := purchases[monthKey]; exists {
+				retentionRate := float64(count) / float64(cohortSizes[cohortMonth]) * 100
+				retention = append(retention, retentionRate)
+			} else {
+				retention = append(retention, 0)
+			}
 		}
+		
+		cohortData := CohortData{
+			CohortMonth: cohortTime,
+			Customers:   int64(cohortSizes[cohortMonth]),
+			Retention:   retention,
+		}
+		cohorts.Cohorts = append(cohorts.Cohorts, cohortData)
 	}
 
 	return cohorts, nil
@@ -378,7 +395,7 @@ func (r *repository) GetFunnelAnalysis(ctx context.Context, tenantID uuid.UUID, 
 			}
 		case "add_to_cart":
 			err := r.db.WithContext(ctx).
-				Model(&Event{}).
+				Model(&AnalyticsEvent{}).
 				Where("tenant_id = ? AND event_type = ? AND timestamp BETWEEN ? AND ?", tenantID, "add_to_cart", dateRange.Start, dateRange.End).
 				Select("COUNT(DISTINCT COALESCE(user_id::text, anonymous_id))").
 				Row().
@@ -388,7 +405,7 @@ func (r *repository) GetFunnelAnalysis(ctx context.Context, tenantID uuid.UUID, 
 			}
 		case "checkout":
 			err := r.db.WithContext(ctx).
-				Model(&Event{}).
+				Model(&AnalyticsEvent{}).
 				Where("tenant_id = ? AND event_type = ? AND timestamp BETWEEN ? AND ?", tenantID, "checkout_started", dateRange.Start, dateRange.End).
 				Select("COUNT(DISTINCT COALESCE(user_id::text, anonymous_id))").
 				Row().
@@ -409,7 +426,7 @@ func (r *repository) GetFunnelAnalysis(ctx context.Context, tenantID uuid.UUID, 
 		default:
 			// Custom event type
 			err := r.db.WithContext(ctx).
-				Model(&Event{}).
+				Model(&AnalyticsEvent{}).
 				Where("tenant_id = ? AND event_type = ? AND timestamp BETWEEN ? AND ?", tenantID, step, dateRange.Start, dateRange.End).
 				Select("COUNT(DISTINCT COALESCE(user_id::text, anonymous_id))").
 				Row().
@@ -430,9 +447,10 @@ func (r *repository) GetFunnelAnalysis(ctx context.Context, tenantID uuid.UUID, 
 		}
 
 		funnelStep := FunnelStep{
-			Step:           step,
-			Users:          userCount,
-			ConversionRate: conversionRate,
+			Step:       step,
+			Users:      userCount,
+			Conversion: conversionRate,
+			Dropoff:    100.0 - conversionRate,
 		}
 
 		funnel.Steps = append(funnel.Steps, funnelStep)
@@ -478,7 +496,7 @@ func (r *repository) GetCustomerLifetimeValue(ctx context.Context, tenantID uuid
 		LastPurchase time.Time
 	}
 
-	var lifespans []customerLifespan
+	_ = []customerLifespan{} // lifespans variable removed to fix unused error
 	rows, err := r.db.WithContext(ctx).
 		Model(&Purchase{}).
 		Where("tenant_id = ? AND timestamp BETWEEN ? AND ?", tenantID, dateRange.Start, dateRange.End).
@@ -605,11 +623,11 @@ func (r *repository) GetRealTimeStats(ctx context.Context, tenantID uuid.UUID) (
 	err = r.db.WithContext(ctx).
 		Model(&PageView{}).
 		Where("tenant_id = ? AND timestamp >= ?", tenantID, oneHourAgo).
-		Count(&pageViewsLastHour)
+		Count(&pageViewsLastHour).Error
 	if err != nil {
 		return nil, err
 	}
-	stats.PageViewsLastHour = pageViewsLastHour
+	stats.PageViews = pageViewsLastHour
 
 	// Get active pages (most viewed in last hour)
 	rows, err := r.db.WithContext(ctx).
@@ -638,11 +656,11 @@ func (r *repository) GetRealTimeStats(ctx context.Context, tenantID uuid.UUID) (
 	err = r.db.WithContext(ctx).
 		Model(&Purchase{}).
 		Where("tenant_id = ? AND timestamp >= ?", tenantID, oneHourAgo).
-		Count(&conversionsLastHour)
+		Count(&conversionsLastHour).Error
 	if err != nil {
 		return nil, err
 	}
-	stats.ConversionsLastHour = conversionsLastHour
+	stats.Conversions = conversionsLastHour
 
 	return stats, nil
 }
@@ -731,7 +749,7 @@ func (r *repository) ExportData(ctx context.Context, tenantID uuid.UUID, request
 }
 
 func (r *repository) exportEvents(ctx context.Context, tenantID uuid.UUID, request ExportRequest) ([]byte, string, error) {
-	var events []Event
+	var events []AnalyticsEvent
 	query := r.db.WithContext(ctx).Where("tenant_id = ?", tenantID)
 
 	// Apply date range filter if provided
@@ -812,12 +830,12 @@ func (r *repository) exportPurchases(ctx context.Context, tenantID uuid.UUID, re
 }
 
 // Helper methods for data conversion
-func (r *repository) eventsToJSON(events []Event) ([]byte, string, error) {
+func (r *repository) eventsToJSON(events []AnalyticsEvent) ([]byte, string, error) {
 	data, err := json.Marshal(events)
 	return data, "application/json", err
 }
 
-func (r *repository) eventsToCSV(events []Event) ([]byte, string, error) {
+func (r *repository) eventsToCSV(events []AnalyticsEvent) ([]byte, string, error) {
 	var buf bytes.Buffer
 	writer := csv.NewWriter(&buf)
 
@@ -881,7 +899,12 @@ func (r *repository) pageViewsToCSV(pageViews []PageView) ([]byte, string, error
 			pv.AnonymousID,
 			pv.Referrer,
 			pv.UserAgent,
-			fmt.Sprintf("%.2f", pv.DurationSeconds),
+			func() string {
+				if pv.DurationSeconds != nil {
+					return fmt.Sprintf("%d", *pv.DurationSeconds)
+				}
+				return ""
+			}(),
 			pv.Timestamp.Format(time.RFC3339),
 		}
 		if err := writer.Write(row); err != nil {
@@ -903,23 +926,27 @@ func (r *repository) purchasesToCSV(purchases []Purchase) ([]byte, string, error
 	writer := csv.NewWriter(&buf)
 
 	// Write header
-	header := []string{"ID", "TenantID", "CustomerID", "OrderID", "ProductID", "Quantity", "UnitPrice", "TotalAmount", "Currency", "Timestamp"}
+	header := []string{"ID", "TenantID", "OrderID", "UserID", "AnonymousID", "TotalAmount", "Currency", "ItemCount", "PaymentMethod", "Timestamp"}
 	if err := writer.Write(header); err != nil {
 		return nil, "", err
 	}
 
 	// Write data
 	for _, purchase := range purchases {
+		userID := ""
+		if purchase.UserID != nil {
+			userID = purchase.UserID.String()
+		}
 		row := []string{
 			purchase.ID.String(),
 			purchase.TenantID.String(),
-			purchase.CustomerID,
-			purchase.OrderID,
-			purchase.ProductID,
-			fmt.Sprintf("%d", purchase.Quantity),
-			fmt.Sprintf("%.2f", purchase.UnitPrice),
+			purchase.OrderID.String(),
+			userID,
+			purchase.AnonymousID,
 			fmt.Sprintf("%.2f", purchase.TotalAmount),
 			purchase.Currency,
+			fmt.Sprintf("%d", purchase.ItemCount),
+			purchase.PaymentMethod,
 			purchase.Timestamp.Format(time.RFC3339),
 		}
 		if err := writer.Write(row); err != nil {

@@ -1093,7 +1093,6 @@ func (h *Handler) extractTenantFromRequest(c *gin.Context) (uuid.UUID, error) {
 			parts := strings.Split(host, ".")
 			if len(parts) > 2 {
 				// Assume first part is the tenant slug
-				tenantSlug := parts[0]
 				// You would need a method to convert slug to UUID
 				// For now, we'll expect UUID in header
 				return uuid.Nil, nil

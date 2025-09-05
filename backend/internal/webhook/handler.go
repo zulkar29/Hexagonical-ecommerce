@@ -69,10 +69,16 @@ func (h *Handler) CreateEndpoint(c *gin.Context) {
 		return
 	}
 	
+	// Convert string events to WebhookEvent type
+	events := make([]WebhookEvent, len(req.Events))
+	for i, event := range req.Events {
+		events[i] = WebhookEvent(event)
+	}
+	
 	endpoint := &WebhookEndpoint{
 		TenantID:    tenantID,
 		URL:         req.URL,
-		Events:      req.Events,
+		Events:      events,
 		Description: req.Description,
 		IsActive:    req.IsActive,
 	}
@@ -117,7 +123,12 @@ func (h *Handler) UpdateEndpoint(c *gin.Context) {
 		endpoint.URL = req.URL
 	}
 	if req.Events != nil {
-		endpoint.Events = req.Events
+		// Convert string events to WebhookEvent type
+		events := make([]WebhookEvent, len(req.Events))
+		for i, event := range req.Events {
+			events[i] = WebhookEvent(event)
+		}
+		endpoint.Events = events
 	}
 	if req.Description != "" {
 		endpoint.Description = req.Description
@@ -126,7 +137,7 @@ func (h *Handler) UpdateEndpoint(c *gin.Context) {
 		endpoint.IsActive = *req.IsActive
 	}
 	
-	updatedEndpoint, err := h.service.UpdateEndpoint(tenantID, endpoint)
+	updatedEndpoint, err := h.service.UpdateEndpoint(tenantID, endpointID, endpoint)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -224,13 +235,17 @@ func (h *Handler) GetDeliveries(c *gin.Context) {
 	}
 	
 	// Parse query parameters
-	limitStr := c.DefaultQuery("limit", "50")
-	limit, _ := strconv.Atoi(limitStr)
+	endpointIDStr := c.Query("endpoint_id")
+	var endpointID uuid.UUID
+	if endpointIDStr != "" {
+		endpointID, err = uuid.Parse(endpointIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid endpoint ID"})
+			return
+		}
+	}
 	
-	offsetStr := c.DefaultQuery("offset", "0")
-	offset, _ := strconv.Atoi(offsetStr)
-	
-	deliveries, err := h.service.GetDeliveries(tenantID, limit, offset)
+	deliveries, err := h.service.GetDeliveries(tenantID, endpointID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -618,18 +633,38 @@ func (h *Handler) validateWebhookSignature() gin.HandlerFunc {
 
 func (h *Handler) rateLimitMiddleware() gin.HandlerFunc {
 	return gin.HandlerFunc(func(c *gin.Context) {
-		// Get client IP
-		clientIP := c.ClientIP()
+		// Get tenant ID from context or header
+		tenantID, err := h.getTenantID(c)
+		if err != nil {
+			// Skip rate limiting if no tenant ID available
+			c.Next()
+			return
+		}
 		
-		// Check rate limit (simplified implementation)
-		if h.service.IsRateLimited(clientIP) {
+		// For rate limiting, we'll use a default endpoint ID or skip if not available
+		endpointIDStr := c.Param("id")
+		if endpointIDStr == "" {
+			// Skip rate limiting if no endpoint ID available
+			c.Next()
+			return
+		}
+		
+		endpointID, err := uuid.Parse(endpointIDStr)
+		if err != nil {
+			// Skip rate limiting if invalid endpoint ID
+			c.Next()
+			return
+		}
+		
+		// Check rate limit
+		if h.service.IsRateLimited(tenantID, endpointID) {
 			c.JSON(http.StatusTooManyRequests, gin.H{"error": "Rate limit exceeded"})
 			c.Abort()
 			return
 		}
 		
 		// Increment rate limit counter
-		h.service.IncrementRateLimit(clientIP)
+		h.service.IncrementRateLimit(tenantID, endpointID)
 		c.Next()
 	})
 }

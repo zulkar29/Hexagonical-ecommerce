@@ -526,12 +526,12 @@ func (s *Service) GetDeliveryEstimate(req DeliveryEstimateRequest) (*DeliveryEst
 
 // Provider Management Services
 
-func (s *Service) GetShippingProviders(tenantID uuid.UUID) ([]ShippingProvider, error) {
+func (s *Service) GetShippingProviders(tenantID uuid.UUID) ([]ShippingProviderConfig, error) {
 	return s.repository.GetShippingProviders(tenantID)
 }
 
 func (s *Service) ConfigureProvider(tenantID uuid.UUID, providerName string, req ProviderConfigRequest) error {
-	provider := &ShippingProvider{
+	provider := &ShippingProviderConfig{
 		TenantID:    tenantID,
 		Provider:    ShippingProvider(providerName),
 		Name:        providerName,
@@ -691,7 +691,8 @@ func (s *Service) ProcessPathaoWebhook(payload map[string]interface{}) error {
 		CreatedAt:   time.Now(),
 	}
 
-	return s.repository.CreateShippingTracking(tracking)
+	_, err = s.repository.CreateShippingTracking(tracking)
+	return err
 }
 
 func (s *Service) ProcessRedXWebhook(payload map[string]interface{}) error {
@@ -742,7 +743,8 @@ func (s *Service) ProcessRedXWebhook(payload map[string]interface{}) error {
 		CreatedAt:   time.Now(),
 	}
 
-	return s.repository.CreateShippingTracking(tracking)
+	_, err = s.repository.CreateShippingTracking(tracking)
+	return err
 }
 
 func (s *Service) ProcessPaperflyWebhook(payload map[string]interface{}) error {
@@ -793,7 +795,8 @@ func (s *Service) ProcessPaperflyWebhook(payload map[string]interface{}) error {
 		CreatedAt:   time.Now(),
 	}
 
-	return s.repository.CreateShippingTracking(tracking)
+	_, err = s.repository.CreateShippingTracking(tracking)
+	return err
 }
 
 func (s *Service) ProcessDHLWebhook(payload map[string]interface{}) error {
@@ -852,7 +855,8 @@ func (s *Service) ProcessDHLWebhook(payload map[string]interface{}) error {
 		CreatedAt:   time.Now(),
 	}
 
-	return s.repository.CreateShippingTracking(tracking)
+	_, err = s.repository.CreateShippingTracking(tracking)
+	return err
 }
 
 func (s *Service) ProcessFedExWebhook(payload map[string]interface{}) error {
@@ -913,7 +917,8 @@ func (s *Service) ProcessFedExWebhook(payload map[string]interface{}) error {
 		CreatedAt:   time.Now(),
 	}
 
-	return s.repository.CreateShippingTracking(tracking)
+	_, err = s.repository.CreateShippingTracking(tracking)
+	return err
 }
 
 // Helper function to safely extract string from payload

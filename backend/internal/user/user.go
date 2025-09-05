@@ -32,10 +32,10 @@ type User struct {
 	TenantID *uuid.UUID `json:"tenant_id,omitempty" gorm:"index"` // Null for super admins
 	
 	// Basic information
-	Email     string `json:"email" gorm:"unique;not null"`
-	Password  string `json:"-" gorm:"not null"` // Hidden in JSON
-	FirstName string `json:"first_name" gorm:"not null"`
-	LastName  string `json:"last_name" gorm:"not null"`
+	Email     string `json:"email" gorm:"unique;not null" validate:"required,email"`
+	Password  string `json:"-" gorm:"not null" validate:"required,min=8"` // Hidden in JSON
+	FirstName string `json:"first_name" gorm:"not null" validate:"required"`
+	LastName  string `json:"last_name" gorm:"not null" validate:"required"`
 	Phone     string `json:"phone,omitempty"`
 	Avatar    string `json:"avatar,omitempty"`
 	
@@ -190,24 +190,7 @@ func (p *Permission) GetPermissionKey() string {
 	return p.Resource + ":" + p.Action
 }
 
-// Request/Response Structures
-
-// RegisterRequest represents user registration request
-type RegisterRequest struct {
-	Email     string     `json:"email" validate:"required,email"`
-	Password  string     `json:"password" validate:"required,min=8"`
-	FirstName string     `json:"first_name" validate:"required"`
-	LastName  string     `json:"last_name" validate:"required"`
-	Phone     string     `json:"phone,omitempty"`
-	Role      UserRole   `json:"role,omitempty"`
-	TenantID  *uuid.UUID `json:"tenant_id,omitempty"`
-}
-
-// LoginRequest represents user login request
-type LoginRequest struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required"`
-}
+// External Integration Structures
 
 // LoginResponse represents login response with tokens
 type LoginResponse struct {
@@ -224,35 +207,7 @@ type TokenResponse struct {
 	ExpiresIn    int    `json:"expires_in"`
 }
 
-// UpdateProfileRequest represents profile update request
-type UpdateProfileRequest struct {
-	FirstName string `json:"first_name,omitempty"`
-	LastName  string `json:"last_name,omitempty"`
-	Phone     string `json:"phone,omitempty"`
-	Avatar    string `json:"avatar,omitempty"`
-}
 
-// ChangePasswordRequest represents password change request
-type ChangePasswordRequest struct {
-	OldPassword string `json:"old_password" validate:"required"`
-	NewPassword string `json:"new_password" validate:"required,min=8"`
-}
-
-// ForgotPasswordRequest represents forgot password request
-type ForgotPasswordRequest struct {
-	Email string `json:"email" validate:"required,email"`
-}
-
-// ResetPasswordRequest represents password reset request
-type ResetPasswordRequest struct {
-	Token       string `json:"token" validate:"required"`
-	NewPassword string `json:"new_password" validate:"required,min=8"`
-}
-
-// VerifyEmailRequest represents email verification request
-type VerifyEmailRequest struct {
-	Token string `json:"token" validate:"required"`
-}
 
 // UserFilter represents user listing filters
 type UserFilter struct {

@@ -9,11 +9,11 @@ import (
 
 // Handler handles HTTP requests for tenant operations
 type Handler struct {
-	service *Service
+	service ServiceInterface
 }
 
 // NewHandler creates a new tenant handler
-func NewHandler(service *Service) *Handler {
+func NewHandler(service ServiceInterface) *Handler {
 	return &Handler{
 		service: service,
 	}

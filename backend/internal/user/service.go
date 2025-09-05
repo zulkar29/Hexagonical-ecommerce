@@ -1,7 +1,9 @@
 package user
 
 import (
+	"context"
 	"errors"
+	"log"
 	"strings"
 	"time"
 
@@ -11,53 +13,54 @@ import (
 	"ecommerce-saas/internal/shared/utils"
 )
 
+// ResetTokenData represents password reset token data
+type ResetTokenData struct {
+	UserID    uuid.UUID
+	ExpiresAt time.Time
+}
+
 // Service handles user business logic
 type Service struct {
-	repo       Repository
-	jwtManager *utils.JWTManager
+	repo        Repository
+	jwtManager  *utils.JWTManager
+	resetTokens map[string]ResetTokenData
 }
 
 // NewService creates a new user service
 func NewService(repo Repository, jwtManager *utils.JWTManager) *Service {
 	return &Service{
-		repo:       repo,
-		jwtManager: jwtManager,
+		repo:        repo,
+		jwtManager:  jwtManager,
+		resetTokens: make(map[string]ResetTokenData),
 	}
 }
 
-// RegisterUser registers a new user
-func (s *Service) RegisterUser(req RegisterRequest) (*User, error) {
+// RegisterUser creates a new user account
+func (s *Service) RegisterUser(ctx context.Context, user *User) (*User, error) {
 	// Validate input
-	if err := s.validateRegisterRequest(req); err != nil {
+	if err := s.validateUser(user); err != nil {
 		return nil, err
 	}
 
 	// Check if user already exists
-	existingUser, _ := s.repo.GetByEmail(req.Email)
+	existingUser, _ := s.repo.GetByEmail(user.Email)
 	if existingUser != nil {
-		return nil, errors.New("user already exists with this email")
+		return nil, errors.New("user already exists")
 	}
 
 	// Hash password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create user
-	user := &User{
-		ID:        uuid.New(),
-		TenantID:  req.TenantID,
-		Email:     strings.ToLower(strings.TrimSpace(req.Email)),
-		Password:  string(hashedPassword),
-		FirstName: strings.TrimSpace(req.FirstName),
-		LastName:  strings.TrimSpace(req.LastName),
-		Phone:     req.Phone,
-		Role:      req.Role,
-		Status:    StatusPending, // Requires email verification
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
+	// Set user fields
+	user.ID = uuid.New()
+	user.Email = strings.ToLower(strings.TrimSpace(user.Email))
+	user.Password = string(hashedPassword)
+	user.Status = StatusActive
+	user.CreatedAt = time.Now()
+	user.UpdatedAt = time.Now()
 
 	// Set default role if not provided
 	if user.Role == "" {
@@ -69,14 +72,17 @@ func (s *Service) RegisterUser(req RegisterRequest) (*User, error) {
 		return nil, err
 	}
 
-	// TODO: Send verification email
-	// s.sendVerificationEmail(user)
+	// Send verification email
+	if err := s.sendVerificationEmail(user); err != nil {
+		// Log error but don't fail registration
+		log.Printf("Failed to send verification email: %v", err)
+	}
 
 	return user, nil
 }
 
 // LoginUser authenticates a user and returns tokens
-func (s *Service) LoginUser(email, password string) (*LoginResponse, error) {
+func (s *Service) LoginUser(ctx context.Context, email, password string) (*LoginResponse, error) {
 	// Get user by email
 	user, err := s.repo.GetByEmail(strings.ToLower(strings.TrimSpace(email)))
 	if err != nil {
@@ -214,7 +220,7 @@ func (s *Service) VerifyEmail(userID uuid.UUID, token string) error {
 }
 
 // ChangePassword changes user password
-func (s *Service) ChangePassword(userID uuid.UUID, oldPassword, newPassword string) error {
+func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) error {
 	user, err := s.repo.GetByID(userID)
 	if err != nil {
 		return err
@@ -248,34 +254,45 @@ func (s *Service) ChangePassword(userID uuid.UUID, oldPassword, newPassword stri
 	return s.repo.Update(user)
 }
 
-// ResetPassword initiates password reset
-func (s *Service) ResetPassword(email string) error {
-	user, err := s.repo.GetByEmail(email)
-	if err != nil {
-		// Don't reveal if email exists
-		return nil
+// ResetPassword resets user password with token
+func (s *Service) ResetPassword(ctx context.Context, token, newPassword string) error {
+	// Validate token
+	tokenData, exists := s.resetTokens[token]
+	if !exists {
+		return errors.New("invalid reset token")
 	}
 
-	// Generate reset token
-	resetToken, err := utils.GenerateResetToken()
+	// Check if token is expired
+	if time.Now().After(tokenData.ExpiresAt) {
+		delete(s.resetTokens, token)
+		return errors.New("reset token has expired")
+	}
+
+	// Get user
+	user, err := s.repo.GetByID(tokenData.UserID)
 	if err != nil {
 		return err
 	}
 
-	// Store reset token with expiry (24 hours)
-	resetTokenHash := utils.GenerateHash(resetToken)
-	now := time.Now()
-	user.PasswordChangedAt = &now // Use this field to store reset token hash temporarily
-	user.UpdatedAt = now
+	// Hash new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
 
+	// Update password
+	user.Password = string(hashedPassword)
+	user.PasswordChangedAt = &time.Time{}
+	*user.PasswordChangedAt = time.Now()
+	user.UpdatedAt = time.Now()
+
+	// Save user
 	if err := s.repo.Update(user); err != nil {
 		return err
 	}
 
-	// TODO: Send reset email with resetToken
-	// emailService.SendPasswordResetEmail(user.Email, resetToken)
-
-	_ = resetTokenHash // Will be used when implementing email service
+	// Remove used token
+	delete(s.resetTokens, token)
 
 	return nil
 }
@@ -285,25 +302,25 @@ func (s *Service) GetProfile(userID uuid.UUID) (*User, error) {
 	return s.repo.GetByID(userID)
 }
 
-// UpdateProfile updates user profile
-func (s *Service) UpdateProfile(userID uuid.UUID, req UpdateProfileRequest) (*User, error) {
+// UpdateProfile updates user profile information
+func (s *Service) UpdateProfile(ctx context.Context, userID uuid.UUID, updates *User) (*User, error) {
 	user, err := s.repo.GetByID(userID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Update fields
-	if req.FirstName != "" {
-		user.FirstName = strings.TrimSpace(req.FirstName)
+	if updates.FirstName != "" {
+		user.FirstName = strings.TrimSpace(updates.FirstName)
 	}
-	if req.LastName != "" {
-		user.LastName = strings.TrimSpace(req.LastName)
+	if updates.LastName != "" {
+		user.LastName = strings.TrimSpace(updates.LastName)
 	}
-	if req.Phone != "" {
-		user.Phone = req.Phone
+	if updates.Phone != "" {
+		user.Phone = updates.Phone
 	}
-	if req.Avatar != "" {
-		user.Avatar = req.Avatar
+	if updates.Avatar != "" {
+		user.Avatar = updates.Avatar
 	}
 
 	user.UpdatedAt = time.Now()
@@ -316,27 +333,27 @@ func (s *Service) UpdateProfile(userID uuid.UUID, req UpdateProfileRequest) (*Us
 }
 
 // Helper methods
-func (s *Service) validateRegisterRequest(req RegisterRequest) error {
-	if req.Email == "" {
+func (s *Service) validateUser(user *User) error {
+	if user.Email == "" {
 		return errors.New("email is required")
 	}
-	if req.Password == "" {
+	if user.Password == "" {
 		return errors.New("password is required")
 	}
-	if req.FirstName == "" {
+	if user.FirstName == "" {
 		return errors.New("first name is required")
 	}
-	if req.LastName == "" {
+	if user.LastName == "" {
 		return errors.New("last name is required")
 	}
 
 	// Validate email format
-	if !utils.IsValidEmail(req.Email) {
+	if !utils.IsValidEmail(user.Email) {
 		return errors.New("invalid email format")
 	}
 
 	// Validate password strength
-	if err := s.validatePassword(req.Password); err != nil {
+	if err := s.validatePassword(user.Password); err != nil {
 		return err
 	}
 
@@ -455,4 +472,36 @@ func (s *Service) CheckUserPermission(userID uuid.UUID, resource, action string)
 // CleanupExpiredSessions removes expired sessions
 func (s *Service) CleanupExpiredSessions() error {
 	return s.repo.CleanupExpiredSessions()
+}
+
+// sendVerificationEmail sends email verification email
+func (s *Service) sendVerificationEmail(user *User) error {
+	// TODO: Implement email service integration
+	// For now, just log that verification email would be sent
+	log.Printf("Verification email would be sent to: %s", user.Email)
+	return nil
+}
+
+// ForgotPassword initiates password reset process
+func (s *Service) ForgotPassword(ctx context.Context, email string) error {
+	user, err := s.repo.GetByEmail(email)
+	if err != nil {
+		// Don't reveal if email exists
+		return nil
+	}
+
+	// Generate reset token
+	resetToken := uuid.New().String()
+	expiresAt := time.Now().Add(24 * time.Hour) // 24 hour expiry
+
+	// Store reset token
+	s.resetTokens[resetToken] = ResetTokenData{
+		UserID:    user.ID,
+		ExpiresAt: expiresAt,
+	}
+
+	// TODO: Send reset email with resetToken
+	log.Printf("Password reset email would be sent to: %s with token: %s", user.Email, resetToken)
+
+	return nil
 }

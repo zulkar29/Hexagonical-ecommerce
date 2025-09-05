@@ -2,108 +2,12 @@ package product
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/google/uuid"
 	"github.com/go-playground/validator/v10"
 )
-
-// Request/Response Structures
-type CreateProductRequest struct {
-	Name        string      `json:"name" validate:"required,min=2,max=255"`
-	Description string      `json:"description,omitempty" validate:"max=5000"`
-	Type        ProductType `json:"type" validate:"required"`
-	Price       float64     `json:"price" validate:"required,min=0"`
-	ComparePrice float64    `json:"compare_price,omitempty" validate:"min=0"`
-	CostPrice   float64     `json:"cost_price,omitempty" validate:"min=0"`
-	
-	SKU               string  `json:"sku,omitempty" validate:"max=100"`
-	Barcode           string  `json:"barcode,omitempty" validate:"max=100"`
-	InventoryQuantity int     `json:"inventory_quantity" validate:"min=0"`
-	TrackQuantity     bool    `json:"track_quantity"`
-	AllowBackorder    bool    `json:"allow_backorder"`
-	
-	Weight float64 `json:"weight,omitempty" validate:"min=0"`
-	Length float64 `json:"length,omitempty" validate:"min=0"`
-	Width  float64 `json:"width,omitempty" validate:"min=0"`
-	Height float64 `json:"height,omitempty" validate:"min=0"`
-	
-	MetaTitle       string `json:"meta_title,omitempty" validate:"max=255"`
-	MetaDescription string `json:"meta_description,omitempty" validate:"max=500"`
-	MetaKeywords    string `json:"meta_keywords,omitempty" validate:"max=255"`
-	
-	CategoryID *uuid.UUID `json:"category_id,omitempty"`
-	Tags       []string   `json:"tags,omitempty"`
-	Images     []string   `json:"images,omitempty"`
-}
-
-type UpdateProductRequest struct {
-	Name        string      `json:"name,omitempty" validate:"omitempty,min=2,max=255"`
-	Description string      `json:"description,omitempty" validate:"max=5000"`
-	Type        ProductType `json:"type,omitempty"`
-	Price       float64     `json:"price,omitempty" validate:"omitempty,min=0"`
-	ComparePrice float64    `json:"compare_price,omitempty" validate:"min=0"`
-	CostPrice   float64     `json:"cost_price,omitempty" validate:"min=0"`
-	
-	SKU               string `json:"sku,omitempty" validate:"max=100"`
-	Barcode           string `json:"barcode,omitempty" validate:"max=100"`
-	InventoryQuantity *int   `json:"inventory_quantity,omitempty" validate:"omitempty,min=0"`
-	TrackQuantity     *bool  `json:"track_quantity,omitempty"`
-	AllowBackorder    *bool  `json:"allow_backorder,omitempty"`
-	
-	Weight *float64 `json:"weight,omitempty" validate:"omitempty,min=0"`
-	Length *float64 `json:"length,omitempty" validate:"omitempty,min=0"`
-	Width  *float64 `json:"width,omitempty" validate:"omitempty,min=0"`
-	Height *float64 `json:"height,omitempty" validate:"omitempty,min=0"`
-	
-	MetaTitle       string `json:"meta_title,omitempty" validate:"max=255"`
-	MetaDescription string `json:"meta_description,omitempty" validate:"max=500"`
-	MetaKeywords    string `json:"meta_keywords,omitempty" validate:"max=255"`
-	
-	CategoryID *uuid.UUID `json:"category_id,omitempty"`
-	Tags       []string   `json:"tags,omitempty"`
-	Images     []string   `json:"images,omitempty"`
-	Status     ProductStatus `json:"status,omitempty"`
-}
-
-type CreateCategoryRequest struct {
-	Name        string     `json:"name" validate:"required,min=2,max=100"`
-	Description string     `json:"description,omitempty" validate:"max=500"`
-	ParentID    *uuid.UUID `json:"parent_id,omitempty"`
-	SortOrder   int        `json:"sort_order"`
-	MetaTitle   string     `json:"meta_title,omitempty" validate:"max=255"`
-	MetaDescription string `json:"meta_description,omitempty" validate:"max=500"`
-}
-
-type UpdateCategoryRequest struct {
-	Name            string     `json:"name,omitempty" validate:"omitempty,min=2,max=100"`
-	Description     string     `json:"description,omitempty" validate:"max=500"`
-	ParentID        *uuid.UUID `json:"parent_id,omitempty"`
-	SortOrder       int        `json:"sort_order,omitempty"`
-	IsActive        *bool      `json:"is_active,omitempty"`
-	MetaTitle       string     `json:"meta_title,omitempty" validate:"max=255"`
-	MetaDescription string     `json:"meta_description,omitempty" validate:"max=500"`
-}
-
-type CreateVariantRequest struct {
-	Name              string            `json:"name" validate:"required,min=1,max=255"`
-	SKU               string            `json:"sku,omitempty" validate:"max=100"`
-	Price             float64           `json:"price" validate:"min=0"`
-	InventoryQuantity int               `json:"inventory_quantity" validate:"min=0"`
-	AllowBackorder    bool              `json:"allow_backorder"`
-	Options           map[string]string `json:"options,omitempty"`
-	Images            []string          `json:"images,omitempty"`
-}
-
-type UpdateVariantRequest struct {
-	Name              string            `json:"name,omitempty" validate:"omitempty,min=1,max=255"`
-	SKU               string            `json:"sku,omitempty" validate:"max=100"`
-	Price             float64           `json:"price,omitempty" validate:"min=0"`
-	InventoryQuantity *int              `json:"inventory_quantity,omitempty" validate:"omitempty,min=0"`
-	AllowBackorder    *bool             `json:"allow_backorder,omitempty"`
-	Options           map[string]string `json:"options,omitempty"`
-	Images            []string          `json:"images,omitempty"`
-}
 
 type ProductListFilter struct {
 	Status     ProductStatus `json:"status,omitempty"`
@@ -130,19 +34,23 @@ func NewService(repo Repository) *Service {
 }
 
 // CreateProduct creates a new product
-func (s *Service) CreateProduct(tenantID uuid.UUID, req CreateProductRequest) (*Product, error) {
-	// Validate request
-	if err := s.validator.Struct(req); err != nil {
+func (s *Service) CreateProduct(tenantID uuid.UUID, product *Product) (*Product, error) {
+	// Set tenant ID and generate new ID
+	product.TenantID = tenantID
+	product.ID = uuid.New()
+	
+	// Validate product data
+	if err := product.ValidateProductData(); err != nil {
 		return nil, err
 	}
 
-	// Validate business rules
-	if req.ComparePrice > 0 && req.Price >= req.ComparePrice {
-		return nil, errors.New("compare price must be higher than selling price")
+	// Validate struct tags
+	if err := s.validator.Struct(product); err != nil {
+		return nil, err
 	}
 
 	// Generate slug
-	slug := s.generateSlug(req.Name)
+	slug := s.generateSlug(product.Name)
 	
 	// Check if slug exists for this tenant
 	if exists, err := s.repo.SlugExists(tenantID, slug); err != nil {
@@ -150,48 +58,34 @@ func (s *Service) CreateProduct(tenantID uuid.UUID, req CreateProductRequest) (*
 	} else if exists {
 		slug = s.generateUniqueSlug(tenantID, slug)
 	}
+	product.Slug = slug
 
 	// Validate category if provided
-	if req.CategoryID != nil {
-		if exists, err := s.repo.CategoryExists(tenantID, *req.CategoryID); err != nil {
+	if product.CategoryID != uuid.Nil {
+		if exists, err := s.repo.CategoryExists(tenantID, product.CategoryID); err != nil {
 			return nil, err
 		} else if !exists {
 			return nil, errors.New("category not found")
 		}
 	}
 
-	// Create product
-	product := &Product{
-		ID:                uuid.New(),
-		TenantID:          tenantID,
-		Name:              strings.TrimSpace(req.Name),
-		Slug:              slug,
-		Description:       strings.TrimSpace(req.Description),
-		Type:              req.Type,
-		Status:            ProductStatusDraft,
-		Price:             req.Price,
-		ComparePrice:      req.ComparePrice,
-		CostPrice:         req.CostPrice,
-		SKU:               strings.TrimSpace(req.SKU),
-		Barcode:           strings.TrimSpace(req.Barcode),
-		InventoryQuantity: req.InventoryQuantity,
-		TrackQuantity:     req.TrackQuantity,
-		AllowBackorder:    req.AllowBackorder,
-		Weight:            req.Weight,
-		Length:            req.Length,
-		Width:             req.Width,
-		Height:            req.Height,
-		MetaTitle:         strings.TrimSpace(req.MetaTitle),
-		MetaDescription:   strings.TrimSpace(req.MetaDescription),
-		MetaKeywords:      strings.TrimSpace(req.MetaKeywords),
-		CategoryID:        getUUIDValue(req.CategoryID),
-		Tags:              req.Tags,
-		Images:            req.Images,
+	// Trim string fields
+	product.Name = strings.TrimSpace(product.Name)
+	product.Description = strings.TrimSpace(product.Description)
+	product.SKU = strings.TrimSpace(product.SKU)
+	product.Barcode = strings.TrimSpace(product.Barcode)
+	product.MetaTitle = strings.TrimSpace(product.MetaTitle)
+	product.MetaDescription = strings.TrimSpace(product.MetaDescription)
+	product.MetaKeywords = strings.TrimSpace(product.MetaKeywords)
+
+	// Set default status if not provided
+	if product.Status == "" {
+		product.Status = StatusDraft
 	}
 
 	// Set featured image
-	if len(req.Images) > 0 {
-		product.FeaturedImage = req.Images[0]
+	if len(product.Images) > 0 {
+		product.FeaturedImage = product.Images[0]
 	}
 
 	return s.repo.SaveProduct(product)
@@ -217,111 +111,116 @@ func (s *Service) GetProductBySlug(tenantID uuid.UUID, slug string) (*Product, e
 }
 
 // UpdateProduct updates an existing product
-func (s *Service) UpdateProduct(tenantID uuid.UUID, id string, req UpdateProductRequest) (*Product, error) {
-	// Validate request
-	if err := s.validator.Struct(req); err != nil {
-		return nil, err
-	}
-
-	productID, err := uuid.Parse(id)
-	if err != nil {
-		return nil, errors.New("invalid product ID")
-	}
-
+func (s *Service) UpdateProduct(tenantID, productID uuid.UUID, product *Product) (*Product, error) {
 	// Get existing product
-	product, err := s.repo.FindProductByID(tenantID, productID)
+	existingProduct, err := s.repo.GetProduct(tenantID, productID)
 	if err != nil {
 		return nil, err
 	}
+	if existingProduct == nil {
+		return nil, errors.New("product not found")
+	}
 
-	// Update fields if provided
-	if req.Name != "" {
-		product.Name = strings.TrimSpace(req.Name)
+	// Validate product data
+	if err := product.ValidateProductData(); err != nil {
+		return nil, err
+	}
+
+	// Validate struct tags
+	if err := s.validator.Struct(product); err != nil {
+		return nil, err
+	}
+
+	// Update fields from provided product
+	if product.Name != "" {
+		existingProduct.Name = strings.TrimSpace(product.Name)
 		// Regenerate slug if name changed
-		newSlug := s.generateSlug(req.Name)
-		if newSlug != product.Slug {
-			if exists, err := s.repo.SlugExists(tenantID, newSlug); err != nil {
+		slug := s.generateSlug(existingProduct.Name)
+		if slug != existingProduct.Slug {
+			if exists, err := s.repo.SlugExists(tenantID, slug); err != nil {
 				return nil, err
 			} else if exists {
-				newSlug = s.generateUniqueSlug(tenantID, newSlug)
+				slug = s.generateUniqueSlug(tenantID, slug)
 			}
-			product.Slug = newSlug
+			existingProduct.Slug = slug
 		}
 	}
 
-	if req.Description != "" {
-		product.Description = strings.TrimSpace(req.Description)
+	if product.Description != "" {
+		existingProduct.Description = strings.TrimSpace(product.Description)
 	}
-	if req.Type != "" {
-		product.Type = req.Type
+	if product.Type != "" {
+		existingProduct.Type = product.Type
 	}
-	if req.Price > 0 {
-		product.Price = req.Price
+	if product.Status != "" {
+		existingProduct.Status = product.Status
 	}
-	if req.ComparePrice >= 0 {
-		product.ComparePrice = req.ComparePrice
+	if product.Price > 0 {
+		existingProduct.Price = product.Price
 	}
-	if req.CostPrice >= 0 {
-		product.CostPrice = req.CostPrice
+	if product.ComparePrice > 0 {
+		existingProduct.ComparePrice = product.ComparePrice
 	}
-	if req.SKU != "" {
-		product.SKU = strings.TrimSpace(req.SKU)
+	if product.CostPrice > 0 {
+		existingProduct.CostPrice = product.CostPrice
 	}
-	if req.Barcode != "" {
-		product.Barcode = strings.TrimSpace(req.Barcode)
+	if product.SKU != "" {
+		existingProduct.SKU = strings.TrimSpace(product.SKU)
 	}
-	if req.InventoryQuantity != nil {
-		product.InventoryQuantity = *req.InventoryQuantity
+	if product.Barcode != "" {
+		existingProduct.Barcode = strings.TrimSpace(product.Barcode)
 	}
-	if req.TrackQuantity != nil {
-		product.TrackQuantity = *req.TrackQuantity
+	if product.InventoryQuantity >= 0 {
+		existingProduct.InventoryQuantity = product.InventoryQuantity
 	}
-	if req.AllowBackorder != nil {
-		product.AllowBackorder = *req.AllowBackorder
+	existingProduct.TrackQuantity = product.TrackQuantity
+	existingProduct.AllowBackorder = product.AllowBackorder
+	if product.Weight > 0 {
+		existingProduct.Weight = product.Weight
 	}
-	if req.Weight != nil {
-		product.Weight = *req.Weight
+	if product.Length > 0 {
+		existingProduct.Length = product.Length
 	}
-	if req.Length != nil {
-		product.Length = *req.Length
+	if product.Width > 0 {
+		existingProduct.Width = product.Width
 	}
-	if req.Width != nil {
-		product.Width = *req.Width
+	if product.Height > 0 {
+		existingProduct.Height = product.Height
 	}
-	if req.Height != nil {
-		product.Height = *req.Height
+	if product.MetaTitle != "" {
+		existingProduct.MetaTitle = strings.TrimSpace(product.MetaTitle)
 	}
-	if req.MetaTitle != "" {
-		product.MetaTitle = strings.TrimSpace(req.MetaTitle)
+	if product.MetaDescription != "" {
+		existingProduct.MetaDescription = strings.TrimSpace(product.MetaDescription)
 	}
-	if req.MetaDescription != "" {
-		product.MetaDescription = strings.TrimSpace(req.MetaDescription)
+	if product.MetaKeywords != "" {
+		existingProduct.MetaKeywords = strings.TrimSpace(product.MetaKeywords)
 	}
-	if req.MetaKeywords != "" {
-		product.MetaKeywords = strings.TrimSpace(req.MetaKeywords)
+	if product.CategoryID != uuid.Nil {
+		// Validate category if provided
+		if exists, err := s.repo.CategoryExists(tenantID, product.CategoryID); err != nil {
+			return nil, err
+		} else if !exists {
+			return nil, errors.New("category not found")
+		}
+		existingProduct.CategoryID = product.CategoryID
 	}
-	if req.CategoryID != nil {
-		product.CategoryID = *req.CategoryID
+	if product.Tags != nil {
+		existingProduct.Tags = product.Tags
 	}
-	if req.Tags != nil {
-		product.Tags = req.Tags
-	}
-	if req.Images != nil {
-		product.Images = req.Images
-		if len(req.Images) > 0 {
-			product.FeaturedImage = req.Images[0]
+	if product.Images != nil {
+		existingProduct.Images = product.Images
+		// Update featured image
+		if len(product.Images) > 0 {
+			existingProduct.FeaturedImage = product.Images[0]
+		} else {
+			existingProduct.FeaturedImage = ""
 		}
 	}
-	if req.Status != "" {
-		product.Status = req.Status
-	}
 
-	// Validate business rules
-	if product.ComparePrice > 0 && product.Price >= product.ComparePrice {
-		return nil, errors.New("compare price must be higher than selling price")
-	}
+	existingProduct.UpdatedAt = time.Now()
 
-	return s.repo.UpdateProduct(product)
+	return s.repo.SaveProduct(existingProduct)
 }
 
 // ListProducts returns a paginated list of products
@@ -350,14 +249,18 @@ func (s *Service) UpdateInventory(tenantID uuid.UUID, id string, quantity int) e
 }
 
 // CreateCategory creates a new category
-func (s *Service) CreateCategory(tenantID uuid.UUID, req CreateCategoryRequest) (*Category, error) {
-	// Validate request
-	if err := s.validator.Struct(req); err != nil {
+func (s *Service) CreateCategory(tenantID uuid.UUID, category *Category) (*Category, error) {
+	// Set tenant ID and generate new ID
+	category.TenantID = tenantID
+	category.ID = uuid.New()
+
+	// Validate struct tags
+	if err := s.validator.Struct(category); err != nil {
 		return nil, err
 	}
 
 	// Generate slug
-	slug := s.generateSlug(req.Name)
+	slug := s.generateSlug(category.Name)
 	
 	// Check if slug exists for this tenant
 	if exists, err := s.repo.CategorySlugExists(tenantID, slug); err != nil {
@@ -365,29 +268,22 @@ func (s *Service) CreateCategory(tenantID uuid.UUID, req CreateCategoryRequest) 
 	} else if exists {
 		slug = s.generateUniqueCategorySlug(tenantID, slug)
 	}
+	category.Slug = slug
 
 	// Validate parent category if provided
-	if req.ParentID != nil {
-		if exists, err := s.repo.CategoryExists(tenantID, *req.ParentID); err != nil {
+	if category.ParentID != uuid.Nil {
+		if exists, err := s.repo.CategoryExists(tenantID, category.ParentID); err != nil {
 			return nil, err
 		} else if !exists {
 			return nil, errors.New("parent category not found")
 		}
 	}
 
-	// Create category
-	category := &Category{
-		ID:              uuid.New(),
-		TenantID:        tenantID,
-		Name:            strings.TrimSpace(req.Name),
-		Slug:            slug,
-		Description:     strings.TrimSpace(req.Description),
-		ParentID:        req.ParentID,
-		SortOrder:       req.SortOrder,
-		IsActive:        true,
-		MetaTitle:       strings.TrimSpace(req.MetaTitle),
-		MetaDescription: strings.TrimSpace(req.MetaDescription),
-	}
+	// Trim string fields
+	category.Name = strings.TrimSpace(category.Name)
+	category.Description = strings.TrimSpace(category.Description)
+	category.MetaTitle = strings.TrimSpace(category.MetaTitle)
+	category.MetaDescription = strings.TrimSpace(category.MetaDescription)
 
 	return s.repo.SaveCategory(category)
 }
@@ -466,12 +362,7 @@ func (s *Service) generateUniqueCategorySlug(tenantID uuid.UUID, baseSlug string
 	return baseSlug + "-" + uuid.New().String()[:8]
 }
 
-func getUUIDValue(ptr *uuid.UUID) uuid.UUID {
-	if ptr == nil {
-		return uuid.Nil
-	}
-	return *ptr
-}
+
 
 // TODO: Add more service methods
 // - BulkUpdateProducts(tenantID uuid.UUID, productIDs []uuid.UUID, updates map[string]interface{}) error
@@ -615,35 +506,31 @@ func (s *Service) UpdateProductStatus(tenantID uuid.UUID, productIDStr string, s
 // Product Variant methods
 
 // CreateProductVariant creates a new product variant
-func (s *Service) CreateProductVariant(tenantID uuid.UUID, productIDStr string, req CreateVariantRequest) (*ProductVariant, error) {
-	// Validate request
-	if err := s.validator.Struct(req); err != nil {
+func (s *Service) CreateProductVariant(tenantID, productID uuid.UUID, variant *ProductVariant) (*ProductVariant, error) {
+	// Set product ID and generate new ID
+	variant.ProductID = productID
+	variant.ID = uuid.New()
+
+	// Validate struct tags
+	if err := s.validator.Struct(variant); err != nil {
 		return nil, err
 	}
 
-	productID, err := uuid.Parse(productIDStr)
-	if err != nil {
-		return nil, errors.New("invalid product ID")
-	}
-
-	// Verify product exists and belongs to tenant
-	_, err = s.repo.FindProductByID(tenantID, productID)
-	if err != nil {
+	// Validate product exists
+	if exists, err := s.repo.ProductExists(tenantID, productID); err != nil {
+		return nil, err
+	} else if !exists {
 		return nil, errors.New("product not found")
 	}
 
-	// Create variant
-	variant := &ProductVariant{
-		ID:                uuid.New(),
-		ProductID:         productID,
-		Name:              strings.TrimSpace(req.Name),
-		SKU:               strings.TrimSpace(req.SKU),
-		Price:             req.Price,
-		InventoryQuantity: req.InventoryQuantity,
-		AllowBackorder:    req.AllowBackorder,
-		Options:           req.Options,
-		Images:            req.Images,
+	// Validate business rules
+	if variant.ComparePrice > 0 && variant.Price >= variant.ComparePrice {
+		return nil, errors.New("compare price must be higher than selling price")
 	}
+
+	// Trim string fields
+	variant.SKU = strings.TrimSpace(variant.SKU)
+	variant.Barcode = strings.TrimSpace(variant.Barcode)
 
 	return s.repo.SaveProductVariant(variant)
 }
@@ -664,71 +551,71 @@ func (s *Service) GetProductVariants(tenantID uuid.UUID, productIDStr string) ([
 	return s.repo.FindProductVariants(productID)
 }
 
-// UpdateProductVariant updates a product variant
-func (s *Service) UpdateProductVariant(tenantID uuid.UUID, productIDStr, variantIDStr string, req UpdateVariantRequest) (*ProductVariant, error) {
-	// Validate request
-	if err := s.validator.Struct(req); err != nil {
-		return nil, err
-	}
-
-	productID, err := uuid.Parse(productIDStr)
-	if err != nil {
-		return nil, errors.New("invalid product ID")
-	}
-
-	variantID, err := uuid.Parse(variantIDStr)
-	if err != nil {
-		return nil, errors.New("invalid variant ID")
-	}
-
-	// Verify product exists and belongs to tenant
-	_, err = s.repo.FindProductByID(tenantID, productID)
-	if err != nil {
-		return nil, errors.New("product not found")
-	}
-
+// UpdateProductVariant updates an existing product variant
+func (s *Service) UpdateProductVariant(tenantID, productID, variantID uuid.UUID, variant *ProductVariant) (*ProductVariant, error) {
 	// Get existing variant
-	variants, err := s.repo.FindProductVariants(productID)
+	existingVariant, err := s.repo.GetProductVariant(tenantID, productID, variantID)
 	if err != nil {
 		return nil, err
 	}
-
-	var variant *ProductVariant
-	for _, v := range variants {
-		if v.ID == variantID {
-			variant = v
-			break
-		}
-	}
-
-	if variant == nil {
+	if existingVariant == nil {
 		return nil, errors.New("variant not found")
 	}
 
-	// Update fields
-	if req.Name != "" {
-		variant.Name = strings.TrimSpace(req.Name)
-	}
-	if req.SKU != "" {
-		variant.SKU = strings.TrimSpace(req.SKU)
-	}
-	if req.Price >= 0 {
-		variant.Price = req.Price
-	}
-	if req.InventoryQuantity != nil {
-		variant.InventoryQuantity = *req.InventoryQuantity
-	}
-	if req.AllowBackorder != nil {
-		variant.AllowBackorder = *req.AllowBackorder
-	}
-	if req.Options != nil {
-		variant.Options = req.Options
-	}
-	if req.Images != nil {
-		variant.Images = req.Images
+	// Validate struct tags
+	if err := s.validator.Struct(variant); err != nil {
+		return nil, err
 	}
 
-	return s.repo.UpdateProductVariant(variant)
+	// Update fields from provided variant
+	if variant.SKU != "" {
+		existingVariant.SKU = strings.TrimSpace(variant.SKU)
+	}
+	if variant.Barcode != "" {
+		existingVariant.Barcode = strings.TrimSpace(variant.Barcode)
+	}
+	if variant.Price > 0 {
+		existingVariant.Price = variant.Price
+	}
+	if variant.ComparePrice > 0 {
+		existingVariant.ComparePrice = variant.ComparePrice
+	}
+	if variant.CostPrice > 0 {
+		existingVariant.CostPrice = variant.CostPrice
+	}
+	if variant.InventoryQuantity >= 0 {
+		existingVariant.InventoryQuantity = variant.InventoryQuantity
+	}
+	existingVariant.TrackQuantity = variant.TrackQuantity
+	existingVariant.AllowBackorder = variant.AllowBackorder
+	if variant.Weight > 0 {
+		existingVariant.Weight = variant.Weight
+	}
+	if variant.Length > 0 {
+		existingVariant.Length = variant.Length
+	}
+	if variant.Width > 0 {
+		existingVariant.Width = variant.Width
+	}
+	if variant.Height > 0 {
+		existingVariant.Height = variant.Height
+	}
+	if variant.Image != "" {
+		existingVariant.Image = variant.Image
+	}
+	if variant.Options != nil {
+		existingVariant.Options = variant.Options
+	}
+	existingVariant.IsDefault = variant.IsDefault
+
+	// Validate business rules
+	if existingVariant.ComparePrice > 0 && existingVariant.Price >= existingVariant.ComparePrice {
+		return nil, errors.New("compare price must be higher than selling price")
+	}
+
+	existingVariant.UpdatedAt = time.Now()
+
+	return s.repo.SaveProductVariant(existingVariant)
 }
 
 // DeleteProductVariant deletes a product variant
@@ -755,58 +642,65 @@ func (s *Service) DeleteProductVariant(tenantID uuid.UUID, productIDStr, variant
 // Category management methods
 
 // UpdateCategory updates an existing category
-func (s *Service) UpdateCategory(tenantID uuid.UUID, categoryIDStr string, req UpdateCategoryRequest) (*Category, error) {
-	// Validate request
-	if err := s.validator.Struct(req); err != nil {
-		return nil, err
-	}
-
-	categoryID, err := uuid.Parse(categoryIDStr)
-	if err != nil {
-		return nil, errors.New("invalid category ID")
-	}
-
+func (s *Service) UpdateCategory(tenantID, categoryID uuid.UUID, category *Category) (*Category, error) {
 	// Get existing category
-	category, err := s.repo.FindCategoryByID(tenantID, categoryID)
+	existingCategory, err := s.repo.GetCategory(tenantID, categoryID)
 	if err != nil {
 		return nil, err
 	}
+	if existingCategory == nil {
+		return nil, errors.New("category not found")
+	}
 
-	// Update fields
-	if req.Name != "" {
-		category.Name = strings.TrimSpace(req.Name)
+	// Validate struct tags
+	if err := s.validator.Struct(category); err != nil {
+		return nil, err
+	}
+
+	// Update fields from provided category
+	if category.Name != "" {
+		existingCategory.Name = strings.TrimSpace(category.Name)
 		// Regenerate slug if name changed
-		newSlug := s.generateSlug(req.Name)
-		if newSlug != category.Slug {
-			if exists, err := s.repo.CategorySlugExists(tenantID, newSlug); err != nil {
+		slug := s.generateSlug(existingCategory.Name)
+		if slug != existingCategory.Slug {
+			if exists, err := s.repo.CategorySlugExists(tenantID, slug); err != nil {
 				return nil, err
 			} else if exists {
-				newSlug = s.generateUniqueCategorySlug(tenantID, newSlug)
+				slug = s.generateUniqueCategorySlug(tenantID, slug)
 			}
-			category.Slug = newSlug
+			existingCategory.Slug = slug
 		}
 	}
 
-	if req.Description != "" {
-		category.Description = strings.TrimSpace(req.Description)
+	if category.Description != "" {
+		existingCategory.Description = strings.TrimSpace(category.Description)
 	}
-	if req.ParentID != nil {
-		category.ParentID = req.ParentID
+	if category.Image != "" {
+		existingCategory.Image = category.Image
 	}
-	if req.SortOrder != 0 {
-		category.SortOrder = req.SortOrder
+	if category.ParentID != uuid.Nil {
+		// Validate parent category if provided
+		if exists, err := s.repo.CategoryExists(tenantID, category.ParentID); err != nil {
+			return nil, err
+		} else if !exists {
+			return nil, errors.New("parent category not found")
+		}
+		existingCategory.ParentID = category.ParentID
 	}
-	if req.IsActive != nil {
-		category.IsActive = *req.IsActive
+	if category.SortOrder > 0 {
+		existingCategory.SortOrder = category.SortOrder
 	}
-	if req.MetaTitle != "" {
-		category.MetaTitle = strings.TrimSpace(req.MetaTitle)
+	existingCategory.IsActive = category.IsActive
+	if category.MetaTitle != "" {
+		existingCategory.MetaTitle = strings.TrimSpace(category.MetaTitle)
 	}
-	if req.MetaDescription != "" {
-		category.MetaDescription = strings.TrimSpace(req.MetaDescription)
+	if category.MetaDescription != "" {
+		existingCategory.MetaDescription = strings.TrimSpace(category.MetaDescription)
 	}
 
-	return s.repo.UpdateCategory(category)
+	existingCategory.UpdatedAt = time.Now()
+
+	return s.repo.SaveCategory(existingCategory)
 }
 
 // DeleteCategory deletes a category

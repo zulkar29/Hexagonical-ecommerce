@@ -11,12 +11,12 @@ import (
 
 // Service handles tenant business logic
 type Service struct {
-	repo      *Repository
+	repo      RepositoryInterface
 	validator *validator.Validate
 }
 
 // NewService creates a new tenant service
-func NewService(repo *Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{
 		repo:      repo,
 		validator: validator.New(),
