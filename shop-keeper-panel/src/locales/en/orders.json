@@ -1,0 +1,13 @@
+{
+  "Order ID": "Order ID",
+  "Customer": "Customer",
+  "Date": "Date",
+  "Amount": "Amount",
+  "Status": "Status",
+  "Order List": "Order List",
+  "Order Details": "Order Details",
+  "View Order": "View Order",
+  "Order Completed": "Order Completed",
+  "Order Pending": "Order Pending",
+  "Order Cancelled": "Order Cancelled"
+} 

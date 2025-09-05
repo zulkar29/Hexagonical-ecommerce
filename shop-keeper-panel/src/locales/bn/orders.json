@@ -1,0 +1,13 @@
+{
+  "Order ID": "অর্ডার আইডি",
+  "Customer": "গ্রাহক",
+  "Date": "তারিখ",
+  "Amount": "পরিমাণ",
+  "Status": "অবস্থা",
+  "Order List": "অর্ডার তালিকা",
+  "Order Details": "অর্ডার বিস্তারিত",
+  "View Order": "অর্ডার দেখুন",
+  "Order Completed": "অর্ডার সম্পন্ন",
+  "Order Pending": "অর্ডার বিচারাধীন",
+  "Order Cancelled": "অর্ডার বাতিল"
+} 

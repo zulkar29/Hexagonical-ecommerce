@@ -77,60 +77,32 @@ services:
     networks:
       - ecommerce-network
 
-  # Dashboard (React.js)
-  dashboard:
+  # SaaS Admin Panel (React + Vite)
+  admin-panel:
     build:
-      context: ./dashboard
+      context: ./sass-admin-panel
       dockerfile: Dockerfile.dev
-    container_name: ecommerce-dashboard-dev
+    container_name: ecommerce-admin-dev
     restart: unless-stopped
     ports:
       - "3001:3001"
     volumes:
-      - ./dashboard:/app
+      - ./sass-admin-panel:/app
       - /app/node_modules
-      - /app/build
+      - /app/dist
     environment:
       - NODE_ENV=development
-      - REACT_APP_API_URL=http://localhost:8080/api/v1
+      - VITE_API_URL=http://localhost:8080/api/v1
       - PORT=3001
     depends_on:
       - backend
     networks:
       - ecommerce-network
 
-  # MinIO (S3-compatible storage for development)
-  minio:
-    image: minio/minio:latest
-    container_name: ecommerce-minio-dev
-    restart: unless-stopped
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio_data:/data
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin123
-    command: server /data --console-address ":9001"
-    networks:
-      - ecommerce-network
-
-  # MailHog (Email testing)
-  mailhog:
-    image: mailhog/mailhog:latest
-    container_name: ecommerce-mailhog-dev
-    restart: unless-stopped
-    ports:
-      - "1025:1025" # SMTP
-      - "8025:8025" # Web UI
-    networks:
-      - ecommerce-network
 
 volumes:
   postgres_data:
   redis_data:
-  minio_data:
 
 networks:
   ecommerce-network:

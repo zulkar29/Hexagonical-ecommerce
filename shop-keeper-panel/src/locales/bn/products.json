@@ -1,0 +1,12 @@
+{
+  "Product Name": "পণ্যের নাম",
+  "Category": "বিভাগ",
+  "Price": "মূল্য",
+  "Stock": "স্টক",
+  "Supplier": "সরবরাহকারী",
+  "Add New Product": "নতুন পণ্য যোগ করুন",
+  "Edit Product": "পণ্য সম্পাদনা করুন",
+  "Delete Product": "পণ্য মুছুন",
+  "Product List": "পণ্যের তালিকা",
+  "Product Details": "পণ্যের বিস্তারিত"
+} 

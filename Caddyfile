@@ -1,0 +1,96 @@
+# Multi-tenant E-commerce SaaS Caddyfile
+{
+    # Global options for production
+    admin off
+    persist_config off
+    auto_https on
+    
+    # Rate limiting
+    order rate_limit before basicauth
+    
+    # Logging
+    log {
+        output stdout
+        format console
+        level INFO
+    }
+}
+
+# Variables
+(common_headers) {
+    header_up Host {host}
+    header_up X-Real-IP {remote_host}
+    header_up X-Forwarded-For {remote_host}
+    header_up X-Forwarded-Proto {scheme}
+    header_up X-Tenant-Domain {host}
+}
+
+(security_headers) {
+    header X-Content-Type-Options nosniff
+    header X-Frame-Options DENY
+    header X-XSS-Protection "1; mode=block"
+    header Referrer-Policy strict-origin-when-cross-origin
+}
+
+# Main domain - Default storefront
+{$DOMAIN:yourdomain.com} {
+    import security_headers
+    
+    # API routes
+    handle_path /api/* {
+        reverse_proxy backend:8080 {
+            import common_headers
+        }
+    }
+    
+    # Health check
+    handle /health {
+        respond "healthy" 200
+    }
+    
+    # Everything else to storefront
+    handle {
+        reverse_proxy storefront:3000 {
+            import common_headers
+        }
+    }
+}
+
+# Admin subdomain
+{$ADMIN_SUBDOMAIN:admin}.{$DOMAIN:yourdomain.com} {
+    import security_headers
+    
+    # Rate limit admin panel
+    rate_limit {
+        zone static_admin
+        key {remote_host}
+        events 100
+        window 1m
+    }
+    
+    reverse_proxy admin-panel:80 {
+        import common_headers
+    }
+}
+
+# Wildcard subdomains for tenants
+*.{$DOMAIN:yourdomain.com} {
+    import security_headers
+    
+    # Skip admin subdomain
+    @not_admin not host {$ADMIN_SUBDOMAIN:admin}.{$DOMAIN:yourdomain.com}
+    
+    # API routes for tenant subdomains
+    handle_path @not_admin /api/* {
+        reverse_proxy backend:8080 {
+            import common_headers
+        }
+    }
+    
+    # Tenant storefronts
+    handle @not_admin {
+        reverse_proxy storefront:3000 {
+            import common_headers
+        }
+    }
+}
