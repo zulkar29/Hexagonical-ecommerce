@@ -20,6 +20,7 @@ type Repository interface {
 	GetProductsByCategoryID(tenantID, categoryID uuid.UUID, offset, limit int) ([]*Product, int64, error)
 	GetLowStockProducts(tenantID uuid.UUID, threshold int) ([]*Product, error)
 	BulkUpdateProducts(tenantID uuid.UUID, productIDs []uuid.UUID, updates map[string]interface{}) error
+	BulkDeleteProducts(tenantID uuid.UUID, productIDs []uuid.UUID) error
 
 	// Category operations
 	SaveCategory(category *Category) (*Category, error)
@@ -372,10 +373,15 @@ func (r *repository) GetProductStats(tenantID uuid.UUID) (*ProductStats, error) 
 	return stats, nil
 }
 
-// Search operations
+// BulkDeleteProducts deletes multiple products
+	func (r *repository) BulkDeleteProducts(tenantID uuid.UUID, productIDs []uuid.UUID) error {
+		return r.db.Where("tenant_id = ? AND id IN ?", tenantID, productIDs).Delete(&Product{}).Error
+	}
 
-// SearchProducts performs full-text search on products
-func (r *repository) SearchProducts(tenantID uuid.UUID, query string, offset, limit int) ([]*Product, int64, error) {
+	// Search operations
+
+	// SearchProducts performs full-text search on products
+	func (r *repository) SearchProducts(tenantID uuid.UUID, query string, offset, limit int) ([]*Product, int64, error) {
 	var products []*Product
 	var total int64
 

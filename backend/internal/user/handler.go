@@ -31,17 +31,34 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		auth.POST("/forgot-password", h.ForgotPassword)
 		auth.POST("/reset-password", h.ResetPassword)
 		auth.POST("/verify-email", h.VerifyEmail)
+		auth.POST("/resend-verification", h.ResendVerification)
 	}
 
 	// Protected routes (require authentication)
 	users := router.Group("/users")
 	// users.Use(middleware.AuthMiddleware()) // Will be enabled when middleware is complete
 	{
+		// User profile management
 		users.GET("/profile", h.GetProfile)
 		users.PUT("/profile", h.UpdateProfile)
 		users.POST("/change-password", h.ChangePassword)
+		users.DELETE("/account", h.DeleteAccount)
+		
+		// User preferences
+		users.GET("/preferences", h.GetPreferences)
+		users.PUT("/preferences", h.UpdatePreferences)
+		
+		// Admin user management
 		users.GET("", h.ListUsers)
 		users.GET("/:id", h.GetUser)
+		users.GET("/:id/activity", h.GetUserActivity)
+		users.PATCH("/:id", h.UpdateUser)
+		users.POST("/bulk-import", h.BulkImportUsers)
+		users.POST("/export", h.ExportUsers)
+		
+		// User related data
+		users.GET("/:id/orders", h.GetUserOrders)
+		users.GET("/:id/addresses", h.GetUserAddresses)
 	}
 }
 
@@ -376,4 +393,263 @@ func (h *Handler) getTenantIDFromContext(c *gin.Context) *uuid.UUID {
 		}
 	}
 	return nil
+}
+
+// ResendVerification resends email verification
+func (h *Handler) ResendVerification(c *gin.Context) {
+	var resendData struct {
+		Email string `json:"email" binding:"required,email"`
+	}
+	if err := c.ShouldBindJSON(&resendData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.ResendVerification(c.Request.Context(), resendData.Email); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Verification email sent successfully"})
+}
+
+// DeleteAccount handles user account deletion
+func (h *Handler) DeleteAccount(c *gin.Context) {
+	userID := h.getUserIDFromContext(c)
+	if userID == uuid.Nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var deleteData struct {
+		Password string `json:"password" binding:"required"`
+		Confirm  bool   `json:"confirm" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&deleteData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if !deleteData.Confirm {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Account deletion must be confirmed"})
+		return
+	}
+
+	if err := h.service.DeleteAccount(c.Request.Context(), userID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Account deleted successfully"})
+}
+
+// GetPreferences gets user preferences
+func (h *Handler) GetPreferences(c *gin.Context) {
+	userID := h.getUserIDFromContext(c)
+	if userID == uuid.Nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	preferences, err := h.service.GetUserPreferences(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"preferences": preferences})
+}
+
+// UpdatePreferences updates user preferences
+func (h *Handler) UpdatePreferences(c *gin.Context) {
+	userID := h.getUserIDFromContext(c)
+	if userID == uuid.Nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var preferences map[string]interface{}
+	if err := c.ShouldBindJSON(&preferences); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	updatedPreferences, err := h.service.UpdateUserPreferences(c.Request.Context(), userID, preferences)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":     "Preferences updated successfully",
+		"preferences": updatedPreferences,
+	})
+}
+
+// GetUserActivity gets user activity logs (admin only)
+func (h *Handler) GetUserActivity(c *gin.Context) {
+	// TODO: Check admin permissions
+	
+	userIDStr := c.Param("id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	// Parse query parameters
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	activityType := c.Query("type")
+	dateFrom := c.Query("date_from")
+	dateTo := c.Query("date_to")
+
+	activity, total, err := h.service.GetUserActivity(userID, activityType, dateFrom, dateTo, page, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"activity": activity,
+		"pagination": gin.H{
+			"page":        page,
+			"limit":       limit,
+			"total":       total,
+			"total_pages": (total + int64(limit) - 1) / int64(limit),
+		},
+	})
+}
+
+// UpdateUser updates user (admin only)
+func (h *Handler) UpdateUser(c *gin.Context) {
+	// TODO: Check admin permissions
+	
+	userIDStr := c.Param("id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	var updates map[string]interface{}
+	if err := c.ShouldBindJSON(&updates); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	adminUserID := h.getUserIDFromContext(c)
+	updatedUser, err := h.service.UpdateUserByAdmin(c.Request.Context(), adminUserID, userID, updates)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "User updated successfully",
+		"user":    updatedUser,
+	})
+}
+
+// BulkImportUsers handles bulk user import (admin only)
+func (h *Handler) BulkImportUsers(c *gin.Context) {
+	// TODO: Check admin permissions
+	
+	var importData struct {
+		Users []User `json:"users" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&importData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	adminUserID := h.getUserIDFromContext(c)
+	result, err := h.service.BulkImportUsers(c.Request.Context(), adminUserID, importData.Users)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Bulk import completed",
+		"result":  result,
+	})
+}
+
+// ExportUsers handles user data export (admin only)
+func (h *Handler) ExportUsers(c *gin.Context) {
+	// TODO: Check admin permissions
+	
+	format := c.DefaultQuery("format", "csv")
+	filters := map[string]string{
+		"role":   c.Query("role"),
+		"status": c.Query("status"),
+		"search": c.Query("search"),
+	}
+
+	adminUserID := h.getUserIDFromContext(c)
+	exportData, err := h.service.ExportUsers(c.Request.Context(), adminUserID, format, filters)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Set appropriate headers for file download
+	filename := "users_export." + format
+	c.Header("Content-Disposition", "attachment; filename="+filename)
+	c.Header("Content-Type", "application/octet-stream")
+	c.Data(http.StatusOK, "application/octet-stream", exportData)
+}
+
+// GetUserOrders gets user's orders (admin only)
+func (h *Handler) GetUserOrders(c *gin.Context) {
+	// TODO: Check admin permissions
+	
+	userIDStr := c.Param("id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	// Parse query parameters
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	status := c.Query("status")
+
+	orders, total, err := h.service.GetUserOrders(userID, status, page, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"orders": orders,
+		"pagination": gin.H{
+			"page":        page,
+			"limit":       limit,
+			"total":       total,
+			"total_pages": (total + int64(limit) - 1) / int64(limit),
+		},
+	})
+}
+
+// GetUserAddresses gets user's addresses (admin only)
+func (h *Handler) GetUserAddresses(c *gin.Context) {
+	// TODO: Check admin permissions
+	
+	userIDStr := c.Param("id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	addresses, err := h.service.GetUserAddresses(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"addresses": addresses})
 }

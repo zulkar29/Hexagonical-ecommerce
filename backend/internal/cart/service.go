@@ -44,6 +44,47 @@ type UpdateShippingRequest struct {
 	ShippingMethodID *uuid.UUID `json:"shipping_method_id,omitempty"`
 }
 
+type UpdateCartRequest struct {
+	ShippingAddress  *Address   `json:"shipping_address,omitempty"`
+	BillingAddress   *Address   `json:"billing_address,omitempty"`
+	ShippingMethodID *uuid.UUID `json:"shipping_method_id,omitempty"`
+	CouponCode       *string    `json:"coupon_code,omitempty"`
+	Notes            *string    `json:"notes,omitempty" validate:"omitempty,max=500"`
+}
+
+type EstimateRequest struct {
+	ShippingAddress *Address   `json:"shipping_address" validate:"required"`
+	ShippingMethodID *uuid.UUID `json:"shipping_method_id,omitempty"`
+}
+
+type EstimateResponse struct {
+	ShippingMethods []ShippingMethod `json:"shipping_methods"`
+	Taxes           TaxEstimate      `json:"taxes"`
+	Subtotal        float64          `json:"subtotal"`
+	Total           float64          `json:"total"`
+}
+
+type TaxEstimate struct {
+	Amount float64 `json:"amount"`
+	Rate   float64 `json:"rate"`
+}
+
+type GuestCheckoutRequest struct {
+	SessionID       string  `json:"session_id" validate:"required"`
+	Email           string  `json:"email" validate:"required,email"`
+	ShippingAddress Address `json:"shipping_address" validate:"required"`
+	BillingAddress  Address `json:"billing_address" validate:"required"`
+	ShippingMethodID uuid.UUID `json:"shipping_method_id" validate:"required"`
+	PaymentMethodID string  `json:"payment_method_id" validate:"required"`
+}
+
+type GuestCheckoutResponse struct {
+	OrderID     uuid.UUID `json:"order_id"`
+	OrderNumber string    `json:"order_number"`
+	Total       float64   `json:"total"`
+	Status      string    `json:"status"`
+}
+
 // Response structures
 type CartResponse struct {
 	*Cart
@@ -123,8 +164,32 @@ type ShippingMethod struct {
 	EstimatedDays int     `json:"estimated_days"`
 }
 
-// Service handles cart business logic
-type Service struct {
+// ServiceInterface defines the cart service interface
+type ServiceInterface interface {
+	CreateCart(tenantID uuid.UUID, req CreateCartRequest) (*CartResponse, error)
+	GetCartByID(tenantID, cartID uuid.UUID) (*CartResponse, error)
+	GetCartByCustomer(tenantID, customerID uuid.UUID) (*CartResponse, error)
+	GetCartBySession(tenantID uuid.UUID, sessionID string) (*CartResponse, error)
+	AddItem(tenantID, cartID uuid.UUID, req AddItemRequest) (*CartResponse, error)
+	UpdateItem(tenantID, cartID, itemID uuid.UUID, req UpdateItemRequest) (*CartItem, error)
+	RemoveItem(tenantID, cartID, itemID uuid.UUID) error
+	UpdateCart(tenantID, cartID uuid.UUID, req UpdateCartRequest) (*CartResponse, error)
+	ApplyCoupon(tenantID, cartID uuid.UUID, req ApplyCouponRequest) (*CartResponse, error)
+	RemoveCoupon(tenantID, cartID uuid.UUID) (*CartResponse, error)
+	GetCartSummary(tenantID, cartID uuid.UUID) (*CartSummary, error)
+	GetEstimates(tenantID, cartID uuid.UUID, req EstimateRequest) (*EstimateResponse, error)
+	ClearCart(tenantID, cartID uuid.UUID) error
+	DeleteCart(tenantID, cartID uuid.UUID) error
+	ProcessGuestCheckout(tenantID uuid.UUID, req GuestCheckoutRequest) (*GuestCheckoutResponse, error)
+	ListCarts(tenantID uuid.UUID, filter CartListFilter, offset, limit int) ([]*CartResponse, int64, error)
+	GetCartStats(tenantID uuid.UUID) (*CartStats, error)
+}
+
+// Service type alias for interface compatibility
+type Service = ServiceInterface
+
+// CartService handles cart business logic
+type CartService struct {
 	repo            Repository
 	validator       *validator.Validate
 	productService  ProductService
@@ -134,9 +199,9 @@ type Service struct {
 	cartExpiration  time.Duration
 }
 
-// NewService creates a new cart service
-func NewService(repo Repository, productService ProductService, discountService DiscountService, taxService TaxService, shippingService ShippingService) *Service {
-	return &Service{
+// NewCartService creates a new cart service implementation
+func NewCartService(repo Repository, productService ProductService, discountService DiscountService, taxService TaxService, shippingService ShippingService) *CartService {
+	return &CartService{
 		repo:            repo,
 		validator:       validator.New(),
 		productService:  productService,
@@ -147,8 +212,13 @@ func NewService(repo Repository, productService ProductService, discountService 
 	}
 }
 
+// NewService creates a new cart service (interface compatibility)
+func NewService(repo Repository, productService ProductService, discountService DiscountService, taxService TaxService, shippingService ShippingService) Service {
+	return NewCartService(repo, productService, discountService, taxService, shippingService)
+}
+
 // CreateCart creates a new cart
-func (s *Service) CreateCart(tenantID uuid.UUID, req CreateCartRequest) (*CartResponse, error) {
+func (s *CartService) CreateCart(tenantID uuid.UUID, req CreateCartRequest) (*CartResponse, error) {
 	// Validate request
 	if err := s.validator.Struct(req); err != nil {
 		return nil, err
@@ -194,7 +264,7 @@ func (s *Service) CreateCart(tenantID uuid.UUID, req CreateCartRequest) (*CartRe
 }
 
 // GetCart retrieves a cart by ID
-func (s *Service) GetCart(tenantID, cartID uuid.UUID) (*CartResponse, error) {
+func (s *CartService) GetCart(tenantID, cartID uuid.UUID) (*CartResponse, error) {
 	cart, err := s.repo.FindCartByID(tenantID, cartID)
 	if err != nil {
 		return nil, ErrCartNotFound
@@ -210,8 +280,13 @@ func (s *Service) GetCart(tenantID, cartID uuid.UUID) (*CartResponse, error) {
 	return s.buildCartResponse(cart), nil
 }
 
+// GetCartByID retrieves a cart by ID (alias for GetCart)
+func (s *CartService) GetCartByID(tenantID, cartID uuid.UUID) (*CartResponse, error) {
+	return s.GetCart(tenantID, cartID)
+}
+
 // GetCartByCustomer retrieves active cart for a customer
-func (s *Service) GetCartByCustomer(tenantID, customerID uuid.UUID) (*CartResponse, error) {
+func (s *CartService) GetCartByCustomer(tenantID, customerID uuid.UUID) (*CartResponse, error) {
 	cart, err := s.repo.FindCartByCustomerID(tenantID, customerID)
 	if err != nil {
 		return nil, ErrCartNotFound
@@ -228,7 +303,7 @@ func (s *Service) GetCartByCustomer(tenantID, customerID uuid.UUID) (*CartRespon
 }
 
 // GetCartBySession retrieves cart for a guest session
-func (s *Service) GetCartBySession(tenantID uuid.UUID, sessionID string) (*CartResponse, error) {
+func (s *CartService) GetCartBySession(tenantID uuid.UUID, sessionID string) (*CartResponse, error) {
 	cart, err := s.repo.FindCartBySessionID(tenantID, sessionID)
 	if err != nil {
 		return nil, ErrCartNotFound
@@ -245,7 +320,7 @@ func (s *Service) GetCartBySession(tenantID uuid.UUID, sessionID string) (*CartR
 }
 
 // AddItem adds an item to the cart
-func (s *Service) AddItem(tenantID, cartID uuid.UUID, req AddItemRequest) (*CartResponse, error) {
+func (s *CartService) AddItem(tenantID, cartID uuid.UUID, req AddItemRequest) (*CartResponse, error) {
 	// Validate request
 	if err := s.validator.Struct(req); err != nil {
 		return nil, err
@@ -371,7 +446,7 @@ func (s *Service) AddItem(tenantID, cartID uuid.UUID, req AddItemRequest) (*Cart
 }
 
 // UpdateItem updates a cart item
-func (s *Service) UpdateItem(tenantID, cartID, itemID uuid.UUID, req UpdateItemRequest) (*CartResponse, error) {
+func (s *CartService) UpdateItem(tenantID, cartID, itemID uuid.UUID, req UpdateItemRequest) (*CartItem, error) {
 	// Validate request
 	if err := s.validator.Struct(req); err != nil {
 		return nil, err
@@ -416,7 +491,8 @@ func (s *Service) UpdateItem(tenantID, cartID, itemID uuid.UUID, req UpdateItemR
 	item.Notes = strings.TrimSpace(req.Notes)
 
 	// Update item
-	if _, err := s.repo.UpdateCartItem(item); err != nil {
+	updatedItem, err := s.repo.UpdateCartItem(item)
+	if err != nil {
 		return nil, err
 	}
 
@@ -432,68 +508,68 @@ func (s *Service) UpdateItem(tenantID, cartID, itemID uuid.UUID, req UpdateItemR
 	}
 
 	// Update cart
-	updatedCart, err := s.repo.UpdateCart(cart)
+	_, err = s.repo.UpdateCart(cart)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.buildCartResponse(updatedCart), nil
+	return updatedItem, nil
 }
 
 // RemoveItem removes an item from the cart
-func (s *Service) RemoveItem(tenantID, cartID, itemID uuid.UUID) (*CartResponse, error) {
+func (s *CartService) RemoveItem(tenantID, cartID, itemID uuid.UUID) error {
 	// Get cart
 	cart, err := s.repo.FindCartByID(tenantID, cartID)
 	if err != nil {
-		return nil, ErrCartNotFound
+		return ErrCartNotFound
 	}
 
 	// Check if cart can be modified
 	if err := cart.CanModify(); err != nil {
-		return nil, err
+		return err
 	}
 
 	// Remove item
 	if err := s.repo.RemoveCartItem(tenantID, cartID, itemID); err != nil {
-		return nil, ErrItemNotFound
+		return ErrItemNotFound
 	}
 
 	// Reload cart
 	cart, err = s.repo.FindCartByID(tenantID, cartID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Recalculate cart totals
 	if err := s.recalculateCart(cart); err != nil {
-		return nil, err
+		return err
 	}
 
 	// Update cart
-	updatedCart, err := s.repo.UpdateCart(cart)
+	_, err = s.repo.UpdateCart(cart)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return s.buildCartResponse(updatedCart), nil
+	return nil
 }
 
 // ClearCart removes all items from the cart
-func (s *Service) ClearCart(tenantID, cartID uuid.UUID) (*CartResponse, error) {
+func (s *CartService) ClearCart(tenantID, cartID uuid.UUID) error {
 	// Get cart
 	cart, err := s.repo.FindCartByID(tenantID, cartID)
 	if err != nil {
-		return nil, ErrCartNotFound
+		return ErrCartNotFound
 	}
 
 	// Check if cart can be modified
 	if err := cart.CanModify(); err != nil {
-		return nil, err
+		return err
 	}
 
 	// Clear all items
 	if err := s.repo.ClearCartItems(tenantID, cartID); err != nil {
-		return nil, err
+		return err
 	}
 
 	// Reset cart totals
@@ -507,16 +583,16 @@ func (s *Service) ClearCart(tenantID, cartID uuid.UUID) (*CartResponse, error) {
 	cart.DiscountID = nil
 
 	// Update cart
-	updatedCart, err := s.repo.UpdateCart(cart)
+	_, err = s.repo.UpdateCart(cart)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return s.buildCartResponse(updatedCart), nil
+	return nil
 }
 
 // ApplyCoupon applies a coupon to the cart
-func (s *Service) ApplyCoupon(tenantID, cartID uuid.UUID, req ApplyCouponRequest) (*CartResponse, error) {
+func (s *CartService) ApplyCoupon(tenantID, cartID uuid.UUID, req ApplyCouponRequest) (*CartResponse, error) {
 	// Validate request
 	if err := s.validator.Struct(req); err != nil {
 		return nil, err
@@ -562,7 +638,7 @@ func (s *Service) ApplyCoupon(tenantID, cartID uuid.UUID, req ApplyCouponRequest
 }
 
 // RemoveCoupon removes coupon from the cart
-func (s *Service) RemoveCoupon(tenantID, cartID uuid.UUID) (*CartResponse, error) {
+func (s *CartService) RemoveCoupon(tenantID, cartID uuid.UUID) (*CartResponse, error) {
 	// Get cart
 	cart, err := s.repo.FindCartByID(tenantID, cartID)
 	if err != nil {
@@ -592,7 +668,7 @@ func (s *Service) RemoveCoupon(tenantID, cartID uuid.UUID) (*CartResponse, error
 }
 
 // UpdateAddress updates shipping/billing address
-func (s *Service) UpdateAddress(tenantID, cartID uuid.UUID, req UpdateAddressRequest) (*CartResponse, error) {
+func (s *CartService) UpdateAddress(tenantID, cartID uuid.UUID, req UpdateAddressRequest) (*CartResponse, error) {
 	// Get cart
 	cart, err := s.repo.FindCartByID(tenantID, cartID)
 	if err != nil {
@@ -627,7 +703,7 @@ func (s *Service) UpdateAddress(tenantID, cartID uuid.UUID, req UpdateAddressReq
 }
 
 // UpdateShipping updates shipping method
-func (s *Service) UpdateShipping(tenantID, cartID uuid.UUID, req UpdateShippingRequest) (*CartResponse, error) {
+func (s *CartService) UpdateShipping(tenantID, cartID uuid.UUID, req UpdateShippingRequest) (*CartResponse, error) {
 	// Get cart
 	cart, err := s.repo.FindCartByID(tenantID, cartID)
 	if err != nil {
@@ -666,7 +742,7 @@ func (s *Service) UpdateShipping(tenantID, cartID uuid.UUID, req UpdateShippingR
 }
 
 // MergeGuestCart merges guest cart to customer cart
-func (s *Service) MergeGuestCart(tenantID uuid.UUID, sessionID string, customerID uuid.UUID) (*CartResponse, error) {
+func (s *CartService) MergeGuestCart(tenantID uuid.UUID, sessionID string, customerID uuid.UUID) (*CartResponse, error) {
 	if err := s.repo.MergeGuestCartToCustomer(tenantID, sessionID, customerID); err != nil {
 		return nil, err
 	}
@@ -692,7 +768,7 @@ func (s *Service) MergeGuestCart(tenantID uuid.UUID, sessionID string, customerI
 }
 
 // AbandonCart marks cart as abandoned
-func (s *Service) AbandonCart(tenantID, cartID uuid.UUID) error {
+func (s *CartService) AbandonCart(tenantID, cartID uuid.UUID) error {
 	cart, err := s.repo.FindCartByID(tenantID, cartID)
 	if err != nil {
 		return ErrCartNotFound
@@ -707,7 +783,7 @@ func (s *Service) AbandonCart(tenantID, cartID uuid.UUID) error {
 }
 
 // ConvertCart marks cart as converted to order
-func (s *Service) ConvertCart(tenantID, cartID uuid.UUID) error {
+func (s *CartService) ConvertCart(tenantID, cartID uuid.UUID) error {
 	cart, err := s.repo.FindCartByID(tenantID, cartID)
 	if err != nil {
 		return ErrCartNotFound
@@ -721,8 +797,13 @@ func (s *Service) ConvertCart(tenantID, cartID uuid.UUID) error {
 	return err
 }
 
+// DeleteCart soft deletes a cart
+func (s *CartService) DeleteCart(tenantID, cartID uuid.UUID) error {
+	return s.repo.DeleteCart(tenantID, cartID)
+}
+
 // GetCartSummary returns a summary of the cart
-func (s *Service) GetCartSummary(tenantID, cartID uuid.UUID) (*CartSummary, error) {
+func (s *CartService) GetCartSummary(tenantID, cartID uuid.UUID) (*CartSummary, error) {
 	cart, err := s.repo.FindCartByID(tenantID, cartID)
 	if err != nil {
 		return nil, ErrCartNotFound
@@ -741,7 +822,7 @@ func (s *Service) GetCartSummary(tenantID, cartID uuid.UUID) (*CartSummary, erro
 }
 
 // ListCarts returns paginated carts
-func (s *Service) ListCarts(tenantID uuid.UUID, filter CartListFilter, offset, limit int) ([]*CartResponse, int64, error) {
+func (s *CartService) ListCarts(tenantID uuid.UUID, filter CartListFilter, offset, limit int) ([]*CartResponse, int64, error) {
 	carts, total, err := s.repo.ListCarts(tenantID, filter, offset, limit)
 	if err != nil {
 		return nil, 0, err
@@ -756,19 +837,19 @@ func (s *Service) ListCarts(tenantID uuid.UUID, filter CartListFilter, offset, l
 }
 
 // GetCartStats returns cart statistics
-func (s *Service) GetCartStats(tenantID uuid.UUID) (*CartStats, error) {
+func (s *CartService) GetCartStats(tenantID uuid.UUID) (*CartStats, error) {
 	return s.repo.GetCartStats(tenantID)
 }
 
 // CleanupExpiredCarts marks expired carts as expired
-func (s *Service) CleanupExpiredCarts(tenantID uuid.UUID) error {
+func (s *CartService) CleanupExpiredCarts(tenantID uuid.UUID) error {
 	return s.repo.CleanupExpiredCarts(tenantID)
 }
 
 // Helper methods
 
 // recalculateCart recalculates all cart totals
-func (s *Service) recalculateCart(cart *Cart) error {
+func (s *CartService) recalculateCart(cart *Cart) error {
 	// Calculate subtotal
 	cart.UpdateTotals()
 
@@ -802,8 +883,194 @@ func (s *Service) recalculateCart(cart *Cart) error {
 	return nil
 }
 
+// UpdateCart updates cart properties
+func (s *CartService) UpdateCart(tenantID, cartID uuid.UUID, req UpdateCartRequest) (*CartResponse, error) {
+	// Validate request
+	if err := s.validator.Struct(req); err != nil {
+		return nil, err
+	}
+
+	// Get cart
+	cart, err := s.repo.FindCartByID(tenantID, cartID)
+	if err != nil {
+		return nil, ErrCartNotFound
+	}
+
+	// Check if cart can be modified
+	if err := cart.CanModify(); err != nil {
+		return nil, err
+	}
+
+	// Update addresses
+	if req.ShippingAddress != nil {
+		cart.ShippingAddress = req.ShippingAddress
+	}
+	if req.BillingAddress != nil {
+		cart.BillingAddress = req.BillingAddress
+	}
+
+	// Update shipping method
+	if req.ShippingMethodID != nil {
+		cart.ShippingMethodID = req.ShippingMethodID
+	}
+
+	// Update notes
+	if req.Notes != nil {
+		cart.Notes = strings.TrimSpace(*req.Notes)
+	}
+
+	// Handle coupon
+	if req.CouponCode != nil {
+		if *req.CouponCode == "" {
+			// Remove coupon
+			cart.CouponCode = ""
+			cart.DiscountAmount = 0
+		} else {
+			// Apply coupon
+			if s.discountService != nil {
+				_, err := s.discountService.ValidateCoupon(tenantID, *req.CouponCode, cart.Subtotal)
+				if err != nil {
+					return nil, ErrInvalidCoupon
+				}
+				cart.CouponCode = *req.CouponCode
+			}
+		}
+	}
+
+	// Recalculate cart totals
+	if err := s.recalculateCart(cart); err != nil {
+		return nil, err
+	}
+
+	// Update cart
+	updatedCart, err := s.repo.UpdateCart(cart)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.buildCartResponse(updatedCart), nil
+}
+
+// GetEstimates calculates shipping and tax estimates
+func (s *CartService) GetEstimates(tenantID, cartID uuid.UUID, req EstimateRequest) (*EstimateResponse, error) {
+	// Validate request
+	if err := s.validator.Struct(req); err != nil {
+		return nil, err
+	}
+
+	// Get cart
+	cart, err := s.repo.FindCartByID(tenantID, cartID)
+	if err != nil {
+		return nil, ErrCartNotFound
+	}
+
+	// Create temporary cart with shipping address for calculations
+	tempCart := *cart
+	tempCart.ShippingAddress = req.ShippingAddress
+
+	// Get available shipping methods
+	var shippingMethods []*ShippingMethod
+	if s.shippingService != nil {
+		methods, err := s.shippingService.GetAvailableShippingMethods(tenantID, &tempCart)
+		if err == nil {
+			shippingMethods = methods
+		}
+	}
+
+	// Calculate shipping cost for specific method if provided
+	shippingCost := 0.0
+	if req.ShippingMethodID != nil && s.shippingService != nil {
+		cost, err := s.shippingService.CalculateShipping(tenantID, &tempCart, *req.ShippingMethodID)
+		if err == nil {
+			shippingCost = cost
+		}
+	}
+
+	// Calculate tax estimate
+	taxEstimate := TaxEstimate{Amount: 0, Rate: 0}
+	if s.taxService != nil {
+		taxAmount, err := s.taxService.CalculateTax(tenantID, &tempCart)
+		if err == nil {
+			taxEstimate.Amount = taxAmount
+			if cart.Subtotal > 0 {
+				taxEstimate.Rate = taxAmount / cart.Subtotal
+			}
+		}
+	}
+
+	// Calculate total
+	total := cart.Subtotal + shippingCost + taxEstimate.Amount - cart.DiscountAmount
+
+	// Convert shipping methods to response format
+	responseShippingMethods := make([]ShippingMethod, len(shippingMethods))
+	for i, method := range shippingMethods {
+		responseShippingMethods[i] = *method
+	}
+
+	return &EstimateResponse{
+		ShippingMethods: responseShippingMethods,
+		Taxes:           taxEstimate,
+		Subtotal:        cart.Subtotal,
+		Total:           total,
+	}, nil
+}
+
+// ProcessGuestCheckout processes guest checkout
+func (s *CartService) ProcessGuestCheckout(tenantID uuid.UUID, req GuestCheckoutRequest) (*GuestCheckoutResponse, error) {
+	// Validate request
+	if err := s.validator.Struct(req); err != nil {
+		return nil, err
+	}
+
+	// Get guest cart
+	cart, err := s.repo.FindCartBySessionID(tenantID, req.SessionID)
+	if err != nil {
+		return nil, ErrCartNotFound
+	}
+
+	// Check if cart can be modified
+	if err := cart.CanModify(); err != nil {
+		return nil, err
+	}
+
+	// Check if cart has items
+	if len(cart.Items) == 0 {
+		return nil, errors.New("cart is empty")
+	}
+
+	// Update cart with checkout information
+	cart.ShippingAddress = &req.ShippingAddress
+	cart.BillingAddress = &req.BillingAddress
+	cart.ShippingMethodID = &req.ShippingMethodID
+
+	// Recalculate totals
+	if err := s.recalculateCart(cart); err != nil {
+		return nil, err
+	}
+
+	// TODO: Integrate with order service to create order
+	// TODO: Integrate with payment service to process payment
+	// For now, return a mock response
+	orderID := uuid.New()
+	orderNumber := "ORD-" + orderID.String()[:8]
+
+	// Mark cart as converted
+	cart.MarkAsConverted()
+	_, err = s.repo.UpdateCart(cart)
+	if err != nil {
+		return nil, err
+	}
+
+	return &GuestCheckoutResponse{
+		OrderID:     orderID,
+		OrderNumber: orderNumber,
+		Total:       cart.Total,
+		Status:      "pending",
+	}, nil
+}
+
 // buildCartResponse builds a cart response with additional calculated fields
-func (s *Service) buildCartResponse(cart *Cart) *CartResponse {
+func (s *CartService) buildCartResponse(cart *Cart) *CartResponse {
 	savingsAmount := 0.0
 	for _, item := range cart.Items {
 		savingsAmount += item.GetDiscountAmount()

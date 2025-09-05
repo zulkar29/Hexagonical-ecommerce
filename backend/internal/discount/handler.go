@@ -46,7 +46,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	{
 		giftCards.POST("", h.createGiftCard)
 		giftCards.GET("", h.getGiftCards)
-		giftCards.GET("/:code", h.getGiftCard)
+		giftCards.GET("/code/:code", h.getGiftCard)
 		giftCards.PUT("/:id", h.updateGiftCard)
 		giftCards.DELETE("/:id", h.deleteGiftCard)
 		giftCards.GET("/:id/transactions", h.getGiftCardTransactions)

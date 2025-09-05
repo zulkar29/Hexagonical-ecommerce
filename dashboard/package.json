@@ -11,31 +11,24 @@
     "lint:fix": "eslint src/ --fix"
   },
   "dependencies": {
-    "TODO": "Add dependencies during implementation",
-    "NOTES": [
-      "react: React 18+",
-      "react-dom: React DOM",
-      "react-router-dom: Client-side routing",
-      "@mui/material: Material-UI components",
-      "@mui/icons-material: Material-UI icons",
-      "@emotion/react: Styling (required by MUI)",
-      "@emotion/styled: Styling (required by MUI)",
-      "jotai: State management",
-      "@tanstack/react-query: Server state",
-      "react-hook-form: Form handling",
-      "recharts: Data visualization",
-      "axios: HTTP client",
-      "date-fns: Date manipulation"
-    ]
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.8.1",
+    "@mui/material": "^5.11.10",
+    "@mui/icons-material": "^5.11.9",
+    "@emotion/react": "^11.10.5",
+    "@emotion/styled": "^11.10.5",
+    "jotai": "^2.0.0",
+    "@tanstack/react-query": "^4.24.6",
+    "react-hook-form": "^7.43.1",
+    "recharts": "^2.5.0",
+    "axios": "^1.3.4",
+    "date-fns": "^2.29.3"
   },
   "devDependencies": {
-    "TODO": "Add dev dependencies during implementation", 
-    "DEV_NOTES": [
-      "react-scripts: Create React App scripts",
-      "@types/react: React types (if adding TypeScript later)",
-      "eslint: Code linting",
-      "prettier: Code formatting"
-    ]
+    "react-scripts": "5.0.1",
+    "eslint": "^8.34.0",
+    "prettier": "^2.8.4"
   },
   "browserslist": {
     "production": [

@@ -10,8 +10,6 @@ import (
 	"gorm.io/gorm/logger"
 
 	"ecommerce-saas/internal/shared/config"
-	"ecommerce-saas/internal/tenant"
-	"ecommerce-saas/internal/product"
 )
 
 // DB holds the database connection
@@ -67,32 +65,12 @@ func Connect(cfg *config.Config) (*gorm.DB, error) {
 
 // AutoMigrate runs database migrations
 func AutoMigrate(db *gorm.DB) error {
-	log.Println("Running database migrations...")
+	log.Println("Skipping GORM auto-migration - using SQL migrations instead")
 
-	// Migrate all models
-	err := db.AutoMigrate(
-		// Tenant models
-		&tenant.Tenant{},
-		
-		// Product models
-		&product.Product{},
-		&product.ProductVariant{},
-		&product.Category{},
-		
-		// Order models (TODO: define these)
-		// &order.Order{},
-		// &order.OrderItem{},
-		
-		// User models (TODO: define these)
-		// &user.User{},
-		// &user.Role{},
-		// &user.Permission{},
-	)
-
-	if err != nil {
-		return fmt.Errorf("failed to migrate database: %w", err)
-	}
-
+	// Skip GORM auto-migration to avoid conflicts with SQL migrations
+	// The database schema is managed by SQL migration files
+	// TODO: Re-enable auto-migration if needed for development
+	
 	log.Println("Database migrations completed successfully")
 	return nil
 }

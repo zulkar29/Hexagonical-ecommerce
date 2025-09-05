@@ -186,6 +186,17 @@ type service struct {
 	analyticsService AnalyticsService
 }
 
+// Service is an alias for BillingService
+type Service = BillingService
+
+// NewService creates a new billing service
+func NewService(repo BillingRepository) Service {
+	return &service{
+		repo: repo,
+		// TODO: Initialize payment provider, email service, analytics service
+	}
+}
+
 // PaymentProvider interface for payment processing
 type PaymentProvider interface {
 	CreateCharge(amount float64, currency, paymentMethodID string, metadata map[string]interface{}) (*PaymentResult, error)

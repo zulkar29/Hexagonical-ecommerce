@@ -1177,6 +1177,30 @@ func (s *Service) UpdateOrder(ctx context.Context, tenantID uuid.UUID, orderID s
 	return updatedOrder, nil
 }
 
+// DeleteOrder deletes a single order
+func (s *Service) DeleteOrder(ctx context.Context, tenantID uuid.UUID, orderID uuid.UUID) error {
+	// Get order to validate it exists and belongs to tenant
+	order, err := s.repository.GetOrderByID(tenantID, orderID)
+	if err != nil {
+		return fmt.Errorf("order not found: %w", err)
+	}
+	
+	// Check if order can be deleted (only pending/draft orders)
+	if order.Status != OrderStatusPending && order.Status != OrderStatusDraft {
+		return fmt.Errorf("cannot delete order in status %s", order.Status)
+	}
+	
+	// Add history entry before deletion
+	s.AddOrderHistoryEntry(order.ID, "order_deleted", "Order deleted", uuid.Nil, "user", nil)
+	
+	// Delete order
+	if err := s.repository.DeleteOrder(tenantID, order.ID); err != nil {
+		return fmt.Errorf("failed to delete order: %w", err)
+	}
+	
+	return nil
+}
+
 // BulkDeleteOrders deletes multiple orders
 func (s *Service) BulkDeleteOrders(ctx context.Context, tenantID uuid.UUID, orderIDs []string, reason string) (int, int, []string, error) {
 	if len(orderIDs) == 0 {

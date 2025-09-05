@@ -249,7 +249,7 @@ func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassw
 	user.UpdatedAt = now
 
 	// Invalidate all existing sessions
-	s.repo.InvalidateUserSessions(userID)
+	s.repo.InvalidateUserSessions(ctx, userID)
 
 	return s.repo.Update(user)
 }
@@ -453,7 +453,7 @@ func (s *Service) DeleteUser(adminUserID, targetUserID uuid.UUID) error {
 	}
 
 	// Invalidate all sessions first
-	s.repo.InvalidateUserSessions(targetUserID)
+	s.repo.InvalidateUserSessions(context.Background(), targetUserID)
 
 	// Delete user
 	return s.repo.Delete(targetUserID)
@@ -504,4 +504,122 @@ func (s *Service) ForgotPassword(ctx context.Context, email string) error {
 	log.Printf("Password reset email would be sent to: %s with token: %s", user.Email, resetToken)
 
 	return nil
+}
+
+// SendPasswordResetEmail sends password reset email
+func (s *Service) SendPasswordResetEmail(email, token string) error {
+	// TODO: Implement email service integration
+	return nil
+}
+
+// ResendVerificationEmail resends verification email
+func (s *Service) ResendVerificationEmail(ctx context.Context, email string) error {
+	user, err := s.repo.GetUserByEmail(ctx, email)
+	if err != nil {
+		return err
+	}
+
+	if user.EmailVerified {
+		return errors.New("email already verified")
+	}
+
+	// TODO: Generate new verification token and send email
+	return nil
+}
+
+// ResendVerification resends verification email (alias for handler compatibility)
+func (s *Service) ResendVerification(ctx context.Context, email string) error {
+	return s.ResendVerificationEmail(ctx, email)
+}
+
+// DeleteAccount deletes user account (alias for handler compatibility)
+func (s *Service) DeleteAccount(ctx context.Context, userID uuid.UUID) error {
+	return s.DeleteUserAccount(ctx, userID)
+}
+
+// DeleteUserAccount deletes user account
+func (s *Service) DeleteUserAccount(ctx context.Context, userID uuid.UUID) error {
+	// Invalidate all user sessions
+	if err := s.repo.InvalidateUserSessions(ctx, userID); err != nil {
+		return err
+	}
+
+	// Delete user account
+	return s.repo.DeleteUser(ctx, userID)
+}
+
+// GetUserPreferences gets user preferences
+func (s *Service) GetUserPreferences(ctx context.Context, userID uuid.UUID) (map[string]interface{}, error) {
+	return s.repo.GetUserPreferences(ctx, userID)
+}
+
+// UpdateUserPreferences updates user preferences
+func (s *Service) UpdateUserPreferences(ctx context.Context, userID uuid.UUID, preferences map[string]interface{}) (map[string]interface{}, error) {
+	return s.repo.UpdateUserPreferences(ctx, userID, preferences)
+}
+
+// GetUserActivity gets user activity logs
+func (s *Service) GetUserActivity(userID uuid.UUID, activityType, dateFrom, dateTo string, page, limit int) ([]interface{}, int64, error) {
+	// TODO: Implement activity logging system
+	return []interface{}{}, 0, nil
+}
+
+// UpdateUserByAdmin updates user by admin
+func (s *Service) UpdateUserByAdmin(ctx context.Context, adminUserID, userID uuid.UUID, updates map[string]interface{}) (*User, error) {
+	// TODO: Check admin permissions
+	return s.repo.UpdateUserByAdmin(ctx, userID, updates)
+}
+
+// BulkImportUsers handles bulk user import
+func (s *Service) BulkImportUsers(ctx context.Context, adminUserID uuid.UUID, users []User) (map[string]interface{}, error) {
+	// TODO: Check admin permissions
+	successCount := 0
+	failedCount := 0
+	errors := []string{}
+
+	for _, user := range users {
+		if err := s.validateUser(&user); err != nil {
+			failedCount++
+			errors = append(errors, err.Error())
+			continue
+		}
+
+		if _, err := s.repo.CreateUser(ctx, &user); err != nil {
+			failedCount++
+			errors = append(errors, err.Error())
+			continue
+		}
+
+		successCount++
+	}
+
+	return map[string]interface{}{
+		"success_count": successCount,
+		"failed_count":  failedCount,
+		"errors":        errors,
+	}, nil
+}
+
+// ExportUsers exports user data
+func (s *Service) ExportUsers(ctx context.Context, adminUserID uuid.UUID, format string, filters map[string]string) ([]byte, error) {
+	// TODO: Check admin permissions
+	_, err := s.repo.GetUsersForExport(ctx, filters)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Implement CSV/Excel export
+	return []byte("user_id,email,name,role,status\n"), nil
+}
+
+// GetUserOrders gets user's orders
+func (s *Service) GetUserOrders(userID uuid.UUID, status string, page, limit int) ([]interface{}, int64, error) {
+	// TODO: Implement order service integration
+	return []interface{}{}, 0, nil
+}
+
+// GetUserAddresses gets user's addresses
+func (s *Service) GetUserAddresses(userID uuid.UUID) ([]interface{}, error) {
+	// TODO: Implement address service integration
+	return []interface{}{}, nil
 }

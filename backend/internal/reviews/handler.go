@@ -26,6 +26,9 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	{
 		reviews.POST("", h.createReview)                    // CreateReview
 		reviews.GET("", h.getReviews)                      // GetReviews (with filtering, stats, trends, recent)
+		// 📍 SETTINGS (2) - Must come before /:id routes
+		reviews.GET("/settings", h.getSettings)             // GetSettings
+		reviews.PUT("/settings", h.updateSettings)          // UpdateSettings
 		reviews.GET("/:id", h.getReview)                   // GetReview
 		reviews.PUT("/:id", h.updateReview)                // UpdateReview (handles moderation actions)
 		reviews.DELETE("/:id", h.deleteReview)             // DeleteReview
@@ -40,13 +43,10 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	reviews.POST("/:id/react", h.reactToReview)         // ReactToReview
 	reviews.DELETE("/:id/react", h.removeReaction)     // RemoveReaction
 	
-	// 📍 PRODUCT REVIEWS (3)
-	products := router.Group("/products")
-	{
-		products.GET("/:productId/reviews", h.getProductReviews)                    // GetProductReviews
-		products.GET("/:productId/reviews/summary", h.getProductReviewSummary)      // GetProductReviewSummary
-		products.POST("/:productId/reviews/summary/refresh", h.refreshProductReviewSummary) // RefreshProductReviewSummary
-	}
+	// 📍 PRODUCT REVIEWS (3) - Use reviews prefix to avoid conflicts
+	reviews.GET("/product/:productId", h.getProductReviews)                    // GetProductReviews
+	reviews.GET("/product/:productId/summary", h.getProductReviewSummary)      // GetProductReviewSummary
+	reviews.POST("/product/:productId/summary/refresh", h.refreshProductReviewSummary) // RefreshProductReviewSummary
 	
 	// 📍 REVIEW INVITATIONS (4)
 	invitations := router.Group("/review-invitations")
@@ -60,9 +60,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	// 📍 PUBLIC ENDPOINTS (1)
 	router.GET("/review-invite/:token", h.processInvitationClick) // ProcessInvitationClick
 	
-	// 📍 SETTINGS (2)
-	reviews.GET("/settings", h.getSettings)             // GetSettings
-	reviews.PUT("/settings", h.updateSettings)          // UpdateSettings
+
 }
 
 // Review CRUD handlers

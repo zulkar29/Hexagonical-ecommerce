@@ -198,6 +198,14 @@ func NewBillingRepository(db *gorm.DB) BillingRepository {
 	return &gormBillingRepository{db: db}
 }
 
+// Repository is an alias for BillingRepository
+type Repository = BillingRepository
+
+// NewRepository creates a new repository (alias for NewBillingRepository)
+func NewRepository(db *gorm.DB) Repository {
+	return NewBillingRepository(db)
+}
+
 // Transaction implementation
 type gormTransaction struct {
 	tx *gorm.DB

@@ -3,6 +3,7 @@ package product
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -802,6 +803,16 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		products.PUT("/:id", h.UpdateProduct) // Supports ?action=update_inventory|update_status|duplicate
 		products.DELETE("/:id", h.DeleteProduct)
 		products.GET("/slug/:slug", h.GetProductBySlug)
+		
+		// Bulk operations
+		products.POST("/bulk", h.HandleProductBulk)
+		
+		// Product images
+		products.POST("/:id/images", h.UploadProductImages)
+		products.DELETE("/:id/images/:image-id", h.DeleteProductImage)
+		
+		// Product analytics
+		products.GET("/:id/analytics", h.GetProductAnalytics)
 
 		// Product variant routes
 		products.POST("/:id/variants", h.CreateProductVariant)
@@ -820,14 +831,262 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		categories.DELETE("/:id", h.DeleteCategory)
 	}
 
-	// TODO: Add routes for:
-	// - Product image uploads
-	// - Category image uploads
-	// - Advanced search and filtering
+	// Note: Public routes are registered separately in routes.go setupPublicProductRoutes
+	// to avoid duplicate registration conflicts
 }
 
-// TODO: Add more handlers
-// - ImportProducts(c *gin.Context) - CSV/Excel import
-// - ExportProducts(c *gin.Context) - CSV/Excel export
-// - UploadProductImages(c *gin.Context) - Image upload
-// - DeleteProductImage(c *gin.Context) - Delete specific image
+// Missing Product Endpoints Implementation
+
+// HandleProductBulk handles POST /api/products/bulk
+func (h *Handler) HandleProductBulk(c *gin.Context) {
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+		return
+	}
+
+	operation := c.Query("operation")
+	switch operation {
+	case "import":
+		// TODO: Implement CSV/Excel import
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "Import functionality not implemented"})
+	case "export":
+		// TODO: Implement CSV/Excel export
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "Export functionality not implemented"})
+	case "update":
+		var req struct {
+			ProductIDs []string `json:"product_ids" binding:"required"`
+			Updates    map[string]interface{} `json:"updates" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+			return
+		}
+		err := h.service.BulkUpdateProducts(tenantID.(uuid.UUID), req.ProductIDs, req.Updates)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Products updated successfully"})
+	case "delete":
+		var req struct {
+			ProductIDs []string `json:"product_ids" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+			return
+		}
+		err := h.service.BulkDeleteProducts(tenantID.(uuid.UUID), req.ProductIDs)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Products deleted successfully"})
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid operation type"})
+	}
+}
+
+// UploadProductImages handles POST /api/products/:id/images
+func (h *Handler) UploadProductImages(c *gin.Context) {
+	_, exists := c.Get("tenant_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+		return
+	}
+
+	productIDStr := c.Param("id")
+	_, err := uuid.Parse(productIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		return
+	}
+
+	// TODO: Implement image upload functionality
+	c.JSON(http.StatusNotImplemented, gin.H{"error": "Image upload functionality not implemented"})
+}
+
+// DeleteProductImage handles DELETE /api/products/:id/images/:image-id
+func (h *Handler) DeleteProductImage(c *gin.Context) {
+	_, exists := c.Get("tenant_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+		return
+	}
+
+	productIDStr := c.Param("id")
+	_, err := uuid.Parse(productIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		return
+	}
+
+	imageID := c.Param("image-id")
+	if imageID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Image ID is required"})
+		return
+	}
+
+	// TODO: Implement image deletion functionality
+	c.JSON(http.StatusNotImplemented, gin.H{"error": "Image deletion functionality not implemented"})
+}
+
+// GetProductAnalytics handles GET /api/products/:id/analytics
+func (h *Handler) GetProductAnalytics(c *gin.Context) {
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+		return
+	}
+
+	productIDStr := c.Param("id")
+	productID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		return
+	}
+
+	analyticsType := c.DefaultQuery("type", "performance")
+	analytics, err := h.service.GetProductAnalytics(tenantID.(uuid.UUID), productID.String(), analyticsType)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": analytics,
+		"type": analyticsType,
+	})
+}
+
+// Public Product Endpoints
+
+// GetPublicProducts handles GET /public/products
+func (h *Handler) GetPublicProducts(c *gin.Context) {
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+		return
+	}
+
+	// Parse filters for public access
+	var filter ProductListFilter
+	filter.Status = "active" // Only show active products publicly
+	
+	if categoryID := c.Query("category"); categoryID != "" {
+		if id, err := uuid.Parse(categoryID); err == nil {
+			filter.CategoryID = &id
+		}
+	}
+	filter.Search = c.Query("search")
+
+	// Parse pagination
+	offsetStr := c.DefaultQuery("offset", "0")
+	limitStr := c.DefaultQuery("limit", "20")
+	
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset parameter"})
+		return
+	}
+	
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
+		return
+	}
+	
+	if limit > 100 {
+		limit = 100
+	}
+	if limit < 1 {
+		limit = 20
+	}
+
+	products, total, err := h.service.ListProducts(tenantID.(uuid.UUID), filter, offset, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch products"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": gin.H{
+			"products": products,
+			"total":    total,
+			"offset":   offset,
+			"limit":    limit,
+		},
+	})
+}
+
+// GetPublicProduct handles GET /public/products/:id
+func (h *Handler) GetPublicProduct(c *gin.Context) {
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+		return
+	}
+
+	productIDStr := c.Param("id")
+	product, err := h.service.GetProduct(tenantID.(uuid.UUID), productIDStr)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+		return
+	}
+
+	// Only return active products for public access
+	if product.Status != "active" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+		return
+	}
+
+	include := c.Query("include")
+	responseData := gin.H{"product": product}
+	
+	if strings.Contains(include, "variants") {
+		variants, _ := h.service.GetProductVariants(tenantID.(uuid.UUID), productIDStr)
+		responseData["variants"] = variants
+	}
+	
+	// TODO: Add reviews and related products when those modules are implemented
+	if strings.Contains(include, "reviews") {
+		responseData["reviews"] = []interface{}{} // Placeholder
+	}
+	
+	if strings.Contains(include, "related") {
+		responseData["related"] = []interface{}{} // Placeholder
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": responseData})
+}
+
+// GetPublicCategories handles GET /public/categories
+func (h *Handler) GetPublicCategories(c *gin.Context) {
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+		return
+	}
+
+	view := c.DefaultQuery("view", "flat")
+	_ = c.Query("include_products") == "true" // TODO: implement include_products functionality
+
+	switch view {
+	case "tree":
+		categories, err := h.service.GetRootCategories(tenantID.(uuid.UUID))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch categories"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"data": categories})
+	case "flat":
+		categories, err := h.service.ListCategories(tenantID.(uuid.UUID))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch categories"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"data": categories})
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid view parameter"})
+	}
+}

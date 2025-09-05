@@ -1,6 +1,7 @@
 package user
 
 import (
+	"context"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -9,22 +10,31 @@ import (
 type Repository interface {
 	// User CRUD operations
 	Create(user *User) error
+	CreateUser(ctx context.Context, user *User) (*User, error)
 	GetByID(id uuid.UUID) (*User, error)
 	GetByEmail(email string) (*User, error)
+	GetUserByEmail(ctx context.Context, email string) (*User, error)
 	Update(user *User) error
 	Delete(id uuid.UUID) error
+	DeleteUser(ctx context.Context, userID uuid.UUID) error
 	List(tenantID *uuid.UUID, filter UserFilter, offset, limit int) ([]*User, int64, error)
+	UpdateUserByAdmin(ctx context.Context, userID uuid.UUID, updates map[string]interface{}) (*User, error)
+	GetUsersForExport(ctx context.Context, filters map[string]string) ([]*User, error)
 
 	// Session operations
 	CreateSession(session *UserSession) error
 	GetSessionByToken(token string) (*UserSession, error)
 	UpdateSession(session *UserSession) error
-	InvalidateUserSessions(userID uuid.UUID) error
+	InvalidateUserSessions(ctx context.Context, userID uuid.UUID) error
 	CleanupExpiredSessions() error
 
 	// Permission operations
 	GetUserPermissions(userID uuid.UUID) ([]*Permission, error)
 	CheckUserPermission(userID uuid.UUID, resource, action string) (bool, error)
+
+	// Preferences operations
+	GetUserPreferences(ctx context.Context, userID uuid.UUID) (map[string]interface{}, error)
+	UpdateUserPreferences(ctx context.Context, userID uuid.UUID, preferences map[string]interface{}) (map[string]interface{}, error)
 }
 
 // repository implements Repository interface
@@ -125,11 +135,7 @@ func (r *repository) UpdateSession(session *UserSession) error {
 	return r.db.Save(session).Error
 }
 
-func (r *repository) InvalidateUserSessions(userID uuid.UUID) error {
-	return r.db.Model(&UserSession{}).
-		Where("user_id = ?", userID).
-		Update("is_active", false).Error
-}
+// Removed duplicate method - using context-aware version below
 
 func (r *repository) CleanupExpiredSessions() error {
 	return r.db.Where("expires_at < NOW() OR is_active = false").
@@ -173,4 +179,90 @@ func (r *repository) CheckUserPermission(userID uuid.UUID, resource, action stri
 		Count(&count).Error
 
 	return count > 0, err
+}
+
+// Additional context-aware methods
+
+func (r *repository) CreateUser(ctx context.Context, user *User) (*User, error) {
+	if err := r.db.WithContext(ctx).Create(user).Error; err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (r *repository) GetUserByEmail(ctx context.Context, email string) (*User, error) {
+	var user User
+	err := r.db.WithContext(ctx).Where("email = ?", email).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *repository) DeleteUser(ctx context.Context, userID uuid.UUID) error {
+	return r.db.WithContext(ctx).Delete(&User{}, userID).Error
+}
+
+func (r *repository) UpdateUserByAdmin(ctx context.Context, userID uuid.UUID, updates map[string]interface{}) (*User, error) {
+	if err := r.db.WithContext(ctx).Model(&User{}).Where("id = ?", userID).Updates(updates).Error; err != nil {
+		return nil, err
+	}
+	
+	var user User
+	if err := r.db.WithContext(ctx).Where("id = ?", userID).First(&user).Error; err != nil {
+		return nil, err
+	}
+	
+	return &user, nil
+}
+
+func (r *repository) GetUsersForExport(ctx context.Context, filters map[string]string) ([]*User, error) {
+	var users []*User
+	query := r.db.WithContext(ctx).Model(&User{})
+	
+	if role := filters["role"]; role != "" {
+		query = query.Where("role = ?", role)
+	}
+	if status := filters["status"]; status != "" {
+		query = query.Where("status = ?", status)
+	}
+	if search := filters["search"]; search != "" {
+		searchPattern := "%" + search + "%"
+		query = query.Where(
+			"first_name ILIKE ? OR last_name ILIKE ? OR email ILIKE ?",
+			searchPattern, searchPattern, searchPattern,
+		)
+	}
+	
+	err := query.Find(&users).Error
+	return users, err
+}
+
+// Context-aware session invalidation
+func (r *repository) InvalidateUserSessions(ctx context.Context, userID uuid.UUID) error {
+	return r.db.WithContext(ctx).Model(&UserSession{}).
+		Where("user_id = ?", userID).
+		Update("is_active", false).Error
+}
+
+// Preferences operations
+func (r *repository) GetUserPreferences(ctx context.Context, userID uuid.UUID) (map[string]interface{}, error) {
+	var user User
+	if err := r.db.WithContext(ctx).Select("preferences").Where("id = ?", userID).First(&user).Error; err != nil {
+		return nil, err
+	}
+	
+	if user.Preferences == nil {
+		return make(map[string]interface{}), nil
+	}
+	
+	return user.Preferences, nil
+}
+
+func (r *repository) UpdateUserPreferences(ctx context.Context, userID uuid.UUID, preferences map[string]interface{}) (map[string]interface{}, error) {
+	if err := r.db.WithContext(ctx).Model(&User{}).Where("id = ?", userID).Update("preferences", preferences).Error; err != nil {
+		return nil, err
+	}
+	
+	return preferences, nil
 }

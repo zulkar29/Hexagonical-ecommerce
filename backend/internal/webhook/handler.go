@@ -584,20 +584,14 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		incoming.POST("/paperfly", h.PaperflyWebhook)
 	}
 	
-	// Tenant-specific incoming webhooks
-	tenantIncoming := router.Group("/tenants/:tenant_id/webhooks/incoming")
-	{
-		// Payment providers
-		tenantIncoming.POST("/stripe", h.StripeWebhook)
-		tenantIncoming.POST("/paypal", h.PayPalWebhook)
-		tenantIncoming.POST("/bkash", h.BkashWebhook)
-		tenantIncoming.POST("/nagad", h.NagadWebhook)
-		
-		// Shipping providers
-		tenantIncoming.POST("/pathao", h.PathaoWebhook)
-		tenantIncoming.POST("/redx", h.RedXWebhook)
-		tenantIncoming.POST("/paperfly", h.PaperflyWebhook)
-	}
+	// Tenant-specific incoming webhooks - use webhooks prefix to avoid conflicts
+	webhooks.POST("/tenant/:tenant_id/stripe", h.StripeWebhook)
+	webhooks.POST("/tenant/:tenant_id/paypal", h.PayPalWebhook)
+	webhooks.POST("/tenant/:tenant_id/bkash", h.BkashWebhook)
+	webhooks.POST("/tenant/:tenant_id/nagad", h.NagadWebhook)
+	webhooks.POST("/tenant/:tenant_id/pathao", h.PathaoWebhook)
+	webhooks.POST("/tenant/:tenant_id/redx", h.RedXWebhook)
+	webhooks.POST("/tenant/:tenant_id/paperfly", h.PaperflyWebhook)
 }
 
 // Middleware functions

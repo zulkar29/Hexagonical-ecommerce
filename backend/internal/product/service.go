@@ -365,6 +365,64 @@ func (s *Service) generateUniqueCategorySlug(tenantID uuid.UUID, baseSlug string
 
 
 
+// BulkDeleteProducts deletes multiple products at once
+func (s *Service) BulkDeleteProducts(tenantID uuid.UUID, productIDs []string) error {
+	// Parse product IDs
+	uuidIDs := make([]uuid.UUID, 0, len(productIDs))
+	for _, idStr := range productIDs {
+		if id, err := uuid.Parse(idStr); err == nil {
+			uuidIDs = append(uuidIDs, id)
+		}
+	}
+
+	if len(uuidIDs) == 0 {
+		return errors.New("no valid product IDs provided")
+	}
+
+	return s.repo.BulkDeleteProducts(tenantID, uuidIDs)
+}
+
+// GetProductAnalytics returns analytics data for a specific product
+func (s *Service) GetProductAnalytics(tenantID uuid.UUID, productID, analyticsType string) (interface{}, error) {
+	prodID, err := uuid.Parse(productID)
+	if err != nil {
+		return nil, errors.New("invalid product ID")
+	}
+
+	// Verify product exists
+	_, err = s.repo.FindProductByID(tenantID, prodID)
+	if err != nil {
+		return nil, errors.New("product not found")
+	}
+
+	switch analyticsType {
+	case "performance":
+		// TODO: Implement performance analytics
+		return map[string]interface{}{
+			"views": 0,
+			"sales": 0,
+			"revenue": 0.0,
+			"conversion_rate": 0.0,
+		}, nil
+	case "inventory":
+		// TODO: Implement inventory analytics
+		return map[string]interface{}{
+			"current_stock": 0,
+			"stock_movements": []interface{}{},
+			"low_stock_alerts": 0,
+		}, nil
+	case "sales":
+		// TODO: Implement sales analytics
+		return map[string]interface{}{
+			"total_sales": 0,
+			"monthly_sales": []interface{}{},
+			"top_variants": []interface{}{},
+		}, nil
+	default:
+		return nil, errors.New("invalid analytics type")
+	}
+}
+
 // TODO: Add more service methods
 // - ExportProducts(tenantID uuid.UUID, format string) ([]byte, error)
 // - ImportProducts(tenantID uuid.UUID, data []byte) error

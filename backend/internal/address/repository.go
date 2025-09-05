@@ -62,6 +62,11 @@ func NewGormRepository(db *gorm.DB) Repository {
 	return &GormRepository{db: db}
 }
 
+// NewRepository creates a new repository (alias for NewGormRepository)
+func NewRepository(db *gorm.DB) Repository {
+	return NewGormRepository(db)
+}
+
 // Address CRUD operations
 
 // Create creates a new address

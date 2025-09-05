@@ -31,6 +31,9 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		wishlists.GET("/popular", h.GetPopularWishlists)
 		wishlists.POST("/cleanup/empty", h.CleanupEmptyWishlists)
 		wishlists.GET("/share/:shareToken", h.GetWishlistByShareToken)
+		// Merge operation - must come before /:wishlistID to avoid conflicts
+		wishlists.POST("/merge/:sourceID/:targetID", h.MergeWishlists)
+		
 		wishlists.GET("/:wishlistID", h.GetWishlist)
 		wishlists.PUT("/:wishlistID", h.UpdateWishlist)
 		wishlists.DELETE("/:wishlistID", h.DeleteWishlist)
@@ -40,7 +43,6 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		wishlists.POST("/:wishlistID/items/bulk", h.BulkAddItems)
 		wishlists.POST("/:wishlistID/items/reorder", h.ReorderItems)
 		wishlists.POST("/:wishlistID/clear", h.ClearWishlist)
-		wishlists.POST("/:sourceID/merge/:targetID", h.MergeWishlists)
 	}
 	
 	// Customer wishlist routes

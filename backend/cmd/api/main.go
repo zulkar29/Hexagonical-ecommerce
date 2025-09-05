@@ -23,9 +23,10 @@ func main() {
 	}
 
 	// Run migrations
-	if err := database.AutoMigrate(db); err != nil {
-		log.Fatalf("Failed to migrate database: %v", err)
-	}
+	// Temporarily disabled to avoid GORM schema conflicts
+	// if err := database.AutoMigrate(db); err != nil {
+	// 	log.Fatalf("Failed to migrate database: %v", err)
+	// }
 
 	// Initialize JWT manager
 	jwtManager := utils.NewJWTManager(cfg.JWT.Secret, cfg.App.Name)

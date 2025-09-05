@@ -5,7 +5,10 @@ import (
 	"gorm.io/gorm"
 
 	"ecommerce-saas/internal/address"
+	"ecommerce-saas/internal/admin"
 	"ecommerce-saas/internal/analytics"
+	"ecommerce-saas/internal/billing"
+	// "ecommerce-saas/internal/cart" // Temporarily disabled due to interface compatibility issues
 	"ecommerce-saas/internal/contact"
 	"ecommerce-saas/internal/content"
 	"ecommerce-saas/internal/discount"
@@ -13,15 +16,20 @@ import (
 	"ecommerce-saas/internal/loyalty"
 	"ecommerce-saas/internal/marketing"
 	"ecommerce-saas/internal/notification"
+	"ecommerce-saas/internal/observability"
 	"ecommerce-saas/internal/payment"
 	"ecommerce-saas/internal/product"
 	"ecommerce-saas/internal/returns"
 	"ecommerce-saas/internal/reviews"
+	"ecommerce-saas/internal/search"
+	"ecommerce-saas/internal/settings"
 	"ecommerce-saas/internal/shipping"
 	"ecommerce-saas/internal/support"
 	"ecommerce-saas/internal/tax"
 	"ecommerce-saas/internal/tenant"
 	"ecommerce-saas/internal/user"
+	"ecommerce-saas/internal/webhook"
+	"ecommerce-saas/internal/wishlist"
 	"ecommerce-saas/internal/shared/config"
 	"ecommerce-saas/internal/shared/middleware"
 	"ecommerce-saas/internal/shared/utils"
@@ -57,16 +65,14 @@ func SetupRoutes(r *gin.Engine, cfg *RouteConfig) {
 	// API v1 routes
 	v1 := r.Group("/api/v1")
 	
-	// Initialize repositories and services
-	userRepo := user.NewRepository(cfg.DB)
-	userService := user.NewService(userRepo, cfg.JWTManager)
-	userHandler := user.NewHandler(userService)
+	// Initialize user module
+	userModule := user.NewModule(cfg.DB, cfg.JWTManager)
 
 	// Public routes (no authentication required)
 	public := v1.Group("")
 	{
 		// User authentication routes
-		userHandler.RegisterRoutes(public)
+		userModule.RegisterRoutes(public)
 	}
 
 	// Protected routes (authentication required)
@@ -97,16 +103,24 @@ func SetupRoutes(r *gin.Engine, cfg *RouteConfig) {
 		
 		// Setup other protected routes
 		setupAddressRoutes(protected, cfg)
+		setupAdminRoutes(protected, cfg)
 		setupAnalyticsRoutes(protected, cfg)
+		setupBillingRoutes(protected, cfg)
+		setupCartRoutes(protected, cfg)
 		setupContactRoutes(protected, cfg)
 		setupContentRoutes(protected, cfg)
 		setupDiscountRoutes(protected, cfg)
 		setupLoyaltyRoutes(protected, cfg)
 		setupMarketingRoutes(protected, cfg)
+		setupObservabilityRoutes(protected, cfg)
 		setupReviewsRoutes(protected, cfg)
+		setupSearchRoutes(protected, cfg)
+		setupSettingsRoutes(protected, cfg)
 		setupShippingRoutes(protected, cfg)
 		setupSupportRoutes(protected, cfg)
 		setupTaxRoutes(protected, cfg)
+		setupWebhookRoutes(protected, cfg)
+		setupWishlistRoutes(protected, cfg)
 	}
 
 	// Public routes (for storefront)
@@ -147,14 +161,14 @@ func setupPublicProductRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 	public.Use(middleware.TenantMiddleware(cfg.DB)) // Still need tenant resolution
 	{
 		// Public product browsing endpoints
-		public.GET("/products", productModule.Handler.ListProducts)
+		public.GET("/products", productModule.Handler.GetPublicProducts)
 		public.GET("/products/search", productModule.Handler.SearchProducts)
 		public.GET("/products/slug/:slug", productModule.Handler.GetProductBySlug)
-		public.GET("/products/:id", productModule.Handler.GetProduct)
+		public.GET("/products/:id", productModule.Handler.GetPublicProduct)
 		public.GET("/products/:id/variants", productModule.Handler.GetProductVariants)
 		
 		// Public category browsing
-		public.GET("/categories", productModule.Handler.ListCategories)
+		public.GET("/categories", productModule.Handler.GetPublicCategories)
 		public.GET("/categories/root", productModule.Handler.GetRootCategories)
 		public.GET("/categories/:id", productModule.Handler.GetCategory)
 		public.GET("/categories/:id/children", productModule.Handler.GetCategoryChildren)
@@ -162,14 +176,23 @@ func setupPublicProductRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 		// TODO: Public order tracking (no auth required) - requires order module
 		// public.GET("/orders/track/:number", orderModule.Handler.TrackOrder)
 		// public.GET("/orders/number/:number", orderModule.Handler.GetOrderByNumber)
+		
+		// Public settings (no auth required)
+		settingsModule := settings.NewModule(cfg.DB)
+		public.GET("/settings", settingsModule.GetHandler().GetPublicSettings)
+		
+		// Public search (no auth required)
+		searchModule := search.NewModule(cfg.DB)
+		public.GET("/search", searchModule.GetHandler().Search)
+		public.GET("/search/products", searchModule.GetHandler().SearchProducts)
+		public.GET("/search/suggestions", searchModule.GetHandler().GetSuggestions)
 	}
 }
 
 func setupOrderRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	// TODO: Initialize order module - requires service dependencies
+	// TODO: Implement proper service dependencies
+	// For now, comment out order routes to avoid compilation errors
 	// orderModule := order.NewModule(cfg.DB, productService, discountService, paymentService, inventoryService, notificationService)
-	
-	// TODO: Register order routes
 	// orderModule.RegisterRoutes(v1)
 }
 
@@ -190,29 +213,19 @@ func setupNotificationRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 }
 
 func setupFinanceRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	// TODO: Initialize finance module - NewModule function not implemented yet
-	// financeModule := finance.NewModule(cfg.DB)
-	
-	// Initialize finance handler directly
-	financeRepo := finance.NewRepository(cfg.DB)
-	financeService := finance.NewService(financeRepo)
-	financeHandler := finance.NewHandler(financeService)
+	// Initialize finance module
+	financeModule := finance.NewModule(cfg.DB)
 	
 	// Register finance routes
-	financeHandler.RegisterRoutes(v1)
+	financeModule.RegisterRoutes(v1)
 }
 
 func setupReturnsRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	// TODO: Initialize returns module - NewModule function not implemented yet
-	// returnsModule := returns.NewModule(cfg.DB)
-	
-	// Initialize returns handler directly
-	returnsRepo := returns.NewRepository(cfg.DB)
-	returnsService := returns.NewService(returnsRepo)
-	returnsHandler := returns.NewHandler(returnsService)
+	// Initialize returns module
+	returnsModule := returns.NewModule(cfg.DB)
 	
 	// Register returns routes
-	returnsHandler.RegisterRoutes(v1)
+	returnsModule.RegisterRoutes(v1)
 }
 
 // Setup address routes
@@ -316,4 +329,88 @@ func setupLoyaltyRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 	
 	// Register loyalty routes
 	loyaltyModule.RegisterRoutes(v1)
+}
+
+// Setup admin routes
+func setupAdminRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
+	adminRepo := admin.NewRepository(cfg.DB)
+	adminService := admin.NewService(adminRepo)
+	adminHandler := admin.NewHandler(adminService)
+	
+	adminHandler.RegisterRoutes(v1)
+}
+
+// Setup billing routes
+func setupBillingRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
+	billingRepo := billing.NewRepository(cfg.DB)
+	billingService := billing.NewService(billingRepo)
+	billingHandler := billing.NewHandler(billingService)
+	
+	billingHandler.RegisterRoutes(v1)
+}
+
+// Setup cart routes
+func setupCartRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
+	// TODO: Fix service interface compatibility issues
+	// The cart module expects different interfaces than what the services provide
+	// Temporarily commented out to allow compilation
+	
+	// Initialize required service dependencies
+	// productModule := product.NewModule(cfg.DB)
+	// discountModule := discount.NewModule(cfg.DB)
+	// taxModule := tax.NewModule(cfg.DB)
+	// shippingModule := shipping.NewModule(cfg.DB)
+	
+	// Initialize cart module with dependencies
+	// cartModule := cart.NewModule(cfg.DB, productModule.Service, discountModule.GetService(), taxModule.GetService(), shippingModule.GetService())
+	
+	// Register cart routes
+	// cartModule.RegisterRoutes(v1)
+}
+
+// Setup observability routes
+func setupObservabilityRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
+	// Initialize observability module
+	observabilityModule := observability.NewModule(cfg.DB)
+	
+	// Register observability routes
+	observabilityModule.RegisterRoutes(v1)
+}
+
+// Setup search routes
+func setupSearchRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
+	// Initialize search module
+	searchModule := search.NewModule(cfg.DB)
+	
+	// Register search routes
+	searchModule.RegisterRoutes(v1)
+}
+
+// Setup settings routes
+func setupSettingsRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
+	// Initialize settings module
+	settingsModule := settings.NewModule(cfg.DB)
+	
+	// Register settings routes
+	settingsModule.RegisterRoutes(v1)
+}
+
+// Setup webhook routes
+func setupWebhookRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
+	webhookRepo := webhook.NewRepository(cfg.DB)
+	// Use a default signing key for webhook validation
+	signingKey := []byte("default-webhook-signing-key")
+	webhookService := webhook.NewService(webhookRepo, signingKey)
+	webhookHandler := webhook.NewHandler(webhookService)
+	
+	webhookHandler.RegisterRoutes(v1)
+}
+
+// Setup wishlist routes
+func setupWishlistRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
+	wishlistRepo := wishlist.NewGormRepository(cfg.DB)
+	wishlistService := wishlist.NewService(wishlistRepo)
+	wishlistHandler := wishlist.NewHandler(wishlistService)
+	
+	wishlistHandler.RegisterRoutes(v1)
 }

@@ -184,3 +184,46 @@ type RefundPaymentRequest struct {
 	Amount    float64 `json:"amount" validate:"required,min=0.01"`
 	Reason    string  `json:"reason,omitempty"`
 }
+
+// Payment Methods Request/Response Types
+type CreatePaymentMethodRequest struct {
+	Type         string `json:"type" validate:"required"`         // card, bank_account, digital_wallet
+	Provider     string `json:"provider" validate:"required"`     // sslcommerz, bkash, nagad, stripe, paypal
+	ProviderID   string `json:"provider_id" validate:"required"` // External provider's payment method ID
+	Last4        string `json:"last4,omitempty"`                  // Last 4 digits for cards
+	Brand        string `json:"brand,omitempty"`                 // visa, mastercard, amex, etc.
+	ExpiryMonth  int    `json:"expiry_month,omitempty"`
+	ExpiryYear   int    `json:"expiry_year,omitempty"`
+	IsDefault    bool   `json:"is_default,omitempty"`
+}
+
+type UpdatePaymentMethodRequest struct {
+	IsDefault bool `json:"is_default,omitempty"`
+	IsActive  bool `json:"is_active,omitempty"`
+}
+
+type ListPaymentsRequest struct {
+	Status string `json:"status,omitempty"` // pending, completed, failed
+	Method string `json:"method,omitempty"` // card, bkash, nagad
+	View   string `json:"view,omitempty"`   // stats
+	Offset int    `json:"offset,omitempty"`
+	Limit  int    `json:"limit,omitempty"`
+}
+
+type PaymentStatsResponse struct {
+	TotalPayments    int64   `json:"total_payments"`
+	TotalAmount      float64 `json:"total_amount"`
+	SuccessfulCount  int64   `json:"successful_count"`
+	FailedCount      int64   `json:"failed_count"`
+	PendingCount     int64   `json:"pending_count"`
+	RefundedAmount   float64 `json:"refunded_amount"`
+	AverageAmount    float64 `json:"average_amount"`
+}
+
+type ListPaymentsResponse struct {
+	Payments []*Payment            `json:"payments"`
+	Total    int64                 `json:"total"`
+	Offset   int                   `json:"offset"`
+	Limit    int                   `json:"limit"`
+	Stats    *PaymentStatsResponse `json:"stats,omitempty"`
+}

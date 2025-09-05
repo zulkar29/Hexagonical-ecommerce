@@ -20,6 +20,14 @@ func NewBillingHandler(service BillingService) *BillingHandler {
 	return &BillingHandler{service: service}
 }
 
+// Handler is an alias for BillingHandler
+type Handler = BillingHandler
+
+// NewHandler creates a new handler (alias for NewBillingHandler)
+func NewHandler(service BillingService) Handler {
+	return *NewBillingHandler(service)
+}
+
 // RegisterRoutes registers billing routes
 func (h *BillingHandler) RegisterRoutes(r *gin.RouterGroup) {
 	billing := r.Group("/billing")

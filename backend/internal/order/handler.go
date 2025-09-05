@@ -584,6 +584,64 @@ func (h *Handler) GetOrderInvoice(c *gin.Context) {
 	c.JSON(http.StatusOK, invoice)
 }
 
+// DeleteOrder deletes an order
+// @Summary Delete order
+// @Description Delete an order (soft delete)
+// @Tags orders
+// @Param id path string true "Order ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /orders/{id} [delete]
+func (h *Handler) DeleteOrder(c *gin.Context) {
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant context required"})
+		return
+	}
+
+	orderID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid order ID"})
+		return
+	}
+
+	err = h.service.DeleteOrder(c.Request.Context(), tenantID.(uuid.UUID), orderID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Order deleted successfully"})
+}
+
+// TrackOrder tracks an order by ID
+// @Summary Track order
+// @Description Get order tracking information
+// @Tags orders
+// @Param id path string true "Order ID"
+// @Param public query bool false "Public access (no auth required)"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /orders/{id}/tracking [get]
+func (h *Handler) TrackOrder(c *gin.Context) {
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant context required"})
+		return
+	}
+
+	orderID := c.Param("id")
+	tracking, err := h.service.TrackOrder(tenantID.(uuid.UUID), orderID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, tracking)
+}
+
 // RegisterRoutes registers all order routes
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	orders := router.Group("/orders")
@@ -599,10 +657,12 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		
 		// Individual order operations
 		orders.GET("/:id", h.GetOrder) // Supports include=invoice,timeline via query params
-		orders.PUT("/:id", h.UpdateOrder) // Handles status updates, cancel, payment, refund via action param
+		orders.PATCH("/:id", h.UpdateOrder) // Changed from PUT to PATCH to match API spec
+		orders.DELETE("/:id", h.DeleteOrder) // Added missing DELETE endpoint
 		
-		// Order lookup by number
-		orders.GET("/number/:number", h.GetOrderByNumber)
+		// Order lookup and tracking
+		orders.GET("/lookup/:number", h.GetOrderByNumber) // Changed from /number/ to /lookup/ to match API spec
+		orders.GET("/:id/tracking", h.TrackOrder) // Added missing tracking endpoint
 	}
 }
 

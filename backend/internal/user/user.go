@@ -54,6 +54,9 @@ type User struct {
 	PasswordChangedAt *time.Time `json:"password_changed_at,omitempty"`
 	TwoFactorEnabled  bool       `json:"two_factor_enabled" gorm:"default:false"`
 	
+	// User preferences
+	Preferences map[string]interface{} `json:"preferences,omitempty" gorm:"type:jsonb"`
+	
 	// Timestamps
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

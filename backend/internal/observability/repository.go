@@ -31,7 +31,7 @@ type LogEntryModel struct {
 	Version   string    `gorm:"not null"`
 	RequestID string    `gorm:"index"`
 	UserID    string    `gorm:"index"`
-	TenantID  string    `gorm:"index"`
+	TenantID  string    `gorm:"column:tenant_id;index;constraint:-"`
 	TraceID   string    `gorm:"index"`
 	SpanID    string    `gorm:"index"`
 	Fields    string    `gorm:"type:jsonb"` // PostgreSQL JSONB
