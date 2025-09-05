@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
 // LoginAttemptStatus represents the status of a login attempt
@@ -56,18 +55,22 @@ type PasswordPolicy struct {
 	RequireLowercase bool `json:"require_lowercase" gorm:"default:true"`
 	RequireNumbers   bool `json:"require_numbers" gorm:"default:true"`
 	RequireSpecial   bool `json:"require_special" gorm:"default:true"`
+	RequireSymbols   bool `json:"require_symbols" gorm:"default:true"`
 	
 	// History and expiration
 	PasswordHistoryCount int `json:"password_history_count" gorm:"default:5"`
+	HistoryCount         int `json:"history_count" gorm:"default:5"`
 	ExpirationDays       int `json:"expiration_days" gorm:"default:90"` // 0 for no expiration
+	MaxAge               int `json:"max_age" gorm:"default:90"`
 	
 	// Lockout settings
 	MaxFailedAttempts    int `json:"max_failed_attempts" gorm:"default:5"`
 	LockoutDurationMins  int `json:"lockout_duration_mins" gorm:"default:30"`
 	
 	// Common password prevention
-	PreventCommonPasswords bool `json:"prevent_common_passwords" gorm:"default:true"`
-	PreventUserInfo        bool `json:"prevent_user_info" gorm:"default:true"`
+	PreventCommonPasswords bool     `json:"prevent_common_passwords" gorm:"default:true"`
+	PreventUserInfo        bool     `json:"prevent_user_info" gorm:"default:true"`
+	ForbiddenPatterns      []string `json:"forbidden_patterns" gorm:"serializer:json"`
 	
 	IsActive bool `json:"is_active" gorm:"default:true"`
 	
@@ -110,6 +113,7 @@ type TrustedDevice struct {
 	DeviceID     string       `json:"device_id" gorm:"not null"` // Generated device identifier
 	Fingerprint  string       `json:"fingerprint" gorm:"not null;index"`
 	Name         string       `json:"name" gorm:"not null"` // User-friendly device name
+	DeviceName   string       `json:"device_name"` // Alternative device name field
 	DeviceType   string       `json:"device_type"` // mobile, desktop, tablet
 	OS           string       `json:"os"`
 	Browser      string       `json:"browser"`
@@ -119,7 +123,12 @@ type TrustedDevice struct {
 	FirstSeenAt      time.Time  `json:"first_seen_at" gorm:"not null"`
 	LastSeenAt       time.Time  `json:"last_seen_at" gorm:"not null"`
 	LastIPAddress    string     `json:"last_ip_address"`
-	TrustScore       int        `json:"trust_score" gorm:"default:100"` // 0-100
+	IPAddress        string     `json:"ip_address"` // Current IP address
+	UserAgent        string     `json:"user_agent"` // User agent string
+	TrustScore       float64    `json:"trust_score" gorm:"default:1.0"` // 0.0-1.0
+	AccessCount      int        `json:"access_count" gorm:"default:0"`
+	Country          string     `json:"country,omitempty"`
+	City             string     `json:"city,omitempty"`
 	VerifiedAt       *time.Time `json:"verified_at,omitempty"`
 	VerificationCode string     `json:"verification_code,omitempty"`
 	
@@ -146,6 +155,8 @@ type SecurityEvent struct {
 	IPAddress         string                 `json:"ip_address,omitempty"`
 	UserAgent         string                 `json:"user_agent,omitempty"`
 	DeviceFingerprint string                 `json:"device_fingerprint,omitempty"`
+	Country           string                 `json:"country,omitempty"`
+	City              string                 `json:"city,omitempty"`
 	Metadata          map[string]interface{} `json:"metadata,omitempty" gorm:"serializer:json"`
 	
 	// Resolution
@@ -301,11 +312,11 @@ func (d *TrustedDevice) IsActive() bool {
 }
 
 // ShouldUpdateTrustScore determines if trust score should be updated
-func (d *TrustedDevice) ShouldUpdateTrustScore(ipAddress string, timesSeen int) int {
+func (d *TrustedDevice) ShouldUpdateTrustScore(ipAddress string, timesSeen int) float64 {
 	newScore := d.TrustScore
 	
 	// Decrease trust if IP address changed frequently
-	if d.LastIPAddress != ipAddress {
+	if d.IPAddress != ipAddress {
 		newScore -= 5
 	}
 	

@@ -35,7 +35,7 @@ type Repository interface {
 	
 	// Statistics and analytics
 	GetReturnStats(ctx context.Context, tenantID uuid.UUID, filter StatsFilter) (*ReturnStats, error)
-	GetReturnsByCustomer(ctx context.Context, tenantID, customerID uuid.UUID, limit int) ([]*Return, error)
+	GetReturnsByCustomer(ctx context.Context, tenantID, customerID uuid.UUID, filter ReturnFilter) ([]*Return, int64, error)
 	GetReturnsByOrder(ctx context.Context, tenantID, orderID uuid.UUID) ([]*Return, error)
 }
 
@@ -59,8 +59,9 @@ type ReturnFilter struct {
 	Search string `json:"search,omitempty"`
 	
 	// Pagination
-	Page  int `json:"page,omitempty"`
-	Limit int `json:"limit,omitempty"`
+	Page   int `json:"page,omitempty"`
+	Limit  int `json:"limit,omitempty"`
+	Offset int `json:"offset,omitempty"`
 	
 	// Sorting
 	SortBy    string `json:"sort_by,omitempty"`
@@ -388,20 +389,33 @@ func (r *gormRepository) GetReturnStats(ctx context.Context, tenantID uuid.UUID,
 }
 
 // GetReturnsByCustomer retrieves returns for a specific customer
-func (r *gormRepository) GetReturnsByCustomer(ctx context.Context, tenantID, customerID uuid.UUID, limit int) ([]*Return, error) {
+func (r *gormRepository) GetReturnsByCustomer(ctx context.Context, tenantID, customerID uuid.UUID, filter ReturnFilter) ([]*Return, int64, error) {
 	query := r.db.WithContext(ctx).
 		Preload("Items").
 		Preload("Reason").
-		Where("tenant_id = ? AND customer_id = ?", tenantID, customerID).
-		Order("created_at DESC")
+		Where("tenant_id = ? AND customer_id = ?", tenantID, customerID)
 	
-	if limit > 0 {
-		query = query.Limit(limit)
+	// Apply additional filters
+	query = r.applyReturnFilters(query, filter)
+	
+	// Get total count
+	var total int64
+	if err := query.Model(&Return{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	
+	// Apply pagination and ordering
+	query = query.Order("created_at DESC")
+	if filter.Limit > 0 {
+		query = query.Limit(filter.Limit)
+	}
+	if filter.Offset > 0 {
+		query = query.Offset(filter.Offset)
 	}
 	
 	var returns []*Return
 	err := query.Find(&returns).Error
-	return returns, err
+	return returns, total, err
 }
 
 // GetReturnsByOrder retrieves returns for a specific order

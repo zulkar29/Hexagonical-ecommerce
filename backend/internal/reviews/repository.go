@@ -2,6 +2,7 @@ package reviews
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -44,6 +45,7 @@ type Repository interface {
 	GetInvitationByToken(ctx context.Context, token string) (*ReviewInvitation, error)
 	GetInvitationsByStatus(ctx context.Context, tenantID uuid.UUID, status string) ([]ReviewInvitation, error)
 	UpdateInvitation(ctx context.Context, tenantID, invitationID uuid.UUID, updates map[string]interface{}) error
+	DeleteInvitation(ctx context.Context, tenantID, invitationID uuid.UUID) error
 	GetExpiredInvitations(ctx context.Context, tenantID uuid.UUID) ([]ReviewInvitation, error)
 	
 	// Settings operations
@@ -96,8 +98,8 @@ func (r *repository) GetReviews(ctx context.Context, tenantID uuid.UUID, filter 
 		query = query.Where("order_id = ?", *filter.OrderID)
 	}
 	
-	if filter.CustomerID != nil {
-		query = query.Where("customer_id = ?", *filter.CustomerID)
+	if filter.UserID != nil {
+		query = query.Where("user_id = ?", *filter.UserID)
 	}
 	
 	if len(filter.Type) > 0 {
@@ -397,12 +399,12 @@ func (r *repository) RecalculateReviewSummary(ctx context.Context, tenantID, pro
 		}
 		
 		// Calculate summary statistics
-		var totalReviews, verifiedCount, withPhotosCount int
+		var totalReviews, verifiedCount, withPhotosCount int64
 		var ratingCounts [6]int // Index 0 unused, 1-5 for ratings
 		var totalPoints int
 		
 		for _, r := range ratings {
-			totalReviews += r.Count
+			totalReviews += int64(r.Count)
 			totalPoints += r.Rating * r.Count
 			if r.Rating >= 1 && r.Rating <= 5 {
 				ratingCounts[r.Rating] = r.Count
@@ -413,12 +415,12 @@ func (r *repository) RecalculateReviewSummary(ctx context.Context, tenantID, pro
 		tx.Model(&Review{}).
 			Where("tenant_id = ? AND product_id = ? AND status = ? AND is_verified = ?", 
 				tenantID, productID, StatusApproved, true).
-			Count((*int64)(&verifiedCount))
+			Count(&verifiedCount)
 		
 		tx.Model(&Review{}).
 			Where("tenant_id = ? AND product_id = ? AND status = ? AND JSON_LENGTH(images) > 0", 
 				tenantID, productID, StatusApproved).
-			Count((*int64)(&withPhotosCount))
+			Count(&withPhotosCount)
 		
 		// Calculate average rating
 		var avgRating float64
@@ -480,6 +482,12 @@ func (r *repository) UpdateInvitation(ctx context.Context, tenantID, invitationI
 		Model(&ReviewInvitation{}).
 		Where("id = ? AND tenant_id = ?", invitationID, tenantID).
 		Updates(updates).Error
+}
+
+func (r *repository) DeleteInvitation(ctx context.Context, tenantID, invitationID uuid.UUID) error {
+	return r.db.WithContext(ctx).
+		Where("id = ? AND tenant_id = ?", invitationID, tenantID).
+		Delete(&ReviewInvitation{}).Error
 }
 
 func (r *repository) GetExpiredInvitations(ctx context.Context, tenantID uuid.UUID) ([]ReviewInvitation, error) {

@@ -1,23 +1,6 @@
 package notification
 
 import (
-	"gorm.io/gorm"
-)
-
-// TODO: Implement notification repository
-// This will handle:
-// - Database operations for notifications
-// - Template storage and retrieval
-// - User preference management
-// - Notification history
-
-type Repository struct {
-	// db *gorm.DB
-}
-
-package notification
-
-import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -180,19 +163,30 @@ func (r *repository) GetLogs(notificationID uuid.UUID) ([]*NotificationLog, erro
 func (r *repository) GetNotificationStats(tenantID uuid.UUID) (map[string]int64, error) {
 	stats := make(map[string]int64)
 	
+	// Use temporary variables to avoid taking address of map index expressions
+	var total, sent, delivered, failed, email, sms, push, inApp int64
+	
 	// Total notifications
-	r.db.Model(&Notification{}).Where("tenant_id = ?", tenantID).Count(&stats["total"])
+	r.db.Model(&Notification{}).Where("tenant_id = ?", tenantID).Count(&total)
+	stats["total"] = total
 	
 	// By status
-	r.db.Model(&Notification{}).Where("tenant_id = ? AND status = ?", tenantID, StatusSent).Count(&stats["sent"])
-	r.db.Model(&Notification{}).Where("tenant_id = ? AND status = ?", tenantID, StatusDelivered).Count(&stats["delivered"])
-	r.db.Model(&Notification{}).Where("tenant_id = ? AND status = ?", tenantID, StatusFailed).Count(&stats["failed"])
+	r.db.Model(&Notification{}).Where("tenant_id = ? AND status = ?", tenantID, StatusSent).Count(&sent)
+	stats["sent"] = sent
+	r.db.Model(&Notification{}).Where("tenant_id = ? AND status = ?", tenantID, StatusDelivered).Count(&delivered)
+	stats["delivered"] = delivered
+	r.db.Model(&Notification{}).Where("tenant_id = ? AND status = ?", tenantID, StatusFailed).Count(&failed)
+	stats["failed"] = failed
 	
 	// By type
-	r.db.Model(&Notification{}).Where("tenant_id = ? AND type = ?", tenantID, TypeEmail).Count(&stats["email"])
-	r.db.Model(&Notification{}).Where("tenant_id = ? AND type = ?", tenantID, TypeSMS).Count(&stats["sms"])
-	r.db.Model(&Notification{}).Where("tenant_id = ? AND type = ?", tenantID, TypePush).Count(&stats["push"])
-	r.db.Model(&Notification{}).Where("tenant_id = ? AND type = ?", tenantID, TypeInApp).Count(&stats["in_app"])
+	r.db.Model(&Notification{}).Where("tenant_id = ? AND type = ?", tenantID, TypeEmail).Count(&email)
+	stats["email"] = email
+	r.db.Model(&Notification{}).Where("tenant_id = ? AND type = ?", tenantID, TypeSMS).Count(&sms)
+	stats["sms"] = sms
+	r.db.Model(&Notification{}).Where("tenant_id = ? AND type = ?", tenantID, TypePush).Count(&push)
+	stats["push"] = push
+	r.db.Model(&Notification{}).Where("tenant_id = ? AND type = ?", tenantID, TypeInApp).Count(&inApp)
+	stats["in_app"] = inApp
 	
 	return stats, nil
 }

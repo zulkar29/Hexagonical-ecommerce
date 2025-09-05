@@ -2,11 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"time"
-
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
 // Mock test to validate authentication flow structure

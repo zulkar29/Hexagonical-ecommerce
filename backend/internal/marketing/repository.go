@@ -36,6 +36,7 @@ type Repository interface {
 	GetSegments(ctx context.Context, tenantID uuid.UUID) ([]CustomerSegment, error)
 	UpdateSegment(ctx context.Context, tenantID, segmentID uuid.UUID, updates map[string]interface{}) error
 	DeleteSegment(ctx context.Context, tenantID, segmentID uuid.UUID) error
+	GetSegmentCustomerCount(ctx context.Context, tenantID uuid.UUID, rules string) (int, error)
 	
 	// Newsletter operations
 	CreateSubscriber(ctx context.Context, subscriber *NewsletterSubscriber) error
@@ -60,6 +61,7 @@ type Repository interface {
 	GetCampaignEmailStats(ctx context.Context, tenantID, campaignID uuid.UUID) (*CampaignStats, error)
 	GetSubscriberCount(ctx context.Context, tenantID uuid.UUID, status string) (int64, error)
 	GetAbandonedCartStats(ctx context.Context, tenantID uuid.UUID) (total int64, recovered int64, err error)
+	GetMarketingOverview(ctx context.Context, tenantID uuid.UUID, period string) (*MarketingOverview, error)
 }
 
 // repository implements the Repository interface
@@ -325,6 +327,14 @@ func (r *repository) DeleteSegment(ctx context.Context, tenantID, segmentID uuid
 		Delete(&CustomerSegment{}).Error
 }
 
+func (r *repository) GetSegmentCustomerCount(ctx context.Context, tenantID uuid.UUID, rules string) (int, error) {
+	// This is a simplified implementation - in a real system, you would parse the rules
+	// and build a dynamic query based on customer attributes
+	// For now, we'll return a placeholder count since the Customer model isn't defined yet
+	// TODO: Implement proper customer segmentation logic when Customer model is available
+	return 0, nil
+}
+
 // Newsletter operations
 func (r *repository) CreateSubscriber(ctx context.Context, subscriber *NewsletterSubscriber) error {
 	return r.db.WithContext(ctx).Create(subscriber).Error
@@ -539,4 +549,23 @@ func (r *repository) GetAbandonedCartStats(ctx context.Context, tenantID uuid.UU
 		Count(&recovered).Error
 	
 	return total, recovered, err
+}
+
+func (r *repository) GetMarketingOverview(ctx context.Context, tenantID uuid.UUID, period string) (*MarketingOverview, error) {
+	// This is a placeholder implementation
+	// In a real system, you would calculate metrics based on the period
+	overview := &MarketingOverview{
+		TotalCampaigns:      0,
+		ActiveCampaigns:     0,
+		TotalSubscribers:    0,
+		TotalEmailsSent:     0,
+		AverageOpenRate:     0.0,
+		AverageClickRate:    0.0,
+		AbandonedCartsCount: 0,
+		RecoveredCartsCount: 0,
+		RecoveryRate:        0.0,
+	}
+	
+	// TODO: Implement actual metrics calculation based on period
+	return overview, nil
 }

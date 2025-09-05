@@ -2,7 +2,6 @@ package support
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -57,8 +56,11 @@ func NewService(repo Repository) Service {
 
 // Request/Response DTOs
 type CreateTicketRequest struct {
+	TenantID      uuid.UUID      `json:"tenant_id" validate:"required"`
+	UserID        uuid.UUID      `json:"user_id" validate:"required"`
 	Subject       string         `json:"subject" validate:"required"`
 	Description   string         `json:"description" validate:"required"`
+	Status        TicketStatus   `json:"status"`
 	Priority      TicketPriority `json:"priority"`
 	Category      TicketCategory `json:"category"`
 	CustomerEmail string         `json:"customer_email" validate:"required,email"`
@@ -98,12 +100,13 @@ type AddMessageRequest struct {
 }
 
 type CreateFAQRequest struct {
-	Question    string   `json:"question" validate:"required"`
-	Answer      string   `json:"answer" validate:"required"`
-	Category    string   `json:"category"`
-	Tags        []string `json:"tags"`
-	IsPublished bool     `json:"is_published"`
-	Order       int      `json:"order"`
+	TenantID    uuid.UUID `json:"tenant_id" validate:"required"`
+	Question    string    `json:"question" validate:"required"`
+	Answer      string    `json:"answer" validate:"required"`
+	Category    string    `json:"category"`
+	Tags        []string  `json:"tags"`
+	IsPublished bool      `json:"is_published"`
+	Order       int       `json:"order"`
 }
 
 type UpdateFAQRequest struct {
@@ -124,16 +127,17 @@ type FAQFilter struct {
 }
 
 type CreateArticleRequest struct {
-	Title           string   `json:"title" validate:"required"`
-	Content         string   `json:"content" validate:"required"`
-	Excerpt         string   `json:"excerpt"`
-	Slug            string   `json:"slug" validate:"required"`
-	Category        string   `json:"category"`
-	Tags            []string `json:"tags"`
-	IsPublished     bool     `json:"is_published"`
-	MetaTitle       string   `json:"meta_title"`
-	MetaDescription string   `json:"meta_description"`
-	Order           int      `json:"order"`
+	TenantID        uuid.UUID `json:"tenant_id" validate:"required"`
+	Title           string    `json:"title" validate:"required"`
+	Content         string    `json:"content" validate:"required"`
+	Excerpt         string    `json:"excerpt"`
+	Slug            string    `json:"slug" validate:"required"`
+	Category        string    `json:"category"`
+	Tags            []string  `json:"tags"`
+	IsPublished     bool      `json:"is_published"`
+	MetaTitle       string    `json:"meta_title"`
+	MetaDescription string    `json:"meta_description"`
+	Order           int       `json:"order"`
 }
 
 type UpdateArticleRequest struct {
@@ -170,6 +174,7 @@ type TicketStats struct {
 	TotalTickets   int                        `json:"total_tickets"`
 	OpenTickets    int                        `json:"open_tickets"`
 	ResolvedTickets int                       `json:"resolved_tickets"`
+	ClosedTickets  int                        `json:"closed_tickets"`
 	AvgResponseTime string                    `json:"avg_response_time"`
 	TicketsByStatus map[TicketStatus]int      `json:"tickets_by_status"`
 	TicketsByPriority map[TicketPriority]int  `json:"tickets_by_priority"`
@@ -179,9 +184,11 @@ type TicketStats struct {
 func (s *service) CreateTicket(ctx context.Context, req CreateTicketRequest) (*Ticket, error) {
 	ticket := &Ticket{
 		ID:            uuid.New(),
+		TenantID:      req.TenantID,
+		UserID:        req.UserID,
 		Subject:       req.Subject,
 		Description:   req.Description,
-		Status:        StatusOpen,
+		Status:        req.Status,
 		Priority:      req.Priority,
 		Category:      req.Category,
 		CustomerEmail: req.CustomerEmail,
@@ -192,11 +199,16 @@ func (s *service) CreateTicket(ctx context.Context, req CreateTicketRequest) (*T
 		UpdatedAt:     time.Now(),
 	}
 
-	return s.repo.CreateTicket(ctx, ticket)
+	err := s.repo.CreateTicket(ctx, ticket)
+	if err != nil {
+		return nil, err
+	}
+
+	return ticket, nil
 }
 
 func (s *service) GetTicket(ctx context.Context, tenantID, ticketID uuid.UUID) (*Ticket, error) {
-	return s.repo.GetTicket(ctx, tenantID, ticketID)
+	return s.repo.GetTicketByID(ctx, tenantID, ticketID)
 }
 
 func (s *service) GetTickets(ctx context.Context, tenantID uuid.UUID, filter TicketFilter) ([]Ticket, error) {
@@ -281,11 +293,16 @@ func (s *service) AddMessage(ctx context.Context, req AddMessageRequest) (*Ticke
 		CreatedAt:   time.Now(),
 	}
 
-	return s.repo.CreateTicketMessage(ctx, message)
+	err := s.repo.CreateTicketMessage(ctx, message)
+	if err != nil {
+		return nil, err
+	}
+
+	return message, nil
 }
 
 func (s *service) GetMessages(ctx context.Context, tenantID, ticketID uuid.UUID) ([]TicketMessage, error) {
-	return s.repo.GetTicketMessages(ctx, tenantID, ticketID)
+	return s.repo.GetMessagesByTicketID(ctx, tenantID, ticketID)
 }
 
 func (s *service) CreateFAQ(ctx context.Context, req CreateFAQRequest) (*FAQ, error) {
@@ -301,11 +318,16 @@ func (s *service) CreateFAQ(ctx context.Context, req CreateFAQRequest) (*FAQ, er
 		UpdatedAt:   time.Now(),
 	}
 
-	return s.repo.CreateFAQ(ctx, faq)
+	err := s.repo.CreateFAQ(ctx, faq)
+	if err != nil {
+		return nil, err
+	}
+
+	return faq, nil
 }
 
 func (s *service) GetFAQ(ctx context.Context, tenantID, faqID uuid.UUID) (*FAQ, error) {
-	return s.repo.GetFAQ(ctx, tenantID, faqID)
+	return s.repo.GetFAQByID(ctx, tenantID, faqID)
 }
 
 func (s *service) GetFAQs(ctx context.Context, tenantID uuid.UUID, filter FAQFilter) ([]FAQ, error) {
@@ -349,7 +371,7 @@ func (s *service) UpdateFAQ(ctx context.Context, tenantID, faqID uuid.UUID, req 
 		return nil, err
 	}
 
-	return s.repo.GetFAQ(ctx, tenantID, faqID)
+	return s.repo.GetFAQByID(ctx, tenantID, faqID)
 }
 
 func (s *service) DeleteFAQ(ctx context.Context, tenantID, faqID uuid.UUID) error {
@@ -359,6 +381,7 @@ func (s *service) DeleteFAQ(ctx context.Context, tenantID, faqID uuid.UUID) erro
 func (s *service) CreateArticle(ctx context.Context, req CreateArticleRequest) (*KnowledgeBase, error) {
 	article := &KnowledgeBase{
 		ID:              uuid.New(),
+		TenantID:        req.TenantID,
 		Title:           req.Title,
 		Content:         req.Content,
 		Excerpt:         req.Excerpt,
@@ -373,7 +396,12 @@ func (s *service) CreateArticle(ctx context.Context, req CreateArticleRequest) (
 		UpdatedAt:       time.Now(),
 	}
 
-	return s.repo.CreateArticle(ctx, article)
+	err := s.repo.CreateArticle(ctx, article)
+	if err != nil {
+		return nil, err
+	}
+
+	return article, nil
 }
 
 func (s *service) GetArticle(ctx context.Context, tenantID uuid.UUID, slug string) (*KnowledgeBase, error) {
@@ -433,7 +461,7 @@ func (s *service) UpdateArticle(ctx context.Context, tenantID, articleID uuid.UU
 		return nil, err
 	}
 
-	return s.repo.GetArticle(ctx, tenantID, articleID)
+	return s.repo.GetArticleByID(ctx, tenantID, articleID)
 }
 
 func (s *service) DeleteArticle(ctx context.Context, tenantID, articleID uuid.UUID) error {
@@ -477,25 +505,7 @@ func (s *service) UpdateSettings(ctx context.Context, tenantID uuid.UUID, req Up
 }
 
 func (s *service) GetTicketStats(ctx context.Context, tenantID uuid.UUID, period string) (*TicketStats, error) {
-	// Calculate date range based on period
-	now := time.Now()
-	var startDate time.Time
-
-	switch period {
-	case "today":
-		startDate = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	case "week":
-		startDate = now.AddDate(0, 0, -7)
-	case "month":
-		startDate = now.AddDate(0, -1, 0)
-	case "quarter":
-		startDate = now.AddDate(0, -3, 0)
-	case "year":
-		startDate = now.AddDate(-1, 0, 0)
-	default:
-		// Default to last month
-		startDate = now.AddDate(0, -1, 0)
-	}
-
-	return s.repo.GetTicketStats(ctx, tenantID, startDate, now)
+	// The repository GetTicketStats method doesn't take date parameters
+	// It calculates stats internally
+	return s.repo.GetTicketStats(ctx, tenantID)
 }

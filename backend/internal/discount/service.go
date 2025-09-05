@@ -66,6 +66,7 @@ func NewService(repo Repository) Service {
 
 // Request/Response DTOs
 type CreateDiscountRequest struct {
+	TenantID               uuid.UUID          `json:"tenant_id" validate:"required"`
 	Code                   string             `json:"code" validate:"required"`
 	Title                  string             `json:"title" validate:"required"`
 	Description            string             `json:"description"`
@@ -310,17 +311,17 @@ type RevenueImpact struct {
 // Implementation methods (TODO: implement business logic)
 func (s *service) CreateDiscount(ctx context.Context, req CreateDiscountRequest) (*Discount, error) {
 	// Normalize code
-	req.Code = strings.ToUpper(strings.TrimSpace(req.Code))
+	code := strings.ToUpper(strings.TrimSpace(req.Code))
 
 	// Create discount entity
 	discount := &Discount{
 		ID:                     uuid.New(),
-		Code:                   req.Code,
+		TenantID:               req.TenantID,
+		Code:                   code,
 		Title:                  req.Title,
 		Description:            req.Description,
 		Type:                   req.Type,
 		Value:                  req.Value,
-		Currency:               req.Currency,
 		MinOrderAmount:         req.MinOrderAmount,
 		MinItemQuantity:        req.MinItemQuantity,
 		Target:                 req.Target,
@@ -329,7 +330,6 @@ func (s *service) CreateDiscount(ctx context.Context, req CreateDiscountRequest)
 		TargetCollectionIDs:    req.TargetCollectionIDs,
 		ExcludeProductIDs:      req.ExcludeProductIDs,
 		UsageLimit:             req.UsageLimit,
-		UsageLimitType:         req.UsageLimitType,
 		CustomerUsageLimit:     req.CustomerUsageLimit,
 		UsageCount:             0,
 		StartsAt:               req.StartsAt,
@@ -338,20 +338,17 @@ func (s *service) CreateDiscount(ctx context.Context, req CreateDiscountRequest)
 		CustomerEligibility:    req.CustomerEligibility,
 		EligibleCustomerIDs:    req.EligibleCustomerIDs,
 		EligibleCustomerGroups: req.EligibleCustomerGroups,
-		BuyQuantity:            req.BuyQuantity,
-		GetQuantity:            req.GetQuantity,
-		GetValue:               req.GetValue,
 		Stackable:              req.Stackable,
-		StackableWith:          req.StackableWith,
-		ExclusiveGroup:         req.ExclusiveGroup,
-		ApplyOnce:              req.ApplyOnce,
 		ShowInStorefront:       req.ShowInStorefront,
-		RequiresCode:           req.RequiresCode,
 		CreatedAt:              time.Now(),
 		UpdatedAt:              time.Now(),
 	}
 
-	return s.repo.CreateDiscount(ctx, discount)
+	err := s.repo.CreateDiscount(ctx, discount)
+	if err != nil {
+		return nil, err
+	}
+	return discount, nil
 }
 
 func (s *service) GetDiscount(ctx context.Context, tenantID, discountID uuid.UUID) (*Discount, error) {
@@ -573,22 +570,19 @@ func (s *service) ApplyDiscount(ctx context.Context, req ApplyDiscountRequest) (
 
 func (s *service) RemoveDiscount(ctx context.Context, tenantID uuid.UUID, orderID uuid.UUID) error {
 	// Get discount usage for this order
-	usages, err := s.repo.GetDiscountUsageByOrder(ctx, tenantID, orderID)
+	usage, err := s.repo.GetDiscountUsageByOrder(ctx, tenantID, orderID)
 	if err != nil {
 		return fmt.Errorf("failed to get discount usage: %w", err)
 	}
 
-	// Remove usage records and decrement usage counts
-	for _, usage := range usages {
-		// Delete usage record
-		if err := s.repo.DeleteDiscountUsage(ctx, tenantID, orderID); err != nil {
-			return fmt.Errorf("failed to delete discount usage: %w", err)
-		}
+	// Delete usage record
+	if err := s.repo.DeleteDiscountUsage(ctx, tenantID, usage.ID); err != nil {
+		return fmt.Errorf("failed to delete discount usage: %w", err)
+	}
 
-		// Decrement usage count
-		if err := s.repo.DecrementUsageCount(ctx, tenantID, usage.DiscountID); err != nil {
-			return fmt.Errorf("failed to decrement usage count: %w", err)
-		}
+	// Decrement usage count
+	if err := s.repo.DecrementUsageCount(ctx, tenantID, usage.DiscountID); err != nil {
+		return fmt.Errorf("failed to decrement usage count: %w", err)
 	}
 
 	return nil
@@ -634,7 +628,12 @@ func (s *service) CreateGiftCard(ctx context.Context, req CreateGiftCardRequest)
 		UpdatedAt:      time.Now(),
 	}
 
-	return s.repo.CreateGiftCard(ctx, giftCard)
+	err := s.repo.CreateGiftCard(ctx, giftCard)
+	if err != nil {
+		return nil, err
+	}
+
+	return giftCard, nil
 }
 
 // generateGiftCardCode generates a random gift card code
@@ -868,27 +867,27 @@ func (s *service) AddStoreCredit(ctx context.Context, req AddStoreCreditRequest)
 	if err != nil {
 		// Create new store credit if doesn't exist
 		storeCredit = &StoreCredit{
-			ID:         uuid.New(),
-			TenantID:   req.TenantID,
-			CustomerID: req.CustomerID,
-			Balance:    0,
-			Currency:   req.Currency,
-			CreatedAt:  time.Now(),
-			UpdatedAt:  time.Now(),
+			ID:             uuid.New(),
+			TenantID:       req.TenantID,
+			CustomerID:     req.CustomerID,
+			CurrentBalance: 0,
+			Currency:       req.Currency,
+			CreatedAt:      time.Now(),
+			UpdatedAt:      time.Now(),
 		}
-		storeCredit, err = s.repo.CreateStoreCredit(ctx, storeCredit)
+		err = s.repo.CreateStoreCredit(ctx, storeCredit)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create store credit: %w", err)
 		}
 	}
 
 	// Add to balance
-	newBalance := storeCredit.Balance + req.Amount
+	newBalance := storeCredit.CurrentBalance + req.Amount
 
 	// Update store credit balance
 	updates := map[string]interface{}{
-		"balance":    newBalance,
-		"updated_at": time.Now(),
+		"current_balance": newBalance,
+		"updated_at":      time.Now(),
 	}
 
 	err = s.repo.UpdateStoreCredit(ctx, req.TenantID, storeCredit.ID, updates)
@@ -927,17 +926,17 @@ func (s *service) UseStoreCredit(ctx context.Context, req UseStoreCreditRequest)
 	}
 
 	// Check if sufficient balance
-	if req.Amount > storeCredit.Balance {
-		return nil, fmt.Errorf("insufficient store credit balance: requested %.2f, available %.2f", req.Amount, storeCredit.Balance)
+	if req.Amount > storeCredit.CurrentBalance {
+		return nil, fmt.Errorf("insufficient store credit balance: requested %.2f, available %.2f", req.Amount, storeCredit.CurrentBalance)
 	}
 
 	// Calculate new balance
-	newBalance := storeCredit.Balance - req.Amount
+	newBalance := storeCredit.CurrentBalance - req.Amount
 
 	// Update store credit balance
 	updates := map[string]interface{}{
-		"balance":    newBalance,
-		"updated_at": time.Now(),
+		"current_balance": newBalance,
+		"updated_at":      time.Now(),
 	}
 
 	err = s.repo.UpdateStoreCredit(ctx, req.TenantID, storeCredit.ID, updates)
@@ -990,7 +989,7 @@ func (s *service) GetDiscountStats(ctx context.Context, tenantID uuid.UUID, peri
 	}
 
 	// Get stats from repository
-	stats, err := s.repo.GetDiscountStats(ctx, tenantID, startDate, time.Now())
+	stats, err := s.repo.GetDiscountUsageStats(ctx, tenantID, startDate, time.Now())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get discount stats: %w", err)
 	}
@@ -1004,11 +1003,8 @@ func (s *service) GetTopDiscounts(ctx context.Context, tenantID uuid.UUID, limit
 		limit = 10
 	}
 
-	// Default to last month for period
-	startDate := time.Now().AddDate(0, -1, 0)
-
 	// Get top discounts from repository
-	topDiscounts, err := s.repo.GetTopDiscounts(ctx, tenantID, startDate, time.Now(), limit)
+	topDiscounts, err := s.repo.GetDiscountPerformance(ctx, tenantID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get top discounts: %w", err)
 	}
@@ -1035,7 +1031,7 @@ func (s *service) GetDiscountRevenue(ctx context.Context, tenantID uuid.UUID, pe
 	}
 
 	// Get revenue impact from repository
-	revenueImpact, err := s.repo.GetDiscountRevenue(ctx, tenantID, startDate, time.Now())
+	revenueImpact, err := s.repo.GetRevenueImpact(ctx, tenantID, startDate, time.Now())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get discount revenue impact: %w", err)
 	}

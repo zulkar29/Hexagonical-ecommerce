@@ -1,17 +1,16 @@
 package middleware
 
 import (
-	"context"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"golang.org/x/time/rate"
+	"gorm.io/gorm"
 	
 	"ecommerce-saas/internal/shared/utils"
+	"ecommerce-saas/internal/tenant"
 )
 
 // AuthMiddleware validates JWT tokens and sets user context
@@ -80,7 +79,11 @@ func OptionalAuthMiddleware(jwtManager *utils.JWTManager) gin.HandlerFunc {
 
 
 // TenantMiddleware ensures the request has valid tenant context
-func TenantMiddleware() gin.HandlerFunc {
+func TenantMiddleware(db *gorm.DB) gin.HandlerFunc {
+	// Initialize tenant service
+	tenantRepo := tenant.NewRepository(db)
+	tenantService := tenant.NewService(tenantRepo)
+	
 	return func(c *gin.Context) {
 		host := c.GetHeader("Host")
 		if host == "" {
@@ -104,8 +107,18 @@ func TenantMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Set tenant context from subdomain
+		// Resolve tenant from subdomain
+		tenant, err := tenantService.GetTenantBySubdomain(subdomain)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Tenant not found"})
+			c.Abort()
+			return
+		}
+
+		// Set tenant context
 		c.Set("tenant_subdomain", subdomain)
+		c.Set("tenant_id", tenant.ID)
+		c.Set("tenant", tenant)
 		c.Next()
 	}
 }

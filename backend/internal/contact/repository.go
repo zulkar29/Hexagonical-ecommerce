@@ -3,7 +3,6 @@ package contact
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -94,32 +93,33 @@ func (r *repository) ListContacts(ctx context.Context, tenantID uuid.UUID, filte
 	query := r.db.WithContext(ctx).Where("tenant_id = ?", tenantID)
 
 	// Apply filters
-	if filter.Status != nil {
-		query = query.Where("status = ?", *filter.Status)
+	if len(filter.Status) > 0 {
+		query = query.Where("status IN ?", filter.Status)
 	}
-	if filter.Priority != nil {
-		query = query.Where("priority = ?", *filter.Priority)
+	if len(filter.Priority) > 0 {
+		query = query.Where("priority IN ?", filter.Priority)
 	}
-	if filter.Department != nil && *filter.Department != "" {
-		query = query.Where("department = ?", *filter.Department)
+	if len(filter.Type) > 0 {
+		query = query.Where("type IN ?", filter.Type)
 	}
-	if filter.UserID != nil {
-		query = query.Where("user_id = ?", *filter.UserID)
+	if filter.AssignedToID != nil {
+		query = query.Where("assigned_to_id = ?", *filter.AssignedToID)
 	}
-	if filter.AssignedTo != nil {
-		query = query.Where("assigned_to = ?", *filter.AssignedTo)
+	if filter.CustomerID != nil {
+		query = query.Where("customer_id = ?", *filter.CustomerID)
 	}
-	if filter.Subject != nil && *filter.Subject != "" {
-		query = query.Where("subject ILIKE ?", "%"+*filter.Subject+"%")
+	if len(filter.Source) > 0 {
+		query = query.Where("source IN ?", filter.Source)
 	}
-	if filter.Email != nil && *filter.Email != "" {
-		query = query.Where("email ILIKE ?", "%"+*filter.Email+"%")
+	if filter.Search != "" {
+		query = query.Where("(name ILIKE ? OR email ILIKE ? OR subject ILIKE ? OR message ILIKE ?)", 
+			"%"+filter.Search+"%", "%"+filter.Search+"%", "%"+filter.Search+"%", "%"+filter.Search+"%")
 	}
-	if !filter.CreatedAfter.IsZero() {
-		query = query.Where("created_at >= ?", filter.CreatedAfter)
+	if filter.StartDate != nil {
+		query = query.Where("created_at >= ?", *filter.StartDate)
 	}
-	if !filter.CreatedBefore.IsZero() {
-		query = query.Where("created_at <= ?", filter.CreatedBefore)
+	if filter.EndDate != nil {
+		query = query.Where("created_at <= ?", *filter.EndDate)
 	}
 	if filter.Tags != nil && len(filter.Tags) > 0 {
 		// TODO: Implement proper JSONB array containment query for PostgreSQL
@@ -136,7 +136,7 @@ func (r *repository) ListContacts(ctx context.Context, tenantID uuid.UUID, filte
 	// Apply sorting
 	if filter.SortBy != "" {
 		direction := "ASC"
-		if filter.SortDesc {
+		if filter.SortOrder == "desc" {
 			direction = "DESC"
 		}
 		query = query.Order(fmt.Sprintf("%s %s", filter.SortBy, direction))
@@ -165,7 +165,7 @@ func (r *repository) CreateContactReply(ctx context.Context, reply *ContactReply
 func (r *repository) ListContactReplies(ctx context.Context, tenantID, contactID uuid.UUID) ([]*ContactReply, error) {
 	var replies []*ContactReply
 	err := r.db.WithContext(ctx).
-		Where("tenant_id = ? AND contact_id = ?", tenantID, contactID).
+		Where("contact_id = ?", contactID).
 		Order("created_at ASC").
 		Find(&replies).Error
 	return replies, err
@@ -173,7 +173,7 @@ func (r *repository) ListContactReplies(ctx context.Context, tenantID, contactID
 
 func (r *repository) DeleteContactReply(ctx context.Context, tenantID, replyID uuid.UUID) error {
 	return r.db.WithContext(ctx).
-		Where("tenant_id = ? AND id = ?", tenantID, replyID).
+		Where("id = ?", replyID).
 		Delete(&ContactReply{}).Error
 }
 
@@ -212,14 +212,14 @@ func (r *repository) ListContactForms(ctx context.Context, tenantID uuid.UUID, f
 	query := r.db.WithContext(ctx).Where("tenant_id = ?", tenantID)
 
 	// Apply filters
-	if filter.FormType != nil {
-		query = query.Where("form_type = ?", *filter.FormType)
+	if len(filter.Type) > 0 {
+		query = query.Where("default_type IN ?", filter.Type)
 	}
 	if filter.IsActive != nil {
 		query = query.Where("is_active = ?", *filter.IsActive)
 	}
-	if filter.Name != nil && *filter.Name != "" {
-		query = query.Where("name ILIKE ?", "%"+*filter.Name+"%")
+	if filter.Search != "" {
+		query = query.Where("name ILIKE ?", "%"+filter.Search+"%")
 	}
 
 	// Count total
@@ -253,7 +253,7 @@ func (r *repository) ListContactForms(ctx context.Context, tenantID uuid.UUID, f
 func (r *repository) GetActiveContactForm(ctx context.Context, tenantID uuid.UUID, formType ContactFormType) (*ContactForm, error) {
 	var form ContactForm
 	err := r.db.WithContext(ctx).
-		Where("tenant_id = ? AND form_type = ? AND is_active = ?", tenantID, formType, true).
+		Where("tenant_id = ? AND default_type = ? AND is_active = ?", tenantID, formType, true).
 		First(&form).Error
 	if err != nil {
 		return nil, err
@@ -296,14 +296,14 @@ func (r *repository) ListContactTemplates(ctx context.Context, tenantID uuid.UUI
 	query := r.db.WithContext(ctx).Where("tenant_id = ?", tenantID)
 
 	// Apply filters
-	if filter.TemplateType != nil {
-		query = query.Where("template_type = ?", *filter.TemplateType)
+	if len(filter.Type) > 0 {
+		query = query.Where("type IN ?", filter.Type)
 	}
 	if filter.IsActive != nil {
 		query = query.Where("is_active = ?", *filter.IsActive)
 	}
-	if filter.Name != nil && *filter.Name != "" {
-		query = query.Where("name ILIKE ?", "%"+*filter.Name+"%")
+	if filter.Search != "" {
+		query = query.Where("name ILIKE ?", "%"+filter.Search+"%")
 	}
 
 	// Count total
@@ -337,7 +337,7 @@ func (r *repository) ListContactTemplates(ctx context.Context, tenantID uuid.UUI
 func (r *repository) GetContactTemplateByType(ctx context.Context, tenantID uuid.UUID, templateType ContactTemplateType) (*ContactTemplate, error) {
 	var template ContactTemplate
 	err := r.db.WithContext(ctx).
-		Where("tenant_id = ? AND template_type = ? AND is_active = ?", tenantID, templateType, true).
+		Where("tenant_id = ? AND type = ? AND is_active = ?", tenantID, templateType, true).
 		First(&template).Error
 	if err != nil {
 		return nil, err
@@ -356,13 +356,16 @@ func (r *repository) GetContactSettings(ctx context.Context, tenantID uuid.UUID)
 			// Return default settings if not found
 			return &ContactSettings{
 				TenantID:             tenantID,
+				ContactEmail:         "contact@example.com",
 				AutoAssignEnabled:    false,
+				AutoReplyEnabled:     true,
 				EmailNotifications:   true,
-				ResponseTimeSLA:      24 * 60, // 24 hours in minutes
-				ResolutionTimeSLA:    72 * 60, // 72 hours in minutes
-				AllowPublicForm:      true,
-				RequireEmailValidation: true,
-				MaxAttachmentSize:    5 * 1024 * 1024, // 5MB
+				SLAResponseTime:      24, // 24 hours
+				SLAResolutionTime:    72, // 72 hours
+				AllowAnonymousContact: true,
+				EnableSpamFilter:     true,
+				DataRetentionDays:    365,
+				ConsentRequired:      true,
 			}, nil
 		}
 		return nil, err
@@ -377,36 +380,18 @@ func (r *repository) UpdateContactSettings(ctx context.Context, settings *Contac
 
 // Analytics
 func (r *repository) GetContactAnalytics(ctx context.Context, tenantID uuid.UUID, period AnalyticsPeriod) (*ContactAnalytics, error) {
+	now := time.Now()
+	
 	var analytics ContactAnalytics
 	
-	// Calculate date range based on period
-	now := time.Now()
-	var startDate time.Time
-	switch period {
-	case AnalyticsPeriodDay:
-		startDate = now.AddDate(0, 0, -1)
-	case AnalyticsPeriodWeek:
-		startDate = now.AddDate(0, 0, -7)
-	case AnalyticsPeriodMonth:
-		startDate = now.AddDate(0, -1, 0)
-	case AnalyticsPeriodQuarter:
-		startDate = now.AddDate(0, -3, 0)
-	case AnalyticsPeriodYear:
-		startDate = now.AddDate(-1, 0, 0)
-	default:
-		startDate = now.AddDate(0, -1, 0) // Default to month
-	}
-
 	// TODO: Implement comprehensive analytics queries
 	// This is a complex query that would need to aggregate data from multiple periods
 	// For now, return basic structure
 	analytics = ContactAnalytics{
 		TenantID: tenantID,
-		Period:   period,
-		StartDate: startDate,
-		EndDate:   now,
+		Date:     now,
 	}
-
+	
 	return &analytics, nil
 }
 

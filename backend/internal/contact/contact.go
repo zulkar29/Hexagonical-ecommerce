@@ -1,6 +1,8 @@
 package contact
 
 import (
+	"errors"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -43,6 +45,232 @@ const (
 	TypeMedia        ContactType = "media"
 	TypeOther        ContactType = "other"
 )
+
+// ContactFormType represents the type of contact form
+type ContactFormType string
+
+const (
+	FormTypeGeneral   ContactFormType = "general"
+	FormTypeSupport   ContactFormType = "support"
+	FormTypeSales     ContactFormType = "sales"
+	FormTypeFeedback  ContactFormType = "feedback"
+)
+
+// ContactTemplateType represents the type of contact template
+type ContactTemplateType string
+
+const (
+	TemplateTypeAutoReply   ContactTemplateType = "auto_reply"
+	TemplateTypeFollowUp    ContactTemplateType = "follow_up"
+	TemplateTypeResolution  ContactTemplateType = "resolution"
+	TemplateTypeEscalation  ContactTemplateType = "escalation"
+)
+
+// AnalyticsPeriod represents the period for analytics
+type AnalyticsPeriod string
+
+const (
+	AnalyticsPeriodDay     AnalyticsPeriod = "day"
+	AnalyticsPeriodWeek    AnalyticsPeriod = "week"
+	AnalyticsPeriodMonth   AnalyticsPeriod = "month"
+	AnalyticsPeriodQuarter AnalyticsPeriod = "quarter"
+	AnalyticsPeriodYear    AnalyticsPeriod = "year"
+)
+
+// ContactMetrics represents comprehensive contact metrics
+type ContactMetrics struct {
+	TenantID           uuid.UUID `json:"tenant_id"`
+	StartDate          time.Time `json:"start_date"`
+	EndDate            time.Time `json:"end_date"`
+	TotalContacts      int       `json:"total_contacts"`
+	NewContacts        int       `json:"new_contacts"`
+	ResolvedContacts   int       `json:"resolved_contacts"`
+	AvgResponseTime    float64   `json:"avg_response_time"`
+	AvgResolutionTime  float64   `json:"avg_resolution_time"`
+	SatisfactionScore  float64   `json:"satisfaction_score"`
+	TypeDistribution   map[ContactType]int `json:"type_distribution"`
+	StatusDistribution map[ContactStatus]int `json:"status_distribution"`
+}
+
+// ContactFormFilter represents filter options for contact forms
+type ContactFormFilter struct {
+	Type     []ContactFormType `json:"type"`
+	IsActive *bool             `json:"is_active"`
+	IsPublic *bool             `json:"is_public"`
+	Search   string            `json:"search"`
+	Limit    int               `json:"limit"`
+	Offset   int               `json:"offset"`
+	SortBy   string            `json:"sort_by"`
+	SortDesc bool              `json:"sort_desc"`
+}
+
+// ContactTemplateFilter represents filter options for contact templates
+type ContactTemplateFilter struct {
+	Type     []ContactTemplateType `json:"type"`
+	Category []string              `json:"category"`
+	IsActive *bool                 `json:"is_active"`
+	Search   string                `json:"search"`
+	Limit    int                   `json:"limit"`
+	Offset   int                   `json:"offset"`
+	SortBy   string                `json:"sort_by"`
+	SortDesc bool                  `json:"sort_desc"`
+}
+
+// Additional request types for handlers
+type BulkUpdateContactsRequest struct {
+	ContactIDs []uuid.UUID       `json:"contact_ids" validate:"required"`
+	Status     *ContactStatus    `json:"status"`
+	Priority   *ContactPriority  `json:"priority"`
+	AssigneeID *uuid.UUID        `json:"assignee_id"`
+	Tags       []string          `json:"tags"`
+}
+
+type ExportContactsRequest struct {
+	Format    string        `json:"format" validate:"required,oneof=csv xlsx json"`
+	Filter    ContactFilter `json:"filter"`
+	Fields    []string      `json:"fields"`
+	DateRange *struct {
+		From time.Time `json:"from"`
+		To   time.Time `json:"to"`
+	} `json:"date_range"`
+}
+
+type UpdateContactStatusRequest struct {
+	Status ContactStatus `json:"status" validate:"required"`
+	Reason string        `json:"reason"`
+}
+
+type AssignContactRequest struct {
+	AssigneeID uuid.UUID `json:"assignee_id" validate:"required"`
+	Reason     string    `json:"reason"`
+}
+
+type UpdateContactPriorityRequest struct {
+	Priority ContactPriority `json:"priority" validate:"required"`
+	Reason   string          `json:"reason"`
+}
+
+type AddContactTagsRequest struct {
+	Tags []string `json:"tags" validate:"required,min=1"`
+}
+
+type RemoveContactTagsRequest struct {
+	Tags []string `json:"tags" validate:"required,min=1"`
+}
+
+type CreateContactReplyRequest struct {
+	Content     string    `json:"content" validate:"required"`
+	IsInternal  bool      `json:"is_internal"`
+	AuthorID    uuid.UUID `json:"author_id" validate:"required"`
+	Attachments []string  `json:"attachments"`
+}
+
+type SubmitContactFormRequest struct {
+	Name        string            `json:"name" validate:"required"`
+	Email       string            `json:"email" validate:"required,email"`
+	Phone       string            `json:"phone"`
+	Company     string            `json:"company"`
+	Subject     string            `json:"subject" validate:"required"`
+	Message     string            `json:"message" validate:"required"`
+	CustomFields map[string]interface{} `json:"custom_fields"`
+	Attachments []string          `json:"attachments"`
+	ConsentGiven bool             `json:"consent_given"`
+	CaptchaToken string           `json:"captcha_token"`
+	IPAddress   string            `json:"ip_address"`
+	UserAgent   string            `json:"user_agent"`
+	ReferrerURL string            `json:"referrer_url"`
+	PageURL     string            `json:"page_url"`
+}
+
+type CreateContactFormRequest struct {
+	Name            string          `json:"name" validate:"required"`
+	Title           string          `json:"title" validate:"required"`
+	Description     string          `json:"description"`
+	Fields          string          `json:"fields" validate:"required"`
+	Settings        string          `json:"settings"`
+	DefaultType     ContactType     `json:"default_type"`
+	DefaultPriority ContactPriority `json:"default_priority"`
+	DefaultAssignee *uuid.UUID      `json:"default_assignee"`
+	RequireAuth     bool            `json:"require_auth"`
+	AllowAttachments bool           `json:"allow_attachments"`
+	MaxAttachments  int             `json:"max_attachments"`
+	AutoReply       bool            `json:"auto_reply"`
+	AutoReplySubject string         `json:"auto_reply_subject"`
+	AutoReplyMessage string         `json:"auto_reply_message"`
+	EnableCaptcha   bool            `json:"enable_captcha"`
+	EnableRateLimit bool            `json:"enable_rate_limit"`
+	RateLimitWindow int             `json:"rate_limit_window"`
+	RateLimitRequests int           `json:"rate_limit_requests"`
+	IsPublic        bool            `json:"is_public"`
+}
+
+type UpdateContactFormRequest struct {
+	Name            *string         `json:"name"`
+	Title           *string         `json:"title"`
+	Description     *string         `json:"description"`
+	Fields          *string         `json:"fields"`
+	Settings        *string         `json:"settings"`
+	DefaultType     *ContactType    `json:"default_type"`
+	DefaultPriority *ContactPriority `json:"default_priority"`
+	DefaultAssignee *uuid.UUID      `json:"default_assignee"`
+	RequireAuth     *bool           `json:"require_auth"`
+	AllowAttachments *bool          `json:"allow_attachments"`
+	MaxAttachments  *int            `json:"max_attachments"`
+	AutoReply       *bool           `json:"auto_reply"`
+	AutoReplySubject *string        `json:"auto_reply_subject"`
+	AutoReplyMessage *string        `json:"auto_reply_message"`
+	EnableCaptcha   *bool           `json:"enable_captcha"`
+	EnableRateLimit *bool           `json:"enable_rate_limit"`
+	RateLimitWindow *int            `json:"rate_limit_window"`
+	RateLimitRequests *int          `json:"rate_limit_requests"`
+	IsActive        *bool           `json:"is_active"`
+	IsPublic        *bool           `json:"is_public"`
+}
+
+type CreateContactTemplateRequest struct {
+	Name        string              `json:"name" validate:"required"`
+	Description string              `json:"description"`
+	Type        ContactTemplateType `json:"type"`
+	Category    string              `json:"category"`
+	Subject     string              `json:"subject" validate:"required"`
+	Content     string              `json:"content" validate:"required"`
+	ContentType string              `json:"content_type"`
+	Variables   string              `json:"variables"`
+	IsDefault   bool                `json:"is_default"`
+}
+
+type UpdateContactTemplateRequest struct {
+	Name        *string              `json:"name"`
+	Description *string              `json:"description"`
+	Type        *ContactTemplateType `json:"type"`
+	Category    *string              `json:"category"`
+	Subject     *string              `json:"subject"`
+	Content     *string              `json:"content"`
+	ContentType *string              `json:"content_type"`
+	Variables   *string              `json:"variables"`
+	IsActive    *bool                `json:"is_active"`
+	IsDefault   *bool                `json:"is_default"`
+}
+
+type UpdateContactSettingsRequest struct {
+	AutoAssignment       *bool   `json:"auto_assignment"`
+	DefaultAssigneeID    *uuid.UUID `json:"default_assignee_id"`
+	AutoReply            *bool   `json:"auto_reply"`
+	AutoReplySubject     *string `json:"auto_reply_subject"`
+	AutoReplyMessage     *string `json:"auto_reply_message"`
+	BusinessHoursEnabled *bool   `json:"business_hours_enabled"`
+	BusinessHoursStart   *string `json:"business_hours_start"`
+	BusinessHoursEnd     *string `json:"business_hours_end"`
+	BusinessDays         []string `json:"business_days"`
+	Timezone             *string `json:"timezone"`
+	SLAEnabled           *bool   `json:"sla_enabled"`
+	SLAResponseTime      *int    `json:"sla_response_time"`
+	SLAResolutionTime    *int    `json:"sla_resolution_time"`
+	EmailNotifications   *bool   `json:"email_notifications"`
+	SlackNotifications   *bool   `json:"slack_notifications"`
+	SlackWebhookURL      *string `json:"slack_webhook_url"`
+	CustomFields         map[string]interface{} `json:"custom_fields"`
+}
 
 // Contact represents a contact form submission or inquiry
 type Contact struct {
@@ -183,10 +411,10 @@ type ContactTemplate struct {
 	TenantID uuid.UUID `json:"tenant_id" gorm:"not null;index"`
 	
 	// Template information
-	Name        string      `json:"name" gorm:"not null"`
-	Description string      `json:"description,omitempty"`
-	Type        ContactType `json:"type" gorm:"default:general"`
-	Category    string      `json:"category,omitempty"` // auto_reply, follow_up, resolution, etc.
+	Name        string              `json:"name" gorm:"not null"`
+	Description string              `json:"description,omitempty"`
+	Type        ContactTemplateType `json:"type" gorm:"default:auto_reply"`
+	Category    string              `json:"category,omitempty"` // auto_reply, follow_up, resolution, etc.
 	
 	// Template content
 	Subject     string `json:"subject" gorm:"not null"`

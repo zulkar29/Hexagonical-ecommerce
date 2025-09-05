@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/go-playground/validator/v10"
@@ -113,7 +114,7 @@ func (s *Service) GetProductBySlug(tenantID uuid.UUID, slug string) (*Product, e
 // UpdateProduct updates an existing product
 func (s *Service) UpdateProduct(tenantID, productID uuid.UUID, product *Product) (*Product, error) {
 	// Get existing product
-	existingProduct, err := s.repo.GetProduct(tenantID, productID)
+	existingProduct, err := s.repo.FindProductByID(tenantID, productID)
 	if err != nil {
 		return nil, err
 	}
@@ -271,8 +272,8 @@ func (s *Service) CreateCategory(tenantID uuid.UUID, category *Category) (*Categ
 	category.Slug = slug
 
 	// Validate parent category if provided
-	if category.ParentID != uuid.Nil {
-		if exists, err := s.repo.CategoryExists(tenantID, category.ParentID); err != nil {
+	if category.ParentID != nil {
+		if exists, err := s.repo.CategoryExists(tenantID, *category.ParentID); err != nil {
 			return nil, err
 		} else if !exists {
 			return nil, errors.New("parent category not found")
@@ -372,7 +373,7 @@ func (s *Service) generateUniqueCategorySlug(tenantID uuid.UUID, baseSlug string
 // - DuplicateProduct(tenantID uuid.UUID, productID uuid.UUID) (*Product, error)
 
 // GetProductStats returns product statistics for a tenant
-func (s *Service) GetProductStats(tenantID uuid.UUID) (map[string]interface{}, error) {
+func (s *Service) GetProductStats(tenantID uuid.UUID) (*ProductStats, error) {
 	return s.repo.GetProductStats(tenantID)
 }
 
@@ -548,13 +549,13 @@ func (s *Service) GetProductVariants(tenantID uuid.UUID, productIDStr string) ([
 		return nil, errors.New("product not found")
 	}
 
-	return s.repo.FindProductVariants(productID)
+	return s.repo.FindProductVariants(tenantID, productID)
 }
 
 // UpdateProductVariant updates an existing product variant
 func (s *Service) UpdateProductVariant(tenantID, productID, variantID uuid.UUID, variant *ProductVariant) (*ProductVariant, error) {
 	// Get existing variant
-	existingVariant, err := s.repo.GetProductVariant(tenantID, productID, variantID)
+	existingVariant, err := s.repo.GetProductVariant(tenantID, variantID)
 	if err != nil {
 		return nil, err
 	}
@@ -636,7 +637,7 @@ func (s *Service) DeleteProductVariant(tenantID uuid.UUID, productIDStr, variant
 		return errors.New("product not found")
 	}
 
-	return s.repo.DeleteProductVariant(variantID)
+	return s.repo.DeleteProductVariant(tenantID, variantID)
 }
 
 // Category management methods
@@ -678,9 +679,9 @@ func (s *Service) UpdateCategory(tenantID, categoryID uuid.UUID, category *Categ
 	if category.Image != "" {
 		existingCategory.Image = category.Image
 	}
-	if category.ParentID != uuid.Nil {
+	if category.ParentID != nil && *category.ParentID != uuid.Nil {
 		// Validate parent category if provided
-		if exists, err := s.repo.CategoryExists(tenantID, category.ParentID); err != nil {
+		if exists, err := s.repo.CategoryExists(tenantID, *category.ParentID); err != nil {
 			return nil, err
 		} else if !exists {
 			return nil, errors.New("parent category not found")

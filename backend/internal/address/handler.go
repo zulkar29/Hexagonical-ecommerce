@@ -1,14 +1,14 @@
 package address
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/gorilla/mux"
 )
 
 // Handler handles HTTP requests for address operations
@@ -24,601 +24,667 @@ func NewHandler(service Service) *Handler {
 }
 
 // RegisterRoutes registers address routes
-func (h *Handler) RegisterRoutes(router *mux.Router) {
-	// Address CRUD operations
-	router.HandleFunc("/addresses", h.CreateAddress).Methods("POST")
-	router.HandleFunc("/addresses", h.ListAddresses).Methods("GET")
-	router.HandleFunc("/addresses/{id}", h.GetAddress).Methods("GET")
-	router.HandleFunc("/addresses/{id}", h.UpdateAddress).Methods("PUT")
-	router.HandleFunc("/addresses/{id}", h.DeleteAddress).Methods("DELETE")
+func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
+	// 📍 CORE ADDRESS ENDPOINTS (5)
+	addresses := router.Group("/addresses")
+	{
+		addresses.POST("", h.CreateAddress)                    // CreateAddress
+		addresses.GET("", h.ListAddresses)                     // ListAddresses (with filtering, stats, recent)
+		addresses.GET("/:id", h.GetAddress)                    // GetAddress
+		addresses.PUT("/:id", h.UpdateAddress)                 // UpdateAddress (handles validation, default setting)
+		addresses.DELETE("/:id", h.DeleteAddress)              // DeleteAddress
+	}
 	
-	// Customer address operations
-	router.HandleFunc("/customers/{customerId}/addresses", h.GetCustomerAddresses).Methods("GET")
-	router.HandleFunc("/customers/{customerId}/addresses/default", h.GetDefaultAddress).Methods("GET")
-	router.HandleFunc("/customers/{customerId}/addresses/{id}/default", h.SetDefaultAddress).Methods("PUT")
-	router.HandleFunc("/customers/{customerId}/addresses/default", h.UnsetDefaultAddresses).Methods("DELETE")
+	// 📍 ADDRESS OPERATIONS (4)
+	addresses.POST("/bulk", h.BulkOperations)               // BulkOperations (create/update/delete via operation type)
+	addresses.POST("/normalize", h.NormalizeAddress)        // NormalizeAddress
+	addresses.POST("/suggest", h.SuggestAddresses)          // SuggestAddresses
+	addresses.DELETE("/cleanup", h.CleanupOperations)       // CleanupOperations (unvalidated/orphaned via type)
 	
-	// Address validation operations
-	router.HandleFunc("/addresses/{id}/validate", h.ValidateAddress).Methods("POST")
-	router.HandleFunc("/addresses/{id}/validation", h.GetAddressValidation).Methods("GET")
-	router.HandleFunc("/address-validations", h.ListAddressValidations).Methods("GET")
-	
-	// Bulk operations
-	router.HandleFunc("/addresses/bulk", h.BulkCreateAddresses).Methods("POST")
-	router.HandleFunc("/addresses/bulk", h.BulkUpdateAddresses).Methods("PUT")
-	router.HandleFunc("/addresses/bulk", h.BulkDeleteAddresses).Methods("DELETE")
-	
-	// Statistics and analytics
-	router.HandleFunc("/addresses/stats", h.GetAddressStats).Methods("GET")
-	router.HandleFunc("/addresses/stats/country", h.GetAddressesByCountry).Methods("GET")
-	router.HandleFunc("/addresses/stats/type", h.GetAddressesByType).Methods("GET")
-	router.HandleFunc("/addresses/recent", h.GetRecentAddresses).Methods("GET")
-	
-	// Maintenance operations
-	router.HandleFunc("/addresses/cleanup/unvalidated", h.CleanupUnvalidatedAddresses).Methods("DELETE")
-	router.HandleFunc("/address-validations/cleanup/orphaned", h.CleanupOrphanedValidations).Methods("DELETE")
-	
-	// Utility operations
-	router.HandleFunc("/addresses/normalize", h.NormalizeAddress).Methods("POST")
-	router.HandleFunc("/addresses/suggest", h.SuggestAddresses).Methods("POST")
+	// 📍 ADDRESS VALIDATIONS (2)
+	validations := router.Group("/address-validations")
+	{
+		validations.GET("", h.ListAddressValidations)        // ListAddressValidations
+		validations.DELETE("/cleanup", h.CleanupOperations)  // CleanupOperations (orphaned validations)
+	}
 }
 
 // Address CRUD operations
 
 // CreateAddress creates a new address
-func (h *Handler) CreateAddress(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := h.getTenantID(r)
+func (h *Handler) CreateAddress(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenantID, err := h.getTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
 	var req CreateAddressRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid request body", err)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
 	
-	response, err := h.service.CreateAddress(r.Context(), tenantID, req)
+	response, err := h.service.CreateAddress(ctx, tenantID, req)
 	if err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusCreated, response)
+	c.JSON(http.StatusCreated, response)
 }
 
 // GetAddress retrieves an address by ID
-func (h *Handler) GetAddress(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := h.getTenantID(r)
+func (h *Handler) GetAddress(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenantID, err := h.getTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
-	addressID, err := h.getUUIDParam(r, "id")
+	addressID, err := h.getUUIDParam(c, "id")
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid address ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid address ID", "details": err.Error()})
 		return
 	}
 	
-	response, err := h.service.GetAddress(r.Context(), tenantID, addressID)
+	response, err := h.service.GetAddress(ctx, tenantID, addressID)
 	if err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusOK, response)
+	c.JSON(http.StatusOK, response)
 }
 
 // UpdateAddress updates an existing address
-func (h *Handler) UpdateAddress(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := h.getTenantID(r)
+func (h *Handler) UpdateAddress(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenantID, err := h.getTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
-	addressID, err := h.getUUIDParam(r, "id")
+	addressID, err := h.getUUIDParam(c, "id")
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid address ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid address ID", "details": err.Error()})
 		return
 	}
 	
 	var req UpdateAddressRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid request body", err)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
 	
-	response, err := h.service.UpdateAddress(r.Context(), tenantID, addressID, req)
+	response, err := h.service.UpdateAddress(ctx, tenantID, addressID, req)
 	if err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusOK, response)
+	c.JSON(http.StatusOK, response)
 }
 
 // DeleteAddress soft deletes an address
-func (h *Handler) DeleteAddress(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := h.getTenantID(r)
+func (h *Handler) DeleteAddress(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenantID, err := h.getTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
-	addressID, err := h.getUUIDParam(r, "id")
+	addressID, err := h.getUUIDParam(c, "id")
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid address ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid address ID", "details": err.Error()})
 		return
 	}
 	
-	if err := h.service.DeleteAddress(r.Context(), tenantID, addressID); err != nil {
-		h.handleServiceError(w, err)
+	if err := h.service.DeleteAddress(ctx, tenantID, addressID); err != nil {
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	w.WriteHeader(http.StatusNoContent)
+	c.Status(http.StatusNoContent)
 }
 
-// ListAddresses retrieves addresses with filtering and pagination
-func (h *Handler) ListAddresses(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := h.getTenantID(r)
+// ListAddresses handles GET /addresses with consolidated functionality
+// Supports: filtering, stats, recent addresses, customer addresses
+func (h *Handler) ListAddresses(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenantID, err := h.getTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
-	// Parse query parameters
-	filter := h.parseAddressFilter(r)
-	limit, offset := h.parsePagination(r)
+	// Check for special operations via query parameters
+	operationType := c.Query("type")
+	customerID := c.Query("customer_id")
 	
-	response, err := h.service.ListAddresses(r.Context(), tenantID, filter, limit, offset)
-	if err != nil {
-		h.handleServiceError(w, err)
+	// Handle stats operations
+	if operationType == "stats" {
+		category := c.Query("category")
+		switch category {
+		case "country":
+			h.GetAddressesByCountry(c)
+			return
+		case "type":
+			h.GetAddressesByType(c)
+			return
+		default:
+			h.GetAddressStats(c)
+			return
+		}
+	}
+	
+	// Handle recent addresses
+	if operationType == "recent" {
+		h.GetRecentAddresses(c)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusOK, response)
+	// Handle customer-specific addresses
+	if customerID != "" {
+		if customerUUID, err := uuid.Parse(customerID); err == nil {
+			c.Set("customerId", customerUUID.String())
+			h.GetCustomerAddresses(c)
+			return
+		}
+	}
+	
+	// Parse query parameters for standard listing
+	filter := h.parseAddressFilter(c)
+	limit, offset := h.parsePagination(c)
+	
+	response, err := h.service.ListAddresses(ctx, tenantID, filter, limit, offset)
+	if err != nil {
+		h.handleServiceError(c, err)
+		return
+	}
+	
+	c.JSON(http.StatusOK, response)
 }
 
 // Customer address operations
 
 // GetCustomerAddresses retrieves all addresses for a customer
-func (h *Handler) GetCustomerAddresses(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := h.getTenantID(r)
+func (h *Handler) GetCustomerAddresses(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenantID, err := h.getTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
-	customerID, err := h.getUUIDParam(r, "customerId")
+	customerID, err := h.getUUIDParam(c, "customerId")
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid customer ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid customer ID", "details": err.Error()})
 		return
 	}
 	
-	responses, err := h.service.GetCustomerAddresses(r.Context(), tenantID, customerID)
+	responses, err := h.service.GetCustomerAddresses(ctx, tenantID, customerID)
 	if err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusOK, map[string]interface{}{
+	c.JSON(http.StatusOK, map[string]interface{}{
 		"addresses": responses,
 	})
 }
 
 // GetDefaultAddress retrieves the default address for a customer and type
-func (h *Handler) GetDefaultAddress(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := h.getTenantID(r)
+func (h *Handler) GetDefaultAddress(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenantID, err := h.getTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
-	customerID, err := h.getUUIDParam(r, "customerId")
+	customerID, err := h.getUUIDParam(c, "customerId")
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid customer ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid customer ID", "details": err.Error()})
 		return
 	}
 	
-	addressType := r.URL.Query().Get("type")
+	addressType := c.Query("type")
 	
-	response, err := h.service.GetDefaultAddress(r.Context(), tenantID, customerID, addressType)
+	response, err := h.service.GetDefaultAddress(ctx, tenantID, customerID, addressType)
 	if err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusOK, response)
+	c.JSON(http.StatusOK, response)
 }
 
 // SetDefaultAddress sets an address as default for a customer
-func (h *Handler) SetDefaultAddress(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := h.getTenantID(r)
+func (h *Handler) SetDefaultAddress(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenantID, err := h.getTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
-	customerID, err := h.getUUIDParam(r, "customerId")
+	customerID, err := h.getUUIDParam(c, "customerId")
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid customer ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid customer ID", "details": err.Error()})
 		return
 	}
 	
-	addressID, err := h.getUUIDParam(r, "id")
+	addressID, err := h.getUUIDParam(c, "id")
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid address ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid address ID", "details": err.Error()})
 		return
 	}
 	
-	if err := h.service.SetDefaultAddress(r.Context(), tenantID, customerID, addressID); err != nil {
-		h.handleServiceError(w, err)
+	if err := h.service.SetDefaultAddress(ctx, tenantID, customerID, addressID); err != nil {
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	w.WriteHeader(http.StatusNoContent)
+	c.Status(http.StatusNoContent)
 }
 
 // UnsetDefaultAddresses unsets default addresses for a customer and type
-func (h *Handler) UnsetDefaultAddresses(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := h.getTenantID(r)
+func (h *Handler) UnsetDefaultAddresses(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenantID, err := h.getTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
-	customerID, err := h.getUUIDParam(r, "customerId")
+	customerID, err := h.getUUIDParam(c, "customerId")
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid customer ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid customer ID", "details": err.Error()})
 		return
 	}
 	
-	addressType := r.URL.Query().Get("type")
+	addressType := c.Query("type")
 	
-	if err := h.service.UnsetDefaultAddresses(r.Context(), tenantID, customerID, addressType); err != nil {
-		h.handleServiceError(w, err)
+	if err := h.service.UnsetDefaultAddresses(ctx, tenantID, customerID, addressType); err != nil {
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	w.WriteHeader(http.StatusNoContent)
+	c.Status(http.StatusNoContent)
 }
 
 // Address validation operations
 
 // ValidateAddress validates an address using external service
-func (h *Handler) ValidateAddress(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := h.getTenantID(r)
+func (h *Handler) ValidateAddress(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenantID, err := h.getTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
-	addressID, err := h.getUUIDParam(r, "id")
+	addressID, err := h.getUUIDParam(c, "id")
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid address ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid address ID", "details": err.Error()})
 		return
 	}
 	
 	var req ValidateAddressRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid request body", err)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
 	
-	response, err := h.service.ValidateAddress(r.Context(), tenantID, addressID, req)
+	response, err := h.service.ValidateAddress(ctx, tenantID, addressID, req)
 	if err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusOK, response)
+	c.JSON(http.StatusOK, response)
 }
 
 // GetAddressValidation retrieves the latest validation for an address
-func (h *Handler) GetAddressValidation(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := h.getTenantID(r)
+func (h *Handler) GetAddressValidation(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenantID, err := h.getTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
-	addressID, err := h.getUUIDParam(r, "id")
+	addressID, err := h.getUUIDParam(c, "id")
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid address ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid address ID", "details": err.Error()})
 		return
 	}
 	
-	response, err := h.service.GetAddressValidation(r.Context(), tenantID, addressID)
+	response, err := h.service.GetAddressValidation(ctx, tenantID, addressID)
 	if err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusOK, response)
+	c.JSON(http.StatusOK, response)
 }
 
 // ListAddressValidations retrieves validations with pagination
-func (h *Handler) ListAddressValidations(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := h.getTenantID(r)
+func (h *Handler) ListAddressValidations(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenantID, err := h.getTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
-	limit, offset := h.parsePagination(r)
+	limit, offset := h.parsePagination(c)
 	
-	response, err := h.service.ListAddressValidations(r.Context(), tenantID, limit, offset)
+	response, err := h.service.ListAddressValidations(ctx, tenantID, limit, offset)
 	if err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusOK, response)
+	c.JSON(http.StatusOK, response)
 }
 
 // Bulk operations
 
-// BulkCreateAddresses creates multiple addresses
-func (h *Handler) BulkCreateAddresses(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := h.getTenantID(r)
+// BulkOperations handles consolidated bulk operations (create/update/delete)
+func (h *Handler) BulkOperations(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenantID, err := h.getTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
+	// Determine operation type from query parameter or request body
+	operationType := c.Query("operation")
+	if operationType == "" {
+		// Default to create for backward compatibility
+		operationType = "create"
+	}
+	
+	switch operationType {
+	case "create":
+		h.handleBulkCreate(c, ctx, tenantID)
+	case "update":
+		h.handleBulkUpdate(c, ctx, tenantID)
+	case "delete":
+		h.handleBulkDelete(c, ctx, tenantID)
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid operation type. Supported: create, update, delete"})
+	}
+}
+
+// handleBulkCreate handles bulk address creation
+func (h *Handler) handleBulkCreate(c *gin.Context, ctx context.Context, tenantID uuid.UUID) {
 	var req struct {
 		Addresses []CreateAddressRequest `json:"addresses"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid request body", err)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
 	
-	responses, err := h.service.BulkCreateAddresses(r.Context(), tenantID, req.Addresses)
+	responses, err := h.service.BulkCreateAddresses(ctx, tenantID, req.Addresses)
 	if err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusCreated, map[string]interface{}{
+	c.JSON(http.StatusCreated, gin.H{
 		"addresses": responses,
 		"count":     len(responses),
 	})
 }
 
-// BulkUpdateAddresses updates multiple addresses
-func (h *Handler) BulkUpdateAddresses(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := h.getTenantID(r)
-	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
-		return
-	}
-	
+// handleBulkUpdate handles bulk address updates
+func (h *Handler) handleBulkUpdate(c *gin.Context, ctx context.Context, tenantID uuid.UUID) {
 	var req struct {
 		Updates []BulkUpdateAddressRequest `json:"updates"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid request body", err)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
 	
-	responses, err := h.service.BulkUpdateAddresses(r.Context(), tenantID, req.Updates)
+	responses, err := h.service.BulkUpdateAddresses(ctx, tenantID, req.Updates)
 	if err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusOK, map[string]interface{}{
+	c.JSON(http.StatusOK, gin.H{
 		"addresses": responses,
 		"count":     len(responses),
 	})
 }
 
-// BulkDeleteAddresses soft deletes multiple addresses
-func (h *Handler) BulkDeleteAddresses(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := h.getTenantID(r)
-	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
-		return
-	}
-	
+// handleBulkDelete handles bulk address deletion
+func (h *Handler) handleBulkDelete(c *gin.Context, ctx context.Context, tenantID uuid.UUID) {
 	var req struct {
 		AddressIDs []uuid.UUID `json:"address_ids"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid request body", err)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
 	
-	if err := h.service.BulkDeleteAddresses(r.Context(), tenantID, req.AddressIDs); err != nil {
-		h.handleServiceError(w, err)
+	if err := h.service.BulkDeleteAddresses(ctx, tenantID, req.AddressIDs); err != nil {
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusOK, map[string]interface{}{
+	c.JSON(http.StatusOK, gin.H{
 		"deleted_count": len(req.AddressIDs),
 	})
 }
 
-// Statistics and analytics
-
-// GetAddressStats retrieves address statistics
-func (h *Handler) GetAddressStats(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := h.getTenantID(r)
+// CleanupOperations handles consolidated cleanup operations
+func (h *Handler) CleanupOperations(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenantID, err := h.getTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
-	stats, err := h.service.GetAddressStats(r.Context(), tenantID)
-	if err != nil {
-		h.handleServiceError(w, err)
-		return
+	// Determine cleanup type from query parameter
+	cleanupType := c.Query("type")
+	if cleanupType == "" {
+		cleanupType = "unvalidated" // Default
 	}
 	
-	h.writeJSONResponse(w, http.StatusOK, stats)
+	switch cleanupType {
+	case "unvalidated":
+		h.handleCleanupUnvalidated(c, ctx, tenantID)
+	case "orphaned":
+		h.handleCleanupOrphaned(c, ctx, tenantID)
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid cleanup type. Supported: unvalidated, orphaned"})
+	}
 }
 
-// GetAddressesByCountry retrieves address count by country
-func (h *Handler) GetAddressesByCountry(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := h.getTenantID(r)
-	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
-		return
-	}
-	
-	stats, err := h.service.GetAddressesByCountry(r.Context(), tenantID)
-	if err != nil {
-		h.handleServiceError(w, err)
-		return
-	}
-	
-	h.writeJSONResponse(w, http.StatusOK, map[string]interface{}{
-		"countries": stats,
-	})
-}
-
-// GetAddressesByType retrieves address count by type
-func (h *Handler) GetAddressesByType(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := h.getTenantID(r)
-	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
-		return
-	}
-	
-	stats, err := h.service.GetAddressesByType(r.Context(), tenantID)
-	if err != nil {
-		h.handleServiceError(w, err)
-		return
-	}
-	
-	h.writeJSONResponse(w, http.StatusOK, map[string]interface{}{
-		"types": stats,
-	})
-}
-
-// GetRecentAddresses retrieves recent addresses
-func (h *Handler) GetRecentAddresses(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := h.getTenantID(r)
-	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
-		return
-	}
-	
-	days := 30 // Default
-	if daysStr := r.URL.Query().Get("days"); daysStr != "" {
-		if parsedDays, err := strconv.Atoi(daysStr); err == nil && parsedDays > 0 {
-			days = parsedDays
-		}
-	}
-	
-	addresses, err := h.service.GetRecentAddresses(r.Context(), tenantID, days)
-	if err != nil {
-		h.handleServiceError(w, err)
-		return
-	}
-	
-	h.writeJSONResponse(w, http.StatusOK, map[string]interface{}{
-		"addresses": addresses,
-		"days":      days,
-	})
-}
-
-// Maintenance operations
-
-// CleanupUnvalidatedAddresses removes old unvalidated addresses
-func (h *Handler) CleanupUnvalidatedAddresses(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := h.getTenantID(r)
-	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
-		return
-	}
-	
+// handleCleanupUnvalidated handles cleanup of unvalidated addresses
+func (h *Handler) handleCleanupUnvalidated(c *gin.Context, ctx context.Context, tenantID uuid.UUID) {
 	days := 90 // Default
-	if daysStr := r.URL.Query().Get("days"); daysStr != "" {
+	if daysStr := c.Query("days"); daysStr != "" {
 		if parsedDays, err := strconv.Atoi(daysStr); err == nil && parsedDays > 0 {
 			days = parsedDays
 		}
 	}
 	
-	deleted, err := h.service.CleanupUnvalidatedAddresses(r.Context(), tenantID, days)
+	deleted, err := h.service.CleanupUnvalidatedAddresses(ctx, tenantID, days)
 	if err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusOK, map[string]interface{}{
+	c.JSON(http.StatusOK, gin.H{
 		"deleted_count": deleted,
 		"days":         days,
+		"type":         "unvalidated",
 	})
 }
 
-// CleanupOrphanedValidations removes validations for non-existent addresses
-func (h *Handler) CleanupOrphanedValidations(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := h.getTenantID(r)
+// handleCleanupOrphaned handles cleanup of orphaned validations
+func (h *Handler) handleCleanupOrphaned(c *gin.Context, ctx context.Context, tenantID uuid.UUID) {
+	deleted, err := h.service.CleanupOrphanedValidations(ctx, tenantID)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	deleted, err := h.service.CleanupOrphanedValidations(r.Context(), tenantID)
-	if err != nil {
-		h.handleServiceError(w, err)
-		return
-	}
-	
-	h.writeJSONResponse(w, http.StatusOK, map[string]interface{}{
+	c.JSON(http.StatusOK, gin.H{
 		"deleted_count": deleted,
+		"type":         "orphaned",
 	})
 }
+
+
+
+
+
+
+
+
+
+
 
 // Utility operations
 
 // NormalizeAddress normalizes address data
-func (h *Handler) NormalizeAddress(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) NormalizeAddress(c *gin.Context) {
+	ctx := c.Request.Context()
 	var req NormalizeAddressRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid request body", err)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
 	
-	response, err := h.service.NormalizeAddress(r.Context(), req)
+	response, err := h.service.NormalizeAddress(ctx, req)
 	if err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusOK, response)
+	c.JSON(http.StatusOK, response)
 }
 
 // SuggestAddresses provides address suggestions
-func (h *Handler) SuggestAddresses(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) SuggestAddresses(c *gin.Context) {
+	ctx := c.Request.Context()
 	var req AddressSuggestionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid request body", err)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
 	
-	response, err := h.service.SuggestAddresses(r.Context(), req)
+	response, err := h.service.SuggestAddresses(ctx, req)
 	if err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusOK, response)
+	c.JSON(http.StatusOK, response)
+}
+
+// Statistics handler methods
+
+// GetAddressStats retrieves address statistics
+func (h *Handler) GetAddressStats(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+		return
+	}
+	
+	stats, err := h.service.GetAddressStats(ctx, tenantID)
+	if err != nil {
+		h.handleServiceError(c, err)
+		return
+	}
+	
+	c.JSON(http.StatusOK, stats)
+}
+
+// GetAddressesByCountry retrieves address count by country
+func (h *Handler) GetAddressesByCountry(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+		return
+	}
+	
+	addressesByCountry, err := h.service.GetAddressesByCountry(ctx, tenantID)
+	if err != nil {
+		h.handleServiceError(c, err)
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{"addresses_by_country": addressesByCountry})
+}
+
+// GetAddressesByType retrieves address count by type
+func (h *Handler) GetAddressesByType(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+		return
+	}
+	
+	addressesByType, err := h.service.GetAddressesByType(ctx, tenantID)
+	if err != nil {
+		h.handleServiceError(c, err)
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{"addresses_by_type": addressesByType})
+}
+
+// GetRecentAddresses retrieves recent addresses
+func (h *Handler) GetRecentAddresses(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+		return
+	}
+	
+	days := 30 // Default
+	if daysStr := c.Query("days"); daysStr != "" {
+		if parsedDays, err := strconv.Atoi(daysStr); err == nil && parsedDays > 0 {
+			days = parsedDays
+		}
+	}
+	
+	addresses, err := h.service.GetRecentAddresses(ctx, tenantID, days)
+	if err != nil {
+		h.handleServiceError(c, err)
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{"addresses": addresses, "days": days})
 }
 
 // Helper methods
 
 // getTenantID extracts tenant ID from request context or headers
-func (h *Handler) getTenantID(r *http.Request) (uuid.UUID, error) {
+func (h *Handler) getTenantID(c *gin.Context) (uuid.UUID, error) {
 	// This would typically come from JWT token or request context
 	// For now, we'll get it from header
-	tenantIDStr := r.Header.Get("X-Tenant-ID")
+	tenantIDStr := c.GetHeader("X-Tenant-ID")
 	if tenantIDStr == "" {
 		return uuid.Nil, fmt.Errorf("tenant ID is required")
 	}
@@ -627,10 +693,9 @@ func (h *Handler) getTenantID(r *http.Request) (uuid.UUID, error) {
 }
 
 // getUUIDParam extracts UUID parameter from URL
-func (h *Handler) getUUIDParam(r *http.Request, param string) (uuid.UUID, error) {
-	vars := mux.Vars(r)
-	idStr, exists := vars[param]
-	if !exists {
+func (h *Handler) getUUIDParam(c *gin.Context, param string) (uuid.UUID, error) {
+	idStr := c.Param(param)
+	if idStr == "" {
 		return uuid.Nil, fmt.Errorf("%s parameter is required", param)
 	}
 	
@@ -638,48 +703,48 @@ func (h *Handler) getUUIDParam(r *http.Request, param string) (uuid.UUID, error)
 }
 
 // parseAddressFilter parses address filter from query parameters
-func (h *Handler) parseAddressFilter(r *http.Request) AddressFilter {
+func (h *Handler) parseAddressFilter(c *gin.Context) AddressFilter {
 	filter := AddressFilter{}
 	
-	if customerIDStr := r.URL.Query().Get("customer_id"); customerIDStr != "" {
+	if customerIDStr := c.Query("customer_id"); customerIDStr != "" {
 		if customerID, err := uuid.Parse(customerIDStr); err == nil {
 			filter.CustomerID = &customerID
 		}
 	}
 	
-	if addressType := r.URL.Query().Get("type"); addressType != "" {
+	if addressType := c.Query("type"); addressType != "" {
 		filter.Type = addressType
 	}
 	
-	if label := r.URL.Query().Get("label"); label != "" {
+	if label := c.Query("label"); label != "" {
 		filter.Label = label
 	}
 	
-	if country := r.URL.Query().Get("country"); country != "" {
+	if country := c.Query("country"); country != "" {
 		filter.Country = country
 	}
 	
-	if state := r.URL.Query().Get("state"); state != "" {
+	if state := c.Query("state"); state != "" {
 		filter.State = state
 	}
 	
-	if city := r.URL.Query().Get("city"); city != "" {
+	if city := c.Query("city"); city != "" {
 		filter.City = city
 	}
 	
-	if isDefaultStr := r.URL.Query().Get("is_default"); isDefaultStr != "" {
+	if isDefaultStr := c.Query("is_default"); isDefaultStr != "" {
 		if isDefault, err := strconv.ParseBool(isDefaultStr); err == nil {
 			filter.IsDefault = &isDefault
 		}
 	}
 	
-	if isValidatedStr := r.URL.Query().Get("is_validated"); isValidatedStr != "" {
+	if isValidatedStr := c.Query("is_validated"); isValidatedStr != "" {
 		if isValidated, err := strconv.ParseBool(isValidatedStr); err == nil {
 			filter.IsValidated = &isValidated
 		}
 	}
 	
-	if search := r.URL.Query().Get("search"); search != "" {
+	if search := c.Query("search"); search != "" {
 		filter.Search = search
 	}
 	
@@ -687,11 +752,11 @@ func (h *Handler) parseAddressFilter(r *http.Request) AddressFilter {
 }
 
 // parsePagination parses pagination parameters
-func (h *Handler) parsePagination(r *http.Request) (limit, offset int) {
+func (h *Handler) parsePagination(c *gin.Context) (limit, offset int) {
 	limit = DefaultPageSize
 	offset = 0
 	
-	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+	if limitStr := c.Query("limit"); limitStr != "" {
 		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
 			limit = parsedLimit
 			if limit > MaxPageSize {
@@ -700,7 +765,7 @@ func (h *Handler) parsePagination(r *http.Request) (limit, offset int) {
 		}
 	}
 	
-	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+	if offsetStr := c.Query("offset"); offsetStr != "" {
 		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
 			offset = parsedOffset
 		}
@@ -709,59 +774,39 @@ func (h *Handler) parsePagination(r *http.Request) (limit, offset int) {
 	return limit, offset
 }
 
-// writeJSONResponse writes JSON response
-func (h *Handler) writeJSONResponse(w http.ResponseWriter, statusCode int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
-}
-
-// writeErrorResponse writes error response
-func (h *Handler) writeErrorResponse(w http.ResponseWriter, statusCode int, message string, err error) {
-	errorResponse := map[string]interface{}{
-		"error":   message,
-		"status":  statusCode,
-		"details": err.Error(),
-	}
-	
-	h.writeJSONResponse(w, statusCode, errorResponse)
-}
 
 // handleServiceError handles service layer errors
-func (h *Handler) handleServiceError(w http.ResponseWriter, err error) {
+func (h *Handler) handleServiceError(c *gin.Context, err error) {
 	switch {
 	case err == ErrAddressNotFound:
-		h.writeErrorResponse(w, http.StatusNotFound, "Address not found", err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Address not found", "details": err.Error()})
 	case err == ErrValidationNotFound:
-		h.writeErrorResponse(w, http.StatusNotFound, "Validation not found", err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Validation not found", "details": err.Error()})
 	case err == ErrTooManyAddresses:
-		h.writeErrorResponse(w, http.StatusBadRequest, "Too many addresses for customer", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Too many addresses for customer", "details": err.Error()})
 	case err == ErrBulkSizeExceeded:
-		h.writeErrorResponse(w, http.StatusBadRequest, "Bulk operation size exceeded", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Bulk operation size exceeded", "details": err.Error()})
 	case err == ErrInvalidCustomerID:
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid customer ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid customer ID", "details": err.Error()})
 	case err == ErrInvalidAddressType:
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid address type", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid address type", "details": err.Error()})
 	case err == ErrInvalidFirstName:
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid first name", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid first name", "details": err.Error()})
 	case err == ErrInvalidLastName:
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid last name", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid last name", "details": err.Error()})
 	case err == ErrInvalidAddress:
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid address", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid address", "details": err.Error()})
 	case err == ErrInvalidCity:
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid city", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid city", "details": err.Error()})
 	case err == ErrInvalidState:
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid state", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid state", "details": err.Error()})
 	case err == ErrInvalidPostalCode:
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid postal code", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid postal code", "details": err.Error()})
 	case err == ErrInvalidCountry:
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid country", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid country", "details": err.Error()})
 	case strings.Contains(err.Error(), "validation failed"):
-		h.writeErrorResponse(w, http.StatusBadRequest, "Validation failed", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Validation failed", "details": err.Error()})
 	default:
-		h.writeErrorResponse(w, http.StatusInternalServerError, "Internal server error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error", "details": err.Error()})
 	}
 }

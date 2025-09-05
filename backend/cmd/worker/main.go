@@ -21,6 +21,7 @@ func main() {
 	}
 
 	log.Println("Worker starting...")
+	log.Printf("Database connection established: %v", db != nil)
 
 	// TODO: Implement background worker
 	// This will handle:

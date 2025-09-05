@@ -3,7 +3,6 @@ package observability
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -246,8 +245,17 @@ func (s *ObservabilityService) TrackBusinessEvent(ctx context.Context, event str
 func (s *ObservabilityService) TrackAPIPerformance(ctx context.Context, endpoint, method string, statusCode int, duration time.Duration) {
 	status := fmt.Sprintf("%d", statusCode)
 	
-	// Record performance metric
-	s.metrics.RecordAPICall(endpoint, method, status, duration)
+	// Record performance metrics
+	s.metrics.Timer("api.request.duration", duration, map[string]string{
+		"endpoint": endpoint,
+		"method":   method,
+		"status":   status,
+	})
+	s.metrics.Increment("api.request.count", map[string]string{
+		"endpoint": endpoint,
+		"method":   method,
+		"status":   status,
+	})
 
 	// Log slow requests
 	if duration > 1*time.Second {

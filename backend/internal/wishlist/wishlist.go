@@ -71,17 +71,24 @@ type ProductVariant struct {
 
 // Business logic errors
 var (
-	ErrWishlistNotFound     = errors.New("wishlist not found")
-	ErrWishlistItemNotFound = errors.New("wishlist item not found")
-	ErrWishlistExists       = errors.New("wishlist already exists")
-	ErrItemExists           = errors.New("item already exists in wishlist")
-	ErrInvalidQuantity      = errors.New("invalid quantity")
-	ErrInvalidCustomer      = errors.New("invalid customer")
-	ErrDefaultWishlist      = errors.New("cannot delete default wishlist")
-	ErrMaxWishlists         = errors.New("maximum number of wishlists reached")
-	ErrMaxItems             = errors.New("maximum number of items reached")
-	ErrProductNotAvailable  = errors.New("product not available")
-	ErrVariantNotAvailable  = errors.New("variant not available")
+	ErrWishlistNotFound              = errors.New("wishlist not found")
+	ErrWishlistItemNotFound          = errors.New("wishlist item not found")
+	ErrWishlistNotOwned              = errors.New("wishlist not owned by user")
+	ErrWishlistItemNotOwned          = errors.New("wishlist item not owned by user")
+	ErrWishlistNameExists            = errors.New("wishlist name already exists")
+	ErrWishlistLimitExceeded         = errors.New("wishlist limit exceeded")
+	ErrWishlistFull                  = errors.New("wishlist is full")
+	ErrCannotDeleteDefaultWishlist   = errors.New("cannot delete default wishlist")
+	ErrInvalidTenantID               = errors.New("invalid tenant ID")
+	ErrInvalidCustomerID             = errors.New("invalid customer ID")
+	ErrInvalidWishlistID             = errors.New("invalid wishlist ID")
+	ErrInvalidProductID              = errors.New("invalid product ID")
+	ErrInvalidWishlistName           = errors.New("invalid wishlist name")
+	ErrWishlistNameTooLong           = errors.New("wishlist name too long")
+	ErrWishlistDescriptionTooLong    = errors.New("wishlist description too long")
+	ErrInvalidQuantity               = errors.New("invalid quantity")
+	ErrInvalidPriority               = errors.New("invalid priority")
+	ErrItemNotesTooLong              = errors.New("item notes too long")
 )
 
 // Constants
@@ -90,6 +97,17 @@ const (
 	MaxItemsPerWishlist     = 100
 	DefaultWishlistName     = "My Wishlist"
 	ShareTokenLength        = 32
+	
+	// Pagination constants
+	MaxPageSize     = 100
+	DefaultPageSize = 20
+	
+	// Validation constants
+	MaxWishlistNameLength        = 255
+	MaxWishlistDescriptionLength = 1000
+	MaxItemQuantity              = 100
+	MaxItemNotesLength           = 500
+	MaxItemPriority              = 10
 )
 
 // Wishlist business logic methods
@@ -107,6 +125,12 @@ func (w *Wishlist) IsEmpty() bool {
 // CanAddItem checks if an item can be added to the wishlist
 func (w *Wishlist) CanAddItem() bool {
 	return w.ItemCount < MaxItemsPerWishlist
+}
+
+// CanDelete checks if the wishlist can be deleted
+func (w *Wishlist) CanDelete() bool {
+	// Default wishlists cannot be deleted
+	return !w.IsDefault
 }
 
 // HasItem checks if a product/variant is already in the wishlist
@@ -304,6 +328,8 @@ func (wi *WishlistItem) BeforeCreate(tx *gorm.DB) error {
 
 // CreateWishlistRequest represents a request to create a wishlist
 type CreateWishlistRequest struct {
+	TenantID    uuid.UUID `json:"-"`
+	CustomerID  uuid.UUID `json:"-"`
 	Name        string `json:"name" validate:"required,max=255"`
 	Description string `json:"description" validate:"max=1000"`
 	IsDefault   bool   `json:"is_default"`
@@ -312,13 +338,15 @@ type CreateWishlistRequest struct {
 
 // UpdateWishlistRequest represents a request to update a wishlist
 type UpdateWishlistRequest struct {
-	Name        string `json:"name" validate:"max=255"`
-	Description string `json:"description" validate:"max=1000"`
-	IsPublic    *bool  `json:"is_public"`
+	Name        *string `json:"name" validate:"max=255"`
+	Description *string `json:"description" validate:"max=1000"`
+	IsDefault   *bool   `json:"is_default"`
+	IsPublic    *bool   `json:"is_public"`
 }
 
 // AddItemRequest represents a request to add an item to a wishlist
 type AddItemRequest struct {
+	WishlistID uuid.UUID  `json:"-"`
 	ProductID uuid.UUID  `json:"product_id" validate:"required"`
 	VariantID *uuid.UUID `json:"variant_id"`
 	Quantity  int        `json:"quantity" validate:"min=1,max=100"`
@@ -328,9 +356,9 @@ type AddItemRequest struct {
 
 // UpdateItemRequest represents a request to update a wishlist item
 type UpdateItemRequest struct {
-	Quantity int    `json:"quantity" validate:"min=1,max=100"`
-	Notes    string `json:"notes" validate:"max=500"`
-	Priority int    `json:"priority" validate:"min=0,max=10"`
+	Quantity *int    `json:"quantity" validate:"min=1,max=100"`
+	Notes    *string `json:"notes" validate:"max=500"`
+	Priority *int    `json:"priority" validate:"min=0,max=10"`
 }
 
 // WishlistResponse represents a wishlist response

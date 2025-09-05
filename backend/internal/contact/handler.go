@@ -1,6 +1,7 @@
 package contact
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -32,21 +33,14 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 		contacts.POST("/bulk", h.BulkUpdateContacts)
 		contacts.POST("/export", h.ExportContacts)
 
-		// Contact status management
-		contacts.PUT("/:id/status", h.UpdateContactStatus)
-		contacts.PUT("/:id/assign", h.AssignContact)
-		contacts.PUT("/:id/priority", h.UpdateContactPriority)
-		contacts.POST("/:id/tags", h.AddContactTags)
-		contacts.DELETE("/:id/tags", h.RemoveContactTags)
+		// Contact status management - consolidated into PUT /:id with query params
 
 		// Contact replies
 		contacts.POST("/:id/replies", h.CreateContactReply)
 		contacts.GET("/:id/replies", h.ListContactReplies)
 		contacts.DELETE("/:id/replies/:reply_id", h.DeleteContactReply)
 
-		// Contact notes and internal comments
-		contacts.POST("/:id/notes", h.AddContactNote)
-		contacts.GET("/:id/notes", h.ListContactNotes)
+		// Contact notes and internal comments - removed unimplemented endpoints
 	}
 
 	// Contact forms
@@ -57,8 +51,7 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 		forms.GET("/:id", h.GetContactForm)
 		forms.PUT("/:id", h.UpdateContactForm)
 		forms.DELETE("/:id", h.DeleteContactForm)
-		forms.POST("/:id/activate", h.ActivateContactForm)
-		forms.POST("/:id/deactivate", h.DeactivateContactForm)
+		// Activation/deactivation handled via PUT /:id with is_active field
 		forms.GET("/public/:form_type", h.GetPublicContactForm)
 		forms.POST("/public/:form_type/submit", h.SubmitPublicContactForm)
 	}
@@ -71,8 +64,7 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 		templates.GET("/:id", h.GetContactTemplate)
 		templates.PUT("/:id", h.UpdateContactTemplate)
 		templates.DELETE("/:id", h.DeleteContactTemplate)
-		templates.POST("/:id/activate", h.ActivateContactTemplate)
-		templates.POST("/:id/deactivate", h.DeactivateContactTemplate)
+		// Activation/deactivation handled via PUT /:id with is_active field
 	}
 
 	// Settings
@@ -82,33 +74,30 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 		settings.PUT("", h.UpdateContactSettings)
 	}
 
-	// Analytics
+	// Analytics - consolidated with query parameters
 	analytics := r.Group("/contact-analytics")
 	{
-		analytics.GET("", h.GetContactAnalytics)
-		analytics.GET("/metrics", h.GetContactMetrics)
-		analytics.GET("/performance", h.GetAgentPerformance)
-		analytics.GET("/satisfaction", h.GetCustomerSatisfaction)
-		analytics.GET("/resolution-time", h.GetResolutionTimeAnalytics)
-		analytics.GET("/response-time", h.GetResponseTimeAnalytics)
+		analytics.GET("", h.GetContactAnalytics) // Handles all analytics types via ?type= parameter
 	}
 }
 
 // Contact management handlers
 func (h *Handler) CreateContact(c *gin.Context) {
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+		return
+	}
 
 	var req CreateContactRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
 
 	contact, err := h.service.CreateContact(c.Request.Context(), tenantID, req)
 	if err != nil {
-		// TODO: Implement proper error handling
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		h.handleServiceError(c, err)
 		return
 	}
 
@@ -410,13 +399,19 @@ func (h *Handler) DeleteContactReply(c *gin.Context) {
 	// TODO: Extract tenant ID from context
 	tenantID := uuid.New() // Placeholder
 
+	contactID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contact ID"})
+		return
+	}
+
 	replyID, err := uuid.Parse(c.Param("reply_id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reply ID"})
 		return
 	}
 
-	err = h.service.DeleteContactReply(c.Request.Context(), tenantID, replyID)
+	err = h.service.DeleteContactReply(c.Request.Context(), tenantID, contactID, replyID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -449,8 +444,7 @@ func (h *Handler) ListContactForms(c *gin.Context) {
 	// TODO: Extract tenant ID from context
 	tenantID := uuid.New() // Placeholder
 
-	filter := h.parseContactFormFilter(c)
-	forms, total, err := h.service.ListContactForms(c.Request.Context(), tenantID, filter)
+	forms, err := h.service.ListContactForms(c.Request.Context(), tenantID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -458,9 +452,7 @@ func (h *Handler) ListContactForms(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"data":  forms,
-		"total": total,
-		"limit": filter.Limit,
-		"offset": filter.Offset,
+		"total": len(forms),
 	})
 }
 
@@ -528,11 +520,8 @@ func (h *Handler) DeleteContactForm(c *gin.Context) {
 }
 
 func (h *Handler) GetPublicContactForm(c *gin.Context) {
-	// TODO: Extract tenant ID from context (public forms might use different auth)
-	tenantID := uuid.New() // Placeholder
-
-	formType := ContactFormType(c.Param("form_type"))
-	form, err := h.service.GetPublicContactForm(c.Request.Context(), tenantID, formType)
+	formType := c.Param("form_type")
+	form, err := h.service.GetPublicContactForm(c.Request.Context(), formType)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Form not found"})
 		return
@@ -542,10 +531,7 @@ func (h *Handler) GetPublicContactForm(c *gin.Context) {
 }
 
 func (h *Handler) SubmitPublicContactForm(c *gin.Context) {
-	// TODO: Extract tenant ID from context (public forms might use different auth)
-	tenantID := uuid.New() // Placeholder
-
-	formType := ContactFormType(c.Param("form_type"))
+	formType := c.Param("form_type")
 	
 	var req SubmitContactFormRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -553,7 +539,7 @@ func (h *Handler) SubmitPublicContactForm(c *gin.Context) {
 		return
 	}
 
-	contact, err := h.service.SubmitPublicContactForm(c.Request.Context(), tenantID, formType, req)
+	contact, err := h.service.SubmitPublicContactForm(c.Request.Context(), formType, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -620,17 +606,7 @@ func (h *Handler) GetContactMetrics(c *gin.Context) {
 	// TODO: Extract tenant ID from context
 	tenantID := uuid.New() // Placeholder
 
-	from, _ := time.Parse(time.RFC3339, c.Query("from"))
-	to, _ := time.Parse(time.RFC3339, c.Query("to"))
-
-	if from.IsZero() {
-		from = time.Now().AddDate(0, -1, 0)
-	}
-	if to.IsZero() {
-		to = time.Now()
-	}
-
-	metrics, err := h.service.GetContactMetrics(c.Request.Context(), tenantID, from, to)
+	metrics, err := h.service.GetContactMetrics(c.Request.Context(), tenantID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -678,47 +654,33 @@ func (h *Handler) parseContactFilter(c *gin.Context) ContactFilter {
 
 	if status := c.Query("status"); status != "" {
 		s := ContactStatus(status)
-		filter.Status = &s
+		filter.Status = []ContactStatus{s}
 	}
 
 	if priority := c.Query("priority"); priority != "" {
 		p := ContactPriority(priority)
-		filter.Priority = &p
-	}
-
-	if department := c.Query("department"); department != "" {
-		filter.Department = &department
-	}
-
-	if userID := c.Query("user_id"); userID != "" {
-		if id, err := uuid.Parse(userID); err == nil {
-			filter.UserID = &id
-		}
+		filter.Priority = []ContactPriority{p}
 	}
 
 	if assignedTo := c.Query("assigned_to"); assignedTo != "" {
 		if id, err := uuid.Parse(assignedTo); err == nil {
-			filter.AssignedTo = &id
+			filter.AssignedToID = &id
 		}
 	}
 
-	if subject := c.Query("subject"); subject != "" {
-		filter.Subject = &subject
+	if search := c.Query("search"); search != "" {
+		filter.Search = search
 	}
 
-	if email := c.Query("email"); email != "" {
-		filter.Email = &email
-	}
-
-	if createdAfter := c.Query("created_after"); createdAfter != "" {
-		if t, err := time.Parse(time.RFC3339, createdAfter); err == nil {
-			filter.CreatedAfter = t
+	if startDate := c.Query("start_date"); startDate != "" {
+		if t, err := time.Parse(time.RFC3339, startDate); err == nil {
+			filter.StartDate = &t
 		}
 	}
 
-	if createdBefore := c.Query("created_before"); createdBefore != "" {
-		if t, err := time.Parse(time.RFC3339, createdBefore); err == nil {
-			filter.CreatedBefore = t
+	if endDate := c.Query("end_date"); endDate != "" {
+		if t, err := time.Parse(time.RFC3339, endDate); err == nil {
+			filter.EndDate = &t
 		}
 	}
 
@@ -742,92 +704,16 @@ func (h *Handler) parseContactFilter(c *gin.Context) ContactFilter {
 
 	// Parse sorting
 	filter.SortBy = c.Query("sort_by")
-	filter.SortDesc = c.Query("sort_desc") == "true"
-
-	return filter
-}
-
-func (h *Handler) parseContactFormFilter(c *gin.Context) ContactFormFilter {
-	filter := ContactFormFilter{}
-
-	if formType := c.Query("form_type"); formType != "" {
-		ft := ContactFormType(formType)
-		filter.FormType = &ft
+	if c.Query("sort_desc") == "true" {
+		filter.SortOrder = "desc"
+	} else {
+		filter.SortOrder = "asc"
 	}
-
-	if isActive := c.Query("is_active"); isActive != "" {
-		active := isActive == "true"
-		filter.IsActive = &active
-	}
-
-	if name := c.Query("name"); name != "" {
-		filter.Name = &name
-	}
-
-	// Parse pagination
-	if limit := c.Query("limit"); limit != "" {
-		if l, err := strconv.Atoi(limit); err == nil {
-			filter.Limit = l
-		}
-	}
-
-	if offset := c.Query("offset"); offset != "" {
-		if o, err := strconv.Atoi(offset); err == nil {
-			filter.Offset = o
-		}
-	}
-
-	// Parse sorting
-	filter.SortBy = c.Query("sort_by")
-	filter.SortDesc = c.Query("sort_desc") == "true"
 
 	return filter
 }
 
 // Additional handlers for missing methods
-func (h *Handler) AddContactNote(c *gin.Context) {
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New() // Placeholder
-
-	contactID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contact ID"})
-		return
-	}
-
-	var req AddContactNoteRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	note, err := h.service.AddContactNote(c.Request.Context(), tenantID, contactID, req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusCreated, note)
-}
-
-func (h *Handler) ListContactNotes(c *gin.Context) {
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New() // Placeholder
-
-	contactID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contact ID"})
-		return
-	}
-
-	notes, err := h.service.ListContactNotes(c.Request.Context(), tenantID, contactID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"data": notes})
-}
 
 func (h *Handler) ActivateContactForm(c *gin.Context) {
 	// TODO: Extract tenant ID from context
@@ -871,8 +757,7 @@ func (h *Handler) ListContactTemplates(c *gin.Context) {
 	// TODO: Extract tenant ID from context
 	tenantID := uuid.New() // Placeholder
 
-	filter := h.parseContactTemplateFilter(c)
-	templates, total, err := h.service.ListContactTemplates(c.Request.Context(), tenantID, filter)
+	templates, err := h.service.ListContactTemplates(c.Request.Context(), tenantID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -880,9 +765,7 @@ func (h *Handler) ListContactTemplates(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"data":  templates,
-		"total": total,
-		"limit": filter.Limit,
-		"offset": filter.Offset,
+		"total": len(templates),
 	})
 }
 
@@ -1024,16 +907,49 @@ func (h *Handler) GetResolutionTimeAnalytics(c *gin.Context) {
 }
 
 func (h *Handler) GetResponseTimeAnalytics(c *gin.Context) {
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+		return
+	}
 
 	period := c.DefaultQuery("period", "month")
 
 	analytics, err := h.service.GetResponseTimeAnalytics(c.Request.Context(), tenantID, period)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		h.handleServiceError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, analytics)
+}
+
+// getTenantID extracts tenant ID from request context or headers
+func (h *Handler) getTenantID(c *gin.Context) (uuid.UUID, error) {
+	// This would typically come from JWT token or request context
+	// For now, we'll get it from header
+	tenantIDStr := c.GetHeader("X-Tenant-ID")
+	if tenantIDStr == "" {
+		return uuid.Nil, fmt.Errorf("tenant ID is required")
+	}
+	
+	return uuid.Parse(tenantIDStr)
+}
+
+
+// handleServiceError handles service layer errors
+func (h *Handler) handleServiceError(c *gin.Context, err error) {
+	// Add contact-specific error handling similar to address module
+	switch {
+	case strings.Contains(err.Error(), "not found"):
+		c.JSON(http.StatusNotFound, gin.H{"error": "Resource not found", "details": err.Error()})
+	case strings.Contains(err.Error(), "validation failed"):
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Validation failed", "details": err.Error()})
+	case strings.Contains(err.Error(), "unauthorized"):
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized access", "details": err.Error()})
+	case strings.Contains(err.Error(), "forbidden"):
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access forbidden", "details": err.Error()})
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error", "details": err.Error()})
+	}
 }

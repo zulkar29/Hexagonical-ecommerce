@@ -416,6 +416,77 @@ type AddressStats struct {
 	RecentAddresses    int64            `json:"recent_addresses"`
 }
 
+// Missing request types for address handlers
+
+// BulkUpdateAddressRequest represents a bulk update request
+type BulkUpdateAddressRequest struct {
+	ID       uuid.UUID `json:"id" validate:"required"`
+	Label    *string   `json:"label,omitempty"`
+	IsDefault *bool    `json:"is_default,omitempty"`
+}
+
+// NormalizeAddressRequest represents a request to normalize address data
+type NormalizeAddressRequest struct {
+	Address1   string `json:"address1" validate:"required"`
+	Address2   string `json:"address2"`
+	City       string `json:"city" validate:"required"`
+	State      string `json:"state" validate:"required"`
+	PostalCode string `json:"postal_code" validate:"required"`
+	Country    string `json:"country" validate:"required,len=2"`
+}
+
+// NormalizeAddressResponse represents normalized address data
+type NormalizeAddressResponse struct {
+	Address1   string `json:"address1"`
+	Address2   string `json:"address2"`
+	City       string `json:"city"`
+	State      string `json:"state"`
+	PostalCode string `json:"postal_code"`
+	Country    string `json:"country"`
+}
+
+// AddressSuggestionRequest represents a request for address suggestions
+type AddressSuggestionRequest struct {
+	Query     string `json:"query" validate:"required"`
+	Country   string `json:"country,omitempty"`
+	MaxResults int   `json:"max_results,omitempty"`
+}
+
+// AddressSuggestion represents a single address suggestion
+type AddressSuggestion struct {
+	ID          string  `json:"id"`
+	Description string  `json:"description"`
+	Address1    string  `json:"address1"`
+	Address2    string  `json:"address2"`
+	City        string  `json:"city"`
+	State       string  `json:"state"`
+	PostalCode  string  `json:"postal_code"`
+	Country     string  `json:"country"`
+	Confidence  float64 `json:"confidence"`
+}
+
+// AddressSuggestionResponse represents address suggestions response
+type AddressSuggestionResponse struct {
+	Query       string              `json:"query"`
+	Suggestions []AddressSuggestion `json:"suggestions"`
+}
+
+// AddressListResponse represents paginated address list
+type AddressListResponse struct {
+	Addresses []*AddressResponse `json:"addresses"`
+	Total     int64              `json:"total"`
+	Limit     int                `json:"limit"`
+	Offset    int                `json:"offset"`
+}
+
+// AddressValidationListResponse represents paginated validation list
+type AddressValidationListResponse struct {
+	Validations []*AddressValidationResponse `json:"validations"`
+	Total       int64                        `json:"total"`
+	Limit       int                          `json:"limit"`
+	Offset      int                          `json:"offset"`
+}
+
 // Business logic errors
 var (
 	ErrAddressNotFound         = errors.New("address not found")
@@ -448,4 +519,15 @@ var (
 	ErrAddressLimitExceeded    = errors.New("address limit exceeded")
 	ErrValidationProviderNotSupported = errors.New("validation provider not supported")
 	ErrAddressValidationFailed = errors.New("address validation failed")
+	
+	// Additional errors used in handlers
+	ErrTooManyAddresses        = errors.New("too many addresses for customer")
+	ErrBulkSizeExceeded        = errors.New("bulk operation size exceeded")
+	ErrInvalidFirstName        = errors.New("invalid first name")
+	ErrInvalidLastName         = errors.New("invalid last name")
+	ErrInvalidAddress          = errors.New("invalid address")
+	ErrInvalidCity             = errors.New("invalid city")
+	ErrInvalidState            = errors.New("invalid state")
+	ErrInvalidPostalCode       = errors.New("invalid postal code")
+	ErrInvalidCountry          = errors.New("invalid country")
 )

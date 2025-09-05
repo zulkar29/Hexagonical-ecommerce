@@ -12,8 +12,6 @@ import (
 	"ecommerce-saas/internal/shared/config"
 	"ecommerce-saas/internal/tenant"
 	"ecommerce-saas/internal/product"
-	"ecommerce-saas/internal/order"
-	"ecommerce-saas/internal/user"
 )
 
 // DB holds the database connection

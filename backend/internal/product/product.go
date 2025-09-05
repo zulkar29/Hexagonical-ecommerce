@@ -20,6 +20,12 @@ const (
 	StatusActive    ProductStatus = "active"
 	StatusInactive  ProductStatus = "inactive"
 	StatusArchived  ProductStatus = "archived"
+	
+	// Aliases for backward compatibility
+	ProductStatusDraft     = StatusDraft
+	ProductStatusActive    = StatusActive
+	ProductStatusInactive  = StatusInactive
+	ProductStatusArchived  = StatusArchived
 )
 
 const (
@@ -80,24 +86,49 @@ type Product struct {
 
 // ProductVariant represents product variations (size, color, etc.)
 type ProductVariant struct {
-	ID        uuid.UUID `json:"id" gorm:"primarykey"`
-	ProductID uuid.UUID `json:"product_id" gorm:"not null;index"`
-	Name      string    `json:"name" gorm:"not null"` // e.g., "Size: Large, Color: Red"
-	SKU       string    `json:"sku,omitempty" gorm:"index"`
-	Price     float64   `json:"price"` // Override product price if different
+	ID           uuid.UUID `json:"id" gorm:"primarykey"`
+	ProductID    uuid.UUID `json:"product_id" gorm:"not null;index"`
+	Name         string    `json:"name" gorm:"not null"` // e.g., "Size: Large, Color: Red"
+	SKU          string    `json:"sku,omitempty" gorm:"index"`
+	Barcode      string    `json:"barcode,omitempty"`
+	Price        float64   `json:"price"` // Override product price if different
+	ComparePrice float64   `json:"compare_price,omitempty"` // Original price for discount display
+	CostPrice    float64   `json:"cost_price,omitempty"` // For profit calculations
 	
 	// Variant-specific inventory
 	InventoryQuantity int  `json:"inventory_quantity" gorm:"default:0"`
+	TrackQuantity     bool `json:"track_quantity" gorm:"default:true"`
 	AllowBackorder    bool `json:"allow_backorder" gorm:"default:false"`
+	
+	// Physical properties
+	Weight float64 `json:"weight,omitempty"` // in grams
+	Length float64 `json:"length,omitempty"` // in cm
+	Width  float64 `json:"width,omitempty"`  // in cm
+	Height float64 `json:"height,omitempty"` // in cm
 	
 	// Variant options (e.g., size: "Large", color: "Red")
 	Options map[string]string `json:"options" gorm:"serializer:json"`
 	
 	// Images specific to this variant
 	Images []string `json:"images,omitempty" gorm:"serializer:json"`
+	Image  string   `json:"image,omitempty"` // Primary variant image
+	
+	// Default variant flag
+	IsDefault bool `json:"is_default" gorm:"default:false"`
 	
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// ProductStats represents product statistics
+type ProductStats struct {
+	TotalProducts    int64   `json:"total_products"`
+	ActiveProducts   int64   `json:"active_products"`
+	DraftProducts    int64   `json:"draft_products"`
+	OutOfStock       int64   `json:"out_of_stock"`
+	LowStock         int64   `json:"low_stock"`
+	TotalCategories  int64   `json:"total_categories"`
+	TotalValue       float64 `json:"total_value"`
 }
 
 // Category represents product categories

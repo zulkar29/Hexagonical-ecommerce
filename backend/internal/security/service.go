@@ -2,7 +2,6 @@ package security
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -387,7 +386,11 @@ func (s *securityService) StorePasswordHistory(ctx context.Context, userID uuid.
 
 // Login Security
 func (s *securityService) RecordLoginAttempt(ctx context.Context, request *LoginAttemptRequest) (*LoginAttempt, error) {
-	threatLevel, _ := s.AnalyzeThreatLevel(ctx, request.UserID, request.IPAddress, request.UserAgent)
+	var userID uuid.UUID
+	if request.UserID != nil {
+		userID = *request.UserID
+	}
+	threatLevel, _ := s.AnalyzeThreatLevel(ctx, userID, request.IPAddress, request.UserAgent)
 	
 	attempt := &LoginAttempt{
 		ID:          uuid.New(),
@@ -444,7 +447,7 @@ func (s *securityService) ValidateLoginAttempt(ctx context.Context, userID uuid.
 	}
 	
 	// Analyze threat level
-	threatLevel, err := s.AnalyzeThreatLevel(ctx, &userID, ipAddress, "")
+	threatLevel, err := s.AnalyzeThreatLevel(ctx, userID, ipAddress, "")
 	if err != nil {
 		threatLevel = ThreatLevelLow
 	}
@@ -676,7 +679,7 @@ func (s *securityService) ResolveSecurityEvent(ctx context.Context, eventID uuid
 }
 
 // Threat Detection
-func (s *securityService) AnalyzeThreatLevel(ctx context.Context, userID *uuid.UUID, ipAddress, userAgent string) (ThreatLevel, error) {
+func (s *securityService) AnalyzeThreatLevel(ctx context.Context, userID uuid.UUID, ipAddress, userAgent string) (ThreatLevel, error) {
 	score := 0.0
 	
 	// Check IP reputation (simplified)
@@ -687,11 +690,9 @@ func (s *securityService) AnalyzeThreatLevel(ctx context.Context, userID *uuid.U
 	}
 	
 	// Check for recent failed attempts from this IP
-	if userID != nil {
-		failedCount, err := s.repo.GetFailedLoginCount(ctx, "", time.Now().Add(-1*time.Hour))
-		if err == nil && failedCount > 5 {
-			score += 0.3
-		}
+	failedCount, err := s.repo.GetFailedLoginCount(ctx, "", time.Now().Add(-1*time.Hour))
+	if err == nil && failedCount > 5 {
+		score += 0.3
 	}
 	
 	// Determine threat level based on score
@@ -820,7 +821,7 @@ func (s *securityService) calculatePasswordStrength(password string) int {
 		score -= 10
 	}
 	
-	return max(0, min(100, score))
+	return max(0, min(100.0, float64(score)))
 }
 
 func (s *securityService) generateDeviceFingerprint(userAgent, ipAddress string) string {
@@ -844,9 +845,9 @@ func min(a, b float64) float64 {
 	return b
 }
 
-func max(a, b int) int {
+func max(a float64, b float64) int {
 	if a > b {
-		return a
+		return int(a)
 	}
-	return b
+	return int(b)
 }

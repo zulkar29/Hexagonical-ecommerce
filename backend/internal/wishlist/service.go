@@ -628,7 +628,7 @@ func (s *ServiceImpl) ShareWishlist(ctx context.Context, tenantID, wishlistID uu
 		return "", fmt.Errorf("failed to update wishlist: %w", err)
 	}
 	
-	return wishlist.GetShareURL(), nil
+	return wishlist.GetShareURL("https://example.com"), nil
 }
 
 // Bulk operations
@@ -899,44 +899,20 @@ func (s *ServiceImpl) validateUpdateItemRequest(req UpdateItemRequest) error {
 
 // buildWishlistResponse builds a wishlist response
 func (s *ServiceImpl) buildWishlistResponse(wishlist *Wishlist) *WishlistResponse {
-	response := &WishlistResponse{
-		ID:          wishlist.ID,
-		TenantID:    wishlist.TenantID,
-		CustomerID:  wishlist.CustomerID,
-		Name:        wishlist.Name,
-		Description: wishlist.Description,
-		IsDefault:   wishlist.IsDefault,
-		IsPublic:    wishlist.IsPublic,
-		ItemCount:   wishlist.ItemCount,
-		ShareURL:    wishlist.GetShareURL(),
-		CreatedAt:   wishlist.CreatedAt,
-		UpdatedAt:   wishlist.UpdatedAt,
+	return &WishlistResponse{
+		Wishlist: wishlist,
+		ShareURL: wishlist.GetShareURL("https://example.com"),
 	}
-	
-	// Add items if loaded
-	if len(wishlist.Items) > 0 {
-		response.Items = make([]WishlistItemResponse, len(wishlist.Items))
-		for i, item := range wishlist.Items {
-			response.Items[i] = *s.buildWishlistItemResponse(&item)
-		}
-	}
-	
-	return response
 }
 
 // buildWishlistItemResponse builds a wishlist item response
 func (s *ServiceImpl) buildWishlistItemResponse(item *WishlistItem) *WishlistItemResponse {
 	return &WishlistItemResponse{
-		ID:          item.ID,
-		TenantID:    item.TenantID,
-		WishlistID:  item.WishlistID,
-		ProductID:   item.ProductID,
-		VariantID:   item.VariantID,
-		Quantity:    item.Quantity,
-		Notes:       item.Notes,
-		Priority:    item.Priority,
-		AddedAt:     item.AddedAt,
-		UpdatedAt:   item.UpdatedAt,
-		// Product and variant details would be populated by joining with product service
+		WishlistItem: item,
+		DisplayName: item.GetDisplayName(),
+		CurrentPrice: item.GetPrice(),
+		ComparePrice: item.GetComparePrice(),
+		DiscountPercentage: item.GetDiscountPercentage(),
+		IsAvailable: item.IsAvailable(),
 	}
 }

@@ -1,10 +1,10 @@
 package notification
 
 import (
-	"database/sql"
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type Module struct {
@@ -13,7 +13,7 @@ type Module struct {
 	handler    *Handler
 }
 
-func NewModule(db *sql.DB) *Module {
+func NewModule(db *gorm.DB) *Module {
 	repository := NewRepository(db)
 	service := NewService(repository)
 	handler := NewHandler(service)

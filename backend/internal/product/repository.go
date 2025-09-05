@@ -15,6 +15,7 @@ type Repository interface {
 	DeleteProduct(tenantID, productID uuid.UUID) error
 	ListProducts(tenantID uuid.UUID, filter ProductListFilter, offset, limit int) ([]*Product, int64, error)
 	SlugExists(tenantID uuid.UUID, slug string) (bool, error)
+	ProductExists(tenantID, productID uuid.UUID) (bool, error)
 	UpdateInventory(tenantID, productID uuid.UUID, quantity int) error
 	GetProductsByCategoryID(tenantID, categoryID uuid.UUID, offset, limit int) ([]*Product, int64, error)
 	GetLowStockProducts(tenantID uuid.UUID, threshold int) ([]*Product, error)
@@ -32,6 +33,9 @@ type Repository interface {
 	DeleteCategory(tenantID, categoryID uuid.UUID) error
 	ListCategories(tenantID uuid.UUID) ([]*Category, error)
 	CategoryExists(tenantID, categoryID uuid.UUID) (bool, error)
+	
+	// GetCategory retrieves a category by ID
+	GetCategory(tenantID, categoryID uuid.UUID) (*Category, error)
 	CategorySlugExists(tenantID uuid.UUID, slug string) (bool, error)
 	GetRootCategories(tenantID uuid.UUID) ([]*Category, error)
 	GetCategoryChildren(tenantID, parentID uuid.UUID) ([]*Category, error)
@@ -39,6 +43,7 @@ type Repository interface {
 	// Product variant operations
 	SaveProductVariant(variant *ProductVariant) (*ProductVariant, error)
 	FindProductVariants(tenantID, productID uuid.UUID) ([]*ProductVariant, error)
+	GetProductVariant(tenantID, variantID uuid.UUID) (*ProductVariant, error)
 	UpdateProductVariant(variant *ProductVariant) (*ProductVariant, error)
 	DeleteProductVariant(tenantID, variantID uuid.UUID) error
 
@@ -162,6 +167,13 @@ func (r *repository) SlugExists(tenantID uuid.UUID, slug string) (bool, error) {
 	return count > 0, err
 }
 
+// ProductExists checks if a product exists
+func (r *repository) ProductExists(tenantID, productID uuid.UUID) (bool, error) {
+	var count int64
+	err := r.db.Model(&Product{}).Where("tenant_id = ? AND id = ?", tenantID, productID).Count(&count).Error
+	return count > 0, err
+}
+
 // UpdateInventory updates product inventory quantity
 func (r *repository) UpdateInventory(tenantID, productID uuid.UUID, quantity int) error {
 	return r.db.Model(&Product{}).
@@ -254,6 +266,17 @@ func (r *repository) CategoryExists(tenantID, categoryID uuid.UUID) (bool, error
 	return count > 0, err
 }
 
+// GetCategory retrieves a category by ID
+func (r *repository) GetCategory(tenantID, categoryID uuid.UUID) (*Category, error) {
+	var category Category
+	err := r.db.Preload("Parent").Preload("Children").
+		First(&category, "id = ? AND tenant_id = ?", categoryID, tenantID).Error
+	if err != nil {
+		return nil, err
+	}
+	return &category, nil
+}
+
 // CategorySlugExists checks if a category slug exists for a tenant
 func (r *repository) CategorySlugExists(tenantID uuid.UUID, slug string) (bool, error) {
 	var count int64
@@ -290,10 +313,27 @@ func (r *repository) SaveProductVariant(variant *ProductVariant) (*ProductVarian
 }
 
 // FindProductVariants returns all variants for a product
-func (r *repository) FindProductVariants(productID uuid.UUID) ([]*ProductVariant, error) {
+func (r *repository) FindProductVariants(tenantID, productID uuid.UUID) ([]*ProductVariant, error) {
 	var variants []*ProductVariant
-	err := r.db.Where("product_id = ?", productID).Order("created_at ASC").Find(&variants).Error
+	// Join with products table to filter by tenant_id since variants don't have tenant_id directly
+	err := r.db.Joins("JOIN products ON product_variants.product_id = products.id").
+		Where("products.tenant_id = ? AND product_variants.product_id = ?", tenantID, productID).
+		Order("product_variants.created_at ASC").
+		Find(&variants).Error
 	return variants, err
+}
+
+// GetProductVariant returns a specific product variant
+func (r *repository) GetProductVariant(tenantID, variantID uuid.UUID) (*ProductVariant, error) {
+	var variant ProductVariant
+	// Join with products table to filter by tenant_id since variants don't have tenant_id directly
+	err := r.db.Joins("JOIN products ON product_variants.product_id = products.id").
+		Where("products.tenant_id = ? AND product_variants.id = ?", tenantID, variantID).
+		First(&variant).Error
+	if err != nil {
+		return nil, err
+	}
+	return &variant, nil
 }
 
 // UpdateProductVariant updates a product variant
@@ -305,49 +345,34 @@ func (r *repository) UpdateProductVariant(variant *ProductVariant) (*ProductVari
 }
 
 // DeleteProductVariant deletes a product variant
-func (r *repository) DeleteProductVariant(variantID uuid.UUID) error {
-	return r.db.Delete(&ProductVariant{}, variantID).Error
+func (r *repository) DeleteProductVariant(tenantID, variantID uuid.UUID) error {
+	return r.db.Delete(&ProductVariant{}, "id = ? AND tenant_id = ?", variantID, tenantID).Error
 }
 
 // Statistics and aggregations
 
 // GetProductStats returns product statistics for a tenant
-func (r *repository) GetProductStats(tenantID uuid.UUID) (map[string]interface{}, error) {
-	stats := make(map[string]interface{})
+func (r *repository) GetProductStats(tenantID uuid.UUID) (*ProductStats, error) {
+	stats := &ProductStats{}
 
 	// Total products
-	var totalProducts int64
-	r.db.Model(&Product{}).Where("tenant_id = ?", tenantID).Count(&totalProducts)
-	stats["total_products"] = totalProducts
+	r.db.Model(&Product{}).Where("tenant_id = ?", tenantID).Count(&stats.TotalProducts)
 
 	// Products by status
-	var activeProducts int64
-	r.db.Model(&Product{}).Where("tenant_id = ? AND status = ?", tenantID, ProductStatusActive).Count(&activeProducts)
-	stats["active_products"] = activeProducts
-
-	var draftProducts int64
-	r.db.Model(&Product{}).Where("tenant_id = ? AND status = ?", tenantID, ProductStatusDraft).Count(&draftProducts)
-	stats["draft_products"] = draftProducts
+	r.db.Model(&Product{}).Where("tenant_id = ? AND status = ?", tenantID, ProductStatusActive).Count(&stats.ActiveProducts)
+	r.db.Model(&Product{}).Where("tenant_id = ? AND status = ?", tenantID, ProductStatusDraft).Count(&stats.DraftProducts)
 
 	// Out of stock products
-	var outOfStock int64
-	r.db.Model(&Product{}).Where("tenant_id = ? AND track_quantity = true AND inventory_quantity <= 0", tenantID).Count(&outOfStock)
-	stats["out_of_stock"] = outOfStock
+	r.db.Model(&Product{}).Where("tenant_id = ? AND track_quantity = true AND inventory_quantity <= 0", tenantID).Count(&stats.OutOfStock)
 
 	// Low stock products (< 10)
-	var lowStock int64
-	r.db.Model(&Product{}).Where("tenant_id = ? AND track_quantity = true AND inventory_quantity > 0 AND inventory_quantity < 10", tenantID).Count(&lowStock)
-	stats["low_stock"] = lowStock
+	r.db.Model(&Product{}).Where("tenant_id = ? AND track_quantity = true AND inventory_quantity > 0 AND inventory_quantity < 10", tenantID).Count(&stats.LowStock)
 
 	// Total categories
-	var totalCategories int64
-	r.db.Model(&Category{}).Where("tenant_id = ?", tenantID).Count(&totalCategories)
-	stats["total_categories"] = totalCategories
+	r.db.Model(&Category{}).Where("tenant_id = ?", tenantID).Count(&stats.TotalCategories)
 
 	// Total inventory value
-	var totalValue float64
-	r.db.Model(&Product{}).Where("tenant_id = ?", tenantID).Select("COALESCE(SUM(price * inventory_quantity), 0)").Scan(&totalValue)
-	stats["total_value"] = totalValue
+	r.db.Model(&Product{}).Where("tenant_id = ?", tenantID).Select("COALESCE(SUM(price * inventory_quantity), 0)").Scan(&stats.TotalValue)
 
 	return stats, nil
 }

@@ -2,6 +2,7 @@ package discount
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,8 +24,10 @@ type Repository interface {
 	// Discount usage operations
 	CreateDiscountUsage(ctx context.Context, usage *DiscountUsage) error
 	GetDiscountUsage(ctx context.Context, tenantID, discountID uuid.UUID, filter UsageFilter) ([]DiscountUsage, error)
+	GetDiscountUsageCount(ctx context.Context, tenantID, discountID uuid.UUID) (int, error)
+	GetDiscountUsageByOrder(ctx context.Context, tenantID, orderID uuid.UUID) (*DiscountUsage, error)
 	GetCustomerDiscountUsageCount(ctx context.Context, tenantID uuid.UUID, customerEmail string, discountID uuid.UUID) (int, error)
-	DeleteDiscountUsage(ctx context.Context, tenantID uuid.UUID, orderID uuid.UUID) error
+	DeleteDiscountUsage(ctx context.Context, tenantID, usageID uuid.UUID) error
 	
 	// Gift card operations
 	CreateGiftCard(ctx context.Context, giftCard *GiftCard) error
@@ -233,6 +236,23 @@ func (r *repository) GetDiscountUsage(ctx context.Context, tenantID, discountID 
 	return usages, err
 }
 
+func (r *repository) GetDiscountUsageCount(ctx context.Context, tenantID, discountID uuid.UUID) (int, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&DiscountUsage{}).
+		Where("discount_id = ? AND tenant_id = ?", discountID, tenantID).
+		Count(&count).Error
+	return int(count), err
+}
+
+func (r *repository) GetDiscountUsageByOrder(ctx context.Context, tenantID, orderID uuid.UUID) (*DiscountUsage, error) {
+	var usage DiscountUsage
+	err := r.db.WithContext(ctx).
+		Where("order_id = ? AND tenant_id = ?", orderID, tenantID).
+		First(&usage).Error
+	return &usage, err
+}
+
 func (r *repository) GetCustomerDiscountUsageCount(ctx context.Context, tenantID uuid.UUID, customerEmail string, discountID uuid.UUID) (int, error) {
 	var count int64
 	err := r.db.WithContext(ctx).
@@ -242,9 +262,9 @@ func (r *repository) GetCustomerDiscountUsageCount(ctx context.Context, tenantID
 	return int(count), err
 }
 
-func (r *repository) DeleteDiscountUsage(ctx context.Context, tenantID uuid.UUID, orderID uuid.UUID) error {
+func (r *repository) DeleteDiscountUsage(ctx context.Context, tenantID, usageID uuid.UUID) error {
 	return r.db.WithContext(ctx).
-		Where("order_id = ? AND tenant_id = ?", orderID, tenantID).
+		Where("id = ? AND tenant_id = ?", usageID, tenantID).
 		Delete(&DiscountUsage{}).Error
 }
 

@@ -18,6 +18,7 @@ const (
 	StatusApproved ReviewStatus = "approved"
 	StatusRejected ReviewStatus = "rejected"
 	StatusSpam     ReviewStatus = "spam"
+	StatusDeleted  ReviewStatus = "deleted"
 )
 
 const (
@@ -37,7 +38,7 @@ type Review struct {
 	Type      ReviewType `json:"type" gorm:"not null;default:product"`
 	
 	// Reviewer information
-	CustomerID    *uuid.UUID `json:"customer_id,omitempty" gorm:"index"`
+	UserID        *uuid.UUID `json:"user_id,omitempty" gorm:"index"`
 	CustomerName  string     `json:"customer_name" gorm:"not null"`
 	CustomerEmail string     `json:"customer_email" gorm:"not null"`
 	IsVerified    bool       `json:"is_verified" gorm:"default:false"` // Verified buyer
@@ -86,8 +87,7 @@ type ReviewReply struct {
 	ReviewID uuid.UUID `json:"review_id" gorm:"not null;index"`
 	
 	// Reply author
-	UserID      *uuid.UUID `json:"user_id,omitempty" gorm:"index"` // Merchant user
-	CustomerID  *uuid.UUID `json:"customer_id,omitempty" gorm:"index"` // Customer reply
+	UserID      *uuid.UUID `json:"user_id,omitempty" gorm:"index"` // User (merchant or customer)
 	AuthorName  string     `json:"author_name" gorm:"not null"`
 	AuthorEmail string     `json:"author_email" gorm:"not null"`
 	IsMerchant  bool       `json:"is_merchant" gorm:"default:false"`
@@ -109,7 +109,7 @@ type ReviewReaction struct {
 	ReviewID uuid.UUID `json:"review_id" gorm:"not null;index"`
 	
 	// Reactor information
-	CustomerID    *uuid.UUID `json:"customer_id,omitempty" gorm:"index"`
+	UserID        *uuid.UUID `json:"user_id,omitempty" gorm:"index"`
 	CustomerEmail string     `json:"customer_email,omitempty"`
 	
 	// Reaction type
@@ -209,7 +209,7 @@ type ReviewInvitation struct {
 	
 	// Order and customer information
 	OrderID       uuid.UUID `json:"order_id" gorm:"not null;index"`
-	CustomerID    *uuid.UUID `json:"customer_id,omitempty" gorm:"index"`
+	UserID        *uuid.UUID `json:"user_id,omitempty" gorm:"index"`
 	CustomerEmail string    `json:"customer_email" gorm:"not null"`
 	CustomerName  string    `json:"customer_name,omitempty"`
 	
@@ -331,13 +331,9 @@ func (rr *ReviewReply) Validate() error {
 		return errors.New("author email is required")
 	}
 	
-	// Either UserID (merchant) or CustomerID should be set, not both
-	if rr.UserID != nil && rr.CustomerID != nil {
-		return errors.New("reply cannot be from both merchant and customer")
-	}
-	
-	if rr.UserID == nil && rr.CustomerID == nil && !rr.IsMerchant {
-		return errors.New("reply must have either user ID or customer ID")
+	// UserID should be set for authenticated users
+	if rr.UserID == nil && rr.AuthorEmail == "" {
+		return errors.New("reply must have either user ID or author email")
 	}
 	
 	return nil

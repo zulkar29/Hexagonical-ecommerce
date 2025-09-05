@@ -4,10 +4,7 @@ import (
 	"context"
 	"fmt"
 	"time"
-
 	"github.com/google/uuid"
-	
-	"ecommerce-saas/internal/shared/errors"
 )
 
 // BillingService handles all billing operations
@@ -18,12 +15,6 @@ type BillingService interface {
 	GetBillingPlans(ctx context.Context, filter PlanFilter) ([]*BillingPlan, error)
 	UpdateBillingPlan(ctx context.Context, plan *BillingPlan) error
 	DeleteBillingPlan(ctx context.Context, planID uuid.UUID) error
-	
-	// Usage Tiers
-	CreateUsageTier(ctx context.Context, tier *UsageTier) error
-	GetUsageTiersByPlan(ctx context.Context, planID uuid.UUID) ([]*UsageTier, error)
-	UpdateUsageTier(ctx context.Context, tier *UsageTier) error
-	DeleteUsageTier(ctx context.Context, tierID uuid.UUID) error
 	
 	// Subscription management
 	CreateSubscription(ctx context.Context, tenantID, planID uuid.UUID, paymentMethodID *string) (*TenantSubscription, error)
@@ -274,22 +265,7 @@ func (s *service) DeleteBillingPlan(ctx context.Context, planID uuid.UUID) error
 	return s.repo.DeleteBillingPlan(ctx, planID)
 }
 
-// Usage Tiers implementations
-func (s *service) CreateUsageTier(ctx context.Context, tier *UsageTier) error {
-	return s.repo.CreateUsageTier(ctx, tier)
-}
-
-func (s *service) GetUsageTiersByPlan(ctx context.Context, planID uuid.UUID) ([]*UsageTier, error) {
-	return s.repo.GetUsageTiersByPlan(ctx, planID)
-}
-
-func (s *service) UpdateUsageTier(ctx context.Context, tier *UsageTier) error {
-	return s.repo.UpdateUsageTier(ctx, tier)
-}
-
-func (s *service) DeleteUsageTier(ctx context.Context, tierID uuid.UUID) error {
-	return s.repo.DeleteUsageTier(ctx, tierID)
-}
+// Usage Tiers implementations (duplicates removed)
 
 // Usage Tiers implementations
 func (s *service) CreateUsageTier(ctx context.Context, tier *UsageTier) error {
@@ -1262,7 +1238,8 @@ func (s *service) executeDunningAction(ctx context.Context, action *DunningActio
 		err := s.sendDunningEmail(ctx, action)
 		if err != nil {
 			action.Status = "failed"
-			action.ErrorMessage = &err.Error()
+			errMsg := err.Error()
+			action.ErrorMessage = &errMsg
 		} else {
 			action.Status = "completed"
 		}
@@ -1270,7 +1247,8 @@ func (s *service) executeDunningAction(ctx context.Context, action *DunningActio
 		err := s.suspendServiceForDunning(ctx, action)
 		if err != nil {
 			action.Status = "failed"
-			action.ErrorMessage = &err.Error()
+			errMsg := err.Error()
+			action.ErrorMessage = &errMsg
 		} else {
 			action.Status = "completed"
 		}
@@ -1278,7 +1256,8 @@ func (s *service) executeDunningAction(ctx context.Context, action *DunningActio
 		err := s.cancelSubscriptionForDunning(ctx, action)
 		if err != nil {
 			action.Status = "failed"
-			action.ErrorMessage = &err.Error()
+			errMsg := err.Error()
+			action.ErrorMessage = &errMsg
 		} else {
 			action.Status = "completed"
 		}

@@ -11,6 +11,7 @@ import (
 type Repository interface {
 	// Ticket operations
 	CreateTicket(ctx context.Context, ticket *Ticket) error
+	GetTicket(ctx context.Context, tenantID, ticketID uuid.UUID) (*Ticket, error)
 	GetTicketByID(ctx context.Context, tenantID, ticketID uuid.UUID) (*Ticket, error)
 	GetTickets(ctx context.Context, tenantID uuid.UUID, filter TicketFilter) ([]Ticket, error)
 	UpdateTicket(ctx context.Context, tenantID, ticketID uuid.UUID, updates map[string]interface{}) error
@@ -18,6 +19,7 @@ type Repository interface {
 	
 	// Ticket message operations
 	CreateMessage(ctx context.Context, message *TicketMessage) error
+	CreateTicketMessage(ctx context.Context, message *TicketMessage) error
 	GetMessagesByTicketID(ctx context.Context, tenantID, ticketID uuid.UUID) ([]TicketMessage, error)
 	
 	// FAQ operations
@@ -44,6 +46,7 @@ type Repository interface {
 	GetTicketCount(ctx context.Context, tenantID uuid.UUID, status *TicketStatus) (int64, error)
 	GetTicketsByStatusCount(ctx context.Context, tenantID uuid.UUID) (map[TicketStatus]int, error)
 	GetTicketsByPriorityCount(ctx context.Context, tenantID uuid.UUID) (map[TicketPriority]int, error)
+	GetTicketStats(ctx context.Context, tenantID uuid.UUID) (*TicketStats, error)
 }
 
 // repository implements the Repository interface
@@ -354,4 +357,50 @@ func (r *repository) GetTicketsByPriorityCount(ctx context.Context, tenantID uui
 	}
 	
 	return counts, nil
+}
+
+// GetTicket is an alias for GetTicketByID
+func (r *repository) GetTicket(ctx context.Context, tenantID, ticketID uuid.UUID) (*Ticket, error) {
+	return r.GetTicketByID(ctx, tenantID, ticketID)
+}
+
+// CreateTicketMessage is an alias for CreateMessage
+func (r *repository) CreateTicketMessage(ctx context.Context, message *TicketMessage) error {
+	return r.CreateMessage(ctx, message)
+}
+
+// GetTicketStats returns ticket statistics
+func (r *repository) GetTicketStats(ctx context.Context, tenantID uuid.UUID) (*TicketStats, error) {
+	stats := &TicketStats{}
+	
+	// Get total tickets
+	totalCount, err := r.GetTicketCount(ctx, tenantID, nil)
+	if err != nil {
+		return nil, err
+	}
+	stats.TotalTickets = int(totalCount)
+	
+	// Get tickets by status
+	statusOpen := StatusOpen
+	openCount, err := r.GetTicketCount(ctx, tenantID, &statusOpen)
+	if err != nil {
+		return nil, err
+	}
+	stats.OpenTickets = int(openCount)
+	
+	statusResolved := StatusResolved
+	resolvedCount, err := r.GetTicketCount(ctx, tenantID, &statusResolved)
+	if err != nil {
+		return nil, err
+	}
+	stats.ResolvedTickets = int(resolvedCount)
+	
+	statusClosed := StatusClosed
+	closedCount, err := r.GetTicketCount(ctx, tenantID, &statusClosed)
+	if err != nil {
+		return nil, err
+	}
+	stats.ClosedTickets = int(closedCount)
+	
+	return stats, nil
 }

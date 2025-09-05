@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm"
 
 	"ecommerce-saas/internal/shared/config"
+	"ecommerce-saas/internal/shared/database"
 	"ecommerce-saas/internal/shared/routes"
 	"ecommerce-saas/internal/shared/utils"
 )

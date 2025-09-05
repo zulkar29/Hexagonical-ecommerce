@@ -336,8 +336,8 @@ func (r *gormRepository) ListTransactions(ctx context.Context, tenantID uuid.UUI
 		query = query.Where("description ILIKE ? OR transaction_number ILIKE ? OR reference ILIKE ?", 
 			"%"+filters.Search+"%", "%"+filters.Search+"%", "%"+filters.Search+"%")
 	}
-	if filters.Type != "" {
-		query = query.Where("type = ?", filters.Type)
+	if len(filters.Type) > 0 {
+		query = query.Where("type IN ?", filters.Type)
 	}
 	if filters.AccountID != nil {
 		query = query.Joins("JOIN transaction_accounts ON transactions.id = transaction_accounts.transaction_id").

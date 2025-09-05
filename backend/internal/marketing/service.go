@@ -2,7 +2,6 @@ package marketing
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -76,12 +75,15 @@ func NewService(repo Repository) Service {
 
 // Request/Response DTOs
 type CreateCampaignRequest struct {
+	TenantID    uuid.UUID      `json:"tenant_id" validate:"required"`
 	Name        string         `json:"name" validate:"required"`
 	Description string         `json:"description"`
 	Type        CampaignType   `json:"type" validate:"required"`
 	Subject     string         `json:"subject"`
 	Content     string         `json:"content" validate:"required"`
 	PreviewText string         `json:"preview_text"`
+	TemplateID  *uuid.UUID     `json:"template_id"`
+	SegmentID   *uuid.UUID     `json:"segment_id"`
 	SegmentType SegmentType    `json:"segment_type"`
 	SegmentRules string        `json:"segment_rules"`
 	FromName    string         `json:"from_name"`
@@ -96,6 +98,8 @@ type UpdateCampaignRequest struct {
 	Subject     *string        `json:"subject"`
 	Content     *string        `json:"content"`
 	PreviewText *string        `json:"preview_text"`
+	TemplateID  *uuid.UUID     `json:"template_id"`
+	SegmentID   *uuid.UUID     `json:"segment_id"`
 	SegmentType *SegmentType   `json:"segment_type"`
 	SegmentRules *string       `json:"segment_rules"`
 	FromName    *string        `json:"from_name"`
@@ -124,6 +128,7 @@ type EmailFilter struct {
 }
 
 type CreateTemplateRequest struct {
+	TenantID    uuid.UUID       `json:"tenant_id" validate:"required"`
 	Name        string          `json:"name" validate:"required"`
 	Description string          `json:"description"`
 	Category    string          `json:"category"`
@@ -161,10 +166,12 @@ type TemplateFilter struct {
 }
 
 type CreateSegmentRequest struct {
+	TenantID    uuid.UUID   `json:"tenant_id" validate:"required"`
 	Name        string      `json:"name" validate:"required"`
 	Description string      `json:"description"`
 	Type        SegmentType `json:"type" validate:"required"`
 	Rules       string      `json:"rules"`
+	Conditions  string      `json:"conditions"`
 	AutoUpdate  bool        `json:"auto_update"`
 }
 
@@ -177,8 +184,12 @@ type UpdateSegmentRequest struct {
 }
 
 type SubscribeRequest struct {
+	TenantID        uuid.UUID `json:"tenant_id" validate:"required"`
 	Email           string    `json:"email" validate:"required,email"`
 	Name            string    `json:"name"`
+	FirstName       string    `json:"first_name"`
+	LastName        string    `json:"last_name"`
+	Source          string    `json:"source"`
 	Preferences     string    `json:"preferences"`
 	Tags            []string  `json:"tags"`
 	SourceURL       string    `json:"source_url"`
@@ -199,13 +210,14 @@ type SubscriberFilter struct {
 }
 
 type CreateAbandonedCartRequest struct {
-	CartID        uuid.UUID `json:"cart_id" validate:"required"`
+	TenantID      uuid.UUID  `json:"tenant_id" validate:"required"`
+	CartID        uuid.UUID  `json:"cart_id" validate:"required"`
 	CustomerID    *uuid.UUID `json:"customer_id"`
-	CustomerEmail string    `json:"customer_email" validate:"required,email"`
-	CustomerName  string    `json:"customer_name"`
-	CartValue     float64   `json:"cart_value" validate:"required,min=0"`
-	ItemCount     int       `json:"item_count" validate:"required,min=1"`
-	Items         string    `json:"items" validate:"required"`
+	CustomerEmail string     `json:"customer_email" validate:"required,email"`
+	CustomerName  string     `json:"customer_name"`
+	CartValue     float64    `json:"cart_value" validate:"required,min=0"`
+	ItemCount     int        `json:"item_count" validate:"required,min=1"`
+	Items         string     `json:"items" validate:"required"`
 }
 
 type AbandonedCartFilter struct {
@@ -268,25 +280,34 @@ type MarketingOverview struct {
 // Implementation methods (TODO: implement business logic)
 func (s *service) CreateCampaign(ctx context.Context, req CreateCampaignRequest) (*Campaign, error) {
 	campaign := &Campaign{
-		ID:          uuid.New(),
-		TenantID:    req.TenantID,
-		Name:        req.Name,
-		Subject:     req.Subject,
-		Content:     req.Content,
-		TemplateID:  req.TemplateID,
-		SegmentID:   req.SegmentID,
-		Type:        req.Type,
-		Status:      StatusDraft,
-		ScheduledAt: req.ScheduledAt,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		ID:           uuid.New(),
+		TenantID:     req.TenantID,
+		Name:         req.Name,
+		Description:  req.Description,
+		Subject:      req.Subject,
+		Content:      req.Content,
+		PreviewText:  req.PreviewText,
+		Type:         req.Type,
+		Status:       StatusDraft,
+		SegmentType:  req.SegmentType,
+		SegmentRules: req.SegmentRules,
+		FromName:     req.FromName,
+		FromEmail:    req.FromEmail,
+		ReplyToEmail: req.ReplyToEmail,
+		ScheduledAt:  req.ScheduledAt,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
 	}
 
-	return s.repo.CreateCampaign(ctx, campaign)
+	err := s.repo.CreateCampaign(ctx, campaign)
+	if err != nil {
+		return nil, err
+	}
+	return campaign, nil
 }
 
 func (s *service) GetCampaign(ctx context.Context, tenantID, campaignID uuid.UUID) (*Campaign, error) {
-	return s.repo.GetCampaign(ctx, tenantID, campaignID)
+	return s.repo.GetCampaignByID(ctx, tenantID, campaignID)
 }
 
 func (s *service) GetCampaigns(ctx context.Context, tenantID uuid.UUID, filter CampaignFilter) ([]Campaign, error) {
@@ -321,7 +342,7 @@ func (s *service) UpdateCampaign(ctx context.Context, tenantID, campaignID uuid.
 		return nil, err
 	}
 
-	return s.repo.GetCampaign(ctx, tenantID, campaignID)
+	return s.repo.GetCampaignByID(ctx, tenantID, campaignID)
 }
 
 func (s *service) DeleteCampaign(ctx context.Context, tenantID, campaignID uuid.UUID) error {
@@ -383,22 +404,30 @@ func (s *service) TrackEmailClick(ctx context.Context, emailID uuid.UUID) error 
 
 func (s *service) CreateTemplate(ctx context.Context, req CreateTemplateRequest) (*EmailTemplate, error) {
 	template := &EmailTemplate{
-		ID:        uuid.New(),
-		TenantID:  req.TenantID,
-		Name:      req.Name,
-		Subject:   req.Subject,
-		Content:   req.Content,
-		Type:      req.Type,
-		IsActive:  true,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:          uuid.New(),
+		TenantID:    req.TenantID,
+		Name:        req.Name,
+		Description: req.Description,
+		Category:    req.Category,
+		Type:        req.Type,
+		Subject:     req.Subject,
+		Content:     req.Content,
+		PreviewText: req.PreviewText,
+		DesignJSON:  req.DesignJSON,
+		FromName:    req.FromName,
+		FromEmail:   req.FromEmail,
+		ReplyToEmail: req.ReplyToEmail,
+		IsActive:    true,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 
-	return s.repo.CreateTemplate(ctx, template)
+	err := s.repo.CreateTemplate(ctx, template)
+	return template, err
 }
 
 func (s *service) GetTemplate(ctx context.Context, tenantID, templateID uuid.UUID) (*EmailTemplate, error) {
-	return s.repo.GetTemplate(ctx, tenantID, templateID)
+	return s.repo.GetTemplateByID(ctx, tenantID, templateID)
 }
 
 func (s *service) GetTemplates(ctx context.Context, tenantID uuid.UUID, filter TemplateFilter) ([]EmailTemplate, error) {
@@ -427,7 +456,7 @@ func (s *service) UpdateTemplate(ctx context.Context, tenantID, templateID uuid.
 		return nil, err
 	}
 
-	return s.repo.GetTemplate(ctx, tenantID, templateID)
+	return s.repo.GetTemplateByID(ctx, tenantID, templateID)
 }
 
 func (s *service) DeleteTemplate(ctx context.Context, tenantID, templateID uuid.UUID) error {
@@ -440,18 +469,27 @@ func (s *service) CreateSegment(ctx context.Context, req CreateSegmentRequest) (
 		TenantID:     req.TenantID,
 		Name:         req.Name,
 		Description:  req.Description,
-		Conditions:   req.Conditions,
+		Type:         req.Type,
+		Rules:        req.Rules,
+		AutoUpdate:   req.AutoUpdate,
 		IsActive:     true,
-		CustomerCount: 0, // Will be calculated on refresh
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
 
-	return s.repo.CreateSegment(ctx, segment)
+	// Calculate initial customer count
+	count, err := s.repo.GetSegmentCustomerCount(ctx, req.TenantID, segment.Rules)
+	if err != nil {
+		return nil, err
+	}
+	segment.CustomerCount = count
+
+	err = s.repo.CreateSegment(ctx, segment)
+	return segment, err
 }
 
 func (s *service) GetSegment(ctx context.Context, tenantID, segmentID uuid.UUID) (*CustomerSegment, error) {
-	return s.repo.GetSegment(ctx, tenantID, segmentID)
+	return s.repo.GetSegmentByID(ctx, tenantID, segmentID)
 }
 
 func (s *service) GetSegments(ctx context.Context, tenantID uuid.UUID) ([]CustomerSegment, error) {
@@ -468,11 +506,21 @@ func (s *service) UpdateSegment(ctx context.Context, tenantID, segmentID uuid.UU
 	if req.Description != nil {
 		updates["description"] = *req.Description
 	}
-	if req.Conditions != nil {
-		updates["conditions"] = *req.Conditions
+	if req.Rules != nil {
+		updates["rules"] = *req.Rules
+		// Recalculate customer count when rules change
+		count, err := s.repo.GetSegmentCustomerCount(ctx, tenantID, *req.Rules)
+		if err != nil {
+			return nil, err
+		}
+		updates["customer_count"] = count
+		updates["last_updated"] = time.Now()
 	}
 	if req.IsActive != nil {
 		updates["is_active"] = *req.IsActive
+	}
+	if req.AutoUpdate != nil {
+		updates["auto_update"] = *req.AutoUpdate
 	}
 
 	err := s.repo.UpdateSegment(ctx, tenantID, segmentID, updates)
@@ -480,7 +528,7 @@ func (s *service) UpdateSegment(ctx context.Context, tenantID, segmentID uuid.UU
 		return nil, err
 	}
 
-	return s.repo.GetSegment(ctx, tenantID, segmentID)
+	return s.repo.GetSegmentByID(ctx, tenantID, segmentID)
 }
 
 func (s *service) DeleteSegment(ctx context.Context, tenantID, segmentID uuid.UUID) error {
@@ -489,13 +537,13 @@ func (s *service) DeleteSegment(ctx context.Context, tenantID, segmentID uuid.UU
 
 func (s *service) RefreshSegment(ctx context.Context, tenantID, segmentID uuid.UUID) error {
 	// Get segment to access conditions
-	segment, err := s.repo.GetSegment(ctx, tenantID, segmentID)
+	segment, err := s.repo.GetSegmentByID(ctx, tenantID, segmentID)
 	if err != nil {
 		return err
 	}
 
 	// Calculate customer count based on segment conditions
-	count, err := s.repo.GetSegmentCustomerCount(ctx, tenantID, segment.Conditions)
+	count, err := s.repo.GetSegmentCustomerCount(ctx, tenantID, segment.Rules)
 	if err != nil {
 		return err
 	}
@@ -509,19 +557,23 @@ func (s *service) RefreshSegment(ctx context.Context, tenantID, segmentID uuid.U
 
 func (s *service) Subscribe(ctx context.Context, req SubscribeRequest) (*NewsletterSubscriber, error) {
 	subscriber := &NewsletterSubscriber{
-		ID:           uuid.New(),
-		TenantID:     req.TenantID,
-		Email:        req.Email,
-		FirstName:    req.FirstName,
-		LastName:     req.LastName,
-		Status:       "active",
-		Source:       req.Source,
-		SubscribedAt: time.Now(),
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		ID:             uuid.New(),
+		TenantID:       req.TenantID,
+		Email:          req.Email,
+		Name:           req.Name,
+		Preferences:    req.Preferences,
+		Tags:           req.Tags,
+		SourceURL:      req.SourceURL,
+		SourceCampaign: req.SourceCampaign,
+		IPAddress:      req.IPAddress,
+		UserAgent:      req.UserAgent,
+		SubscribedAt:   time.Now(),
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
 	}
 
-	return s.repo.CreateSubscriber(ctx, subscriber)
+	err := s.repo.CreateSubscriber(ctx, subscriber)
+	return subscriber, err
 }
 
 func (s *service) Unsubscribe(ctx context.Context, tenantID uuid.UUID, email string) error {
@@ -534,7 +586,7 @@ func (s *service) Unsubscribe(ctx context.Context, tenantID uuid.UUID, email str
 }
 
 func (s *service) GetSubscriber(ctx context.Context, tenantID uuid.UUID, email string) (*NewsletterSubscriber, error) {
-	return s.repo.GetSubscriber(ctx, tenantID, email)
+	return s.repo.GetSubscriberByEmail(ctx, tenantID, email)
 }
 
 func (s *service) GetSubscribers(ctx context.Context, tenantID uuid.UUID, filter SubscriberFilter) ([]NewsletterSubscriber, error) {
@@ -542,22 +594,22 @@ func (s *service) GetSubscribers(ctx context.Context, tenantID uuid.UUID, filter
 }
 
 func (s *service) CreateAbandonedCart(ctx context.Context, req CreateAbandonedCartRequest) (*AbandonedCart, error) {
-	abandonedCart := &AbandonedCart{
+	cart := &AbandonedCart{
 		ID:            uuid.New(),
 		TenantID:      req.TenantID,
 		CartID:        req.CartID,
-		CustomerID:    req.CustomerID,
 		CustomerEmail: req.CustomerEmail,
 		CustomerName:  req.CustomerName,
 		CartValue:     req.CartValue,
 		ItemCount:     req.ItemCount,
 		Items:         req.Items,
-		IsRecovered:   false,
+		AbandonedAt:   time.Now(),
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
 	}
 
-	return s.repo.CreateAbandonedCart(ctx, abandonedCart)
+	err := s.repo.CreateAbandonedCart(ctx, cart)
+	return cart, err
 }
 
 func (s *service) GetAbandonedCarts(ctx context.Context, tenantID uuid.UUID, filter AbandonedCartFilter) ([]AbandonedCart, error) {
@@ -575,8 +627,8 @@ func (s *service) MarkCartRecovered(ctx context.Context, tenantID, cartID uuid.U
 }
 
 func (s *service) SendAbandonedCartEmail(ctx context.Context, tenantID, abandonedCartID uuid.UUID) error {
-	// Get abandoned cart details
-	cart, err := s.repo.GetAbandonedCart(ctx, tenantID, abandonedCartID)
+	// Get abandoned cart details to verify it exists
+	_, err := s.repo.GetAbandonedCartByID(ctx, tenantID, abandonedCartID)
 	if err != nil {
 		return err
 	}
@@ -662,7 +714,7 @@ func (s *service) UpdateSettings(ctx context.Context, tenantID uuid.UUID, req Up
 }
 
 func (s *service) GetCampaignStats(ctx context.Context, tenantID, campaignID uuid.UUID) (*CampaignStats, error) {
-	return s.repo.GetCampaignStats(ctx, tenantID, campaignID)
+	return s.repo.GetCampaignEmailStats(ctx, tenantID, campaignID)
 }
 
 func (s *service) GetMarketingOverview(ctx context.Context, tenantID uuid.UUID, period string) (*MarketingOverview, error) {

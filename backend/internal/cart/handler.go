@@ -220,14 +220,21 @@ func (h *Handler) ListCarts(c *gin.Context) {
 
 	// Build filter
 	filter := CartListFilter{
-		Status:     c.Query("status"),
-		Currency:   c.Query("currency"),
-		DateFrom:   c.Query("date_from"),
-		DateTo:     c.Query("date_to"),
-		MinTotal:   c.Query("min_total"),
-		MaxTotal:   c.Query("max_total"),
-		SortBy:     c.DefaultQuery("sort_by", "updated_at"),
-		SortOrder:  c.DefaultQuery("sort_order", "desc"),
+		Status: CartStatus(c.Query("status")),
+	}
+
+	// Parse min_total
+	if minTotalStr := c.Query("min_total"); minTotalStr != "" {
+		if minTotal, err := strconv.ParseFloat(minTotalStr, 64); err == nil {
+			filter.MinTotal = &minTotal
+		}
+	}
+
+	// Parse max_total
+	if maxTotalStr := c.Query("max_total"); maxTotalStr != "" {
+		if maxTotal, err := strconv.ParseFloat(maxTotalStr, 64); err == nil {
+			filter.MaxTotal = &maxTotal
+		}
 	}
 
 	if customerIDStr := c.Query("customer_id"); customerIDStr != "" {

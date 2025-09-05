@@ -225,9 +225,12 @@ func loadFromEnv() {
 		}
 	}
 
-	// Database
+	// Database - Docker environment
 	if dbHost := os.Getenv("DB_HOST"); dbHost != "" {
 		viper.Set("database.host", dbHost)
+	} else {
+		// Use postgres service name in Docker
+		viper.Set("database.host", "postgres")
 	}
 	if dbPort := os.Getenv("DB_PORT"); dbPort != "" {
 		if p, err := strconv.Atoi(dbPort); err == nil {
@@ -236,12 +239,21 @@ func loadFromEnv() {
 	}
 	if dbUser := os.Getenv("DB_USER"); dbUser != "" {
 		viper.Set("database.user", dbUser)
+	} else {
+		// Use Docker default
+		viper.Set("database.user", "postgres")
 	}
 	if dbPassword := os.Getenv("DB_PASSWORD"); dbPassword != "" {
 		viper.Set("database.password", dbPassword)
+	} else {
+		// Use Docker default
+		viper.Set("database.password", "postgres123")
 	}
 	if dbName := os.Getenv("DB_NAME"); dbName != "" {
 		viper.Set("database.dbname", dbName)
+	} else {
+		// Use Docker default
+		viper.Set("database.dbname", "ecommerce_saas_dev")
 	}
 
 	// Redis

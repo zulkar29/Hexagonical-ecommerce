@@ -3,7 +3,6 @@ package tax
 import (
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -378,12 +377,6 @@ func (h *Handler) GetApplicableTaxRules(c *gin.Context) {
 // @Failure 400 {object} ErrorResponse
 // @Router /api/v1/tenants/{tenant_id}/tax/validate/location [post]
 func (h *Handler) ValidateLocation(c *gin.Context) {
-	tenantID, err := uuid.Parse(c.Param("tenant_id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
-		return
-	}
-	
 	var req struct {
 		Country string `json:"country" binding:"required"`
 		State   string `json:"state"`
@@ -395,9 +388,10 @@ func (h *Handler) ValidateLocation(c *gin.Context) {
 		return
 	}
 	
-	isValid, err := h.service.ValidateLocation(c.Request.Context(), tenantID, req.Country, req.State, req.City, req.ZipCode)
+	err := h.service.ValidateLocation(c.Request.Context(), req.Country, req.State, req.City, req.ZipCode)
+	isValid := err == nil
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	

@@ -619,7 +619,7 @@ func (s *service) validateReturn(return_ *Return) error {
 			return fmt.Errorf("product ID is required for item %d", i+1)
 		}
 		
-		if item.Quantity <= 0 {
+		if item.QuantityReturned <= 0 {
 			return fmt.Errorf("quantity must be greater than 0 for item %d", i+1)
 		}
 	}

@@ -19,11 +19,11 @@ type SegmentType string
 type EmailStatus string
 
 const (
-	CampaignEmail       CampaignType = "email"
-	CampaignSMS         CampaignType = "sms"
-	CampaignPushNotif   CampaignType = "push_notification"
-	CampaignAbandonedCart CampaignType = "abandoned_cart"
-	CampaignWelcome     CampaignType = "welcome"
+	CampaignTypeEmail       CampaignType = "email"
+	CampaignTypeSMS         CampaignType = "sms"
+	CampaignTypePushNotif   CampaignType = "push_notification"
+	CampaignTypeAbandonedCart CampaignType = "abandoned_cart"
+	CampaignTypeWelcome     CampaignType = "welcome"
 )
 
 const (

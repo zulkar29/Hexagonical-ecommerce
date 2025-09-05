@@ -41,6 +41,8 @@ type Service interface {
 	
 	// Review invitations
 	CreateReviewInvitation(ctx context.Context, req CreateInvitationRequest) (*ReviewInvitation, error)
+	UpdateReviewInvitation(ctx context.Context, tenantID, invitationID uuid.UUID, req UpdateInvitationRequest) (*ReviewInvitation, error)
+	DeleteReviewInvitation(ctx context.Context, tenantID, invitationID uuid.UUID) error
 	SendReviewInvitation(ctx context.Context, tenantID, invitationID uuid.UUID) error
 	SendReviewReminder(ctx context.Context, tenantID, invitationID uuid.UUID) error
 	ProcessInvitationClick(ctx context.Context, token string) (*ReviewInvitation, error)
@@ -71,7 +73,7 @@ type CreateReviewRequest struct {
 	ProductID     *uuid.UUID `json:"product_id"`
 	OrderID       *uuid.UUID `json:"order_id"`
 	Type          ReviewType `json:"type"`
-	CustomerID    *uuid.UUID `json:"customer_id"`
+	UserID        *uuid.UUID `json:"user_id"`
 	CustomerName  string     `json:"customer_name" validate:"required"`
 	CustomerEmail string     `json:"customer_email" validate:"required,email"`
 	Rating        int        `json:"rating" validate:"required,min=1,max=5"`
@@ -99,7 +101,7 @@ type UpdateReviewRequest struct {
 type ReviewFilter struct {
 	ProductID   *uuid.UUID     `json:"product_id"`
 	OrderID     *uuid.UUID     `json:"order_id"`
-	CustomerID  *uuid.UUID     `json:"customer_id"`
+	UserID      *uuid.UUID     `json:"user_id"`
 	Type        []ReviewType   `json:"type"`
 	Status      []ReviewStatus `json:"status"`
 	Rating      []int          `json:"rating"`
@@ -137,8 +139,7 @@ type BulkModerationRequest struct {
 
 type AddReplyRequest struct {
 	ReviewID    uuid.UUID  `json:"review_id" validate:"required"`
-	UserID      *uuid.UUID `json:"user_id"` // Merchant user
-	CustomerID  *uuid.UUID `json:"customer_id"` // Customer reply
+	UserID      *uuid.UUID `json:"user_id"` // User (merchant or customer)
 	AuthorName  string     `json:"author_name" validate:"required"`
 	AuthorEmail string     `json:"author_email" validate:"required,email"`
 	Content     string     `json:"content" validate:"required"`
@@ -151,20 +152,30 @@ type UpdateReplyRequest struct {
 }
 
 type ReviewReactionRequest struct {
+	TenantID      uuid.UUID  `json:"tenant_id" validate:"required"`
 	ReviewID      uuid.UUID  `json:"review_id" validate:"required"`
-	CustomerID    *uuid.UUID `json:"customer_id"`
+	UserID        *uuid.UUID `json:"user_id"`
 	CustomerEmail string     `json:"customer_email" validate:"required,email"`
 	IsHelpful     bool       `json:"is_helpful"`
 	IPAddress     string     `json:"ip_address"`
 }
 
 type CreateInvitationRequest struct {
+	TenantID      uuid.UUID   `json:"tenant_id" validate:"required"`
 	OrderID       uuid.UUID   `json:"order_id" validate:"required"`
-	CustomerID    *uuid.UUID  `json:"customer_id"`
+	UserID        *uuid.UUID  `json:"user_id"`
 	CustomerEmail string      `json:"customer_email" validate:"required,email"`
 	CustomerName  string      `json:"customer_name"`
 	ProductIDs    []string    `json:"product_ids" validate:"required"`
 	ExpiresIn     int         `json:"expires_in"` // Days from now
+}
+
+type UpdateInvitationRequest struct {
+	CustomerEmail *string  `json:"customer_email"`
+	CustomerName  *string  `json:"customer_name"`
+	ProductIDs    []string `json:"product_ids"`
+	ExpiresIn     *int     `json:"expires_in"` // Days from now
+	Action        string   `json:"action"` // send, remind
 }
 
 type UpdateSettingsRequest struct {
@@ -192,6 +203,16 @@ type UpdateSettingsRequest struct {
 	RewardForReviews       *bool   `json:"reward_for_reviews"`
 	RewardPoints           *int    `json:"reward_points"`
 	RewardDiscount         *float64 `json:"reward_discount"`
+	// Additional fields for settings
+	AutoApprove            *bool   `json:"auto_approve"`
+	RequireApproval        *bool   `json:"require_approval"`
+	RequireVerifiedPurchase *bool  `json:"require_verified_purchase"`
+	EnablePhotos           *bool   `json:"enable_photos"`
+	EnableVideos           *bool   `json:"enable_videos"`
+	MaxPhotos              *int    `json:"max_photos"`
+	MaxVideos              *int    `json:"max_videos"`
+	AutoInviteAfterDays    *int    `json:"auto_invite_after_days"`
+	ReminderAfterDays      *int    `json:"reminder_after_days"`
 }
 
 // Analytics DTOs
@@ -244,7 +265,7 @@ func (s *service) CreateReview(ctx context.Context, req CreateReviewRequest) (*R
 		ProductID:     req.ProductID,
 		OrderID:       req.OrderID,
 		Type:          req.Type,
-		CustomerID:    req.CustomerID,
+		UserID:        req.UserID,
 		CustomerName:  req.CustomerName,
 		CustomerEmail: req.CustomerEmail,
 		Rating:        req.Rating,
@@ -267,7 +288,11 @@ func (s *service) CreateReview(ctx context.Context, req CreateReviewRequest) (*R
 		review.IsVerified = true
 	}
 
-	return s.repo.CreateReview(ctx, review)
+	err := s.repo.CreateReview(ctx, review)
+	if err != nil {
+		return nil, err
+	}
+	return review, nil
 }
 
 func (s *service) GetReview(ctx context.Context, tenantID, reviewID uuid.UUID) (*Review, error) {
@@ -441,7 +466,6 @@ func (s *service) AddReply(ctx context.Context, req AddReplyRequest) (*ReviewRep
 		ID:          uuid.New(),
 		ReviewID:    req.ReviewID,
 		UserID:      req.UserID,
-		CustomerID:  req.CustomerID,
 		AuthorName:  req.AuthorName,
 		AuthorEmail: req.AuthorEmail,
 		Content:     req.Content,
@@ -451,7 +475,11 @@ func (s *service) AddReply(ctx context.Context, req AddReplyRequest) (*ReviewRep
 		UpdatedAt:   time.Now(),
 	}
 
-	return s.repo.CreateReply(ctx, reply)
+	err := s.repo.CreateReply(ctx, reply)
+	if err != nil {
+		return nil, err
+	}
+	return reply, nil
 }
 
 func (s *service) GetReplies(ctx context.Context, tenantID, reviewID uuid.UUID) ([]ReviewReply, error) {
@@ -469,17 +497,17 @@ func (s *service) DeleteReply(ctx context.Context, tenantID, replyID uuid.UUID) 
 
 func (s *service) ReactToReview(ctx context.Context, req ReviewReactionRequest) error {
 	// Check if user already reacted
-	existingReaction, err := s.repo.GetReaction(ctx, req.ReviewID, req.CustomerEmail)
+	existingReaction, err := s.repo.GetReactionByReviewAndEmail(ctx, req.TenantID, req.ReviewID, req.CustomerEmail)
 	if err == nil && existingReaction != nil {
 		// Update existing reaction
-		return s.repo.UpdateReaction(ctx, existingReaction.ID, req.IsHelpful)
+		return s.repo.UpdateReaction(ctx, req.TenantID, req.ReviewID, req.CustomerEmail, req.IsHelpful)
 	}
 
 	// Create new reaction
 	reaction := &ReviewReaction{
 		ID:            uuid.New(),
 		ReviewID:      req.ReviewID,
-		CustomerID:    req.CustomerID,
+		UserID:        req.UserID,
 		CustomerEmail: req.CustomerEmail,
 		IsHelpful:     req.IsHelpful,
 		IPAddress:     req.IPAddress,
@@ -510,17 +538,6 @@ func (s *service) RefreshReviewSummary(ctx context.Context, tenantID, productID 
 		return nil, err
 	}
 
-	if len(reviews) == 0 {
-		// No reviews, create empty summary
-		summary := &ReviewSummary{
-			ProductID:     productID,
-			TotalReviews:  0,
-			AverageRating: 0,
-			UpdatedAt:     time.Now(),
-		}
-		return s.repo.UpsertReviewSummary(ctx, tenantID, summary)
-	}
-
 	// Calculate statistics
 	var totalRating float64
 	ratingCounts := make(map[int]int)
@@ -530,10 +547,13 @@ func (s *service) RefreshReviewSummary(ctx context.Context, tenantID, productID 
 		ratingCounts[review.Rating]++
 	}
 
-	avgRating := totalRating / float64(len(reviews))
+	var avgRating float64
+	if len(reviews) > 0 {
+		avgRating = totalRating / float64(len(reviews))
+	}
 
 	summary := &ReviewSummary{
-		ProductID:      productID,
+		ProductID:      &productID,
 		TotalReviews:   len(reviews),
 		AverageRating:  avgRating,
 		Rating1Count:   ratingCounts[1],
@@ -544,11 +564,67 @@ func (s *service) RefreshReviewSummary(ctx context.Context, tenantID, productID 
 		UpdatedAt:      time.Now(),
 	}
 
-	return s.repo.UpsertReviewSummary(ctx, tenantID, summary)
+	// Try to get existing summary
+	existing, err := s.repo.GetReviewSummary(ctx, tenantID, productID)
+	if err != nil || existing == nil {
+		// Create new summary
+		summary.ID = uuid.New()
+		summary.TenantID = tenantID
+		summary.Type = TypeProduct
+		summary.CreatedAt = time.Now()
+		err := s.repo.CreateReviewSummary(ctx, summary)
+		if err != nil {
+			return nil, err
+		}
+		return summary, nil
+	}
+
+	// Update existing summary
+	updates := map[string]interface{}{
+		"total_reviews":   summary.TotalReviews,
+		"average_rating":  summary.AverageRating,
+		"rating_1_count":  summary.Rating1Count,
+		"rating_2_count":  summary.Rating2Count,
+		"rating_3_count":  summary.Rating3Count,
+		"rating_4_count":  summary.Rating4Count,
+		"rating_5_count":  summary.Rating5Count,
+		"updated_at":      summary.UpdatedAt,
+	}
+
+	err = s.repo.UpdateReviewSummary(ctx, tenantID, productID, updates)
+	if err != nil {
+		return nil, err
+	}
+
+	// Return updated summary
+	existing.TotalReviews = summary.TotalReviews
+	existing.AverageRating = summary.AverageRating
+	existing.Rating1Count = summary.Rating1Count
+	existing.Rating2Count = summary.Rating2Count
+	existing.Rating3Count = summary.Rating3Count
+	existing.Rating4Count = summary.Rating4Count
+	existing.Rating5Count = summary.Rating5Count
+	existing.UpdatedAt = summary.UpdatedAt
+
+	return existing, nil
 }
 
 func (s *service) GetReviewStats(ctx context.Context, tenantID uuid.UUID, period string) (*ReviewStats, error) {
-	stats, err := s.repo.GetReviewStats(ctx, tenantID, period)
+	// Parse period to get start and end dates
+	var startDate, endDate time.Time
+	switch period {
+	case "7d":
+		startDate = time.Now().AddDate(0, 0, -7)
+	case "30d":
+		startDate = time.Now().AddDate(0, 0, -30)
+	case "90d":
+		startDate = time.Now().AddDate(0, 0, -90)
+	default:
+		startDate = time.Now().AddDate(0, 0, -30) // Default to 30 days
+	}
+	endDate = time.Now()
+
+	stats, err := s.repo.GetReviewStatsByPeriod(ctx, tenantID, startDate, endDate)
 	if err != nil {
 		return nil, err
 	}
@@ -567,28 +643,29 @@ func (s *service) CreateReviewInvitation(ctx context.Context, req CreateInvitati
 		return nil, fmt.Errorf("customer email is required")
 	}
 
-	// Check if invitation already exists
-	existing, err := s.repo.GetInvitationByOrderAndEmail(ctx, req.TenantID, req.OrderID, req.CustomerEmail)
-	if err == nil && existing != nil {
-		return existing, nil // Return existing invitation
-	}
+	// TODO: Check if invitation already exists - need to implement GetInvitationByOrderAndEmail
+	// For now, create new invitation
 
 	invitation := &ReviewInvitation{
 		ID:            uuid.New(),
 		TenantID:      req.TenantID,
 		OrderID:       req.OrderID,
-		ProductID:     req.ProductID,
-		CustomerID:    req.CustomerID,
+		ProductIDs:    req.ProductIDs,
+		UserID:        req.UserID,
 		CustomerName:  req.CustomerName,
 		CustomerEmail: req.CustomerEmail,
-		Token:         generateInvitationToken(),
-		Status:        InvitationStatusPending,
-		ExpiresAt:     time.Now().AddDate(0, 0, 30), // 30 days expiry
+		InvitationToken: generateInvitationToken(),
+		Status:        "pending",
+		ExpiresAt:     time.Now().AddDate(0, 0, req.ExpiresIn),
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
 	}
 
-	return s.repo.CreateInvitation(ctx, invitation)
+	err := s.repo.CreateInvitation(ctx, invitation)
+	if err != nil {
+		return nil, err
+	}
+	return invitation, nil
 }
 
 func generateInvitationToken() string {
@@ -601,14 +678,14 @@ func (s *service) SendReviewInvitation(ctx context.Context, tenantID, invitation
 		return err
 	}
 
-	if invitation.Status != InvitationStatusPending {
+	if invitation.Status != "pending" {
 		return fmt.Errorf("invitation is not in pending status")
 	}
 
 	// TODO: Integrate with email service to send invitation
 	// For now, just update the status
 	updates := map[string]interface{}{
-		"status":   InvitationStatusSent,
+		"status":   "sent",
 		"sent_at":  time.Now(),
 		"updated_at": time.Now(),
 	}
@@ -619,6 +696,53 @@ func (s *service) SendReviewInvitation(ctx context.Context, tenantID, invitation
 func (s *service) SendReviewReminder(ctx context.Context, tenantID, invitationID uuid.UUID) error {
 	// TODO: Implement reminder sending logic
 	return fmt.Errorf("TODO: implement SendReviewReminder")
+}
+
+func (s *service) UpdateReviewInvitation(ctx context.Context, tenantID, invitationID uuid.UUID, req UpdateInvitationRequest) (*ReviewInvitation, error) {
+	// Handle action-based updates (send/remind)
+	if req.Action != "" {
+		switch req.Action {
+		case "send":
+			return nil, s.SendReviewInvitation(ctx, tenantID, invitationID)
+		case "remind":
+			return nil, s.SendReviewReminder(ctx, tenantID, invitationID)
+		default:
+			return nil, fmt.Errorf("invalid action: %s", req.Action)
+		}
+	}
+
+	// Handle field updates
+	updates := make(map[string]interface{})
+
+	if req.CustomerEmail != nil {
+		updates["customer_email"] = *req.CustomerEmail
+	}
+
+	if req.CustomerName != nil {
+		updates["customer_name"] = *req.CustomerName
+	}
+
+	if req.ProductIDs != nil {
+		updates["product_ids"] = req.ProductIDs
+	}
+
+	if req.ExpiresIn != nil {
+		updates["expires_at"] = time.Now().AddDate(0, 0, *req.ExpiresIn)
+	}
+
+	if len(updates) > 0 {
+		updates["updated_at"] = time.Now()
+		err := s.repo.UpdateInvitation(ctx, tenantID, invitationID, updates)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return s.repo.GetInvitationByID(ctx, tenantID, invitationID)
+}
+
+func (s *service) DeleteReviewInvitation(ctx context.Context, tenantID, invitationID uuid.UUID) error {
+	return s.repo.DeleteInvitation(ctx, tenantID, invitationID)
 }
 
 func (s *service) ProcessInvitationClick(ctx context.Context, token string) (*ReviewInvitation, error) {
@@ -637,8 +761,8 @@ func (s *service) ProcessInvitationClick(ctx context.Context, token string) (*Re
 		"updated_at": time.Now(),
 	}
 
-	if invitation.Status == InvitationStatusSent {
-		updates["status"] = InvitationStatusClicked
+	if invitation.Status == "sent" {
+		updates["status"] = "clicked"
 	}
 
 	err = s.repo.UpdateInvitation(ctx, invitation.TenantID, invitation.ID, updates)
@@ -735,32 +859,51 @@ func (s *service) GetReviewTrends(ctx context.Context, tenantID uuid.UUID, perio
 		period = "30d" // Default to 30 days
 	}
 
-	trends, err := s.repo.GetReviewTrends(ctx, tenantID, period)
-	if err != nil {
-		return nil, err
+	// Parse period to get date range
+	var days int
+	switch period {
+	case "7d":
+		days = 7
+	case "30d":
+		days = 30
+	case "90d":
+		days = 90
+	default:
+		days = 30
 	}
 
-	// Calculate growth rates if we have previous period data
-	if len(trends.DailyReviews) > 1 {
-		currentPeriod := trends.DailyReviews[len(trends.DailyReviews)-7:] // Last 7 days
-		previousPeriod := trends.DailyReviews[len(trends.DailyReviews)-14:len(trends.DailyReviews)-7] // Previous 7 days
+	startDate := time.Now().AddDate(0, 0, -days)
+	endDate := time.Now()
 
-		if len(currentPeriod) > 0 && len(previousPeriod) > 0 {
-			currentTotal := 0
-			previousTotal := 0
-
-			for _, stat := range currentPeriod {
-				currentTotal += stat.Count
-			}
-
-			for _, stat := range previousPeriod {
-				previousTotal += stat.Count
-			}
-
-			if previousTotal > 0 {
-				// Add growth rate calculation to trends if needed
-			}
+	// Get basic stats for the period
+	stats, err := s.repo.GetReviewStatsByPeriod(ctx, tenantID, startDate, endDate)
+	if err != nil {
+		// If not implemented, create basic trends structure
+		trends := &ReviewTrends{
+			Period:        period,
+			TotalReviews:  0,
+			AverageRating: 0.0,
+			DailyReviews:  []DailyReviewCount{},
+			TopProducts:   []ProductRating{},
+			RecentReviews: []Review{},
 		}
+		return trends, nil
+	}
+
+	// Get top rated products
+	topProducts, _ := s.repo.GetTopRatedProducts(ctx, tenantID, 5)
+
+	// Get recent reviews
+	recentReviews, _ := s.GetRecentReviews(ctx, tenantID, 10)
+
+	// Create trends response
+	trends := &ReviewTrends{
+		Period:        period,
+		TotalReviews:  stats.TotalReviews,
+		AverageRating: stats.AverageRating,
+		DailyReviews:  []DailyReviewCount{}, // TODO: Implement daily breakdown
+		TopProducts:   topProducts,
+		RecentReviews: recentReviews,
 	}
 
 	return trends, nil

@@ -35,7 +35,7 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 		return
 	}
 
-	createdProduct, err := h.service.CreateProduct(tenantID.(uuid.UUID), product)
+	createdProduct, err := h.service.CreateProduct(tenantID.(uuid.UUID), &product)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -55,9 +55,9 @@ func (h *Handler) GetProduct(c *gin.Context) {
 		return
 	}
 
-	productID := c.Param("id")
-	
-	product, err := h.service.GetProduct(tenantID.(uuid.UUID), productID)
+	productIDStr := c.Param("id")
+	// Note: Service already handles string to UUID conversion
+	product, err := h.service.GetProduct(tenantID.(uuid.UUID), productIDStr)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
 		return
@@ -97,7 +97,12 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		return
 	}
 
-	productID := c.Param("id")
+	productIDStr := c.Param("id")
+	productID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		return
+	}
 	
 	var product Product
 	if err := c.ShouldBindJSON(&product); err != nil {
@@ -105,7 +110,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		return
 	}
 
-	updatedProduct, err := h.service.UpdateProduct(tenantID.(uuid.UUID), productID, product)
+	updatedProduct, err := h.service.UpdateProduct(tenantID.(uuid.UUID), productID, &product)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -205,9 +210,14 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 		return
 	}
 
-	productID := c.Param("id")
+	productIDStr := c.Param("id")
+	productID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		return
+	}
 	
-	err := h.service.DeleteProduct(tenantID.(uuid.UUID), productID)
+	err = h.service.DeleteProduct(tenantID.(uuid.UUID), productID.String())
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -226,7 +236,12 @@ func (h *Handler) UpdateInventory(c *gin.Context) {
 		return
 	}
 
-	productID := c.Param("id")
+	productIDStr := c.Param("id")
+	productID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		return
+	}
 	
 	var req struct {
 		Quantity int `json:"quantity" binding:"required"`
@@ -237,7 +252,7 @@ func (h *Handler) UpdateInventory(c *gin.Context) {
 		return
 	}
 
-	err := h.service.UpdateInventory(tenantID.(uuid.UUID), productID, req.Quantity)
+	err = h.service.UpdateInventory(tenantID.(uuid.UUID), productID.String(), req.Quantity)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -284,9 +299,14 @@ func (h *Handler) GetCategory(c *gin.Context) {
 		return
 	}
 
-	categoryID := c.Param("id")
+	categoryIDStr := c.Param("id")
+	categoryID, err := uuid.Parse(categoryIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
+		return
+	}
 	
-	category, err := h.service.GetCategory(tenantID.(uuid.UUID), categoryID)
+	category, err := h.service.GetCategory(tenantID.(uuid.UUID), categoryID.String())
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
 		return
@@ -373,9 +393,14 @@ func (h *Handler) DuplicateProduct(c *gin.Context) {
 		return
 	}
 
-	productID := c.Param("id")
+	productIDStr := c.Param("id")
+	productID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		return
+	}
 	
-	product, err := h.service.DuplicateProduct(tenantID.(uuid.UUID), productID)
+	product, err := h.service.DuplicateProduct(tenantID.(uuid.UUID), productID.String())
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -478,7 +503,12 @@ func (h *Handler) UpdateProductStatus(c *gin.Context) {
 		return
 	}
 
-	productID := c.Param("id")
+	productIDStr := c.Param("id")
+	productID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		return
+	}
 	
 	var req struct {
 		Status ProductStatus `json:"status" binding:"required"`
@@ -489,7 +519,7 @@ func (h *Handler) UpdateProductStatus(c *gin.Context) {
 		return
 	}
 
-	err := h.service.UpdateProductStatus(tenantID.(uuid.UUID), productID, req.Status)
+	err = h.service.UpdateProductStatus(tenantID.(uuid.UUID), productID.String(), req.Status)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -543,9 +573,14 @@ func (h *Handler) GetProductVariants(c *gin.Context) {
 		return
 	}
 
-	productID := c.Param("id")
+	productIDStr := c.Param("id")
+	productID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		return
+	}
 	
-	variants, err := h.service.GetProductVariants(tenantID.(uuid.UUID), productID)
+	variants, err := h.service.GetProductVariants(tenantID.(uuid.UUID), productID.String())
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -604,10 +639,21 @@ func (h *Handler) DeleteProductVariant(c *gin.Context) {
 		return
 	}
 
-	productID := c.Param("id")
-	variantID := c.Param("variantId")
+	productIDStr := c.Param("id")
+	productID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		return
+	}
+
+	variantIDStr := c.Param("variantId")
+	variantID, err := uuid.Parse(variantIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid variant ID"})
+		return
+	}
 	
-	err := h.service.DeleteProductVariant(tenantID.(uuid.UUID), productID, variantID)
+	err = h.service.DeleteProductVariant(tenantID.(uuid.UUID), productID.String(), variantID.String())
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -628,7 +674,12 @@ func (h *Handler) UpdateCategory(c *gin.Context) {
 		return
 	}
 
-	categoryID := c.Param("id")
+	categoryIDStr := c.Param("id")
+	categoryID, err := uuid.Parse(categoryIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
+		return
+	}
 	
 	var category Category
 	if err := c.ShouldBindJSON(&category); err != nil {
@@ -636,7 +687,7 @@ func (h *Handler) UpdateCategory(c *gin.Context) {
 		return
 	}
 
-	updatedCategory, err := h.service.UpdateCategory(tenantID.(uuid.UUID), categoryID, category)
+	updatedCategory, err := h.service.UpdateCategory(tenantID.(uuid.UUID), categoryID, &category)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -656,9 +707,14 @@ func (h *Handler) DeleteCategory(c *gin.Context) {
 		return
 	}
 
-	categoryID := c.Param("id")
+	categoryIDStr := c.Param("id")
+	categoryID, err := uuid.Parse(categoryIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
+		return
+	}
 	
-	err := h.service.DeleteCategory(tenantID.(uuid.UUID), categoryID)
+	err = h.service.DeleteCategory(tenantID.(uuid.UUID), categoryID.String())
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -696,9 +752,14 @@ func (h *Handler) GetCategoryChildren(c *gin.Context) {
 		return
 	}
 
-	categoryID := c.Param("id")
+	categoryIDStr := c.Param("id")
+	categoryID, err := uuid.Parse(categoryIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
+		return
+	}
 	
-	categories, err := h.service.GetCategoryChildren(tenantID.(uuid.UUID), categoryID)
+	categories, err := h.service.GetCategoryChildren(tenantID.(uuid.UUID), categoryID.String())
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

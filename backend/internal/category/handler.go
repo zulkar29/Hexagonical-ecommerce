@@ -1,13 +1,12 @@
 package category
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/gorilla/mux"
 )
 
 // Handler handles HTTP requests for category operations
@@ -22,202 +21,226 @@ func NewHandler(service Service) *Handler {
 	}
 }
 
+// RegisterRoutes registers category routes
+func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
+	categories := router.Group("/categories")
+	{
+		categories.POST("", h.CreateCategory)
+		categories.GET("", h.ListCategories)
+		categories.GET("/tree", h.GetCategoryTree)
+		categories.GET("/stats", h.GetCategoryStats)
+		categories.GET("/featured", h.GetFeaturedCategories)
+		categories.GET("/popular", h.GetPopularCategories)
+		categories.PUT("/reorder", h.ReorderCategories)
+		categories.PUT("/bulk/status", h.BulkUpdateStatus)
+		categories.GET("/slug/:slug", h.GetCategoryBySlug)
+		categories.GET("/:id", h.GetCategory)
+		categories.PUT("/:id", h.UpdateCategory)
+		categories.DELETE("/:id", h.DeleteCategory)
+		categories.GET("/:id/path", h.GetCategoryPath)
+		categories.PUT("/:id/move", h.MoveCategory)
+		categories.GET("/:id/products", h.GetCategoryProducts)
+		categories.POST("/:id/products/:product_id", h.AddProductToCategory)
+		categories.DELETE("/:id/products/:product_id", h.RemoveProductFromCategory)
+	}
+}
+
 // CreateCategory handles POST /categories
-func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (h *Handler) CreateCategory(c *gin.Context) {
+	ctx := c.Request.Context()
 	
 	// Extract tenant ID from context
-	tenantID, err := h.extractTenantID(r)
+	tenantID, err := h.extractTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
 	// Parse request body
 	var req CreateCategoryRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid request body", err)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
 	
 	// Create category
 	category, err := h.service.CreateCategory(ctx, tenantID, req)
 	if err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusCreated, category)
+	c.JSON(http.StatusCreated, category)
 }
 
 // GetCategory handles GET /categories/{id}
-func (h *Handler) GetCategory(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (h *Handler) GetCategory(c *gin.Context) {
+	ctx := c.Request.Context()
 	
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(r)
+	tenantID, err := h.extractTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
 	// Extract category ID
-	categoryID, err := h.extractCategoryID(r)
+	categoryID, err := h.extractCategoryID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid category ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID", "details": err.Error()})
 		return
 	}
 	
 	// Get category
 	category, err := h.service.GetCategory(ctx, tenantID, categoryID)
 	if err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusOK, category)
+	c.JSON(http.StatusOK, category)
 }
 
 // GetCategoryBySlug handles GET /categories/slug/{slug}
-func (h *Handler) GetCategoryBySlug(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (h *Handler) GetCategoryBySlug(c *gin.Context) {
+	ctx := c.Request.Context()
 	
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(r)
+	tenantID, err := h.extractTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
 	// Extract slug
-	slug := mux.Vars(r)["slug"]
+	slug := c.Param("slug")
 	if slug == "" {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Slug is required", nil)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Slug is required"})
 		return
 	}
 	
 	// Get category by slug
 	category, err := h.service.GetCategoryBySlug(ctx, tenantID, slug)
 	if err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusOK, category)
+	c.JSON(http.StatusOK, category)
 }
 
 // UpdateCategory handles PUT /categories/{id}
-func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (h *Handler) UpdateCategory(c *gin.Context) {
+	ctx := c.Request.Context()
 	
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(r)
+	tenantID, err := h.extractTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
 	// Extract category ID
-	categoryID, err := h.extractCategoryID(r)
+	categoryID, err := h.extractCategoryID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid category ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID", "details": err.Error()})
 		return
 	}
 	
 	// Parse request body
 	var req UpdateCategoryRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid request body", err)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
 	
 	// Update category
 	category, err := h.service.UpdateCategory(ctx, tenantID, categoryID, req)
 	if err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusOK, category)
+	c.JSON(http.StatusOK, category)
 }
 
 // DeleteCategory handles DELETE /categories/{id}
-func (h *Handler) DeleteCategory(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (h *Handler) DeleteCategory(c *gin.Context) {
+	ctx := c.Request.Context()
 	
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(r)
+	tenantID, err := h.extractTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
 	// Extract category ID
-	categoryID, err := h.extractCategoryID(r)
+	categoryID, err := h.extractCategoryID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid category ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID", "details": err.Error()})
 		return
 	}
 	
 	// Delete category
 	if err := h.service.DeleteCategory(ctx, tenantID, categoryID); err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	w.WriteHeader(http.StatusNoContent)
+	c.Status(http.StatusNoContent)
 }
 
 // ListCategories handles GET /categories
-func (h *Handler) ListCategories(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (h *Handler) ListCategories(c *gin.Context) {
+	ctx := c.Request.Context()
 	
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(r)
+	tenantID, err := h.extractTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
 	// Parse query parameters
-	filter := h.parseCategoryFilter(r)
-	limit, offset := h.parsePagination(r)
+	filter := h.parseCategoryFilter(c)
+	limit, offset := h.parsePagination(c)
 	
 	// List categories
 	categories, total, err := h.service.ListCategories(ctx, tenantID, filter, limit, offset)
 	if err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
 	// Build response
-	response := map[string]interface{}{
+	response := gin.H{
 		"categories": categories,
 		"total":      total,
 		"limit":      limit,
 		"offset":     offset,
 	}
 	
-	h.writeJSONResponse(w, http.StatusOK, response)
+	c.JSON(http.StatusOK, response)
 }
 
 // GetCategoryTree handles GET /categories/tree
-func (h *Handler) GetCategoryTree(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (h *Handler) GetCategoryTree(c *gin.Context) {
+	ctx := c.Request.Context()
 	
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(r)
+	tenantID, err := h.extractTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
 	// Parse parent ID if provided
 	var parentID *uuid.UUID
-	if parentIDStr := r.URL.Query().Get("parent_id"); parentIDStr != "" {
+	if parentIDStr := c.Query("parent_id"); parentIDStr != "" {
 		parsedID, err := uuid.Parse(parentIDStr)
 		if err != nil {
-			h.writeErrorResponse(w, http.StatusBadRequest, "Invalid parent ID", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid parent ID", "details": err.Error()})
 			return
 		}
 		parentID = &parsedID
@@ -226,56 +249,56 @@ func (h *Handler) GetCategoryTree(w http.ResponseWriter, r *http.Request) {
 	// Get category tree
 	tree, err := h.service.GetCategoryTree(ctx, tenantID, parentID)
 	if err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusOK, tree)
+	c.JSON(http.StatusOK, tree)
 }
 
 // GetCategoryPath handles GET /categories/{id}/path
-func (h *Handler) GetCategoryPath(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (h *Handler) GetCategoryPath(c *gin.Context) {
+	ctx := c.Request.Context()
 	
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(r)
+	tenantID, err := h.extractTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
 	// Extract category ID
-	categoryID, err := h.extractCategoryID(r)
+	categoryID, err := h.extractCategoryID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid category ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID", "details": err.Error()})
 		return
 	}
 	
 	// Get category path
 	path, err := h.service.GetCategoryPath(ctx, tenantID, categoryID)
 	if err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusOK, path)
+	c.JSON(http.StatusOK, path)
 }
 
 // MoveCategory handles PUT /categories/{id}/move
-func (h *Handler) MoveCategory(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (h *Handler) MoveCategory(c *gin.Context) {
+	ctx := c.Request.Context()
 	
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(r)
+	tenantID, err := h.extractTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
 	// Extract category ID
-	categoryID, err := h.extractCategoryID(r)
+	categoryID, err := h.extractCategoryID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid category ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID", "details": err.Error()})
 		return
 	}
 	
@@ -283,55 +306,55 @@ func (h *Handler) MoveCategory(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ParentID *uuid.UUID `json:"parent_id"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid request body", err)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
 	
 	// Move category
 	if err := h.service.MoveCategory(ctx, tenantID, categoryID, req.ParentID); err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	w.WriteHeader(http.StatusNoContent)
+	c.Status(http.StatusNoContent)
 }
 
 // ReorderCategories handles PUT /categories/reorder
-func (h *Handler) ReorderCategories(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (h *Handler) ReorderCategories(c *gin.Context) {
+	ctx := c.Request.Context()
 	
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(r)
+	tenantID, err := h.extractTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
 	// Parse request body
 	var req map[uuid.UUID]int
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid request body", err)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
 	
 	// Reorder categories
 	if err := h.service.ReorderCategories(ctx, tenantID, req); err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	w.WriteHeader(http.StatusNoContent)
+	c.Status(http.StatusNoContent)
 }
 
 // BulkUpdateStatus handles PUT /categories/bulk/status
-func (h *Handler) BulkUpdateStatus(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (h *Handler) BulkUpdateStatus(c *gin.Context) {
+	ctx := c.Request.Context()
 	
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(r)
+	tenantID, err := h.extractTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
@@ -340,154 +363,154 @@ func (h *Handler) BulkUpdateStatus(w http.ResponseWriter, r *http.Request) {
 		CategoryIDs []uuid.UUID   `json:"category_ids"`
 		Status      CategoryStatus `json:"status"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid request body", err)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
 	
 	// Bulk update status
 	if err := h.service.BulkUpdateStatus(ctx, tenantID, req.CategoryIDs, req.Status); err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	w.WriteHeader(http.StatusNoContent)
+	c.Status(http.StatusNoContent)
 }
 
 // AddProductToCategory handles POST /categories/{id}/products/{product_id}
-func (h *Handler) AddProductToCategory(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (h *Handler) AddProductToCategory(c *gin.Context) {
+	ctx := c.Request.Context()
 	
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(r)
+	tenantID, err := h.extractTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
 	// Extract category ID
-	categoryID, err := h.extractCategoryID(r)
+	categoryID, err := h.extractCategoryID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid category ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID", "details": err.Error()})
 		return
 	}
 	
 	// Extract product ID
-	productID, err := h.extractProductID(r)
+	productID, err := h.extractProductID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid product ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID", "details": err.Error()})
 		return
 	}
 	
 	// Add product to category
 	if err := h.service.AddProductToCategory(ctx, tenantID, categoryID, productID); err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	w.WriteHeader(http.StatusNoContent)
+	c.Status(http.StatusNoContent)
 }
 
 // RemoveProductFromCategory handles DELETE /categories/{id}/products/{product_id}
-func (h *Handler) RemoveProductFromCategory(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (h *Handler) RemoveProductFromCategory(c *gin.Context) {
+	ctx := c.Request.Context()
 	
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(r)
+	tenantID, err := h.extractTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
 	// Extract category ID
-	categoryID, err := h.extractCategoryID(r)
+	categoryID, err := h.extractCategoryID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid category ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID", "details": err.Error()})
 		return
 	}
 	
 	// Extract product ID
-	productID, err := h.extractProductID(r)
+	productID, err := h.extractProductID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid product ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID", "details": err.Error()})
 		return
 	}
 	
 	// Remove product from category
 	if err := h.service.RemoveProductFromCategory(ctx, tenantID, categoryID, productID); err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	w.WriteHeader(http.StatusNoContent)
+	c.Status(http.StatusNoContent)
 }
 
 // GetCategoryProducts handles GET /categories/{id}/products
-func (h *Handler) GetCategoryProducts(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (h *Handler) GetCategoryProducts(c *gin.Context) {
+	ctx := c.Request.Context()
 	
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(r)
+	tenantID, err := h.extractTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
 	// Extract category ID
-	categoryID, err := h.extractCategoryID(r)
+	categoryID, err := h.extractCategoryID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid category ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID", "details": err.Error()})
 		return
 	}
 	
 	// Parse pagination
-	limit, offset := h.parsePagination(r)
+	limit, offset := h.parsePagination(c)
 	
 	// Get category products
 	products, err := h.service.GetCategoryProducts(ctx, tenantID, categoryID, limit, offset)
 	if err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusOK, products)
+	c.JSON(http.StatusOK, products)
 }
 
 // GetCategoryStats handles GET /categories/stats
-func (h *Handler) GetCategoryStats(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (h *Handler) GetCategoryStats(c *gin.Context) {
+	ctx := c.Request.Context()
 	
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(r)
+	tenantID, err := h.extractTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
 	// Get category stats
 	stats, err := h.service.GetCategoryStats(ctx, tenantID)
 	if err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusOK, stats)
+	c.JSON(http.StatusOK, stats)
 }
 
 // GetFeaturedCategories handles GET /categories/featured
-func (h *Handler) GetFeaturedCategories(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (h *Handler) GetFeaturedCategories(c *gin.Context) {
+	ctx := c.Request.Context()
 	
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(r)
+	tenantID, err := h.extractTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
 	// Parse limit
 	limit := 10 // default
-	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+	if limitStr := c.Query("limit"); limitStr != "" {
 		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
 			limit = parsedLimit
 		}
@@ -496,27 +519,27 @@ func (h *Handler) GetFeaturedCategories(w http.ResponseWriter, r *http.Request) 
 	// Get featured categories
 	categories, err := h.service.GetFeaturedCategories(ctx, tenantID, limit)
 	if err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusOK, categories)
+	c.JSON(http.StatusOK, categories)
 }
 
 // GetPopularCategories handles GET /categories/popular
-func (h *Handler) GetPopularCategories(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (h *Handler) GetPopularCategories(c *gin.Context) {
+	ctx := c.Request.Context()
 	
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(r)
+	tenantID, err := h.extractTenantID(c)
 	if err != nil {
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid tenant ID", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
 		return
 	}
 	
 	// Parse limit
 	limit := 10 // default
-	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+	if limitStr := c.Query("limit"); limitStr != "" {
 		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
 			limit = parsedLimit
 		}
@@ -525,26 +548,26 @@ func (h *Handler) GetPopularCategories(w http.ResponseWriter, r *http.Request) {
 	// Get popular categories
 	categories, err := h.service.GetPopularCategories(ctx, tenantID, limit)
 	if err != nil {
-		h.handleServiceError(w, err)
+		h.handleServiceError(c, err)
 		return
 	}
 	
-	h.writeJSONResponse(w, http.StatusOK, categories)
+	c.JSON(http.StatusOK, categories)
 }
 
 // Helper methods
 
 // extractTenantID extracts tenant ID from request context or headers
-func (h *Handler) extractTenantID(r *http.Request) (uuid.UUID, error) {
+func (h *Handler) extractTenantID(c *gin.Context) (uuid.UUID, error) {
 	// Try to get from context first (set by middleware)
-	if tenantID := r.Context().Value("tenant_id"); tenantID != nil {
+	if tenantID := c.Request.Context().Value("tenant_id"); tenantID != nil {
 		if id, ok := tenantID.(uuid.UUID); ok {
 			return id, nil
 		}
 	}
 	
 	// Try to get from header
-	tenantIDStr := r.Header.Get("X-Tenant-ID")
+	tenantIDStr := c.GetHeader("X-Tenant-ID")
 	if tenantIDStr == "" {
 		return uuid.Nil, fmt.Errorf("tenant ID not found")
 	}
@@ -553,8 +576,8 @@ func (h *Handler) extractTenantID(r *http.Request) (uuid.UUID, error) {
 }
 
 // extractCategoryID extracts category ID from URL path
-func (h *Handler) extractCategoryID(r *http.Request) (uuid.UUID, error) {
-	categoryIDStr := mux.Vars(r)["id"]
+func (h *Handler) extractCategoryID(c *gin.Context) (uuid.UUID, error) {
+	categoryIDStr := c.Param("id")
 	if categoryIDStr == "" {
 		return uuid.Nil, fmt.Errorf("category ID not found")
 	}
@@ -563,8 +586,8 @@ func (h *Handler) extractCategoryID(r *http.Request) (uuid.UUID, error) {
 }
 
 // extractProductID extracts product ID from URL path
-func (h *Handler) extractProductID(r *http.Request) (uuid.UUID, error) {
-	productIDStr := mux.Vars(r)["product_id"]
+func (h *Handler) extractProductID(c *gin.Context) (uuid.UUID, error) {
+	productIDStr := c.Param("product_id")
 	if productIDStr == "" {
 		return uuid.Nil, fmt.Errorf("product ID not found")
 	}
@@ -573,40 +596,40 @@ func (h *Handler) extractProductID(r *http.Request) (uuid.UUID, error) {
 }
 
 // parseCategoryFilter parses category filter from query parameters
-func (h *Handler) parseCategoryFilter(r *http.Request) CategoryFilter {
+func (h *Handler) parseCategoryFilter(c *gin.Context) CategoryFilter {
 	filter := CategoryFilter{}
 	
-	if name := r.URL.Query().Get("name"); name != "" {
+	if name := c.Query("name"); name != "" {
 		filter.Name = name
 	}
 	
-	if slug := r.URL.Query().Get("slug"); slug != "" {
+	if slug := c.Query("slug"); slug != "" {
 		filter.Slug = slug
 	}
 	
-	if status := r.URL.Query().Get("status"); status != "" {
+	if status := c.Query("status"); status != "" {
 		filter.Status = CategoryStatus(status)
 	}
 	
-	if parentIDStr := r.URL.Query().Get("parent_id"); parentIDStr != "" {
+	if parentIDStr := c.Query("parent_id"); parentIDStr != "" {
 		if parentID, err := uuid.Parse(parentIDStr); err == nil {
 			filter.ParentID = &parentID
 		}
 	}
 	
-	if levelStr := r.URL.Query().Get("level"); levelStr != "" {
+	if levelStr := c.Query("level"); levelStr != "" {
 		if level, err := strconv.Atoi(levelStr); err == nil {
 			filter.Level = &level
 		}
 	}
 	
-	if featuredStr := r.URL.Query().Get("is_featured"); featuredStr != "" {
+	if featuredStr := c.Query("is_featured"); featuredStr != "" {
 		if featured, err := strconv.ParseBool(featuredStr); err == nil {
 			filter.IsFeatured = &featured
 		}
 	}
 	
-	if menuStr := r.URL.Query().Get("show_in_menu"); menuStr != "" {
+	if menuStr := c.Query("show_in_menu"); menuStr != "" {
 		if menu, err := strconv.ParseBool(menuStr); err == nil {
 			filter.ShowInMenu = &menu
 		}
@@ -616,11 +639,11 @@ func (h *Handler) parseCategoryFilter(r *http.Request) CategoryFilter {
 }
 
 // parsePagination parses pagination parameters from query string
-func (h *Handler) parsePagination(r *http.Request) (limit, offset int) {
+func (h *Handler) parsePagination(c *gin.Context) (limit, offset int) {
 	limit = 20 // default
 	offset = 0 // default
 	
-	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+	if limitStr := c.Query("limit"); limitStr != "" {
 		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
 			limit = parsedLimit
 			if limit > 100 {
@@ -629,7 +652,7 @@ func (h *Handler) parsePagination(r *http.Request) (limit, offset int) {
 		}
 	}
 	
-	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+	if offsetStr := c.Query("offset"); offsetStr != "" {
 		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
 			offset = parsedOffset
 		}
@@ -638,22 +661,16 @@ func (h *Handler) parsePagination(r *http.Request) (limit, offset int) {
 	return limit, offset
 }
 
-// writeJSONResponse writes a JSON response
-func (h *Handler) writeJSONResponse(w http.ResponseWriter, statusCode int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		// Log error but don't expose it to client
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-	}
+// writeJSONResponse writes a JSON response (deprecated - use c.JSON directly)
+func (h *Handler) writeJSONResponse(c *gin.Context, statusCode int, data interface{}) {
+	c.JSON(statusCode, data)
 }
 
-// writeErrorResponse writes an error response
-func (h *Handler) writeErrorResponse(w http.ResponseWriter, statusCode int, message string, err error) {
-	errorResponse := map[string]interface{}{
-		"error":   message,
-		"status":  statusCode,
+// writeErrorResponse writes an error response (deprecated - use c.JSON directly)
+func (h *Handler) writeErrorResponse(c *gin.Context, statusCode int, message string, err error) {
+	errorResponse := gin.H{
+		"error":  message,
+		"status": statusCode,
 	}
 	
 	// Include error details in development mode
@@ -662,27 +679,27 @@ func (h *Handler) writeErrorResponse(w http.ResponseWriter, statusCode int, mess
 		errorResponse["details"] = err.Error()
 	}
 	
-	h.writeJSONResponse(w, statusCode, errorResponse)
+	c.JSON(statusCode, errorResponse)
 }
 
 // handleServiceError handles service layer errors and maps them to HTTP status codes
-func (h *Handler) handleServiceError(w http.ResponseWriter, err error) {
+func (h *Handler) handleServiceError(c *gin.Context, err error) {
 	switch err {
 	case ErrCategoryNotFound:
-		h.writeErrorResponse(w, http.StatusNotFound, "Category not found", err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Category not found", "details": err.Error()})
 	case ErrCategoryExists:
-		h.writeErrorResponse(w, http.StatusConflict, "Category already exists", err)
+		c.JSON(http.StatusConflict, gin.H{"error": "Category already exists", "details": err.Error()})
 	case ErrInvalidParent:
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid parent category", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid parent category", "details": err.Error()})
 	case ErrCategoryHasChildren:
-		h.writeErrorResponse(w, http.StatusBadRequest, "Category has children", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Category has children", "details": err.Error()})
 	case ErrCategoryHasProducts:
-		h.writeErrorResponse(w, http.StatusBadRequest, "Category has products", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Category has products", "details": err.Error()})
 	case ErrMaxDepthExceeded:
-		h.writeErrorResponse(w, http.StatusBadRequest, "Maximum category depth exceeded", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Maximum category depth exceeded", "details": err.Error()})
 	case ErrInvalidSlug:
-		h.writeErrorResponse(w, http.StatusBadRequest, "Invalid slug", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid slug", "details": err.Error()})
 	default:
-		h.writeErrorResponse(w, http.StatusInternalServerError, "Internal server error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error", "details": err.Error()})
 	}
 }

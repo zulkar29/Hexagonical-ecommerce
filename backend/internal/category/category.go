@@ -262,6 +262,8 @@ type CategoryTreeResponse struct {
 
 // CategoryFilter represents category listing filters
 type CategoryFilter struct {
+	Name       string         `json:"name,omitempty"`
+	Slug       string         `json:"slug,omitempty"`
 	ParentID   *uuid.UUID     `json:"parent_id,omitempty"`
 	Status     CategoryStatus `json:"status,omitempty"`
 	Level      *int           `json:"level,omitempty"`
@@ -272,10 +274,10 @@ type CategoryFilter struct {
 
 // CategoryStats represents category statistics
 type CategoryStats struct {
-	TotalCategories   int `json:"total_categories"`
-	ActiveCategories  int `json:"active_categories"`
-	RootCategories    int `json:"root_categories"`
-	FeaturedCategories int `json:"featured_categories"`
+	TotalCategories   int64 `json:"total_categories"`
+	ActiveCategories  int64 `json:"active_categories"`
+	RootCategories    int64 `json:"root_categories"`
+	FeaturedCategories int64 `json:"featured_categories"`
 	MaxDepth          int `json:"max_depth"`
 	AvgProductsPerCategory float64 `json:"avg_products_per_category"`
 }

@@ -9,7 +9,7 @@ import (
 type Module struct {
 	Handler *Handler
 	Service *Service
-	Repository *Repository
+	Repository Repository
 }
 
 // NewModule creates a new product module with all dependencies
@@ -32,7 +32,8 @@ func (m *Module) RegisterRoutes(router *gin.RouterGroup) {
 
 // Migrate runs database migrations for product module
 func (m *Module) Migrate() error {
-	return m.Repository.db.AutoMigrate(
+	repo := m.Repository.(*repository)
+	return repo.db.AutoMigrate(
 		&Product{},
 		&ProductVariant{},
 		&Category{},

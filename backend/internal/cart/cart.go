@@ -103,6 +103,7 @@ var (
 	ErrCartNotFound     = errors.New("cart not found")
 	ErrCartExpired      = errors.New("cart has expired")
 	ErrCartConverted    = errors.New("cart has already been converted to order")
+	ErrCartNotModifiable = errors.New("cart cannot be modified")
 	ErrItemNotFound     = errors.New("cart item not found")
 	ErrInvalidQuantity  = errors.New("invalid quantity")
 	ErrProductNotFound  = errors.New("product not found")

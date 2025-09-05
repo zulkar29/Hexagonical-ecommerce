@@ -8,8 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	
-	"ecommerce-saas/internal/shared/errors"
 )
 
 // BillingHandler handles billing HTTP requests

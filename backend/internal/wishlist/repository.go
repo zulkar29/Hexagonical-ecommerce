@@ -2,8 +2,6 @@ package wishlist
 
 import (
 	"context"
-	"database/sql"
-	"fmt"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"

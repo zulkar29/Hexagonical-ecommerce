@@ -233,6 +233,7 @@ type StoreCreditTransaction struct {
 	ID            uuid.UUID `json:"id" gorm:"primarykey"`
 	StoreCreditID uuid.UUID `json:"store_credit_id" gorm:"not null;index"`
 	TenantID      uuid.UUID `json:"tenant_id" gorm:"not null;index"`
+	CustomerID    uuid.UUID `json:"customer_id" gorm:"not null;index"`
 	
 	// Transaction details
 	Type        string  `json:"type" gorm:"not null"` // usage, addition, refund, admin_adjustment

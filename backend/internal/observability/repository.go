@@ -8,14 +8,14 @@ import (
 	"gorm.io/gorm"
 )
 
-// ObservabilityRepository handles persistence of observability data
-type ObservabilityRepository struct {
+// observabilityRepository handles persistence of observability data
+type observabilityRepository struct {
 	db *gorm.DB
 }
 
 // NewObservabilityRepository creates a new observability repository
-func NewObservabilityRepository(db *gorm.DB) *ObservabilityRepository {
-	return &ObservabilityRepository{
+func NewObservabilityRepository(db *gorm.DB) ObservabilityRepository {
+	return &observabilityRepository{
 		db: db,
 	}
 }
@@ -95,7 +95,7 @@ type AlertModel struct {
 }
 
 // Migrate creates or updates the database tables
-func (r *ObservabilityRepository) Migrate() error {
+func (r *observabilityRepository) Migrate() error {
 	return r.db.AutoMigrate(
 		&LogEntryModel{},
 		&MetricModel{},
@@ -108,7 +108,7 @@ func (r *ObservabilityRepository) Migrate() error {
 // Log storage methods
 
 // SaveLogEntry saves a log entry to the database
-func (r *ObservabilityRepository) SaveLogEntry(ctx context.Context, entry *LogEntry) error {
+func (r *observabilityRepository) SaveLogEntry(ctx context.Context, entry *LogEntry) error {
 	fieldsJSON, _ := json.Marshal(entry.Fields)
 	errorJSON := ""
 	if entry.Error != nil {
@@ -136,7 +136,7 @@ func (r *ObservabilityRepository) SaveLogEntry(ctx context.Context, entry *LogEn
 }
 
 // GetLogEntries retrieves log entries with filters
-func (r *ObservabilityRepository) GetLogEntries(ctx context.Context, filters map[string]interface{}, limit, offset int) ([]*LogEntry, error) {
+func (r *observabilityRepository) GetLogEntries(ctx context.Context, filters map[string]interface{}, limit, offset int) ([]*LogEntry, error) {
 	var models []LogEntryModel
 	
 	query := r.db.WithContext(ctx).Model(&LogEntryModel{})
@@ -181,7 +181,7 @@ func (r *ObservabilityRepository) GetLogEntries(ctx context.Context, filters map
 // Metric storage methods
 
 // SaveMetric saves a metric to the database
-func (r *ObservabilityRepository) SaveMetric(ctx context.Context, metric *Metric) error {
+func (r *observabilityRepository) SaveMetric(ctx context.Context, metric *Metric) error {
 	tagsJSON, _ := json.Marshal(metric.Tags)
 
 	model := &MetricModel{
@@ -199,7 +199,7 @@ func (r *ObservabilityRepository) SaveMetric(ctx context.Context, metric *Metric
 }
 
 // GetMetrics retrieves metrics with filters
-func (r *ObservabilityRepository) GetMetrics(ctx context.Context, filters map[string]interface{}, limit, offset int) ([]*Metric, error) {
+func (r *observabilityRepository) GetMetrics(ctx context.Context, filters map[string]interface{}, limit, offset int) ([]*Metric, error) {
 	var models []MetricModel
 	
 	query := r.db.WithContext(ctx).Model(&MetricModel{})
@@ -240,7 +240,7 @@ func (r *ObservabilityRepository) GetMetrics(ctx context.Context, filters map[st
 // Trace storage methods
 
 // SaveTrace saves a trace to the database
-func (r *ObservabilityRepository) SaveTrace(ctx context.Context, trace *Trace) error {
+func (r *observabilityRepository) SaveTrace(ctx context.Context, trace *Trace) error {
 	tagsJSON, _ := json.Marshal(trace.Tags)
 
 	model := &TraceModel{
@@ -262,7 +262,7 @@ func (r *ObservabilityRepository) SaveTrace(ctx context.Context, trace *Trace) e
 }
 
 // SaveSpan saves a span to the database
-func (r *ObservabilityRepository) SaveSpan(ctx context.Context, span *Span) error {
+func (r *observabilityRepository) SaveSpan(ctx context.Context, span *Span) error {
 	tagsJSON, _ := json.Marshal(span.Tags)
 	logsJSON, _ := json.Marshal(span.Logs)
 
@@ -286,7 +286,7 @@ func (r *ObservabilityRepository) SaveSpan(ctx context.Context, span *Span) erro
 }
 
 // GetTrace retrieves a trace by ID
-func (r *ObservabilityRepository) GetTrace(ctx context.Context, traceID string) (*Trace, error) {
+func (r *observabilityRepository) GetTrace(ctx context.Context, traceID string) (*Trace, error) {
 	var model TraceModel
 	err := r.db.WithContext(ctx).Where("id = ?", traceID).First(&model).Error
 	if err != nil {
@@ -297,7 +297,7 @@ func (r *ObservabilityRepository) GetTrace(ctx context.Context, traceID string) 
 }
 
 // GetSpansByTraceID retrieves spans for a trace
-func (r *ObservabilityRepository) GetSpansByTraceID(ctx context.Context, traceID string) ([]*Span, error) {
+func (r *observabilityRepository) GetSpansByTraceID(ctx context.Context, traceID string) ([]*Span, error) {
 	var models []SpanModel
 	err := r.db.WithContext(ctx).Where("trace_id = ?", traceID).Order("start_time").Find(&models).Error
 	if err != nil {
@@ -319,7 +319,7 @@ func (r *ObservabilityRepository) GetSpansByTraceID(ctx context.Context, traceID
 // Alert storage methods
 
 // SaveAlert saves an alert to the database
-func (r *ObservabilityRepository) SaveAlert(ctx context.Context, alert *Alert) error {
+func (r *observabilityRepository) SaveAlert(ctx context.Context, alert *Alert) error {
 	model := &AlertModel{
 		ID:          alert.ID,
 		Title:       alert.Title,
@@ -340,7 +340,7 @@ func (r *ObservabilityRepository) SaveAlert(ctx context.Context, alert *Alert) e
 }
 
 // GetAlerts retrieves alerts with filters
-func (r *ObservabilityRepository) GetAlerts(ctx context.Context, filters map[string]interface{}, limit, offset int) ([]*Alert, error) {
+func (r *observabilityRepository) GetAlerts(ctx context.Context, filters map[string]interface{}, limit, offset int) ([]*Alert, error) {
 	var models []AlertModel
 	
 	query := r.db.WithContext(ctx).Model(&AlertModel{})
@@ -373,7 +373,7 @@ func (r *ObservabilityRepository) GetAlerts(ctx context.Context, filters map[str
 
 // Helper methods for model conversion
 
-func (r *ObservabilityRepository) logModelToEntry(model *LogEntryModel) (*LogEntry, error) {
+func (r *observabilityRepository) logModelToEntry(model *LogEntryModel) (*LogEntry, error) {
 	var fields map[string]interface{}
 	if model.Fields != "" {
 		json.Unmarshal([]byte(model.Fields), &fields)
@@ -400,7 +400,7 @@ func (r *ObservabilityRepository) logModelToEntry(model *LogEntryModel) (*LogEnt
 	}, nil
 }
 
-func (r *ObservabilityRepository) metricModelToMetric(model *MetricModel) (*Metric, error) {
+func (r *observabilityRepository) metricModelToMetric(model *MetricModel) (*Metric, error) {
 	var tags map[string]string
 	if model.Tags != "" {
 		json.Unmarshal([]byte(model.Tags), &tags)
@@ -417,7 +417,7 @@ func (r *ObservabilityRepository) metricModelToMetric(model *MetricModel) (*Metr
 	}, nil
 }
 
-func (r *ObservabilityRepository) traceModelToTrace(model *TraceModel) (*Trace, error) {
+func (r *observabilityRepository) traceModelToTrace(model *TraceModel) (*Trace, error) {
 	var tags map[string]interface{}
 	if model.Tags != "" {
 		json.Unmarshal([]byte(model.Tags), &tags)
@@ -441,7 +441,7 @@ func (r *ObservabilityRepository) traceModelToTrace(model *TraceModel) (*Trace, 
 	return trace, nil
 }
 
-func (r *ObservabilityRepository) spanModelToSpan(model *SpanModel) (*Span, error) {
+func (r *observabilityRepository) spanModelToSpan(model *SpanModel) (*Span, error) {
 	var tags map[string]interface{}
 	if model.Tags != "" {
 		json.Unmarshal([]byte(model.Tags), &tags)
@@ -471,7 +471,7 @@ func (r *ObservabilityRepository) spanModelToSpan(model *SpanModel) (*Span, erro
 	return span, nil
 }
 
-func (r *ObservabilityRepository) alertModelToAlert(model *AlertModel) *Alert {
+func (r *observabilityRepository) alertModelToAlert(model *AlertModel) *Alert {
 	alert := &Alert{
 		ID:          model.ID,
 		Title:       model.Title,
