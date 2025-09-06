@@ -1,0 +1,17 @@
+/* Hide everything except the invoice modal when printing */
+@media print {
+  body.printing-invoice #root > *:not(.print-invoice-modal) {
+    display: none !important;
+  }
+  .print-invoice-modal {
+    display: block !important;
+    position: static !important;
+    box-shadow: none !important;
+    background: white !important;
+    color: black !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}

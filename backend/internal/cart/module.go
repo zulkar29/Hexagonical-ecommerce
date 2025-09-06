@@ -3,10 +3,6 @@ package cart
 import (
 	"gorm.io/gorm"
 	"github.com/gin-gonic/gin"
-	"ecommerce-saas/internal/product"
-	"ecommerce-saas/internal/discount"
-	"ecommerce-saas/internal/tax"
-	"ecommerce-saas/internal/shipping"
 )
 
 // Module represents the cart module
@@ -17,7 +13,7 @@ type Module struct {
 }
 
 // NewModule creates a new cart module instance
-func NewModule(db *gorm.DB, productSvc *product.Service, discountSvc discount.Service, taxSvc tax.Service, shippingSvc *shipping.Service) *Module {
+func NewModule(db *gorm.DB, productSvc ProductService, discountSvc DiscountService, taxSvc TaxService, shippingSvc ShippingService) *Module {
 	repo := NewRepository(db)
 	svc := NewCartService(repo, productSvc, discountSvc, taxSvc, shippingSvc)
 	handler := NewHandler(svc)

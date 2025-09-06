@@ -9,6 +9,7 @@ import (
 	"ecommerce-saas/internal/analytics"
 	"ecommerce-saas/internal/billing"
 	// "ecommerce-saas/internal/cart" // Temporarily disabled due to interface compatibility issues
+	"ecommerce-saas/internal/components"
 	"ecommerce-saas/internal/contact"
 	"ecommerce-saas/internal/content"
 	"ecommerce-saas/internal/discount"
@@ -107,6 +108,7 @@ func SetupRoutes(r *gin.Engine, cfg *RouteConfig) {
 		setupAnalyticsRoutes(protected, cfg)
 		setupBillingRoutes(protected, cfg)
 		setupCartRoutes(protected, cfg)
+		setupComponentsRoutes(protected, cfg)
 		setupContactRoutes(protected, cfg)
 		setupContentRoutes(protected, cfg)
 		setupDiscountRoutes(protected, cfg)
@@ -413,4 +415,13 @@ func setupWishlistRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 	wishlistHandler := wishlist.NewHandler(wishlistService)
 	
 	wishlistHandler.RegisterRoutes(v1)
+}
+
+// Setup components routes
+func setupComponentsRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
+	// Initialize components module
+	componentsModule := components.NewModule(cfg.DB)
+	
+	// Register components routes
+	componentsModule.RegisterRoutes(v1)
 }

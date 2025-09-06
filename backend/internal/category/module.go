@@ -7,14 +7,14 @@ import (
 
 // Module represents the category module
 type Module struct {
-	repository *Repository
-	service    *Service
+	repository Repository
+	service    Service
 	handler    *Handler
 }
 
 // NewModule creates a new category module instance
 func NewModule(db *gorm.DB) *Module {
-	repo := NewRepository(db)
+	repo := NewGormRepository(db)
 	svc := NewService(repo)
 	handler := NewHandler(svc)
 
@@ -36,12 +36,12 @@ func (m *Module) GetHandler() *Handler {
 }
 
 // GetService returns the category service
-func (m *Module) GetService() *Service {
+func (m *Module) GetService() Service {
 	return m.service
 }
 
 // GetRepository returns the category repository
-func (m *Module) GetRepository() *Repository {
+func (m *Module) GetRepository() Repository {
 	return m.repository
 }
 
