@@ -107,3 +107,21 @@ make format         # Format code
 
 **Status**: Development Setup Complete  
 **Next**: Implement core business logic
+
+
+
+  # Stop all services
+  make dev-down
+
+  # Clean restart
+  docker-compose -f docker-compose.dev.yml down -v
+  make dev-up
+
+
+ 🟢 Services Running Successfully:
+
+  | Service    | Status    | Port | URL                   |
+  |------------|-----------|------|-----------------------|
+  | PostgreSQL | ✅ Running | 5432 | localhost:5432        |
+  | Redis      | ✅ Running | 6379 | localhost:6379        |
+  | Storefront | ✅ Running | 3002 | http://localhost:3002 |

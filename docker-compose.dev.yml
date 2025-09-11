@@ -63,7 +63,7 @@ services:
     container_name: ecommerce-storefront-dev
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3002:3000"
     volumes:
       - ./storefront:/app
       - /app/node_modules
