@@ -65,8 +65,8 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 // Register handles user registration
 func (h *Handler) Register(c *gin.Context) {
 	var user User
-	if err := c.ShouldBindJSON(&user); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&user); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
@@ -88,8 +88,8 @@ func (h *Handler) Login(c *gin.Context) {
 		Email    string `json:"email" binding:"required,email"`
 		Password string `json:"password" binding:"required,min=8"`
 	}
-	if err := c.ShouldBindJSON(&loginData); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&loginData); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
@@ -127,7 +127,7 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		var req struct {
 			RefreshToken string `json:"refresh_token"`
 		}
-		if err := c.ShouldBindJSON(&req); err != nil {
+		if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Refresh token required"})
 			return
 		}
@@ -189,15 +189,15 @@ func (h *Handler) VerifyEmail(c *gin.Context) {
 	var verifyData struct {
 		Token string `json:"token" binding:"required"`
 	}
-	if err := c.ShouldBindJSON(&verifyData); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&verifyData); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
 	// Extract user ID from query params or JWT token
 	userIDStr := c.Query("user_id")
-	userID, err := uuid.Parse(userIDStr)
-	if err != nil {
+	userID, parseErr := uuid.Parse(userIDStr)
+	if parseErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
@@ -215,8 +215,8 @@ func (h *Handler) ForgotPassword(c *gin.Context) {
 	var forgotData struct {
 		Email string `json:"email" binding:"required,email"`
 	}
-	if err := c.ShouldBindJSON(&forgotData); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&forgotData); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
@@ -234,8 +234,8 @@ func (h *Handler) ResetPassword(c *gin.Context) {
 		Token       string `json:"token" binding:"required"`
 		NewPassword string `json:"new_password" binding:"required,min=8"`
 	}
-	if err := c.ShouldBindJSON(&resetData); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&resetData); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
@@ -273,8 +273,8 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 	}
 
 	var updates User
-	if err := c.ShouldBindJSON(&updates); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&updates); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
@@ -302,8 +302,8 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 		OldPassword string `json:"old_password" binding:"required"`
 		NewPassword string `json:"new_password" binding:"required,min=8"`
 	}
-	if err := c.ShouldBindJSON(&passwordData); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&passwordData); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
@@ -355,8 +355,8 @@ func (h *Handler) GetUser(c *gin.Context) {
 	// TODO: Check admin permissions
 	
 	userIDStr := c.Param("id")
-	userID, err := uuid.Parse(userIDStr)
-	if err != nil {
+	userID, parseErr := uuid.Parse(userIDStr)
+	if parseErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
@@ -384,24 +384,15 @@ func (h *Handler) getUserIDFromContext(c *gin.Context) uuid.UUID {
 	return uuid.Nil
 }
 
-// getTenantIDFromContext extracts tenant ID from JWT token in context
-func (h *Handler) getTenantIDFromContext(c *gin.Context) *uuid.UUID {
-	// TODO: Extract from JWT token when middleware is implemented
-	if tenantID, exists := c.Get("tenant_id"); exists {
-		if id, ok := tenantID.(*uuid.UUID); ok {
-			return id
-		}
-	}
-	return nil
-}
+
 
 // ResendVerification resends email verification
 func (h *Handler) ResendVerification(c *gin.Context) {
 	var resendData struct {
 		Email string `json:"email" binding:"required,email"`
 	}
-	if err := c.ShouldBindJSON(&resendData); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&resendData); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 

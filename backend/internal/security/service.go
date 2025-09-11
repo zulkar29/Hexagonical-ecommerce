@@ -813,9 +813,12 @@ func (s *securityService) calculatePasswordStrength(password string) int {
 		score += 10
 	}
 	
-	// Penalty for common patterns
-	if regexp.MustCompile(`(.)\1{2,}`).MatchString(password) {
-		score -= 10
+	// Penalty for repeated characters (3 or more in a row)
+	for i := 0; i < len(password)-2; i++ {
+		if password[i] == password[i+1] && password[i+1] == password[i+2] {
+			score -= 10
+			break
+		}
 	}
 	if regexp.MustCompile(`(012|123|234|345|456|567|678|789|890|abc|bcd|cde)`).MatchString(strings.ToLower(password)) {
 		score -= 10

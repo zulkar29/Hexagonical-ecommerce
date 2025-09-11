@@ -72,8 +72,8 @@ func (h *Handler) TrackEvent(c *gin.Context) {
 	tenantID := uuid.New() // Placeholder
 
 	var event AnalyticsEvent
-	if err := c.ShouldBindJSON(&event); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&event); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
@@ -93,8 +93,8 @@ func (h *Handler) TrackPageView(c *gin.Context) {
 	tenantID := uuid.New() // Placeholder
 
 	var pageView PageView
-	if err := c.ShouldBindJSON(&pageView); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&pageView); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
@@ -114,8 +114,8 @@ func (h *Handler) TrackProductView(c *gin.Context) {
 	tenantID := uuid.New() // Placeholder
 
 	var productView ProductView
-	if err := c.ShouldBindJSON(&productView); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&productView); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
@@ -135,8 +135,8 @@ func (h *Handler) TrackPurchase(c *gin.Context) {
 	tenantID := uuid.New() // Placeholder
 
 	var purchase Purchase
-	if err := c.ShouldBindJSON(&purchase); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&purchase); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
@@ -312,7 +312,7 @@ func (h *Handler) GetRetentionRate(c *gin.Context) {
 
 	days := 30 // Default retention period
 	if d := c.Query("days"); d != "" {
-		if parsed, err := strconv.Atoi(d); err == nil {
+		if parsed, parseErr := strconv.Atoi(d); parseErr == nil {
 			days = parsed
 		}
 	}
@@ -332,8 +332,8 @@ func (h *Handler) GenerateReport(c *gin.Context) {
 	tenantID := uuid.New() // Placeholder
 
 	var request ReportRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&request); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
@@ -354,8 +354,8 @@ func (h *Handler) ScheduleReport(c *gin.Context) {
 	tenantID := uuid.New() // Placeholder
 
 	var request ScheduleReportRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&request); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
@@ -385,8 +385,8 @@ func (h *Handler) DeleteScheduledReport(c *gin.Context) {
 	// TODO: Extract tenant ID from context
 	_ = uuid.New() // Placeholder
 
-	_, err := uuid.Parse(c.Param("id"))
-	if err != nil {
+	_, parseErr := uuid.Parse(c.Param("id"))
+	if parseErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid report ID"})
 		return
 	}
@@ -407,8 +407,8 @@ func (h *Handler) ExportData(c *gin.Context) {
 	tenantID := uuid.New() // Placeholder
 
 	var request ExportRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&request); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
@@ -431,13 +431,13 @@ func (h *Handler) parseDateRange(c *gin.Context) DateRange {
 	start := end.AddDate(0, 0, -30)
 
 	if startStr := c.Query("start"); startStr != "" {
-		if parsed, err := time.Parse(time.RFC3339, startStr); err == nil {
+		if parsed, parseErr := time.Parse(time.RFC3339, startStr); parseErr == nil {
 			start = parsed
 		}
 	}
 
 	if endStr := c.Query("end"); endStr != "" {
-		if parsed, err := time.Parse(time.RFC3339, endStr); err == nil {
+		if parsed, parseErr := time.Parse(time.RFC3339, endStr); parseErr == nil {
 			end = parsed
 		}
 	}
@@ -450,7 +450,7 @@ func (h *Handler) parseDateRange(c *gin.Context) DateRange {
 
 func (h *Handler) parseLimit(c *gin.Context, defaultLimit int) int {
 	if limitStr := c.Query("limit"); limitStr != "" {
-		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 {
+		if limit, parseErr := strconv.Atoi(limitStr); parseErr == nil && limit > 0 {
 			return limit
 		}
 	}

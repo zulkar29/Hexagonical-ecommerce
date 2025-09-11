@@ -1,5 +1,5 @@
 # Development Dockerfile for Go Backend
-FROM golang:1.24-alpine AS development
+FROM golang:1.23-alpine AS development
 
 # Install development tools
 RUN apk add --no-cache git curl

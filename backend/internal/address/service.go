@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // Constants
@@ -559,10 +561,11 @@ func (s *ServiceImpl) NormalizeAddress(ctx context.Context, req NormalizeAddress
 	// This would typically call an external address normalization service
 	// For now, we'll implement basic normalization
 	
+	titleCaser := cases.Title(language.English)
 	normalized := NormalizeAddressResponse{
-		Address1:   strings.TrimSpace(strings.Title(strings.ToLower(req.Address1))),
-		Address2:   strings.TrimSpace(strings.Title(strings.ToLower(req.Address2))),
-		City:       strings.TrimSpace(strings.Title(strings.ToLower(req.City))),
+		Address1:   strings.TrimSpace(titleCaser.String(strings.ToLower(req.Address1))),
+		Address2:   strings.TrimSpace(titleCaser.String(strings.ToLower(req.Address2))),
+		City:       strings.TrimSpace(titleCaser.String(strings.ToLower(req.City))),
 		State:      strings.TrimSpace(strings.ToUpper(req.State)),
 		PostalCode: strings.TrimSpace(strings.ToUpper(req.PostalCode)),
 		Country:    strings.TrimSpace(strings.ToUpper(req.Country)),

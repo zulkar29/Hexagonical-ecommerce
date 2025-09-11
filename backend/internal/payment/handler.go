@@ -62,10 +62,10 @@ func (h *Handler) ListPayments(c *gin.Context) {
 		View:   c.Query("view"),
 	}
 
-	if offset, err := strconv.Atoi(c.DefaultQuery("offset", "0")); err == nil {
+	if offset, offsetErr := strconv.Atoi(c.DefaultQuery("offset", "0")); offsetErr == nil {
 		req.Offset = offset
 	}
-	if limit, err := strconv.Atoi(c.DefaultQuery("limit", "20")); err == nil {
+	if limit, limitErr := strconv.Atoi(c.DefaultQuery("limit", "20")); limitErr == nil {
 		req.Limit = limit
 	}
 

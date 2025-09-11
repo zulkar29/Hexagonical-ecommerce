@@ -102,11 +102,11 @@ func (s *service) CreatePayment(ctx context.Context, req *CreatePaymentRequest) 
 		
 	case GatewayBKash:
 		// TODO: Implement bKash integration
-		return nil, errors.New("bKash integration not implemented yet")
+		return nil, errors.New("bkash integration not implemented yet")
 		
 	case GatewayNagad:
 		// TODO: Implement Nagad integration
-		return nil, errors.New("Nagad integration not implemented yet")
+		return nil, errors.New("nagad integration not implemented yet")
 		
 	default:
 		return nil, fmt.Errorf("unsupported payment gateway: %s", req.Gateway)

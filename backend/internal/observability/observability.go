@@ -699,6 +699,16 @@ func mergeTags(tagMaps ...map[string]string) map[string]string {
 	return result
 }
 
+// Context key types for safe context usage
+type contextKey string
+
+const (
+	traceIDKey contextKey = "trace_id"
+	traceKey   contextKey = "trace"
+	spanIDKey  contextKey = "span_id"
+	spanKey    contextKey = "span"
+)
+
 // tracer implements the Tracer interface
 type tracer struct {
 	mu      sync.RWMutex
@@ -748,8 +758,8 @@ func (t *tracer) StartTrace(ctx context.Context, operationName string, tags map[
 	t.traces[traceID] = trace
 	t.mu.Unlock()
 
-	ctx = context.WithValue(ctx, "trace_id", traceID)
-	ctx = context.WithValue(ctx, "trace", trace)
+	ctx = context.WithValue(ctx, traceIDKey, traceID)
+	ctx = context.WithValue(ctx, traceKey, trace)
 
 	return ctx, trace
 }
@@ -759,11 +769,11 @@ func (t *tracer) StartSpan(ctx context.Context, operationName string, tags map[s
 	var trace *Trace
 	var parentSpanID string
 
-	if traceValue := ctx.Value("trace"); traceValue != nil {
+	if traceValue := ctx.Value(traceKey); traceValue != nil {
 		trace = traceValue.(*Trace)
 	}
 
-	if parentValue := ctx.Value("span_id"); parentValue != nil {
+	if parentValue := ctx.Value(spanIDKey); parentValue != nil {
 		parentSpanID = parentValue.(string)
 	}
 
@@ -790,8 +800,8 @@ func (t *tracer) StartSpan(ctx context.Context, operationName string, tags map[s
 		t.mu.Unlock()
 	}
 
-	ctx = context.WithValue(ctx, "span_id", spanID)
-	ctx = context.WithValue(ctx, "span", span)
+	ctx = context.WithValue(ctx, spanIDKey, spanID)
+	ctx = context.WithValue(ctx, spanKey, span)
 
 	return ctx, span
 }

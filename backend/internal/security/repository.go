@@ -10,6 +10,9 @@ import (
 
 // SecurityRepository defines the interface for security data operations
 type SecurityRepository interface {
+	// Migration
+	Migrate() error
+	
 	// Password Policies
 	CreatePasswordPolicy(ctx context.Context, policy *PasswordPolicy) error
 	GetPasswordPolicy(ctx context.Context, tenantID *uuid.UUID) (*PasswordPolicy, error)
@@ -123,6 +126,19 @@ type gormSecurityRepository struct {
 // NewSecurityRepository creates a new security repository
 func NewSecurityRepository(db *gorm.DB) SecurityRepository {
 	return &gormSecurityRepository{db: db}
+}
+
+// Migrate runs the security module migrations
+func (r *gormSecurityRepository) Migrate() error {
+	return r.db.AutoMigrate(
+		&PasswordPolicy{},
+		&LoginAttempt{},
+		&TrustedDevice{},
+		&SecurityEvent{},
+		&PasswordHistory{},
+		&AccountLockout{},
+		&EncryptionKey{},
+	)
 }
 
 // Password Policies

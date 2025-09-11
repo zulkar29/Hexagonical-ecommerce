@@ -31,7 +31,7 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 	}
 
 	var product Product
-	if err := c.ShouldBindJSON(&product); err != nil {
+	if bindErr := c.ShouldBindJSON(&product); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
@@ -112,7 +112,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		var req struct {
 			Quantity int `json:"quantity" binding:"required"`
 		}
-		if err := c.ShouldBindJSON(&req); err != nil {
+		if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 			return
 		}
@@ -127,7 +127,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		var req struct {
 			Status ProductStatus `json:"status" binding:"required"`
 		}
-		if err := c.ShouldBindJSON(&req); err != nil {
+		if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 			return
 		}
@@ -153,7 +153,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 	
 	// Regular product update
 	var product Product
-	if err := c.ShouldBindJSON(&product); err != nil {
+	if bindErr := c.ShouldBindJSON(&product); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
@@ -217,13 +217,13 @@ func (h *Handler) ListProducts(c *gin.Context) {
 		// Parse pagination for search
 		offsetStr := c.DefaultQuery("offset", "0")
 		limitStr := c.DefaultQuery("limit", "20")
-		offset, err := strconv.Atoi(offsetStr)
-		if err != nil {
+		offset, offsetErr := strconv.Atoi(offsetStr)
+		if offsetErr != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset parameter"})
 			return
 		}
-		limit, err := strconv.Atoi(limitStr)
-		if err != nil {
+		limit, limitErr := strconv.Atoi(limitStr)
+		if limitErr != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
 			return
 		}
@@ -260,22 +260,22 @@ func (h *Handler) ListProducts(c *gin.Context) {
 		filter.Type = ProductType(productType)
 	}
 	if categoryID := c.Query("category_id"); categoryID != "" {
-		if id, err := uuid.Parse(categoryID); err == nil {
+		if id, parseErr := uuid.Parse(categoryID); parseErr == nil {
 			filter.CategoryID = &id
 		}
 	}
 	if minPrice := c.Query("min_price"); minPrice != "" {
-		if price, err := strconv.ParseFloat(minPrice, 64); err == nil {
+		if price, parseErr := strconv.ParseFloat(minPrice, 64); parseErr == nil {
 			filter.MinPrice = &price
 		}
 	}
 	if maxPrice := c.Query("max_price"); maxPrice != "" {
-		if price, err := strconv.ParseFloat(maxPrice, 64); err == nil {
+		if price, parseErr := strconv.ParseFloat(maxPrice, 64); parseErr == nil {
 			filter.MaxPrice = &price
 		}
 	}
 	if inStock := c.Query("in_stock"); inStock != "" {
-		if stock, err := strconv.ParseBool(inStock); err == nil {
+		if stock, parseErr := strconv.ParseBool(inStock); parseErr == nil {
 			filter.InStock = &stock
 		}
 	}
@@ -285,14 +285,14 @@ func (h *Handler) ListProducts(c *gin.Context) {
 	offsetStr := c.DefaultQuery("offset", "0")
 	limitStr := c.DefaultQuery("limit", "20")
 	
-	offset, err := strconv.Atoi(offsetStr)
-	if err != nil {
+	offset, offsetErr := strconv.Atoi(offsetStr)
+	if offsetErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset parameter"})
 		return
 	}
 	
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil {
+	limit, limitErr := strconv.Atoi(limitStr)
+	if limitErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
 		return
 	}
@@ -361,7 +361,7 @@ func (h *Handler) CreateCategory(c *gin.Context) {
 	}
 
 	var category Category
-	if err := c.ShouldBindJSON(&category); err != nil {
+	if bindErr := c.ShouldBindJSON(&category); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
@@ -481,7 +481,7 @@ func (h *Handler) CreateProductVariant(c *gin.Context) {
 	}
 	
 	var variant ProductVariant
-	if err := c.ShouldBindJSON(&variant); err != nil {
+	if bindErr := c.ShouldBindJSON(&variant); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
@@ -507,8 +507,8 @@ func (h *Handler) GetProductVariants(c *gin.Context) {
 	}
 
 	productIDStr := c.Param("id")
-	productID, err := uuid.Parse(productIDStr)
-	if err != nil {
+	productID, parseErr := uuid.Parse(productIDStr)
+	if parseErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
 		return
 	}
@@ -533,21 +533,21 @@ func (h *Handler) UpdateProductVariant(c *gin.Context) {
 	}
 
 	productIDStr := c.Param("id")
-	productID, err := uuid.Parse(productIDStr)
-	if err != nil {
+	productID, productParseErr := uuid.Parse(productIDStr)
+	if productParseErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
 		return
 	}
 
 	variantIDStr := c.Param("variantId")
-	variantID, err := uuid.Parse(variantIDStr)
-	if err != nil {
+	variantID, variantParseErr := uuid.Parse(variantIDStr)
+	if variantParseErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid variant ID"})
 		return
 	}
 	
 	var variant ProductVariant
-	if err := c.ShouldBindJSON(&variant); err != nil {
+	if bindErr := c.ShouldBindJSON(&variant); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
@@ -573,22 +573,22 @@ func (h *Handler) DeleteProductVariant(c *gin.Context) {
 	}
 
 	productIDStr := c.Param("id")
-	productID, err := uuid.Parse(productIDStr)
-	if err != nil {
+	productID, productParseErr := uuid.Parse(productIDStr)
+	if productParseErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
 		return
 	}
 
 	variantIDStr := c.Param("variantId")
-	variantID, err := uuid.Parse(variantIDStr)
-	if err != nil {
+	variantID, variantParseErr := uuid.Parse(variantIDStr)
+	if variantParseErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid variant ID"})
 		return
 	}
 	
-	err = h.service.DeleteProductVariant(tenantID.(uuid.UUID), productID.String(), variantID.String())
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	deleteErr := h.service.DeleteProductVariant(tenantID.(uuid.UUID), productID.String(), variantID.String())
+	if deleteErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": deleteErr.Error()})
 		return
 	}
 

@@ -126,8 +126,8 @@ func (h *Handler) ManageStaff(c *gin.Context) {
 	switch action {
 	case "create":
 		var req StaffRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 			return
 		}
 		
@@ -141,8 +141,8 @@ func (h *Handler) ManageStaff(c *gin.Context) {
 		
 	case "update":
 		var req StaffRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 			return
 		}
 		
@@ -167,8 +167,8 @@ func (h *Handler) ManageStaff(c *gin.Context) {
 		var req struct {
 			Roles []string `json:"roles"`
 		}
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 			return
 		}
 		
@@ -184,8 +184,8 @@ func (h *Handler) ManageStaff(c *gin.Context) {
 		var req struct {
 			Status string `json:"status"`
 		}
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 			return
 		}
 		
@@ -239,8 +239,8 @@ func (h *Handler) ManageRoles(c *gin.Context) {
 	switch action {
 	case "create":
 		var req RoleRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 			return
 		}
 		
@@ -254,8 +254,8 @@ func (h *Handler) ManageRoles(c *gin.Context) {
 		
 	case "update":
 		var req RoleRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 			return
 		}
 		
@@ -280,8 +280,8 @@ func (h *Handler) ManageRoles(c *gin.Context) {
 		var req struct {
 			Permissions []string `json:"permissions"`
 		}
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 			return
 		}
 		
@@ -304,7 +304,7 @@ func (h *Handler) GetActivityLogs(c *gin.Context) {
 	
 	// Parse query parameters
 	if userIDStr := c.Query("user_id"); userIDStr != "" {
-		if userID, err := uuid.Parse(userIDStr); err == nil {
+		if userID, parseErr := uuid.Parse(userIDStr); parseErr == nil {
 			filter.UserID = &userID
 		}
 	}
@@ -315,13 +315,13 @@ func (h *Handler) GetActivityLogs(c *gin.Context) {
 	// TODO: Implement proper date parsing
 	
 	if limitStr := c.Query("limit"); limitStr != "" {
-		if limit, err := strconv.Atoi(limitStr); err == nil {
+		if limit, limitErr := strconv.Atoi(limitStr); limitErr == nil {
 			filter.Limit = limit
 		}
 	}
 	
 	if offsetStr := c.Query("offset"); offsetStr != "" {
-		if offset, err := strconv.Atoi(offsetStr); err == nil {
+		if offset, offsetErr := strconv.Atoi(offsetStr); offsetErr == nil {
 			filter.Offset = offset
 		}
 	}
@@ -362,12 +362,4 @@ func (h *Handler) extractTenantID(c *gin.Context) *uuid.UUID {
 	// This is a placeholder implementation
 	// In a real implementation, you would extract this from JWT token or middleware
 	return nil
-}
-
-// extractUserID extracts user ID from context
-// TODO: Implement proper user ID extraction from JWT
-func (h *Handler) extractUserID(c *gin.Context) uuid.UUID {
-	// This is a placeholder implementation
-	// In a real implementation, you would extract this from JWT token
-	return uuid.New()
 }

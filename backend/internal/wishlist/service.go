@@ -78,18 +78,18 @@ func (s *ServiceImpl) CreateWishlist(ctx context.Context, req CreateWishlistRequ
 	}
 	
 	// Check if name already exists for customer
-	exists, err := s.repo.ExistsByName(ctx, req.TenantID, req.CustomerID, req.Name, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check wishlist name: %w", err)
+	exists, existsErr := s.repo.ExistsByName(ctx, req.TenantID, req.CustomerID, req.Name, nil)
+	if existsErr != nil {
+		return nil, fmt.Errorf("failed to check wishlist name: %w", existsErr)
 	}
 	if exists {
 		return nil, ErrWishlistNameExists
 	}
 	
 	// Check wishlist limit for customer
-	count, err := s.repo.CountWishlistsByCustomer(ctx, req.TenantID, req.CustomerID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to count customer wishlists: %w", err)
+	count, countErr := s.repo.CountWishlistsByCustomer(ctx, req.TenantID, req.CustomerID)
+	if countErr != nil {
+		return nil, fmt.Errorf("failed to count customer wishlists: %w", countErr)
 	}
 	if count >= MaxWishlistsPerCustomer {
 		return nil, ErrWishlistLimitExceeded
@@ -111,8 +111,8 @@ func (s *ServiceImpl) CreateWishlist(ctx context.Context, req CreateWishlistRequ
 	
 	// If this is set as default, ensure no other default exists
 	if req.IsDefault {
-		if err := s.repo.SetDefaultWishlist(ctx, req.TenantID, req.CustomerID, wishlist.ID); err != nil {
-			return nil, fmt.Errorf("failed to set default wishlist: %w", err)
+		if setDefaultErr := s.repo.SetDefaultWishlist(ctx, req.TenantID, req.CustomerID, wishlist.ID); setDefaultErr != nil {
+			return nil, fmt.Errorf("failed to set default wishlist: %w", setDefaultErr)
 		}
 	}
 	
@@ -122,8 +122,8 @@ func (s *ServiceImpl) CreateWishlist(ctx context.Context, req CreateWishlistRequ
 	}
 	
 	// Save wishlist
-	if err := s.repo.Save(ctx, wishlist); err != nil {
-		return nil, fmt.Errorf("failed to save wishlist: %w", err)
+	if saveErr := s.repo.Save(ctx, wishlist); saveErr != nil {
+		return nil, fmt.Errorf("failed to save wishlist: %w", saveErr)
 	}
 	
 	return s.buildWishlistResponse(wishlist), nil
@@ -164,9 +164,9 @@ func (s *ServiceImpl) UpdateWishlist(ctx context.Context, tenantID, wishlistID u
 	
 	// Check if name already exists for customer (excluding current wishlist)
 	if req.Name != nil && *req.Name != wishlist.Name {
-		exists, err := s.repo.ExistsByName(ctx, tenantID, wishlist.CustomerID, *req.Name, &wishlistID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to check wishlist name: %w", err)
+		exists, existsErr := s.repo.ExistsByName(ctx, tenantID, wishlist.CustomerID, *req.Name, &wishlistID)
+		if existsErr != nil {
+			return nil, fmt.Errorf("failed to check wishlist name: %w", existsErr)
 		}
 		if exists {
 			return nil, ErrWishlistNameExists
@@ -181,8 +181,8 @@ func (s *ServiceImpl) UpdateWishlist(ctx context.Context, tenantID, wishlistID u
 	
 	if req.IsDefault != nil && *req.IsDefault != wishlist.IsDefault {
 		if *req.IsDefault {
-			if err := s.repo.SetDefaultWishlist(ctx, tenantID, wishlist.CustomerID, wishlistID); err != nil {
-				return nil, fmt.Errorf("failed to set default wishlist: %w", err)
+			if setDefaultErr := s.repo.SetDefaultWishlist(ctx, tenantID, wishlist.CustomerID, wishlistID); setDefaultErr != nil {
+				return nil, fmt.Errorf("failed to set default wishlist: %w", setDefaultErr)
 			}
 		}
 		wishlist.IsDefault = *req.IsDefault
@@ -201,8 +201,8 @@ func (s *ServiceImpl) UpdateWishlist(ctx context.Context, tenantID, wishlistID u
 	wishlist.UpdatedAt = time.Now()
 	
 	// Save changes
-	if err := s.repo.Update(ctx, wishlist); err != nil {
-		return nil, fmt.Errorf("failed to update wishlist: %w", err)
+	if updateErr := s.repo.Update(ctx, wishlist); updateErr != nil {
+		return nil, fmt.Errorf("failed to update wishlist: %w", updateErr)
 	}
 	
 	return s.buildWishlistResponse(wishlist), nil
@@ -222,8 +222,8 @@ func (s *ServiceImpl) DeleteWishlist(ctx context.Context, tenantID, wishlistID u
 	}
 	
 	// Delete wishlist (items will be deleted by cascade)
-	if err := s.repo.Delete(ctx, tenantID, wishlistID); err != nil {
-		return fmt.Errorf("failed to delete wishlist: %w", err)
+	if deleteErr := s.repo.Delete(ctx, tenantID, wishlistID); deleteErr != nil {
+		return fmt.Errorf("failed to delete wishlist: %w", deleteErr)
 	}
 	
 	return nil
@@ -240,15 +240,15 @@ func (s *ServiceImpl) ListWishlists(ctx context.Context, tenantID uuid.UUID, fil
 	}
 	
 	// Get wishlists
-	wishlists, err := s.repo.List(ctx, tenantID, filter, limit, offset)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to list wishlists: %w", err)
+	wishlists, listErr := s.repo.List(ctx, tenantID, filter, limit, offset)
+	if listErr != nil {
+		return nil, 0, fmt.Errorf("failed to list wishlists: %w", listErr)
 	}
 	
 	// Get total count
-	total, err := s.repo.Count(ctx, tenantID, filter)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to count wishlists: %w", err)
+	total, countErr := s.repo.Count(ctx, tenantID, filter)
+	if countErr != nil {
+		return nil, 0, fmt.Errorf("failed to count wishlists: %w", countErr)
 	}
 	
 	// Build responses
@@ -306,9 +306,9 @@ func (s *ServiceImpl) AddItem(ctx context.Context, tenantID uuid.UUID, req AddIt
 	}
 	
 	// Check if item already exists
-	existingItem, err := s.repo.FindItemByProductAndWishlist(ctx, tenantID, req.WishlistID, req.ProductID, req.VariantID)
-	if err != nil && err != ErrWishlistItemNotFound {
-		return nil, fmt.Errorf("failed to check existing item: %w", err)
+	existingItem, findErr := s.repo.FindItemByProductAndWishlist(ctx, tenantID, req.WishlistID, req.ProductID, req.VariantID)
+	if findErr != nil && findErr != ErrWishlistItemNotFound {
+		return nil, fmt.Errorf("failed to check existing item: %w", findErr)
 	}
 	
 	if existingItem != nil {
@@ -322,8 +322,8 @@ func (s *ServiceImpl) AddItem(ctx context.Context, tenantID uuid.UUID, req AddIt
 		}
 		existingItem.UpdatedAt = time.Now()
 		
-		if err := s.repo.UpdateItem(ctx, existingItem); err != nil {
-			return nil, fmt.Errorf("failed to update existing item: %w", err)
+		if updateErr := s.repo.UpdateItem(ctx, existingItem); updateErr != nil {
+			return nil, fmt.Errorf("failed to update existing item: %w", updateErr)
 		}
 		
 		return s.buildWishlistItemResponse(existingItem), nil
@@ -344,8 +344,8 @@ func (s *ServiceImpl) AddItem(ctx context.Context, tenantID uuid.UUID, req AddIt
 	}
 	
 	// Save item
-	if err := s.repo.SaveItem(ctx, item); err != nil {
-		return nil, fmt.Errorf("failed to save wishlist item: %w", err)
+	if saveErr := s.repo.SaveItem(ctx, item); saveErr != nil {
+		return nil, fmt.Errorf("failed to save wishlist item: %w", saveErr)
 	}
 	
 	return s.buildWishlistItemResponse(item), nil
@@ -380,8 +380,8 @@ func (s *ServiceImpl) UpdateItem(ctx context.Context, tenantID, itemID uuid.UUID
 	item.UpdatedAt = time.Now()
 	
 	// Save changes
-	if err := s.repo.UpdateItem(ctx, item); err != nil {
-		return nil, fmt.Errorf("failed to update wishlist item: %w", err)
+	if updateErr := s.repo.UpdateItem(ctx, item); updateErr != nil {
+		return nil, fmt.Errorf("failed to update wishlist item: %w", updateErr)
 	}
 	
 	return s.buildWishlistItemResponse(item), nil
@@ -396,8 +396,8 @@ func (s *ServiceImpl) RemoveItem(ctx context.Context, tenantID, itemID uuid.UUID
 	}
 	
 	// Delete item
-	if err := s.repo.DeleteItem(ctx, tenantID, itemID); err != nil {
-		return fmt.Errorf("failed to delete wishlist item: %w", err)
+	if deleteErr := s.repo.DeleteItem(ctx, tenantID, itemID); deleteErr != nil {
+		return fmt.Errorf("failed to delete wishlist item: %w", deleteErr)
 	}
 	
 	return nil
@@ -414,15 +414,15 @@ func (s *ServiceImpl) ListItems(ctx context.Context, tenantID uuid.UUID, filter 
 	}
 	
 	// Get items
-	items, err := s.repo.ListItems(ctx, tenantID, filter, limit, offset)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to list wishlist items: %w", err)
+	items, listErr := s.repo.ListItems(ctx, tenantID, filter, limit, offset)
+	if listErr != nil {
+		return nil, 0, fmt.Errorf("failed to list wishlist items: %w", listErr)
 	}
 	
 	// Get total count
-	total, err := s.repo.CountItems(ctx, tenantID, filter)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to count wishlist items: %w", err)
+	total, countErr := s.repo.CountItems(ctx, tenantID, filter)
+	if countErr != nil {
+		return nil, 0, fmt.Errorf("failed to count wishlist items: %w", countErr)
 	}
 	
 	// Build responses
@@ -459,8 +459,8 @@ func (s *ServiceImpl) SetDefaultWishlist(ctx context.Context, tenantID, customer
 	}
 	
 	// Set as default
-	if err := s.repo.SetDefaultWishlist(ctx, tenantID, customerID, wishlistID); err != nil {
-		return fmt.Errorf("failed to set default wishlist: %w", err)
+	if setErr := s.repo.SetDefaultWishlist(ctx, tenantID, customerID, wishlistID); setErr != nil {
+		return fmt.Errorf("failed to set default wishlist: %w", setErr)
 	}
 	
 	return nil
@@ -475,8 +475,8 @@ func (s *ServiceImpl) ClearWishlist(ctx context.Context, tenantID, wishlistID uu
 	}
 	
 	// Clear items
-	if err := s.repo.ClearItems(ctx, tenantID, wishlistID); err != nil {
-		return fmt.Errorf("failed to clear wishlist items: %w", err)
+	if clearErr := s.repo.ClearItems(ctx, tenantID, wishlistID); clearErr != nil {
+		return fmt.Errorf("failed to clear wishlist items: %w", clearErr)
 	}
 	
 	return nil
@@ -491,9 +491,9 @@ func (s *ServiceImpl) MoveItem(ctx context.Context, tenantID, itemID, targetWish
 	}
 	
 	// Verify target wishlist exists
-	targetWishlist, err := s.repo.FindByID(ctx, tenantID, targetWishlistID)
-	if err != nil {
-		return err
+	targetWishlist, findErr := s.repo.FindByID(ctx, tenantID, targetWishlistID)
+	if findErr != nil {
+		return findErr
 	}
 	
 	// Check if target wishlist can accept more items
@@ -502,9 +502,9 @@ func (s *ServiceImpl) MoveItem(ctx context.Context, tenantID, itemID, targetWish
 	}
 	
 	// Check if item already exists in target wishlist
-	existingItem, err := s.repo.FindItemByProductAndWishlist(ctx, tenantID, targetWishlistID, item.ProductID, item.VariantID)
-	if err != nil && err != ErrWishlistItemNotFound {
-		return fmt.Errorf("failed to check existing item: %w", err)
+	existingItem, checkErr := s.repo.FindItemByProductAndWishlist(ctx, tenantID, targetWishlistID, item.ProductID, item.VariantID)
+	if checkErr != nil && checkErr != ErrWishlistItemNotFound {
+		return fmt.Errorf("failed to check existing item: %w", checkErr)
 	}
 	
 	if existingItem != nil {
@@ -512,20 +512,20 @@ func (s *ServiceImpl) MoveItem(ctx context.Context, tenantID, itemID, targetWish
 		existingItem.Quantity += item.Quantity
 		existingItem.UpdatedAt = time.Now()
 		
-		if err := s.repo.UpdateItem(ctx, existingItem); err != nil {
-			return fmt.Errorf("failed to update existing item: %w", err)
+		if updateErr := s.repo.UpdateItem(ctx, existingItem); updateErr != nil {
+			return fmt.Errorf("failed to update existing item: %w", updateErr)
 		}
 		
-		if err := s.repo.DeleteItem(ctx, tenantID, itemID); err != nil {
-			return fmt.Errorf("failed to delete original item: %w", err)
+		if deleteErr := s.repo.DeleteItem(ctx, tenantID, itemID); deleteErr != nil {
+			return fmt.Errorf("failed to delete original item: %w", deleteErr)
 		}
 		
 		return nil
 	}
 	
 	// Move item
-	if err := s.repo.MoveItem(ctx, tenantID, itemID, targetWishlistID); err != nil {
-		return fmt.Errorf("failed to move item: %w", err)
+	if moveErr := s.repo.MoveItem(ctx, tenantID, itemID, targetWishlistID); moveErr != nil {
+		return fmt.Errorf("failed to move item: %w", moveErr)
 	}
 	
 	return nil
@@ -540,9 +540,9 @@ func (s *ServiceImpl) CopyItem(ctx context.Context, tenantID, itemID, targetWish
 	}
 	
 	// Verify target wishlist exists
-	targetWishlist, err := s.repo.FindByID(ctx, tenantID, targetWishlistID)
-	if err != nil {
-		return err
+	targetWishlist, findErr := s.repo.FindByID(ctx, tenantID, targetWishlistID)
+	if findErr != nil {
+		return findErr
 	}
 	
 	// Check if target wishlist can accept more items
@@ -551,9 +551,9 @@ func (s *ServiceImpl) CopyItem(ctx context.Context, tenantID, itemID, targetWish
 	}
 	
 	// Check if item already exists in target wishlist
-	existingItem, err := s.repo.FindItemByProductAndWishlist(ctx, tenantID, targetWishlistID, item.ProductID, item.VariantID)
-	if err != nil && err != ErrWishlistItemNotFound {
-		return fmt.Errorf("failed to check existing item: %w", err)
+	existingItem, checkErr := s.repo.FindItemByProductAndWishlist(ctx, tenantID, targetWishlistID, item.ProductID, item.VariantID)
+	if checkErr != nil && checkErr != ErrWishlistItemNotFound {
+		return fmt.Errorf("failed to check existing item: %w", checkErr)
 	}
 	
 	if existingItem != nil {
@@ -561,16 +561,16 @@ func (s *ServiceImpl) CopyItem(ctx context.Context, tenantID, itemID, targetWish
 		existingItem.Quantity += item.Quantity
 		existingItem.UpdatedAt = time.Now()
 		
-		if err := s.repo.UpdateItem(ctx, existingItem); err != nil {
-			return fmt.Errorf("failed to update existing item: %w", err)
+		if updateErr := s.repo.UpdateItem(ctx, existingItem); updateErr != nil {
+			return fmt.Errorf("failed to update existing item: %w", updateErr)
 		}
 		
 		return nil
 	}
 	
 	// Copy item
-	if err := s.repo.CopyItem(ctx, tenantID, itemID, targetWishlistID); err != nil {
-		return fmt.Errorf("failed to copy item: %w", err)
+	if copyErr := s.repo.CopyItem(ctx, tenantID, itemID, targetWishlistID); copyErr != nil {
+		return fmt.Errorf("failed to copy item: %w", copyErr)
 	}
 	
 	return nil
@@ -584,9 +584,9 @@ func (s *ServiceImpl) MergeWishlists(ctx context.Context, tenantID, sourceWishli
 		return err
 	}
 	
-	targetWishlist, err := s.repo.FindByID(ctx, tenantID, targetWishlistID)
-	if err != nil {
-		return err
+	targetWishlist, findErr := s.repo.FindByID(ctx, tenantID, targetWishlistID)
+	if findErr != nil {
+		return findErr
 	}
 	
 	// Check if source can be deleted
@@ -600,8 +600,8 @@ func (s *ServiceImpl) MergeWishlists(ctx context.Context, tenantID, sourceWishli
 	}
 	
 	// Merge wishlists
-	if err := s.repo.MergeWishlists(ctx, tenantID, sourceWishlistID, targetWishlistID); err != nil {
-		return fmt.Errorf("failed to merge wishlists: %w", err)
+	if mergeErr := s.repo.MergeWishlists(ctx, tenantID, sourceWishlistID, targetWishlistID); mergeErr != nil {
+		return fmt.Errorf("failed to merge wishlists: %w", mergeErr)
 	}
 	
 	return nil
@@ -624,8 +624,8 @@ func (s *ServiceImpl) ShareWishlist(ctx context.Context, tenantID, wishlistID uu
 	}
 	
 	// Save changes
-	if err := s.repo.Update(ctx, wishlist); err != nil {
-		return "", fmt.Errorf("failed to update wishlist: %w", err)
+	if updateErr := s.repo.Update(ctx, wishlist); updateErr != nil {
+		return "", fmt.Errorf("failed to update wishlist: %w", updateErr)
 	}
 	
 	return wishlist.GetShareURL("https://example.com"), nil
@@ -661,8 +661,8 @@ func (s *ServiceImpl) BulkAddItems(ctx context.Context, tenantID uuid.UUID, requ
 	}
 	
 	// Save all items
-	if err := s.repo.BulkAddItems(ctx, items); err != nil {
-		return nil, fmt.Errorf("failed to bulk add items: %w", err)
+	if bulkErr := s.repo.BulkAddItems(ctx, items); bulkErr != nil {
+		return nil, fmt.Errorf("failed to bulk add items: %w", bulkErr)
 	}
 	
 	// Build responses
@@ -681,8 +681,8 @@ func (s *ServiceImpl) BulkRemoveItems(ctx context.Context, tenantID uuid.UUID, i
 	}
 	
 	// Delete items
-	if err := s.repo.BulkDeleteItems(ctx, tenantID, itemIDs); err != nil {
-		return fmt.Errorf("failed to bulk delete items: %w", err)
+	if bulkErr := s.repo.BulkDeleteItems(ctx, tenantID, itemIDs); bulkErr != nil {
+		return fmt.Errorf("failed to bulk delete items: %w", bulkErr)
 	}
 	
 	return nil
@@ -695,8 +695,8 @@ func (s *ServiceImpl) BulkUpdateItemPriority(ctx context.Context, tenantID uuid.
 	}
 	
 	// Update priorities
-	if err := s.repo.BulkUpdateItemPriority(ctx, tenantID, updates); err != nil {
-		return fmt.Errorf("failed to bulk update item priorities: %w", err)
+	if bulkErr := s.repo.BulkUpdateItemPriority(ctx, tenantID, updates); bulkErr != nil {
+		return fmt.Errorf("failed to bulk update item priorities: %w", bulkErr)
 	}
 	
 	return nil
@@ -717,8 +717,8 @@ func (s *ServiceImpl) ReorderItems(ctx context.Context, tenantID, wishlistID uui
 	}
 	
 	// Update priorities
-	if err := s.repo.BulkUpdateItemPriority(ctx, tenantID, updates); err != nil {
-		return fmt.Errorf("failed to reorder items: %w", err)
+	if updateErr := s.repo.BulkUpdateItemPriority(ctx, tenantID, updates); updateErr != nil {
+		return fmt.Errorf("failed to reorder items: %w", updateErr)
 	}
 	
 	return nil

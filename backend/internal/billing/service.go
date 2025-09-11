@@ -1225,19 +1225,18 @@ func (s *service) processDunningStep(ctx context.Context, process *DunningProces
 		return s.repo.UpdateDunningProcess(ctx, process)
 	}
 
-	if nextAction != nil {
-		err := s.repo.CreateDunningAction(ctx, nextAction)
-		if err != nil {
-			return fmt.Errorf("failed to create dunning action: %w", err)
-		}
+	// nextAction is always non-nil at this point since default case returns early
+	err := s.repo.CreateDunningAction(ctx, nextAction)
+	if err != nil {
+		return fmt.Errorf("failed to create dunning action: %w", err)
+	}
 
-		process.CurrentStep++
-		process.NextActionAt = &nextAction.ScheduledAt
+	process.CurrentStep++
+	process.NextActionAt = &nextAction.ScheduledAt
 
-		err = s.repo.UpdateDunningProcess(ctx, process)
-		if err != nil {
-			return fmt.Errorf("failed to update dunning process: %w", err)
-		}
+	err = s.repo.UpdateDunningProcess(ctx, process)
+	if err != nil {
+		return fmt.Errorf("failed to update dunning process: %w", err)
 	}
 
 	return nil

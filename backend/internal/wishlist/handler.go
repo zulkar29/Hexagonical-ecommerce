@@ -920,23 +920,7 @@ func (h *Handler) parseWishlistItemFilter(c *gin.Context) WishlistItemFilter {
 	return filter
 }
 
-// writeJSON writes JSON response
-func (h *Handler) writeJSON(c *gin.Context, status int, data interface{}) {
-	c.JSON(status, data)
-}
 
-// writeError writes error response
-func (h *Handler) writeError(c *gin.Context, status int, message string, err error) {
-	response := map[string]interface{}{
-		"error": message,
-	}
-	
-	if err != nil {
-		response["details"] = err.Error()
-	}
-	
-	c.JSON(status, response)
-}
 
 // handleServiceError handles service layer errors
 func (h *Handler) handleServiceError(c *gin.Context, err error) {

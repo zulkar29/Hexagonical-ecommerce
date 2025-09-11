@@ -227,8 +227,8 @@ func (r *observabilityRepository) GetMetrics(ctx context.Context, filters map[st
 
 	metrics := make([]*Metric, len(models))
 	for i, model := range models {
-		metric, err := r.metricModelToMetric(&model)
-		if err != nil {
+		metric, convertErr := r.metricModelToMetric(&model)
+		if convertErr != nil {
 			continue
 		}
 		metrics[i] = metric
@@ -306,8 +306,8 @@ func (r *observabilityRepository) GetSpansByTraceID(ctx context.Context, traceID
 
 	spans := make([]*Span, len(models))
 	for i, model := range models {
-		span, err := r.spanModelToSpan(&model)
-		if err != nil {
+		span, convertErr := r.spanModelToSpan(&model)
+		if convertErr != nil {
 			continue
 		}
 		spans[i] = span

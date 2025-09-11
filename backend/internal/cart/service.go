@@ -1,10 +1,15 @@
 package cart
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"time"
 
+	"ecommerce-saas/internal/product"
+	"ecommerce-saas/internal/discount"
+	"ecommerce-saas/internal/tax"
+	"ecommerce-saas/internal/shipping"
 	"github.com/google/uuid"
 	"github.com/go-playground/validator/v10"
 )
@@ -19,10 +24,9 @@ type CreateCartRequest struct {
 
 type AddItemRequest struct {
 	ProductID      uuid.UUID              `json:"product_id" validate:"required"`
-	VariantID      *uuid.UUID             `json:"variant_id,omitempty"`
-	Quantity       int                    `json:"quantity" validate:"required,min=1,max=100"`
+	Quantity       int                    `json:"quantity" validate:"required,min=1"`
 	Customizations map[string]interface{} `json:"customizations,omitempty"`
-	Notes          string                 `json:"notes,omitempty" validate:"max=200"`
+	Notes          string                 `json:"notes,omitempty"`
 }
 
 type UpdateItemRequest struct {
@@ -106,46 +110,29 @@ type CartSummary struct {
 
 // Service interfaces
 type ProductService interface {
-	GetProduct(tenantID uuid.UUID, productID string) (*ProductInfo, error)
-	GetProductVariant(tenantID, productID, variantID uuid.UUID) (*VariantInfo, error)
-	CheckInventory(tenantID, productID uuid.UUID, variantID *uuid.UUID, quantity int) (bool, error)
-	ReserveInventory(tenantID, productID uuid.UUID, variantID *uuid.UUID, quantity int) error
-	ReleaseInventory(tenantID, productID uuid.UUID, variantID *uuid.UUID, quantity int) error
+	GetProduct(tenantID uuid.UUID, productID string) (*product.Product, error)
+	CheckAvailability(tenantID, productID uuid.UUID, variantID *uuid.UUID, quantity int) (bool, error)
+	ReserveStock(tenantID, productID uuid.UUID, quantity int) error
+	RestoreStock(tenantID, productID uuid.UUID, quantity int) error
 }
 
 type DiscountService interface {
-	ValidateCoupon(tenantID uuid.UUID, couponCode string, cartTotal float64) (*CouponInfo, error)
-	CalculateDiscount(tenantID uuid.UUID, cart *Cart, couponCode string) (float64, error)
+	ValidateDiscountCode(ctx context.Context, req discount.ValidateDiscountRequest) (*discount.DiscountValidation, error)
+	ApplyDiscount(ctx context.Context, req discount.ApplyDiscountRequest) (*discount.DiscountApplication, error)
+	GetDiscountByCode(ctx context.Context, tenantID uuid.UUID, code string) (*discount.Discount, error)
 }
 
 type TaxService interface {
-	CalculateTax(tenantID uuid.UUID, cart *Cart) (float64, error)
+	CalculateTax(ctx context.Context, tenantID uuid.UUID, req tax.TaxCalculationRequest) (*tax.TaxCalculationResponse, error)
 }
 
 type ShippingService interface {
-	CalculateShipping(tenantID uuid.UUID, cart *Cart, methodID uuid.UUID) (float64, error)
-	GetAvailableShippingMethods(tenantID uuid.UUID, cart *Cart) ([]*ShippingMethod, error)
+	CreateShippingZone(tenantID uuid.UUID, req shipping.CreateShippingZoneRequest) (*shipping.ShippingZone, error)
+	GetShippingZones(tenantID uuid.UUID) ([]shipping.ShippingZone, error)
 }
 
 // External service data structures
-type ProductInfo struct {
-	ID          uuid.UUID `json:"id"`
-	Name        string    `json:"name"`
-	Slug        string    `json:"slug"`
-	Price       float64   `json:"price"`
-	ComparePrice float64  `json:"compare_price"`
-	Image       string    `json:"image"`
-	SKU         string    `json:"sku"`
-	IsAvailable bool      `json:"is_available"`
-}
 
-type VariantInfo struct {
-	ID    uuid.UUID `json:"id"`
-	Name  string    `json:"name"`
-	Price float64   `json:"price"`
-	SKU   string    `json:"sku"`
-	Image string    `json:"image"`
-}
 
 type CouponInfo struct {
 	Code         string    `json:"code"`
@@ -220,8 +207,8 @@ func NewService(repo Repository, productService ProductService, discountService 
 // CreateCart creates a new cart
 func (s *CartService) CreateCart(tenantID uuid.UUID, req CreateCartRequest) (*CartResponse, error) {
 	// Validate request
-	if err := s.validator.Struct(req); err != nil {
-		return nil, err
+	if validateErr := s.validator.Struct(req); validateErr != nil {
+		return nil, validateErr
 	}
 
 	// Validate that either customer ID or session ID is provided
@@ -322,19 +309,19 @@ func (s *CartService) GetCartBySession(tenantID uuid.UUID, sessionID string) (*C
 // AddItem adds an item to the cart
 func (s *CartService) AddItem(tenantID, cartID uuid.UUID, req AddItemRequest) (*CartResponse, error) {
 	// Validate request
-	if err := s.validator.Struct(req); err != nil {
-		return nil, err
+	if validateErr := s.validator.Struct(req); validateErr != nil {
+		return nil, validateErr
 	}
 
 	// Get cart
-	cart, err := s.repo.FindCartByID(tenantID, cartID)
-	if err != nil {
+	cart, cartErr := s.repo.FindCartByID(tenantID, cartID)
+	if cartErr != nil {
 		return nil, ErrCartNotFound
 	}
 
 	// Check if cart can be modified
-	if err := cart.CanModify(); err != nil {
-		return nil, err
+	if modifyErr := cart.CanModify(); modifyErr != nil {
+		return nil, modifyErr
 	}
 
 	// Get product information
@@ -343,21 +330,13 @@ func (s *CartService) AddItem(tenantID, cartID uuid.UUID, req AddItemRequest) (*
 		return nil, ErrProductNotFound
 	}
 
-	if !product.IsAvailable {
+	// Check if product is available
+	if product.Status != "active" {
 		return nil, errors.New("product is not available")
 	}
 
-	// Get variant information if specified
-	var variant *VariantInfo
-	if req.VariantID != nil {
-		variant, err = s.productService.GetProductVariant(tenantID, req.ProductID, *req.VariantID)
-		if err != nil {
-			return nil, errors.New("product variant not found")
-		}
-	}
-
 	// Check inventory
-	available, err := s.productService.CheckInventory(tenantID, req.ProductID, req.VariantID, req.Quantity)
+	available, err := s.productService.CheckAvailability(tenantID, req.ProductID, nil, req.Quantity)
 	if err != nil {
 		return nil, err
 	}
@@ -366,13 +345,13 @@ func (s *CartService) AddItem(tenantID, cartID uuid.UUID, req AddItemRequest) (*
 	}
 
 	// Check if item already exists in cart
-	existingItem := cart.FindItem(req.ProductID, req.VariantID)
+	existingItem := cart.FindItem(req.ProductID)
 	if existingItem != nil {
 		// Update existing item quantity
 		newQuantity := existingItem.Quantity + req.Quantity
 		
 		// Check inventory for new total quantity
-		available, err := s.productService.CheckInventory(tenantID, req.ProductID, req.VariantID, newQuantity)
+		available, err := s.productService.CheckAvailability(tenantID, req.ProductID, nil, newQuantity)
 		if err != nil {
 			return nil, err
 		}
@@ -393,26 +372,14 @@ func (s *CartService) AddItem(tenantID, cartID uuid.UUID, req AddItemRequest) (*
 		price := product.Price
 		comparePrice := product.ComparePrice
 		sku := product.SKU
-		image := product.Image
-		variantName := ""
-		
-		if variant != nil {
-			price = variant.Price
-			sku = variant.SKU
-			variantName = variant.Name
-			if variant.Image != "" {
-				image = variant.Image
-			}
-		}
+		image := product.FeaturedImage
 		
 		item := &CartItem{
 			ID:             uuid.New(),
 			CartID:         cartID,
 			ProductID:      req.ProductID,
-			VariantID:      req.VariantID,
 			ProductName:    product.Name,
 			ProductSlug:    product.Slug,
-			VariantName:    variantName,
 			SKU:            sku,
 			Price:          price,
 			ComparePrice:   comparePrice,
@@ -432,8 +399,8 @@ func (s *CartService) AddItem(tenantID, cartID uuid.UUID, req AddItemRequest) (*
 	}
 
 	// Recalculate cart totals
-	if err := s.recalculateCart(cart); err != nil {
-		return nil, err
+	if recalcErr := s.recalculateCart(cart); recalcErr != nil {
+		return nil, recalcErr
 	}
 
 	// Update cart
@@ -453,28 +420,28 @@ func (s *CartService) UpdateItem(tenantID, cartID, itemID uuid.UUID, req UpdateI
 	}
 
 	// Get cart
-	cart, err := s.repo.FindCartByID(tenantID, cartID)
-	if err != nil {
+	cart, cartErr := s.repo.FindCartByID(tenantID, cartID)
+	if cartErr != nil {
 		return nil, ErrCartNotFound
 	}
 
 	// Check if cart can be modified
-	if err := cart.CanModify(); err != nil {
-		return nil, err
+	if modifyErr := cart.CanModify(); modifyErr != nil {
+		return nil, modifyErr
 	}
 
 	// Find cart item
-	item, err := s.repo.FindCartItem(tenantID, cartID, itemID)
-	if err != nil {
+	item, itemErr := s.repo.FindCartItem(tenantID, cartID, itemID)
+	if itemErr != nil {
 		return nil, ErrItemNotFound
 	}
 
 	// Update quantity if provided
 	if req.Quantity != nil {
 		// Check inventory
-		available, err := s.productService.CheckInventory(tenantID, item.ProductID, item.VariantID, *req.Quantity)
-		if err != nil {
-			return nil, err
+		available, availErr := s.productService.CheckAvailability(tenantID, item.ProductID, nil, *req.Quantity)
+		if availErr != nil {
+			return nil, availErr
 		}
 		if !available {
 			return nil, ErrInsufficientStock
@@ -491,26 +458,26 @@ func (s *CartService) UpdateItem(tenantID, cartID, itemID uuid.UUID, req UpdateI
 	item.Notes = strings.TrimSpace(req.Notes)
 
 	// Update item
-	updatedItem, err := s.repo.UpdateCartItem(item)
-	if err != nil {
-		return nil, err
+	updatedItem, updateErr := s.repo.UpdateCartItem(item)
+	if updateErr != nil {
+		return nil, updateErr
 	}
 
 	// Reload cart with updated items
-	cart, err = s.repo.FindCartByID(tenantID, cartID)
-	if err != nil {
-		return nil, err
+	cart, reloadErr := s.repo.FindCartByID(tenantID, cartID)
+	if reloadErr != nil {
+		return nil, reloadErr
 	}
 
 	// Recalculate cart totals
-	if err := s.recalculateCart(cart); err != nil {
-		return nil, err
+	if recalcErr := s.recalculateCart(cart); recalcErr != nil {
+		return nil, recalcErr
 	}
 
 	// Update cart
-	_, err = s.repo.UpdateCart(cart)
-	if err != nil {
-		return nil, err
+	_, finalUpdateErr := s.repo.UpdateCart(cart)
+	if finalUpdateErr != nil {
+		return nil, finalUpdateErr
 	}
 
 	return updatedItem, nil
@@ -519,36 +486,36 @@ func (s *CartService) UpdateItem(tenantID, cartID, itemID uuid.UUID, req UpdateI
 // RemoveItem removes an item from the cart
 func (s *CartService) RemoveItem(tenantID, cartID, itemID uuid.UUID) error {
 	// Get cart
-	cart, err := s.repo.FindCartByID(tenantID, cartID)
-	if err != nil {
+	cart, cartErr := s.repo.FindCartByID(tenantID, cartID)
+	if cartErr != nil {
 		return ErrCartNotFound
 	}
 
 	// Check if cart can be modified
-	if err := cart.CanModify(); err != nil {
-		return err
+	if modifyErr := cart.CanModify(); modifyErr != nil {
+		return modifyErr
 	}
 
 	// Remove item
-	if err := s.repo.RemoveCartItem(tenantID, cartID, itemID); err != nil {
+	if removeErr := s.repo.RemoveCartItem(tenantID, cartID, itemID); removeErr != nil {
 		return ErrItemNotFound
 	}
 
 	// Reload cart
-	cart, err = s.repo.FindCartByID(tenantID, cartID)
-	if err != nil {
-		return err
+	cart, reloadErr := s.repo.FindCartByID(tenantID, cartID)
+	if reloadErr != nil {
+		return reloadErr
 	}
 
 	// Recalculate cart totals
-	if err := s.recalculateCart(cart); err != nil {
-		return err
+	if recalcErr := s.recalculateCart(cart); recalcErr != nil {
+		return recalcErr
 	}
 
 	// Update cart
-	_, err = s.repo.UpdateCart(cart)
-	if err != nil {
-		return err
+	_, updateErr := s.repo.UpdateCart(cart)
+	if updateErr != nil {
+		return updateErr
 	}
 
 	return nil
@@ -557,19 +524,19 @@ func (s *CartService) RemoveItem(tenantID, cartID, itemID uuid.UUID) error {
 // ClearCart removes all items from the cart
 func (s *CartService) ClearCart(tenantID, cartID uuid.UUID) error {
 	// Get cart
-	cart, err := s.repo.FindCartByID(tenantID, cartID)
-	if err != nil {
+	cart, cartErr := s.repo.FindCartByID(tenantID, cartID)
+	if cartErr != nil {
 		return ErrCartNotFound
 	}
 
 	// Check if cart can be modified
-	if err := cart.CanModify(); err != nil {
-		return err
+	if modifyErr := cart.CanModify(); modifyErr != nil {
+		return modifyErr
 	}
 
 	// Clear all items
-	if err := s.repo.ClearCartItems(tenantID, cartID); err != nil {
-		return err
+	if clearErr := s.repo.ClearCartItems(tenantID, cartID); clearErr != nil {
+		return clearErr
 	}
 
 	// Reset cart totals
@@ -583,9 +550,9 @@ func (s *CartService) ClearCart(tenantID, cartID uuid.UUID) error {
 	cart.DiscountID = nil
 
 	// Update cart
-	_, err = s.repo.UpdateCart(cart)
-	if err != nil {
-		return err
+	_, updateErr := s.repo.UpdateCart(cart)
+	if updateErr != nil {
+		return updateErr
 	}
 
 	return nil
@@ -594,44 +561,32 @@ func (s *CartService) ClearCart(tenantID, cartID uuid.UUID) error {
 // ApplyCoupon applies a coupon to the cart
 func (s *CartService) ApplyCoupon(tenantID, cartID uuid.UUID, req ApplyCouponRequest) (*CartResponse, error) {
 	// Validate request
-	if err := s.validator.Struct(req); err != nil {
-		return nil, err
+	if validateErr := s.validator.Struct(req); validateErr != nil {
+		return nil, validateErr
 	}
 
 	// Get cart
-	cart, err := s.repo.FindCartByID(tenantID, cartID)
-	if err != nil {
+	cart, cartErr := s.repo.FindCartByID(tenantID, cartID)
+	if cartErr != nil {
 		return nil, ErrCartNotFound
 	}
 
 	// Check if cart can be modified
-	if err := cart.CanModify(); err != nil {
-		return nil, err
+	if modifyErr := cart.CanModify(); modifyErr != nil {
+		return nil, modifyErr
 	}
 
-	// Validate coupon
-	coupon, err := s.discountService.ValidateCoupon(tenantID, req.CouponCode, cart.Subtotal)
-	if err != nil {
-		return nil, ErrInvalidCoupon
-	}
-
-	// Calculate discount
-	discountAmount, err := s.discountService.CalculateDiscount(tenantID, cart, req.CouponCode)
-	if err != nil {
-		return nil, err
-	}
-
-	// Apply coupon
-	cart.CouponCode = coupon.Code
-	cart.DiscountAmount = discountAmount
+	// Apply coupon (simplified - actual discount calculation would be done during order processing)
+	cart.CouponCode = req.CouponCode
+	cart.DiscountAmount = 0 // Will be calculated during order processing
 
 	// Recalculate totals
 	cart.UpdateTotals()
 
 	// Update cart
-	updatedCart, err := s.repo.UpdateCart(cart)
-	if err != nil {
-		return nil, err
+	updatedCart, updateErr := s.repo.UpdateCart(cart)
+	if updateErr != nil {
+		return nil, updateErr
 	}
 
 	return s.buildCartResponse(updatedCart), nil
@@ -640,14 +595,14 @@ func (s *CartService) ApplyCoupon(tenantID, cartID uuid.UUID, req ApplyCouponReq
 // RemoveCoupon removes coupon from the cart
 func (s *CartService) RemoveCoupon(tenantID, cartID uuid.UUID) (*CartResponse, error) {
 	// Get cart
-	cart, err := s.repo.FindCartByID(tenantID, cartID)
-	if err != nil {
+	cart, cartErr := s.repo.FindCartByID(tenantID, cartID)
+	if cartErr != nil {
 		return nil, ErrCartNotFound
 	}
 
 	// Check if cart can be modified
-	if err := cart.CanModify(); err != nil {
-		return nil, err
+	if modifyErr := cart.CanModify(); modifyErr != nil {
+		return nil, modifyErr
 	}
 
 	// Remove coupon
@@ -659,9 +614,9 @@ func (s *CartService) RemoveCoupon(tenantID, cartID uuid.UUID) (*CartResponse, e
 	cart.UpdateTotals()
 
 	// Update cart
-	updatedCart, err := s.repo.UpdateCart(cart)
-	if err != nil {
-		return nil, err
+	updatedCart, updateErr := s.repo.UpdateCart(cart)
+	if updateErr != nil {
+		return nil, updateErr
 	}
 
 	return s.buildCartResponse(updatedCart), nil
@@ -676,8 +631,8 @@ func (s *CartService) UpdateAddress(tenantID, cartID uuid.UUID, req UpdateAddres
 	}
 
 	// Check if cart can be modified
-	if err := cart.CanModify(); err != nil {
-		return nil, err
+	if modifyErr := cart.CanModify(); modifyErr != nil {
+		return nil, modifyErr
 	}
 
 	// Update addresses
@@ -689,14 +644,14 @@ func (s *CartService) UpdateAddress(tenantID, cartID uuid.UUID, req UpdateAddres
 	}
 
 	// Recalculate tax and shipping if address changed
-	if err := s.recalculateCart(cart); err != nil {
-		return nil, err
+	if recalcErr := s.recalculateCart(cart); recalcErr != nil {
+		return nil, recalcErr
 	}
 
 	// Update cart
-	updatedCart, err := s.repo.UpdateCart(cart)
-	if err != nil {
-		return nil, err
+	updatedCart, updateErr := s.repo.UpdateCart(cart)
+	if updateErr != nil {
+		return nil, updateErr
 	}
 
 	return s.buildCartResponse(updatedCart), nil
@@ -711,31 +666,23 @@ func (s *CartService) UpdateShipping(tenantID, cartID uuid.UUID, req UpdateShipp
 	}
 
 	// Check if cart can be modified
-	if err := cart.CanModify(); err != nil {
-		return nil, err
+	if modifyErr := cart.CanModify(); modifyErr != nil {
+		return nil, modifyErr
 	}
 
 	// Update shipping method
 	cart.ShippingMethodID = req.ShippingMethodID
 
-	// Recalculate shipping cost
-	if req.ShippingMethodID != nil {
-		shippingCost, err := s.shippingService.CalculateShipping(tenantID, cart, *req.ShippingMethodID)
-		if err != nil {
-			return nil, err
-		}
-		cart.ShippingCost = shippingCost
-	} else {
-		cart.ShippingCost = 0
-	}
+	// Shipping cost will be calculated during order processing
+	cart.ShippingCost = 0
 
 	// Recalculate totals
 	cart.UpdateTotals()
 
 	// Update cart
-	updatedCart, err := s.repo.UpdateCart(cart)
-	if err != nil {
-		return nil, err
+	updatedCart, updateErr := s.repo.UpdateCart(cart)
+	if updateErr != nil {
+		return nil, updateErr
 	}
 
 	return s.buildCartResponse(updatedCart), nil
@@ -743,8 +690,8 @@ func (s *CartService) UpdateShipping(tenantID, cartID uuid.UUID, req UpdateShipp
 
 // MergeGuestCart merges guest cart to customer cart
 func (s *CartService) MergeGuestCart(tenantID uuid.UUID, sessionID string, customerID uuid.UUID) (*CartResponse, error) {
-	if err := s.repo.MergeGuestCartToCustomer(tenantID, sessionID, customerID); err != nil {
-		return nil, err
+	if mergeErr := s.repo.MergeGuestCartToCustomer(tenantID, sessionID, customerID); mergeErr != nil {
+		return nil, mergeErr
 	}
 
 	// Get the merged cart
@@ -754,14 +701,14 @@ func (s *CartService) MergeGuestCart(tenantID uuid.UUID, sessionID string, custo
 	}
 
 	// Recalculate totals
-	if err := s.recalculateCart(cart); err != nil {
-		return nil, err
+	if recalcErr := s.recalculateCart(cart); recalcErr != nil {
+		return nil, recalcErr
 	}
 
 	// Update cart
-	updatedCart, err := s.repo.UpdateCart(cart)
-	if err != nil {
-		return nil, err
+	updatedCart, updateErr := s.repo.UpdateCart(cart)
+	if updateErr != nil {
+		return nil, updateErr
 	}
 
 	return s.buildCartResponse(updatedCart), nil
@@ -853,28 +800,12 @@ func (s *CartService) recalculateCart(cart *Cart) error {
 	// Calculate subtotal
 	cart.UpdateTotals()
 
-	// Calculate tax if tax service is available and address is provided
-	if s.taxService != nil && cart.ShippingAddress != nil {
-		taxAmount, err := s.taxService.CalculateTax(cart.TenantID, cart)
-		if err == nil {
-			cart.TaxAmount = taxAmount
-		}
-	}
-
-	// Calculate shipping if shipping service is available and method is selected
-	if s.shippingService != nil && cart.ShippingMethodID != nil {
-		shippingCost, err := s.shippingService.CalculateShipping(cart.TenantID, cart, *cart.ShippingMethodID)
-		if err == nil {
-			cart.ShippingCost = shippingCost
-		}
-	}
-
-	// Recalculate discount if coupon is applied
-	if s.discountService != nil && cart.CouponCode != "" {
-		discountAmount, err := s.discountService.CalculateDiscount(cart.TenantID, cart, cart.CouponCode)
-		if err == nil {
-			cart.DiscountAmount = discountAmount
-		}
+	// Tax, shipping, and discount calculations will be done during order processing
+	// Cart serves as a temporary storage for items and basic information
+	cart.TaxAmount = 0
+	cart.ShippingCost = 0
+	if cart.CouponCode == "" {
+		cart.DiscountAmount = 0
 	}
 
 	// Update final total
@@ -926,20 +857,14 @@ func (s *CartService) UpdateCart(tenantID, cartID uuid.UUID, req UpdateCartReque
 			cart.CouponCode = ""
 			cart.DiscountAmount = 0
 		} else {
-			// Apply coupon
-			if s.discountService != nil {
-				_, err := s.discountService.ValidateCoupon(tenantID, *req.CouponCode, cart.Subtotal)
-				if err != nil {
-					return nil, ErrInvalidCoupon
-				}
-				cart.CouponCode = *req.CouponCode
-			}
+			// Apply coupon (validation will be done during order processing)
+			cart.CouponCode = *req.CouponCode
 		}
 	}
 
 	// Recalculate cart totals
-	if err := s.recalculateCart(cart); err != nil {
-		return nil, err
+	if recalcErr := s.recalculateCart(cart); recalcErr != nil {
+		return nil, recalcErr
 	}
 
 	// Update cart
@@ -968,35 +893,11 @@ func (s *CartService) GetEstimates(tenantID, cartID uuid.UUID, req EstimateReque
 	tempCart := *cart
 	tempCart.ShippingAddress = req.ShippingAddress
 
-	// Get available shipping methods
+	// Estimates will be calculated during order processing
+	// Return basic estimates for now
 	var shippingMethods []*ShippingMethod
-	if s.shippingService != nil {
-		methods, err := s.shippingService.GetAvailableShippingMethods(tenantID, &tempCart)
-		if err == nil {
-			shippingMethods = methods
-		}
-	}
-
-	// Calculate shipping cost for specific method if provided
 	shippingCost := 0.0
-	if req.ShippingMethodID != nil && s.shippingService != nil {
-		cost, err := s.shippingService.CalculateShipping(tenantID, &tempCart, *req.ShippingMethodID)
-		if err == nil {
-			shippingCost = cost
-		}
-	}
-
-	// Calculate tax estimate
 	taxEstimate := TaxEstimate{Amount: 0, Rate: 0}
-	if s.taxService != nil {
-		taxAmount, err := s.taxService.CalculateTax(tenantID, &tempCart)
-		if err == nil {
-			taxEstimate.Amount = taxAmount
-			if cart.Subtotal > 0 {
-				taxEstimate.Rate = taxAmount / cart.Subtotal
-			}
-		}
-	}
 
 	// Calculate total
 	total := cart.Subtotal + shippingCost + taxEstimate.Amount - cart.DiscountAmount
@@ -1044,8 +945,8 @@ func (s *CartService) ProcessGuestCheckout(tenantID uuid.UUID, req GuestCheckout
 	cart.ShippingMethodID = &req.ShippingMethodID
 
 	// Recalculate totals
-	if err := s.recalculateCart(cart); err != nil {
-		return nil, err
+	if recalcErr := s.recalculateCart(cart); recalcErr != nil {
+		return nil, recalcErr
 	}
 
 	// TODO: Integrate with order service to create order

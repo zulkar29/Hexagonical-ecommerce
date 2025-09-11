@@ -358,9 +358,9 @@ func (s *service) UpdateReview(ctx context.Context, tenantID, reviewID uuid.UUID
 
 	updates["updated_at"] = time.Now()
 
-	err := s.repo.UpdateReview(ctx, tenantID, reviewID, updates)
-	if err != nil {
-		return nil, err
+	updateErr := s.repo.UpdateReview(ctx, tenantID, reviewID, updates)
+	if updateErr != nil {
+		return nil, updateErr
 	}
 
 	return s.repo.GetReviewByID(ctx, tenantID, reviewID)
@@ -374,12 +374,12 @@ func (s *service) DeleteReview(ctx context.Context, tenantID, reviewID uuid.UUID
 		"updated_at": time.Now(),
 	}
 
-	err := s.repo.UpdateReview(ctx, tenantID, reviewID, updates)
-	if err != nil {
-		return err
+	approveErr := s.repo.UpdateReview(ctx, tenantID, reviewID, updates)
+	if approveErr != nil {
+		return approveErr
 	}
 
-	// TODO: Update product review summary after deletion
+	// TODO: Update product review summary after approval
 	return nil
 }
 
@@ -391,9 +391,9 @@ func (s *service) ApproveReview(ctx context.Context, tenantID, reviewID uuid.UUI
 		"moderated_at":  &now,
 	}
 	
-	err := s.repo.UpdateReview(ctx, tenantID, reviewID, updates)
-	if err != nil {
-		return err
+	approveErr := s.repo.UpdateReview(ctx, tenantID, reviewID, updates)
+	if approveErr != nil {
+		return approveErr
 	}
 	
 	// TODO: Update review summary and send notifications
@@ -453,8 +453,8 @@ func (s *service) BulkModerateReviews(ctx context.Context, tenantID uuid.UUID, r
 
 	// Update all reviews in batch
 	for _, reviewID := range req.ReviewIDs {
-		if err := s.repo.UpdateReview(ctx, tenantID, reviewID, updates); err != nil {
-			return fmt.Errorf("failed to update review %s: %w", reviewID, err)
+		if updateErr := s.repo.UpdateReview(ctx, tenantID, reviewID, updates); updateErr != nil {
+			return fmt.Errorf("failed to update review %s: %w", reviewID, updateErr)
 		}
 	}
 
@@ -475,9 +475,9 @@ func (s *service) AddReply(ctx context.Context, req AddReplyRequest) (*ReviewRep
 		UpdatedAt:   time.Now(),
 	}
 
-	err := s.repo.CreateReply(ctx, reply)
-	if err != nil {
-		return nil, err
+	replyErr := s.repo.CreateReply(ctx, reply)
+	if replyErr != nil {
+		return nil, replyErr
 	}
 	return reply, nil
 }
@@ -497,8 +497,8 @@ func (s *service) DeleteReply(ctx context.Context, tenantID, replyID uuid.UUID) 
 
 func (s *service) ReactToReview(ctx context.Context, req ReviewReactionRequest) error {
 	// Check if user already reacted
-	existingReaction, err := s.repo.GetReactionByReviewAndEmail(ctx, req.TenantID, req.ReviewID, req.CustomerEmail)
-	if err == nil && existingReaction != nil {
+	existingReaction, reactionErr := s.repo.GetReactionByReviewAndEmail(ctx, req.TenantID, req.ReviewID, req.CustomerEmail)
+	if reactionErr == nil && existingReaction != nil {
 		// Update existing reaction
 		return s.repo.UpdateReaction(ctx, req.TenantID, req.ReviewID, req.CustomerEmail, req.IsHelpful)
 	}
@@ -533,9 +533,9 @@ func (s *service) RefreshReviewSummary(ctx context.Context, tenantID, productID 
 		Limit:     1000, // Get all reviews
 	}
 	
-	reviews, err := s.repo.GetReviews(ctx, tenantID, filter)
-	if err != nil {
-		return nil, err
+	reviews, reviewsErr := s.repo.GetReviews(ctx, tenantID, filter)
+	if reviewsErr != nil {
+		return nil, reviewsErr
 	}
 
 	// Calculate statistics
@@ -565,16 +565,16 @@ func (s *service) RefreshReviewSummary(ctx context.Context, tenantID, productID 
 	}
 
 	// Try to get existing summary
-	existing, err := s.repo.GetReviewSummary(ctx, tenantID, productID)
-	if err != nil || existing == nil {
+	existing, existingErr := s.repo.GetReviewSummary(ctx, tenantID, productID)
+	if existingErr != nil || existing == nil {
 		// Create new summary
 		summary.ID = uuid.New()
 		summary.TenantID = tenantID
 		summary.Type = TypeProduct
 		summary.CreatedAt = time.Now()
-		err := s.repo.CreateReviewSummary(ctx, summary)
-		if err != nil {
-			return nil, err
+		createErr := s.repo.CreateReviewSummary(ctx, summary)
+		if createErr != nil {
+			return nil, createErr
 		}
 		return summary, nil
 	}
@@ -591,9 +591,9 @@ func (s *service) RefreshReviewSummary(ctx context.Context, tenantID, productID 
 		"updated_at":      summary.UpdatedAt,
 	}
 
-	err = s.repo.UpdateReviewSummary(ctx, tenantID, productID, updates)
-	if err != nil {
-		return nil, err
+	updateErr := s.repo.UpdateReviewSummary(ctx, tenantID, productID, updates)
+	if updateErr != nil {
+		return nil, updateErr
 	}
 
 	// Return updated summary
@@ -624,9 +624,9 @@ func (s *service) GetReviewStats(ctx context.Context, tenantID uuid.UUID, period
 	}
 	endDate = time.Now()
 
-	stats, err := s.repo.GetReviewStatsByPeriod(ctx, tenantID, startDate, endDate)
-	if err != nil {
-		return nil, err
+	stats, statsErr := s.repo.GetReviewStatsByPeriod(ctx, tenantID, startDate, endDate)
+	if statsErr != nil {
+		return nil, statsErr
 	}
 
 	// Calculate additional metrics
@@ -661,9 +661,9 @@ func (s *service) CreateReviewInvitation(ctx context.Context, req CreateInvitati
 		UpdatedAt:     time.Now(),
 	}
 
-	err := s.repo.CreateInvitation(ctx, invitation)
-	if err != nil {
-		return nil, err
+	createErr := s.repo.CreateInvitation(ctx, invitation)
+	if createErr != nil {
+		return nil, createErr
 	}
 	return invitation, nil
 }
@@ -673,9 +673,9 @@ func generateInvitationToken() string {
 }
 
 func (s *service) SendReviewInvitation(ctx context.Context, tenantID, invitationID uuid.UUID) error {
-	invitation, err := s.repo.GetInvitationByID(ctx, tenantID, invitationID)
-	if err != nil {
-		return err
+	invitation, invitationErr := s.repo.GetInvitationByID(ctx, tenantID, invitationID)
+	if invitationErr != nil {
+		return invitationErr
 	}
 
 	if invitation.Status != "pending" {
@@ -732,9 +732,9 @@ func (s *service) UpdateReviewInvitation(ctx context.Context, tenantID, invitati
 
 	if len(updates) > 0 {
 		updates["updated_at"] = time.Now()
-		err := s.repo.UpdateInvitation(ctx, tenantID, invitationID, updates)
-		if err != nil {
-			return nil, err
+		updateErr := s.repo.UpdateInvitation(ctx, tenantID, invitationID, updates)
+		if updateErr != nil {
+			return nil, updateErr
 		}
 	}
 
@@ -746,9 +746,9 @@ func (s *service) DeleteReviewInvitation(ctx context.Context, tenantID, invitati
 }
 
 func (s *service) ProcessInvitationClick(ctx context.Context, token string) (*ReviewInvitation, error) {
-	invitation, err := s.repo.GetInvitationByToken(ctx, token)
-	if err != nil {
-		return nil, err
+	invitation, tokenErr := s.repo.GetInvitationByToken(ctx, token)
+	if tokenErr != nil {
+		return nil, tokenErr
 	}
 
 	if invitation.ExpiresAt.Before(time.Now()) {
@@ -765,9 +765,9 @@ func (s *service) ProcessInvitationClick(ctx context.Context, token string) (*Re
 		updates["status"] = "clicked"
 	}
 
-	err = s.repo.UpdateInvitation(ctx, invitation.TenantID, invitation.ID, updates)
-	if err != nil {
-		return nil, err
+	updateErr := s.repo.UpdateInvitation(ctx, invitation.TenantID, invitation.ID, updates)
+	if updateErr != nil {
+		return nil, updateErr
 	}
 
 	return invitation, nil
@@ -826,9 +826,9 @@ func (s *service) UpdateSettings(ctx context.Context, tenantID uuid.UUID, req Up
 
 	updates["updated_at"] = time.Now()
 
-	err := s.repo.UpdateSettings(ctx, tenantID, updates)
-	if err != nil {
-		return nil, err
+	updateErr := s.repo.UpdateSettings(ctx, tenantID, updates)
+	if updateErr != nil {
+		return nil, updateErr
 	}
 
 	return s.repo.GetSettings(ctx, tenantID)

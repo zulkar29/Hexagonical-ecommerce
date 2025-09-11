@@ -661,26 +661,7 @@ func (h *Handler) parsePagination(c *gin.Context) (limit, offset int) {
 	return limit, offset
 }
 
-// writeJSONResponse writes a JSON response (deprecated - use c.JSON directly)
-func (h *Handler) writeJSONResponse(c *gin.Context, statusCode int, data interface{}) {
-	c.JSON(statusCode, data)
-}
 
-// writeErrorResponse writes an error response (deprecated - use c.JSON directly)
-func (h *Handler) writeErrorResponse(c *gin.Context, statusCode int, message string, err error) {
-	errorResponse := gin.H{
-		"error":  message,
-		"status": statusCode,
-	}
-	
-	// Include error details in development mode
-	if err != nil {
-		// In production, you might want to log this instead
-		errorResponse["details"] = err.Error()
-	}
-	
-	c.JSON(statusCode, errorResponse)
-}
 
 // handleServiceError handles service layer errors and maps them to HTTP status codes
 func (h *Handler) handleServiceError(c *gin.Context, err error) {

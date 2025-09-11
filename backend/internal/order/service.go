@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"ecommerce-saas/internal/notification"
+	"ecommerce-saas/internal/payment"
 	"github.com/google/uuid"
 	"github.com/xuri/excelize/v2"
 	"gorm.io/gorm"
@@ -32,19 +34,17 @@ type Service struct {
 	productService      ProductService
 	discountService     DiscountService
 	paymentService      PaymentService
-	inventoryService    InventoryService
 	notificationService NotificationService
 }
 
 // NewService creates a new order service
-func NewService(repo Repository, db *gorm.DB, productService ProductService, discountService DiscountService, paymentService PaymentService, inventoryService InventoryService, notificationService NotificationService) *Service {
+func NewService(repo Repository, db *gorm.DB, productService ProductService, discountService DiscountService, paymentService PaymentService, notificationService NotificationService) *Service {
 	return &Service{
 		repository:          repo,
 		db:                  db,
 		productService:      productService,
 		discountService:     discountService,
 		paymentService:      paymentService,
-		inventoryService:    inventoryService,
 		notificationService: notificationService,
 	}
 }
@@ -87,9 +87,9 @@ func (s *Service) CreateOrder(ctx context.Context, tenantID uuid.UUID, order *Or
 	}
 
 	// Create order in database
-	if err := tx.Create(order).Error; err != nil {
+	if createErr := tx.Create(order).Error; createErr != nil {
 		tx.Rollback()
-		return nil, fmt.Errorf("failed to create order: %w", err)
+		return nil, fmt.Errorf("failed to create order: %w", createErr)
 	}
 
 	// Process order items
@@ -110,13 +110,13 @@ func (s *Service) CreateOrder(ctx context.Context, tenantID uuid.UUID, order *Or
 		}
 
 		// Check inventory availability
-		if product.Inventory < item.Quantity {
+		if product.InventoryQuantity < item.Quantity {
 			tx.Rollback()
-			return nil, fmt.Errorf("insufficient inventory for product %s. Available: %d, Requested: %d", product.Name, product.Inventory, item.Quantity)
+			return nil, fmt.Errorf("insufficient inventory for product %s. Available: %d, Requested: %d", product.Name, product.InventoryQuantity, item.Quantity)
 		}
 
 		// Reserve inventory for this item
-		if err := s.inventoryService.ReserveStock(ctx, tenantID, item.ProductID, item.Quantity); err != nil {
+		if err := s.productService.ReserveStock(tenantID, item.ProductID, item.Quantity); err != nil {
 			tx.Rollback()
 			return nil, fmt.Errorf("failed to reserve inventory for product %s: %w", product.Name, err)
 		}
@@ -282,7 +282,7 @@ func (s *Service) CancelOrder(tenantID uuid.UUID, orderID string, reason string)
 
 	// Restore inventory for cancelled order
 	for _, item := range order.Items {
-		if err := s.inventoryService.RestoreStock(context.Background(), tenantID, item.ProductID, item.Quantity); err != nil {
+		if err := s.productService.RestoreStock(tenantID, item.ProductID, item.Quantity); err != nil {
 			// Log error but don't fail the cancellation
 			// In production, this should be logged properly
 			fmt.Printf("Warning: failed to restore inventory for product %s: %v\n", item.ProductID, err)
@@ -341,8 +341,16 @@ func (s *Service) RefundOrder(ctx context.Context, tenantID, orderID uuid.UUID, 
 		return nil, fmt.Errorf("order %s is not refundable", order.OrderNumber)
 	}
 
+	// Create refund request
+	refundReq := &payment.RefundPaymentRequest{
+		PaymentID: paymentID,
+		Amount:    amount,
+		Reason:    reason,
+	}
+
 	// Process refund through gateway
-	if err := s.paymentService.RefundPayment(ctx, tenantID, paymentID, amount, reason); err != nil {
+	_, err = s.paymentService.RefundPayment(ctx, refundReq)
+	if err != nil {
 		return nil, fmt.Errorf("failed to process refund: %w", err)
 	}
 
@@ -828,92 +836,73 @@ func (s *Service) parseAddressFromString(addrStr string) Address {
 
 // sendOrderConfirmationNotification sends order confirmation notification
 func (s *Service) sendOrderConfirmationNotification(ctx context.Context, order *Order) error {
-	return s.notificationService.SendEmail(ctx, order.TenantID, []string{order.CustomerEmail}, 
-		fmt.Sprintf("Order Confirmation - %s", order.OrderNumber),
-		"order_confirmation",
-		"text/html",
-		map[string]interface{}{
+	req := &notification.SendEmailRequest{
+		To:      []string{order.CustomerEmail},
+		Subject: fmt.Sprintf("Order Confirmation - %s", order.OrderNumber),
+		Content: "order_confirmation",
+		ContentType: "text/html",
+		Variables: map[string]interface{}{
 			"order":        order,
 			"customer":     order.CustomerEmail,
 			"order_number": order.OrderNumber,
 			"total":        order.TotalAmount,
 		},
-		"order_confirmation")
+	}
+	return s.notificationService.SendEmail(order.TenantID, req)
 }
 
 // sendOrderCancellationNotification sends order cancellation notification
 func (s *Service) sendOrderCancellationNotification(ctx context.Context, order *Order) error {
-	return s.notificationService.SendEmail(ctx, order.TenantID, []string{order.CustomerEmail},
-		fmt.Sprintf("Order Cancelled - %s", order.OrderNumber),
-		"order_cancellation",
-		"text/html",
-		map[string]interface{}{
+	req := &notification.SendEmailRequest{
+		To:      []string{order.CustomerEmail},
+		Subject: fmt.Sprintf("Order Cancelled - %s", order.OrderNumber),
+		Content: "order_cancellation",
+		ContentType: "text/html",
+		Variables: map[string]interface{}{
 			"order":        order,
 			"customer":     order.CustomerEmail,
 			"order_number": order.OrderNumber,
 		},
-		"order_cancellation")
+	}
+	return s.notificationService.SendEmail(order.TenantID, req)
 }
 
 // sendOrderShippingNotification sends order shipping notification
 func (s *Service) sendOrderShippingNotification(ctx context.Context, order *Order) error {
-	return s.notificationService.SendEmail(ctx, order.TenantID, []string{order.CustomerEmail},
-		fmt.Sprintf("Order Shipped - %s", order.OrderNumber),
-		"order_shipping",
-		"text/html",
-		map[string]interface{}{
+	req := &notification.SendEmailRequest{
+		To:      []string{order.CustomerEmail},
+		Subject: fmt.Sprintf("Order Shipped - %s", order.OrderNumber),
+		Content: "order_shipping",
+		ContentType: "text/html",
+		Variables: map[string]interface{}{
 			"order":          order,
 			"customer":       order.CustomerEmail,
 			"order_number":   order.OrderNumber,
 			"tracking_number": order.TrackingNumber,
 			"tracking_url":   order.TrackingURL,
 		},
-		"order_shipping")
+	}
+	return s.notificationService.SendEmail(order.TenantID, req)
 }
 
-// applyDiscount validates and applies a discount to an order
-func (s *Service) applyDiscount(tenantID, userID uuid.UUID, order *Order, couponCode string, items []CreateOrderItem) (float64, error) {
-	ctx := context.Background()
 
-	// Prepare product IDs for discount validation
-	productIDs := make([]string, len(items))
-	for i, item := range items {
-		productIDs[i] = item.ProductID.String()
-	}
-
-	// Calculate total quantity
-	totalQuantity := 0
-	for _, item := range items {
-		totalQuantity += item.Quantity
-	}
-
-	// Validate discount code
-	validation, err := s.discountService.ValidateDiscountCode(ctx, tenantID, couponCode, &userID, order.CustomerEmail, order.SubtotalAmount, totalQuantity, productIDs, []string{})
-	if err != nil {
-		return 0, fmt.Errorf("failed to validate discount code: %w", err)
-	}
-
-	if !validation.Valid {
-		return 0, fmt.Errorf("discount code is not valid: %s", validation.Message)
-	}
-
-	// Apply discount
-	application, err := s.discountService.ApplyDiscount(ctx, tenantID, couponCode, order.ID, &userID, order.CustomerEmail, order.SubtotalAmount, totalQuantity, productIDs, []string{}, "", "")
-	if err != nil {
-		return 0, fmt.Errorf("failed to apply discount: %w", err)
-	}
-
-	if !application.Applied {
-		return 0, fmt.Errorf("discount could not be applied: %s", application.Message)
-	}
-
-	return application.DiscountAmount, nil
-}
 
 // createPayment creates a payment for the order
-func (s *Service) createPayment(tenantID, userID uuid.UUID, order *Order) (*CreatePaymentResponse, error) {
+func (s *Service) createPayment(tenantID, userID uuid.UUID, order *Order) (*payment.CreatePaymentResponse, error) {
+	// Create payment request
+	paymentReq := &payment.CreatePaymentRequest{
+		OrderID:         order.ID.String(),
+		Amount:          order.TotalAmount,
+		Currency:        order.Currency,
+		Gateway:         order.PaymentGateway,
+		PaymentMethodID: order.PaymentMethod,
+		CustomerEmail:   order.CustomerEmail,
+		CustomerPhone:   order.CustomerPhone,
+		ReturnURL:       "",
+	}
+
 	// Create payment through payment service
-	paymentResp, err := s.paymentService.CreatePayment(context.Background(), tenantID, order.ID.String(), order.TotalAmount, order.Currency, order.PaymentGateway, order.PaymentMethod, order.CustomerEmail, order.CustomerPhone, "")
+	paymentResp, err := s.paymentService.CreatePayment(context.Background(), paymentReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create payment: %w", err)
 	}

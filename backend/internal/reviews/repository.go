@@ -368,6 +368,7 @@ func (r *repository) GetReviewSummary(ctx context.Context, tenantID, productID u
 		if createErr := r.CreateReviewSummary(ctx, &summary); createErr != nil {
 			return nil, createErr
 		}
+		err = nil // Clear the not found error since we created the record
 	}
 	
 	return &summary, err
@@ -519,6 +520,7 @@ func (r *repository) GetSettings(ctx context.Context, tenantID uuid.UUID) (*Revi
 		if createErr := r.CreateSettings(ctx, &settings); createErr != nil {
 			return nil, createErr
 		}
+		err = nil // Clear the not found error since we created the record
 	}
 	
 	return &settings, err

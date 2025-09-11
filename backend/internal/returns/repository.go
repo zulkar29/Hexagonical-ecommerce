@@ -197,8 +197,8 @@ func (r *gormRepository) ListReturns(ctx context.Context, tenantID uuid.UUID, fi
 	}
 	
 	var returns []*Return
-	err := query.Find(&returns).Error
-	return returns, total, err
+	findErr := query.Find(&returns).Error
+	return returns, total, findErr
 }
 
 // UpdateReturn updates a return
@@ -234,10 +234,10 @@ func (r *gormRepository) GetReturnItemByID(ctx context.Context, itemID uuid.UUID
 // GetReturnItems retrieves return items for a return
 func (r *gormRepository) GetReturnItems(ctx context.Context, returnID uuid.UUID) ([]*ReturnItem, error) {
 	var items []*ReturnItem
-	err := r.db.WithContext(ctx).
+	itemsErr := r.db.WithContext(ctx).
 		Where("return_id = ?", returnID).
 		Find(&items).Error
-	return items, err
+	return items, itemsErr
 }
 
 // UpdateReturnItem updates a return item

@@ -65,8 +65,8 @@ type OrderFilter struct {
 
 // CreateOrder saves a new order to the database
 func (r *repository) CreateOrder(order *Order) (*Order, error) {
-	if err := r.db.Create(order).Error; err != nil {
-		return nil, fmt.Errorf("failed to create order: %w", err)
+	if createErr := r.db.Create(order).Error; createErr != nil {
+		return nil, fmt.Errorf("failed to create order: %w", createErr)
 	}
 	return order, nil
 }
@@ -91,15 +91,15 @@ func (r *repository) GetOrderByID(tenantID, orderID uuid.UUID) (*Order, error) {
 // GetOrderByNumber retrieves an order by order number
 func (r *repository) GetOrderByNumber(tenantID uuid.UUID, orderNumber string) (*Order, error) {
 	var order Order
-	err := r.db.Where("tenant_id = ? AND order_number = ?", tenantID, orderNumber).
+	numberErr := r.db.Where("tenant_id = ? AND order_number = ?", tenantID, orderNumber).
 		Preload("Items").
 		First(&order).Error
 	
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+	if numberErr != nil {
+		if numberErr == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("order not found")
 		}
-		return nil, fmt.Errorf("failed to get order: %w", err)
+		return nil, fmt.Errorf("failed to get order: %w", numberErr)
 	}
 	
 	return &order, nil
@@ -107,8 +107,8 @@ func (r *repository) GetOrderByNumber(tenantID uuid.UUID, orderNumber string) (*
 
 // UpdateOrder updates an existing order
 func (r *repository) UpdateOrder(order *Order) (*Order, error) {
-	if err := r.db.Save(order).Error; err != nil {
-		return nil, fmt.Errorf("failed to update order: %w", err)
+	if saveErr := r.db.Save(order).Error; saveErr != nil {
+		return nil, fmt.Errorf("failed to update order: %w", saveErr)
 	}
 	return order, nil
 }
@@ -164,20 +164,20 @@ func (r *repository) ListOrders(tenantID uuid.UUID, filter OrderFilter, offset, 
 	
 	// Count total records
 	var total int64
-	if err := query.Model(&Order{}).Count(&total).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to count orders: %w", err)
+	if countErr := query.Model(&Order{}).Count(&total).Error; countErr != nil {
+		return nil, 0, fmt.Errorf("failed to count orders: %w", countErr)
 	}
 	
 	// Get orders with pagination
 	var orders []*Order
-	err := query.Preload("Items").
+	listErr := query.Preload("Items").
 		Order("created_at DESC").
 		Offset(offset).
 		Limit(limit).
 		Find(&orders).Error
 	
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to list orders: %w", err)
+	if listErr != nil {
+		return nil, 0, fmt.Errorf("failed to list orders: %w", listErr)
 	}
 	
 	return orders, total, nil
@@ -189,18 +189,18 @@ func (r *repository) GetOrderStats(tenantID uuid.UUID) (map[string]interface{}, 
 	
 	// Total orders count
 	var totalOrders int64
-	if err := r.db.Model(&Order{}).Where("tenant_id = ?", tenantID).Count(&totalOrders).Error; err != nil {
-		return nil, fmt.Errorf("failed to count total orders: %w", err)
+	if countErr := r.db.Model(&Order{}).Where("tenant_id = ?", tenantID).Count(&totalOrders).Error; countErr != nil {
+		return nil, fmt.Errorf("failed to count total orders: %w", countErr)
 	}
 	stats["total_orders"] = totalOrders
 	
 	// Total revenue
 	var totalRevenue float64
-	if err := r.db.Model(&Order{}).
+	if revenueErr := r.db.Model(&Order{}).
 		Where("tenant_id = ? AND payment_status = ?", tenantID, PaymentPaid).
 		Select("COALESCE(SUM(total_amount), 0)").
-		Scan(&totalRevenue).Error; err != nil {
-		return nil, fmt.Errorf("failed to calculate total revenue: %w", err)
+		Scan(&totalRevenue).Error; revenueErr != nil {
+		return nil, fmt.Errorf("failed to calculate total revenue: %w", revenueErr)
 	}
 	stats["total_revenue"] = totalRevenue
 	
@@ -216,22 +216,22 @@ func (r *repository) GetOrderStats(tenantID uuid.UUID) (map[string]interface{}, 
 		Status string `json:"status"`
 		Count  int64  `json:"count"`
 	}
-	if err := r.db.Model(&Order{}).
+	if statusErr := r.db.Model(&Order{}).
 		Where("tenant_id = ?", tenantID).
 		Select("status, COUNT(*) as count").
 		Group("status").
-		Scan(&statusCounts).Error; err != nil {
-		return nil, fmt.Errorf("failed to get orders by status: %w", err)
+		Scan(&statusCounts).Error; statusErr != nil {
+		return nil, fmt.Errorf("failed to get orders by status: %w", statusErr)
 	}
 	stats["orders_by_status"] = statusCounts
 	
 	// Recent orders (last 30 days)
 	thirtyDaysAgo := time.Now().AddDate(0, 0, -30)
 	var recentOrders int64
-	if err := r.db.Model(&Order{}).
+	if recentErr := r.db.Model(&Order{}).
 		Where("tenant_id = ? AND created_at >= ?", tenantID, thirtyDaysAgo).
-		Count(&recentOrders).Error; err != nil {
-		return nil, fmt.Errorf("failed to count recent orders: %w", err)
+		Count(&recentOrders).Error; recentErr != nil {
+		return nil, fmt.Errorf("failed to count recent orders: %w", recentErr)
 	}
 	stats["recent_orders"] = recentOrders
 	
@@ -241,13 +241,13 @@ func (r *repository) GetOrderStats(tenantID uuid.UUID) (map[string]interface{}, 
 // GetOrdersByCustomer retrieves orders for a specific customer
 func (r *repository) GetOrdersByCustomer(tenantID, customerID uuid.UUID) ([]*Order, error) {
 	var orders []*Order
-	err := r.db.Where("tenant_id = ? AND user_id = ?", tenantID, customerID).
+	customerErr := r.db.Where("tenant_id = ? AND user_id = ?", tenantID, customerID).
 		Preload("Items").
 		Order("created_at DESC").
 		Find(&orders).Error
 	
-	if err != nil {
-		return nil, fmt.Errorf("failed to get customer orders: %w", err)
+	if customerErr != nil {
+		return nil, fmt.Errorf("failed to get customer orders: %w", customerErr)
 	}
 	
 	return orders, nil
@@ -256,13 +256,13 @@ func (r *repository) GetOrdersByCustomer(tenantID, customerID uuid.UUID) ([]*Ord
 // GetOrdersByDateRange retrieves orders within a date range
 func (r *repository) GetOrdersByDateRange(tenantID uuid.UUID, start, end time.Time) ([]*Order, error) {
 	var orders []*Order
-	err := r.db.Where("tenant_id = ? AND created_at BETWEEN ? AND ?", tenantID, start, end).
+	dateErr := r.db.Where("tenant_id = ? AND created_at BETWEEN ? AND ?", tenantID, start, end).
 		Preload("Items").
 		Order("created_at DESC").
 		Find(&orders).Error
 	
-	if err != nil {
-		return nil, fmt.Errorf("failed to get orders by date range: %w", err)
+	if dateErr != nil {
+		return nil, fmt.Errorf("failed to get orders by date range: %w", dateErr)
 	}
 	
 	return orders, nil
@@ -284,16 +284,16 @@ func (r *repository) DeleteOrder(tenantID, orderID uuid.UUID) error {
 
 // CreateOrderItem adds an item to an order
 func (r *repository) CreateOrderItem(item *OrderItem) (*OrderItem, error) {
-	if err := r.db.Create(item).Error; err != nil {
-		return nil, fmt.Errorf("failed to create order item: %w", err)
+	if createErr := r.db.Create(item).Error; createErr != nil {
+		return nil, fmt.Errorf("failed to create order item: %w", createErr)
 	}
 	return item, nil
 }
 
 // UpdateOrderItem updates an order item
 func (r *repository) UpdateOrderItem(item *OrderItem) (*OrderItem, error) {
-	if err := r.db.Save(item).Error; err != nil {
-		return nil, fmt.Errorf("failed to update order item: %w", err)
+	if saveErr := r.db.Save(item).Error; saveErr != nil {
+		return nil, fmt.Errorf("failed to update order item: %w", saveErr)
 	}
 	return item, nil
 }
@@ -316,7 +316,7 @@ func (r *repository) DeleteOrderItem(orderID, itemID uuid.UUID) error {
 func (r *repository) GetTopCustomers(tenantID uuid.UUID, limit int) ([]map[string]interface{}, error) {
 	var customers []map[string]interface{}
 	
-	err := r.db.Model(&Order{}).
+	customersErr := r.db.Model(&Order{}).
 		Select("user_id, customer_email, COUNT(*) as order_count, SUM(total_amount) as total_spent").
 		Where("tenant_id = ? AND payment_status = ?", tenantID, PaymentPaid).
 		Group("user_id, customer_email").
@@ -324,8 +324,8 @@ func (r *repository) GetTopCustomers(tenantID uuid.UUID, limit int) ([]map[strin
 		Limit(limit).
 		Scan(&customers).Error
 	
-	if err != nil {
-		return nil, fmt.Errorf("failed to get top customers: %w", err)
+	if customersErr != nil {
+		return nil, fmt.Errorf("failed to get top customers: %w", customersErr)
 	}
 	
 	return customers, nil
@@ -342,8 +342,8 @@ func (r *repository) GetLowStockAlert(tenantID uuid.UUID, threshold int) ([]*Ord
 
 // CreateOrderHistory creates a new order history entry
 func (r *repository) CreateOrderHistory(history *OrderHistory) (*OrderHistory, error) {
-	if err := r.db.Create(history).Error; err != nil {
-		return nil, fmt.Errorf("failed to create order history: %w", err)
+	if createErr := r.db.Create(history).Error; createErr != nil {
+		return nil, fmt.Errorf("failed to create order history: %w", createErr)
 	}
 	return history, nil
 }
@@ -351,14 +351,14 @@ func (r *repository) CreateOrderHistory(history *OrderHistory) (*OrderHistory, e
 // GetOrderHistory retrieves all history entries for an order
 func (r *repository) GetOrderHistory(tenantID, orderID uuid.UUID) ([]*OrderHistory, error) {
 	var history []*OrderHistory
-	err := r.db.Where("order_id = ?", orderID).
+	historyErr := r.db.Where("order_id = ?", orderID).
 		Joins("JOIN orders ON order_histories.order_id = orders.id").
 		Where("orders.tenant_id = ?", tenantID).
 		Order("order_histories.created_at ASC").
 		Find(&history).Error
 	
-	if err != nil {
-		return nil, fmt.Errorf("failed to get order history: %w", err)
+	if historyErr != nil {
+		return nil, fmt.Errorf("failed to get order history: %w", historyErr)
 	}
 	
 	return history, nil

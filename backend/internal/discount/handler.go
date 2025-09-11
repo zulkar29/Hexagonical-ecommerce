@@ -141,8 +141,8 @@ func (h *Handler) updateDiscount(c *gin.Context) {
 	}
 	
 	var req UpdateDiscountRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
@@ -168,9 +168,9 @@ func (h *Handler) deleteDiscount(c *gin.Context) {
 	// TODO: Get tenant ID from context
 	tenantID := uuid.New() // Placeholder
 	
-	err = h.service.DeleteDiscount(c.Request.Context(), tenantID, discountID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	deleteErr := h.service.DeleteDiscount(c.Request.Context(), tenantID, discountID)
+	if deleteErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": deleteErr.Error()})
 		return
 	}
 	
@@ -189,9 +189,9 @@ func (h *Handler) getDiscountUsage(c *gin.Context) {
 	
 	filter := h.parseUsageFilter(c)
 	
-	usage, err := h.service.GetDiscountUsage(c.Request.Context(), tenantID, discountID, filter)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	usage, usageErr := h.service.GetDiscountUsage(c.Request.Context(), tenantID, discountID, filter)
+	if usageErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": usageErr.Error()})
 		return
 	}
 	

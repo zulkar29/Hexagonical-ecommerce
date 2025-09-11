@@ -201,74 +201,6 @@ func (h *Handler) deleteReview(c *gin.Context) {
 }
 
 // Moderation handlers
-func (h *Handler) approveReview(c *gin.Context) {
-	reviewID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid review ID"})
-		return
-	}
-	
-	// TODO: Get tenant ID and moderator ID from context
-	tenantID := uuid.New() // Placeholder
-	moderatorID := uuid.New() // Placeholder
-	
-	err = h.service.ApproveReview(c.Request.Context(), tenantID, reviewID, moderatorID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	
-	c.JSON(http.StatusOK, gin.H{"message": "Review approved successfully"})
-}
-
-func (h *Handler) rejectReview(c *gin.Context) {
-	reviewID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid review ID"})
-		return
-	}
-	
-	var req struct {
-		Reason string `json:"reason"`
-	}
-	
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	
-	// TODO: Get tenant ID and moderator ID from context
-	tenantID := uuid.New() // Placeholder
-	moderatorID := uuid.New() // Placeholder
-	
-	err = h.service.RejectReview(c.Request.Context(), tenantID, reviewID, moderatorID, req.Reason)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	
-	c.JSON(http.StatusOK, gin.H{"message": "Review rejected successfully"})
-}
-
-func (h *Handler) markAsSpam(c *gin.Context) {
-	reviewID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid review ID"})
-		return
-	}
-	
-	// TODO: Get tenant ID and moderator ID from context
-	tenantID := uuid.New() // Placeholder
-	moderatorID := uuid.New() // Placeholder
-	
-	err = h.service.MarkAsSpam(c.Request.Context(), tenantID, reviewID, moderatorID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	
-	c.JSON(http.StatusOK, gin.H{"message": "Review marked as spam successfully"})
-}
 
 func (h *Handler) bulkModerateReviews(c *gin.Context) {
 	var req BulkModerationRequest
@@ -290,35 +222,7 @@ func (h *Handler) bulkModerateReviews(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Bulk moderation completed successfully"})
 }
 
-func (h *Handler) getPendingReviews(c *gin.Context) {
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
-	
-	filter := ReviewFilter{
-		Status: []ReviewStatus{StatusPending},
-		SortBy: "created_at",
-		SortOrder: "asc",
-		Page: 1,
-		Limit: 50,
-	}
-	
-	// Parse pagination parameters
-	if page, err := strconv.Atoi(c.DefaultQuery("page", "1")); err == nil {
-		filter.Page = page
-	}
-	
-	if limit, err := strconv.Atoi(c.DefaultQuery("limit", "50")); err == nil {
-		filter.Limit = limit
-	}
-	
-	reviews, err := h.service.GetReviews(c.Request.Context(), tenantID, filter)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	
-	c.JSON(http.StatusOK, gin.H{"data": reviews})
-}
+
 
 // Reply handlers
 func (h *Handler) addReply(c *gin.Context) {
@@ -559,43 +463,7 @@ func (h *Handler) getReviewInvitations(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": invitations})
 }
 
-func (h *Handler) sendReviewInvitation(c *gin.Context) {
-	invitationID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid invitation ID"})
-		return
-	}
-	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
-	
-	err = h.service.SendReviewInvitation(c.Request.Context(), tenantID, invitationID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	
-	c.JSON(http.StatusOK, gin.H{"message": "Invitation sent successfully"})
-}
 
-func (h *Handler) sendReviewReminder(c *gin.Context) {
-	invitationID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid invitation ID"})
-		return
-	}
-	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
-	
-	err = h.service.SendReviewReminder(c.Request.Context(), tenantID, invitationID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	
-	c.JSON(http.StatusOK, gin.H{"message": "Reminder sent successfully"})
-}
 
 func (h *Handler) updateReviewInvitation(c *gin.Context) {
 	invitationID, err := uuid.Parse(c.Param("id"))
@@ -661,18 +529,7 @@ func (h *Handler) deleteReviewInvitation(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Invitation deleted successfully"})
 }
 
-func (h *Handler) getPendingInvitations(c *gin.Context) {
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
-	
-	invitations, err := h.service.GetPendingInvitations(c.Request.Context(), tenantID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	
-	c.JSON(http.StatusOK, gin.H{"data": invitations})
-}
+
 
 func (h *Handler) processInvitationClick(c *gin.Context) {
 	token := c.Param("token")
@@ -688,65 +545,6 @@ func (h *Handler) processInvitationClick(c *gin.Context) {
 }
 
 // Analytics handlers
-func (h *Handler) getReviewStats(c *gin.Context) {
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
-	
-	period := c.DefaultQuery("period", "30d")
-	
-	stats, err := h.service.GetReviewStats(c.Request.Context(), tenantID, period)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	
-	c.JSON(http.StatusOK, gin.H{"data": stats})
-}
-
-func (h *Handler) getReviewTrends(c *gin.Context) {
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
-	
-	period := c.DefaultQuery("period", "30d")
-	
-	trends, err := h.service.GetReviewTrends(c.Request.Context(), tenantID, period)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	
-	c.JSON(http.StatusOK, gin.H{"data": trends})
-}
-
-func (h *Handler) getTopRatedProducts(c *gin.Context) {
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
-	
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
-	
-	products, err := h.service.GetTopRatedProducts(c.Request.Context(), tenantID, limit)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	
-	c.JSON(http.StatusOK, gin.H{"data": products})
-}
-
-func (h *Handler) getRecentReviews(c *gin.Context) {
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
-	
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
-	
-	reviews, err := h.service.GetRecentReviews(c.Request.Context(), tenantID, limit)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	
-	c.JSON(http.StatusOK, gin.H{"data": reviews})
-}
 
 // Settings handlers
 func (h *Handler) getSettings(c *gin.Context) {

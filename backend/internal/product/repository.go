@@ -163,7 +163,7 @@ func (r *repository) SlugExists(tenantID uuid.UUID, slug string) (bool, error) {
 	return count > 0, err
 }
 
-// ProductExists checks if a product exists
+// ProductExists checks if a product exists for a tenant
 func (r *repository) ProductExists(tenantID, productID uuid.UUID) (bool, error) {
 	var count int64
 	err := r.db.Model(&Product{}).Where("tenant_id = ? AND id = ?", tenantID, productID).Count(&count).Error
@@ -289,7 +289,7 @@ func (r *repository) GetRootCategories(tenantID uuid.UUID) ([]*Category, error) 
 	return categories, err
 }
 
-// GetCategoryChildren returns child categories
+// GetCategoryChildren returns child categories for a parent
 func (r *repository) GetCategoryChildren(tenantID, parentID uuid.UUID) ([]*Category, error) {
 	var categories []*Category
 	err := r.db.Where("tenant_id = ? AND parent_id = ? AND is_active = true", tenantID, parentID).

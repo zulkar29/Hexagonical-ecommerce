@@ -199,7 +199,7 @@ func (r *repository) GetSuggestions(ctx context.Context, tenantID uuid.UUID, que
 			Select("DISTINCT name").
 			Where("tenant_id = ? AND deleted_at IS NULL AND LOWER(name) LIKE ?", tenantID, searchTerm).
 			Limit(limit).
-			Pluck("name", &productNames)
+			Pluck("name", &productNames).Error
 		if err != nil {
 			return nil, fmt.Errorf("failed to get product suggestions: %w", err)
 		}
@@ -219,7 +219,7 @@ func (r *repository) GetSuggestions(ctx context.Context, tenantID uuid.UUID, que
 			Select("DISTINCT name").
 			Where("tenant_id = ? AND deleted_at IS NULL AND LOWER(name) LIKE ?", tenantID, searchTerm).
 			Limit(limit).
-			Pluck("name", &categoryNames)
+			Pluck("name", &categoryNames).Error
 		if err != nil {
 			return nil, fmt.Errorf("failed to get category suggestions: %w", err)
 		}

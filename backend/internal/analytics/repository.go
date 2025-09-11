@@ -374,65 +374,65 @@ func (r *repository) GetFunnelAnalysis(ctx context.Context, tenantID uuid.UUID, 
 
 		switch step {
 		case "page_view":
-			err := r.db.WithContext(ctx).
+			pageViewErr := r.db.WithContext(ctx).
 				Model(&PageView{}).
 				Where("tenant_id = ? AND timestamp BETWEEN ? AND ?", tenantID, dateRange.Start, dateRange.End).
 				Select("COUNT(DISTINCT COALESCE(user_id::text, anonymous_id))").
 				Row().
 				Scan(&userCount)
-			if err != nil {
-				return nil, err
+			if pageViewErr != nil {
+				return nil, pageViewErr
 			}
 		case "product_view":
-			err := r.db.WithContext(ctx).
+			productViewErr := r.db.WithContext(ctx).
 				Model(&ProductView{}).
 				Where("tenant_id = ? AND timestamp BETWEEN ? AND ?", tenantID, dateRange.Start, dateRange.End).
 				Select("COUNT(DISTINCT COALESCE(user_id::text, anonymous_id))").
 				Row().
 				Scan(&userCount)
-			if err != nil {
-				return nil, err
+			if productViewErr != nil {
+				return nil, productViewErr
 			}
 		case "add_to_cart":
-			err := r.db.WithContext(ctx).
+			addToCartErr := r.db.WithContext(ctx).
 				Model(&AnalyticsEvent{}).
 				Where("tenant_id = ? AND event_type = ? AND timestamp BETWEEN ? AND ?", tenantID, "add_to_cart", dateRange.Start, dateRange.End).
 				Select("COUNT(DISTINCT COALESCE(user_id::text, anonymous_id))").
 				Row().
 				Scan(&userCount)
-			if err != nil {
-				return nil, err
+			if addToCartErr != nil {
+				return nil, addToCartErr
 			}
 		case "checkout":
-			err := r.db.WithContext(ctx).
+			checkoutErr := r.db.WithContext(ctx).
 				Model(&AnalyticsEvent{}).
 				Where("tenant_id = ? AND event_type = ? AND timestamp BETWEEN ? AND ?", tenantID, "checkout_started", dateRange.Start, dateRange.End).
 				Select("COUNT(DISTINCT COALESCE(user_id::text, anonymous_id))").
 				Row().
 				Scan(&userCount)
-			if err != nil {
-				return nil, err
+			if checkoutErr != nil {
+				return nil, checkoutErr
 			}
 		case "purchase":
-			err := r.db.WithContext(ctx).
+			purchaseErr := r.db.WithContext(ctx).
 				Model(&Purchase{}).
 				Where("tenant_id = ? AND timestamp BETWEEN ? AND ?", tenantID, dateRange.Start, dateRange.End).
 				Select("COUNT(DISTINCT customer_id)").
 				Row().
 				Scan(&userCount)
-			if err != nil {
-				return nil, err
+			if purchaseErr != nil {
+				return nil, purchaseErr
 			}
 		default:
 			// Custom event type
-			err := r.db.WithContext(ctx).
+			customEventErr := r.db.WithContext(ctx).
 				Model(&AnalyticsEvent{}).
 				Where("tenant_id = ? AND event_type = ? AND timestamp BETWEEN ? AND ?", tenantID, step, dateRange.Start, dateRange.End).
 				Select("COUNT(DISTINCT COALESCE(user_id::text, anonymous_id))").
 				Row().
 				Scan(&userCount)
-			if err != nil {
-				return nil, err
+			if customEventErr != nil {
+				return nil, customEventErr
 			}
 		}
 
@@ -477,14 +477,14 @@ func (r *repository) GetCustomerLifetimeValue(ctx context.Context, tenantID uuid
 
 	// Calculate purchase frequency (orders per customer)
 	var totalOrders, uniqueCustomers int64
-	err = r.db.WithContext(ctx).
+	frequencyErr := r.db.WithContext(ctx).
 		Model(&Purchase{}).
 		Where("tenant_id = ? AND timestamp BETWEEN ? AND ?", tenantID, dateRange.Start, dateRange.End).
 		Select("COUNT(*), COUNT(DISTINCT customer_id)").
 		Row().
 		Scan(&totalOrders, &uniqueCustomers)
-	if err != nil || uniqueCustomers == 0 {
-		return avgOrderValue, err
+	if frequencyErr != nil || uniqueCustomers == 0 {
+		return avgOrderValue, frequencyErr
 	}
 
 	purchaseFrequency := float64(totalOrders) / float64(uniqueCustomers)
@@ -497,14 +497,14 @@ func (r *repository) GetCustomerLifetimeValue(ctx context.Context, tenantID uuid
 	}
 
 	_ = []customerLifespan{} // lifespans variable removed to fix unused error
-	rows, err := r.db.WithContext(ctx).
+	rows, rowsErr := r.db.WithContext(ctx).
 		Model(&Purchase{}).
 		Where("tenant_id = ? AND timestamp BETWEEN ? AND ?", tenantID, dateRange.Start, dateRange.End).
 		Select("customer_id, MIN(timestamp) as first_purchase, MAX(timestamp) as last_purchase").
 		Group("customer_id").
 		Rows()
-	if err != nil {
-		return avgOrderValue * purchaseFrequency, err
+	if rowsErr != nil {
+		return avgOrderValue * purchaseFrequency, rowsErr
 	}
 	defer rows.Close()
 
@@ -584,12 +584,12 @@ func (r *repository) GetRetentionRate(ctx context.Context, tenantID uuid.UUID, d
 		retentionEnd := fpc.FirstPurchase.AddDate(0, 0, days)
 
 		var hasReturnPurchase int64
-		err := r.db.WithContext(ctx).
+		returnPurchaseErr := r.db.WithContext(ctx).
 			Model(&Purchase{}).
 			Where("tenant_id = ? AND customer_id = ? AND timestamp > ? AND timestamp <= ?", 
 				tenantID, fpc.CustomerID, retentionStart, retentionEnd).
 			Count(&hasReturnPurchase)
-		if err != nil {
+		if returnPurchaseErr != nil {
 			continue
 		}
 
@@ -620,17 +620,17 @@ func (r *repository) GetRealTimeStats(ctx context.Context, tenantID uuid.UUID) (
 	// Get page views in last hour
 	oneHourAgo := time.Now().Add(-1 * time.Hour)
 	var pageViewsLastHour int64
-	err = r.db.WithContext(ctx).
+	pageViewErr := r.db.WithContext(ctx).
 		Model(&PageView{}).
 		Where("tenant_id = ? AND timestamp >= ?", tenantID, oneHourAgo).
 		Count(&pageViewsLastHour).Error
-	if err != nil {
-		return nil, err
+	if pageViewErr != nil {
+		return nil, pageViewErr
 	}
 	stats.PageViews = pageViewsLastHour
 
 	// Get active pages (most viewed in last hour)
-	rows, err := r.db.WithContext(ctx).
+	rows, activePagesErr := r.db.WithContext(ctx).
 		Model(&PageView{}).
 		Where("tenant_id = ? AND timestamp >= ?", tenantID, oneHourAgo).
 		Select("path, COUNT(*) as views").
@@ -638,8 +638,8 @@ func (r *repository) GetRealTimeStats(ctx context.Context, tenantID uuid.UUID) (
 		Order("views DESC").
 		Limit(10).
 		Rows()
-	if err != nil {
-		return nil, err
+	if activePagesErr != nil {
+		return nil, activePagesErr
 	}
 	defer rows.Close()
 
@@ -653,12 +653,12 @@ func (r *repository) GetRealTimeStats(ctx context.Context, tenantID uuid.UUID) (
 
 	// Get recent conversions (last hour)
 	var conversionsLastHour int64
-	err = r.db.WithContext(ctx).
+	conversionsErr := r.db.WithContext(ctx).
 		Model(&Purchase{}).
 		Where("tenant_id = ? AND timestamp >= ?", tenantID, oneHourAgo).
 		Count(&conversionsLastHour).Error
-	if err != nil {
-		return nil, err
+	if conversionsErr != nil {
+		return nil, conversionsErr
 	}
 	stats.Conversions = conversionsLastHour
 

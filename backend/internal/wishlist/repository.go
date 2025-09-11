@@ -105,12 +105,12 @@ func (r *GormRepository) FindByID(ctx context.Context, tenantID, wishlistID uuid
 // FindByCustomerID finds all wishlists for a customer
 func (r *GormRepository) FindByCustomerID(ctx context.Context, tenantID, customerID uuid.UUID) ([]Wishlist, error) {
 	var wishlists []Wishlist
-	err := r.db.WithContext(ctx).
+	findErr := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND customer_id = ?", tenantID, customerID).
 		Order("is_default DESC, created_at ASC").
 		Find(&wishlists).Error
 	
-	return wishlists, err
+	return wishlists, findErr
 }
 
 // FindDefaultByCustomerID finds the default wishlist for a customer
@@ -256,13 +256,13 @@ func (r *GormRepository) DeleteItem(ctx context.Context, tenantID, itemID uuid.U
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Get the item to find wishlist ID
 		var item WishlistItem
-		if err := tx.Where("tenant_id = ? AND id = ?", tenantID, itemID).First(&item).Error; err != nil {
-			return err
+		if findErr := tx.Where("tenant_id = ? AND id = ?", tenantID, itemID).First(&item).Error; findErr != nil {
+			return findErr
 		}
 		
 		// Delete the item
-		if err := tx.Delete(&item).Error; err != nil {
-			return err
+		if deleteErr := tx.Delete(&item).Error; deleteErr != nil {
+			return deleteErr
 		}
 		
 		// Update wishlist item count
@@ -339,15 +339,15 @@ func (r *GormRepository) MoveItem(ctx context.Context, tenantID, itemID, targetW
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Get the item
 		var item WishlistItem
-		if err := tx.Where("tenant_id = ? AND id = ?", tenantID, itemID).First(&item).Error; err != nil {
-			return err
+		if findErr := tx.Where("tenant_id = ? AND id = ?", tenantID, itemID).First(&item).Error; findErr != nil {
+			return findErr
 		}
 		
 		oldWishlistID := item.WishlistID
 		
 		// Update item wishlist
-		if err := tx.Model(&item).Update("wishlist_id", targetWishlistID).Error; err != nil {
-			return err
+		if updateErr := tx.Model(&item).Update("wishlist_id", targetWishlistID).Error; updateErr != nil {
+			return updateErr
 		}
 		
 		// Update old wishlist count
@@ -401,23 +401,23 @@ func (r *GormRepository) CopyItem(ctx context.Context, tenantID, itemID, targetW
 func (r *GormRepository) MergeWishlists(ctx context.Context, tenantID, sourceWishlistID, targetWishlistID uuid.UUID) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Move all items from source to target
-		if err := tx.Model(&WishlistItem{}).
+		if moveErr := tx.Model(&WishlistItem{}).
 			Where("tenant_id = ? AND wishlist_id = ?", tenantID, sourceWishlistID).
-			Update("wishlist_id", targetWishlistID).Error; err != nil {
-			return err
+			Update("wishlist_id", targetWishlistID).Error; moveErr != nil {
+			return moveErr
 		}
 		
 		// Get item count from source
 		var sourceWishlist Wishlist
-		if err := tx.Where("tenant_id = ? AND id = ?", tenantID, sourceWishlistID).First(&sourceWishlist).Error; err != nil {
-			return err
+		if findErr := tx.Where("tenant_id = ? AND id = ?", tenantID, sourceWishlistID).First(&sourceWishlist).Error; findErr != nil {
+			return findErr
 		}
 		
 		// Update target wishlist count
-		if err := tx.Model(&Wishlist{}).
+		if updateErr := tx.Model(&Wishlist{}).
 			Where("tenant_id = ? AND id = ?", tenantID, targetWishlistID).
-			Update("item_count", gorm.Expr("item_count + ?", sourceWishlist.ItemCount)).Error; err != nil {
-			return err
+			Update("item_count", gorm.Expr("item_count + ?", sourceWishlist.ItemCount)).Error; updateErr != nil {
+			return updateErr
 		}
 		
 		// Delete source wishlist
@@ -431,8 +431,8 @@ func (r *GormRepository) MergeWishlists(ctx context.Context, tenantID, sourceWis
 func (r *GormRepository) BulkAddItems(ctx context.Context, items []WishlistItem) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Create all items
-		if err := tx.Create(&items).Error; err != nil {
-			return err
+		if createErr := tx.Create(&items).Error; createErr != nil {
+			return createErr
 		}
 		
 		// Update wishlist counts
@@ -442,10 +442,10 @@ func (r *GormRepository) BulkAddItems(ctx context.Context, items []WishlistItem)
 		}
 		
 		for wishlistID, count := range wishlistCounts {
-			if err := tx.Model(&Wishlist{}).
+			if updateErr := tx.Model(&Wishlist{}).
 				Where("id = ?", wishlistID).
-				Update("item_count", gorm.Expr("item_count + ?", count)).Error; err != nil {
-				return err
+				Update("item_count", gorm.Expr("item_count + ?", count)).Error; updateErr != nil {
+				return updateErr
 			}
 		}
 		
@@ -458,8 +458,8 @@ func (r *GormRepository) BulkDeleteItems(ctx context.Context, tenantID uuid.UUID
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Get items to find wishlist IDs
 		var items []WishlistItem
-		if err := tx.Where("tenant_id = ? AND id IN ?", tenantID, itemIDs).Find(&items).Error; err != nil {
-			return err
+		if findErr := tx.Where("tenant_id = ? AND id IN ?", tenantID, itemIDs).Find(&items).Error; findErr != nil {
+			return findErr
 		}
 		
 		// Count items per wishlist
@@ -469,16 +469,16 @@ func (r *GormRepository) BulkDeleteItems(ctx context.Context, tenantID uuid.UUID
 		}
 		
 		// Delete items
-		if err := tx.Where("tenant_id = ? AND id IN ?", tenantID, itemIDs).Delete(&WishlistItem{}).Error; err != nil {
-			return err
+		if deleteErr := tx.Where("tenant_id = ? AND id IN ?", tenantID, itemIDs).Delete(&WishlistItem{}).Error; deleteErr != nil {
+			return deleteErr
 		}
 		
 		// Update wishlist counts
 		for wishlistID, count := range wishlistCounts {
-			if err := tx.Model(&Wishlist{}).
+			if updateErr := tx.Model(&Wishlist{}).
 				Where("id = ?", wishlistID).
-				Update("item_count", gorm.Expr("item_count - ?", count)).Error; err != nil {
-				return err
+				Update("item_count", gorm.Expr("item_count - ?", count)).Error; updateErr != nil {
+				return updateErr
 			}
 		}
 		
@@ -490,10 +490,10 @@ func (r *GormRepository) BulkDeleteItems(ctx context.Context, tenantID uuid.UUID
 func (r *GormRepository) BulkUpdateItemPriority(ctx context.Context, tenantID uuid.UUID, updates map[uuid.UUID]int) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for itemID, priority := range updates {
-			if err := tx.Model(&WishlistItem{}).
+			if updateErr := tx.Model(&WishlistItem{}).
 				Where("tenant_id = ? AND id = ?", tenantID, itemID).
-				Update("priority", priority).Error; err != nil {
-				return err
+				Update("priority", priority).Error; updateErr != nil {
+				return updateErr
 			}
 		}
 		return nil

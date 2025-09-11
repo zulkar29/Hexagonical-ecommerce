@@ -251,27 +251,27 @@ func (r *repository) MergeGuestCartToCustomer(tenantID uuid.UUID, sessionID stri
 		for _, item := range guestItems {
 			// Check if item already exists in customer cart
 			var existingItem CartItem
-			err := tx.Where("cart_id = ? AND product_id = ? AND variant_id = ?", 
-				customerCart.ID, item.ProductID, item.VariantID).First(&existingItem).Error
+			findErr := tx.Where("cart_id = ? AND product_id = ?", 
+				customerCart.ID, item.ProductID).First(&existingItem).Error
 			
-			if err == gorm.ErrRecordNotFound {
+			if findErr == gorm.ErrRecordNotFound {
 				// Item doesn't exist, move it to customer cart
 				item.CartID = customerCart.ID
-				if err := tx.Save(&item).Error; err != nil {
-					return err
+				if saveErr := tx.Save(&item).Error; saveErr != nil {
+					return saveErr
 				}
-			} else if err != nil {
-				return err
+			} else if findErr != nil {
+				return findErr
 			} else {
 				// Item exists, merge quantities
 				existingItem.Quantity += item.Quantity
 				existingItem.CalculateLineTotal()
-				if err := tx.Save(&existingItem).Error; err != nil {
-					return err
+				if updateErr := tx.Save(&existingItem).Error; updateErr != nil {
+					return updateErr
 				}
 				// Delete the guest item
-				if err := tx.Delete(&item).Error; err != nil {
-					return err
+				if deleteErr := tx.Delete(&item).Error; deleteErr != nil {
+					return deleteErr
 				}
 			}
 		}

@@ -60,12 +60,10 @@ type CartItem struct {
 	ID        uuid.UUID `json:"id" gorm:"primarykey"`
 	CartID    uuid.UUID `json:"cart_id" gorm:"not null;index"`
 	ProductID uuid.UUID `json:"product_id" gorm:"not null;index"`
-	VariantID *uuid.UUID `json:"variant_id,omitempty" gorm:"index"`
 	
 	// Item details (snapshot at time of adding)
 	ProductName  string  `json:"product_name" gorm:"not null"`
 	ProductSlug  string  `json:"product_slug"`
-	VariantName  string  `json:"variant_name,omitempty"`
 	SKU          string  `json:"sku,omitempty"`
 	Price        float64 `json:"price" gorm:"not null"`
 	ComparePrice float64 `json:"compare_price,omitempty"`
@@ -151,18 +149,12 @@ func (c *Cart) GetUniqueItemCount() int {
 	return len(c.Items)
 }
 
-// FindItem finds a cart item by product and variant ID
-func (c *Cart) FindItem(productID uuid.UUID, variantID *uuid.UUID) *CartItem {
+// FindItem finds a cart item by product ID
+func (c *Cart) FindItem(productID uuid.UUID) *CartItem {
 	for i := range c.Items {
 		item := &c.Items[i]
 		if item.ProductID == productID {
-			// Check variant match
-			if variantID == nil && item.VariantID == nil {
-				return item
-			}
-			if variantID != nil && item.VariantID != nil && *variantID == *item.VariantID {
-				return item
-			}
+			return item
 		}
 	}
 	return nil

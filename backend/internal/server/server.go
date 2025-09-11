@@ -14,7 +14,6 @@ import (
 	"gorm.io/gorm"
 
 	"ecommerce-saas/internal/shared/config"
-	"ecommerce-saas/internal/shared/database"
 	"ecommerce-saas/internal/shared/routes"
 	"ecommerce-saas/internal/shared/utils"
 )
@@ -103,28 +102,4 @@ func (s *Server) Start() error {
 // GetRouter returns the gin router (for testing)
 func (s *Server) GetRouter() *gin.Engine {
 	return s.router
-}
-
-// Health handlers
-func (s *Server) healthHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"status": "ok",
-		"time":   time.Now().UTC(),
-	})
-}
-
-func (s *Server) readyHandler(c *gin.Context) {
-	// Check database connection
-	if err := database.Health(); err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"status": "not ready",
-			"error":  "database not available",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"status": "ready",
-		"time":   time.Now().UTC(),
-	})
 }

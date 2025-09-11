@@ -115,7 +115,7 @@ func (j *JWTManager) RefreshToken(refreshTokenString string) (string, string, er
 	}
 	
 	// Check if it's actually a refresh token (longer expiry)
-	if claims.ExpiresAt.Time.Sub(time.Now()) < 6*24*time.Hour {
+	if time.Until(claims.ExpiresAt.Time) < 6*24*time.Hour {
 		return "", "", errors.New("invalid refresh token")
 	}
 	

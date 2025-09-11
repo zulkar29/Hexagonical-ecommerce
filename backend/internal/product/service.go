@@ -41,21 +41,21 @@ func (s *Service) CreateProduct(tenantID uuid.UUID, product *Product) (*Product,
 	product.ID = uuid.New()
 	
 	// Validate product data
-	if err := product.ValidateProductData(); err != nil {
-		return nil, err
+	if validateErr := product.ValidateProductData(); validateErr != nil {
+		return nil, validateErr
 	}
 
 	// Validate struct tags
-	if err := s.validator.Struct(product); err != nil {
-		return nil, err
+	if structErr := s.validator.Struct(product); structErr != nil {
+		return nil, structErr
 	}
 
 	// Generate slug
 	slug := s.generateSlug(product.Name)
 	
 	// Check if slug exists for this tenant
-	if exists, err := s.repo.SlugExists(tenantID, slug); err != nil {
-		return nil, err
+	if exists, slugErr := s.repo.SlugExists(tenantID, slug); slugErr != nil {
+		return nil, slugErr
 	} else if exists {
 		slug = s.generateUniqueSlug(tenantID, slug)
 	}
@@ -63,8 +63,8 @@ func (s *Service) CreateProduct(tenantID uuid.UUID, product *Product) (*Product,
 
 	// Validate category if provided
 	if product.CategoryID != uuid.Nil {
-		if exists, err := s.repo.CategoryExists(tenantID, product.CategoryID); err != nil {
-			return nil, err
+		if exists, catErr := s.repo.CategoryExists(tenantID, product.CategoryID); catErr != nil {
+			return nil, catErr
 		} else if !exists {
 			return nil, errors.New("category not found")
 		}
@@ -123,13 +123,13 @@ func (s *Service) UpdateProduct(tenantID, productID uuid.UUID, product *Product)
 	}
 
 	// Validate product data
-	if err := product.ValidateProductData(); err != nil {
-		return nil, err
+	if validateErr := product.ValidateProductData(); validateErr != nil {
+		return nil, validateErr
 	}
 
 	// Validate struct tags
-	if err := s.validator.Struct(product); err != nil {
-		return nil, err
+	if structErr := s.validator.Struct(product); structErr != nil {
+		return nil, structErr
 	}
 
 	// Update fields from provided product
@@ -138,8 +138,8 @@ func (s *Service) UpdateProduct(tenantID, productID uuid.UUID, product *Product)
 		// Regenerate slug if name changed
 		slug := s.generateSlug(existingProduct.Name)
 		if slug != existingProduct.Slug {
-			if exists, err := s.repo.SlugExists(tenantID, slug); err != nil {
-				return nil, err
+			if exists, slugErr := s.repo.SlugExists(tenantID, slug); slugErr != nil {
+				return nil, slugErr
 			} else if exists {
 				slug = s.generateUniqueSlug(tenantID, slug)
 			}
@@ -199,8 +199,8 @@ func (s *Service) UpdateProduct(tenantID, productID uuid.UUID, product *Product)
 	}
 	if product.CategoryID != uuid.Nil {
 		// Validate category if provided
-		if exists, err := s.repo.CategoryExists(tenantID, product.CategoryID); err != nil {
-			return nil, err
+		if exists, catErr := s.repo.CategoryExists(tenantID, product.CategoryID); catErr != nil {
+			return nil, catErr
 		} else if !exists {
 			return nil, errors.New("category not found")
 		}
@@ -249,6 +249,56 @@ func (s *Service) UpdateInventory(tenantID uuid.UUID, id string, quantity int) e
 	return s.repo.UpdateInventory(tenantID, productID, quantity)
 }
 
+// ReserveStock reserves inventory for a product (decrements inventory)
+func (s *Service) ReserveStock(tenantID uuid.UUID, productID uuid.UUID, quantity int) error {
+	// Get the product first
+	product, err := s.repo.FindProductByID(tenantID, productID)
+	if err != nil {
+		return fmt.Errorf("product not found: %w", err)
+	}
+
+	// Check if we can decrement inventory
+	if !product.CanDecrementInventory(quantity) {
+		return fmt.Errorf("insufficient inventory for product %s. Available: %d, Requested: %d", product.Name, product.InventoryQuantity, quantity)
+	}
+
+	// Decrement inventory
+	if decrementErr := product.DecrementInventory(quantity); decrementErr != nil {
+		return decrementErr
+	}
+
+	// Save the updated product
+	_, err = s.repo.SaveProduct(product)
+	return err
+}
+
+// RestoreStock restores inventory for a product (increments inventory)
+func (s *Service) RestoreStock(tenantID uuid.UUID, productID uuid.UUID, quantity int) error {
+	// Get the product first
+	product, err := s.repo.FindProductByID(tenantID, productID)
+	if err != nil {
+		return fmt.Errorf("product not found: %w", err)
+	}
+
+	// Increment inventory
+	product.IncrementInventory(quantity)
+
+	// Save the updated product
+	_, err = s.repo.SaveProduct(product)
+	return err
+}
+
+// CheckAvailability checks if sufficient inventory is available
+func (s *Service) CheckAvailability(tenantID uuid.UUID, productID uuid.UUID, variantID *uuid.UUID, quantity int) (bool, error) {
+	// For now, we only handle product-level inventory (not variant-level)
+	product, err := s.repo.FindProductByID(tenantID, productID)
+	if err != nil {
+		return false, fmt.Errorf("product not found: %w", err)
+	}
+
+	return product.CanDecrementInventory(quantity), nil
+}
+
 // CreateCategory creates a new category
 func (s *Service) CreateCategory(tenantID uuid.UUID, category *Category) (*Category, error) {
 	// Set tenant ID and generate new ID
@@ -256,16 +306,16 @@ func (s *Service) CreateCategory(tenantID uuid.UUID, category *Category) (*Categ
 	category.ID = uuid.New()
 
 	// Validate struct tags
-	if err := s.validator.Struct(category); err != nil {
-		return nil, err
+	if structErr := s.validator.Struct(category); structErr != nil {
+		return nil, structErr
 	}
 
 	// Generate slug
 	slug := s.generateSlug(category.Name)
 	
 	// Check if slug exists for this tenant
-	if exists, err := s.repo.CategorySlugExists(tenantID, slug); err != nil {
-		return nil, err
+	if exists, slugErr := s.repo.CategorySlugExists(tenantID, slug); slugErr != nil {
+		return nil, slugErr
 	} else if exists {
 		slug = s.generateUniqueCategorySlug(tenantID, slug)
 	}
@@ -273,8 +323,8 @@ func (s *Service) CreateCategory(tenantID uuid.UUID, category *Category) (*Categ
 
 	// Validate parent category if provided
 	if category.ParentID != nil {
-		if exists, err := s.repo.CategoryExists(tenantID, *category.ParentID); err != nil {
-			return nil, err
+		if exists, parentErr := s.repo.CategoryExists(tenantID, *category.ParentID); parentErr != nil {
+			return nil, parentErr
 		} else if !exists {
 			return nil, errors.New("parent category not found")
 		}
@@ -568,13 +618,13 @@ func (s *Service) CreateProductVariant(tenantID, productID uuid.UUID, variant *P
 	variant.ID = uuid.New()
 
 	// Validate struct tags
-	if err := s.validator.Struct(variant); err != nil {
-		return nil, err
+	if structErr := s.validator.Struct(variant); structErr != nil {
+		return nil, structErr
 	}
 
 	// Validate product exists
-	if exists, err := s.repo.ProductExists(tenantID, productID); err != nil {
-		return nil, err
+	if exists, productErr := s.repo.ProductExists(tenantID, productID); productErr != nil {
+		return nil, productErr
 	} else if !exists {
 		return nil, errors.New("product not found")
 	}
@@ -619,8 +669,8 @@ func (s *Service) UpdateProductVariant(tenantID, productID, variantID uuid.UUID,
 	}
 
 	// Validate struct tags
-	if err := s.validator.Struct(variant); err != nil {
-		return nil, err
+	if structErr := s.validator.Struct(variant); structErr != nil {
+		return nil, structErr
 	}
 
 	// Update fields from provided variant
@@ -709,8 +759,8 @@ func (s *Service) UpdateCategory(tenantID, categoryID uuid.UUID, category *Categ
 	}
 
 	// Validate struct tags
-	if err := s.validator.Struct(category); err != nil {
-		return nil, err
+	if structErr := s.validator.Struct(category); structErr != nil {
+		return nil, structErr
 	}
 
 	// Update fields from provided category
@@ -719,8 +769,8 @@ func (s *Service) UpdateCategory(tenantID, categoryID uuid.UUID, category *Categ
 		// Regenerate slug if name changed
 		slug := s.generateSlug(existingCategory.Name)
 		if slug != existingCategory.Slug {
-			if exists, err := s.repo.CategorySlugExists(tenantID, slug); err != nil {
-				return nil, err
+			if exists, slugErr := s.repo.CategorySlugExists(tenantID, slug); slugErr != nil {
+				return nil, slugErr
 			} else if exists {
 				slug = s.generateUniqueCategorySlug(tenantID, slug)
 			}
@@ -736,8 +786,8 @@ func (s *Service) UpdateCategory(tenantID, categoryID uuid.UUID, category *Categ
 	}
 	if category.ParentID != nil && *category.ParentID != uuid.Nil {
 		// Validate parent category if provided
-		if exists, err := s.repo.CategoryExists(tenantID, *category.ParentID); err != nil {
-			return nil, err
+		if exists, parentErr := s.repo.CategoryExists(tenantID, *category.ParentID); parentErr != nil {
+			return nil, parentErr
 		} else if !exists {
 			return nil, errors.New("parent category not found")
 		}

@@ -18,15 +18,15 @@ func NewRepository(db *gorm.DB) *Repository {
 // Shipping Zone Repository Methods
 
 func (r *Repository) CreateShippingZone(zone *ShippingZone) (*ShippingZone, error) {
-	if err := r.db.Create(zone).Error; err != nil {
-		return nil, err
+	if createErr := r.db.Create(zone).Error; createErr != nil {
+		return nil, createErr
 	}
 	return zone, nil
 }
 
 func (r *Repository) UpdateShippingZone(zone *ShippingZone) (*ShippingZone, error) {
-	if err := r.db.Save(zone).Error; err != nil {
-		return nil, err
+	if saveErr := r.db.Save(zone).Error; saveErr != nil {
+		return nil, saveErr
 	}
 	return zone, nil
 }
@@ -81,15 +81,15 @@ func (r *Repository) GetShippingZonesForDestination(tenantID uuid.UUID, country,
 // Shipping Rate Repository Methods
 
 func (r *Repository) CreateShippingRate(rate *ShippingRate) (*ShippingRate, error) {
-	if err := r.db.Create(rate).Error; err != nil {
-		return nil, err
+	if createErr := r.db.Create(rate).Error; createErr != nil {
+		return nil, createErr
 	}
 	return rate, nil
 }
 
 func (r *Repository) UpdateShippingRate(rate *ShippingRate) (*ShippingRate, error) {
-	if err := r.db.Save(rate).Error; err != nil {
-		return nil, err
+	if saveErr := r.db.Save(rate).Error; saveErr != nil {
+		return nil, saveErr
 	}
 	return rate, nil
 }
@@ -126,15 +126,15 @@ func (r *Repository) GetShippingRates(tenantID, zoneID uuid.UUID) ([]ShippingRat
 // Shipping Label Repository Methods
 
 func (r *Repository) CreateShippingLabel(label *ShippingLabel) (*ShippingLabel, error) {
-	if err := r.db.Create(label).Error; err != nil {
-		return nil, err
+	if createErr := r.db.Create(label).Error; createErr != nil {
+		return nil, createErr
 	}
 	return label, nil
 }
 
 func (r *Repository) UpdateShippingLabel(label *ShippingLabel) (*ShippingLabel, error) {
-	if err := r.db.Save(label).Error; err != nil {
-		return nil, err
+	if saveErr := r.db.Save(label).Error; saveErr != nil {
+		return nil, saveErr
 	}
 	return label, nil
 }

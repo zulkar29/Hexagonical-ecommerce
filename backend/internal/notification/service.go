@@ -134,11 +134,11 @@ func (s *service) SendNotification(tenantID uuid.UUID, req *SendNotificationRequ
 func (s *service) sendNotificationAsync(notification *Notification) {
 	switch notification.Type {
 	case TypeEmail:
-		err := s.sendEmailNotification(notification)
-		s.updateNotificationStatus(notification, err)
+		emailErr := s.sendEmailNotification(notification)
+		s.updateNotificationStatus(notification, emailErr)
 	case TypeSMS:
-		err := s.sendSMSNotification(notification)
-		s.updateNotificationStatus(notification, err)
+		smsErr := s.sendSMSNotification(notification)
+		s.updateNotificationStatus(notification, smsErr)
 	case TypePush:
 		// TODO: Implement push notification
 		s.updateNotificationStatus(notification, fmt.Errorf("push notifications not implemented"))

@@ -2,7 +2,6 @@ package security
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -532,20 +531,7 @@ func (h *Handler) getUUIDParam(c *gin.Context, param string) (uuid.UUID, error) 
 	return uuid.Parse(idStr)
 }
 
-// getIntQuery extracts integer query parameter
-func (h *Handler) getIntQuery(c *gin.Context, key string, defaultValue int) int {
-	valueStr := c.Query(key)
-	if valueStr == "" {
-		return defaultValue
-	}
 
-	value, err := strconv.Atoi(valueStr)
-	if err != nil {
-		return defaultValue
-	}
-
-	return value
-}
 
 // handleServiceError handles service layer errors
 func (h *Handler) handleServiceError(c *gin.Context, err error) {

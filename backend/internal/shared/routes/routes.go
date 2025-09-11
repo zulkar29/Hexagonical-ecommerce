@@ -8,7 +8,7 @@ import (
 	"ecommerce-saas/internal/admin"
 	"ecommerce-saas/internal/analytics"
 	"ecommerce-saas/internal/billing"
-	// "ecommerce-saas/internal/cart" // Temporarily disabled due to interface compatibility issues
+	"ecommerce-saas/internal/cart"
 	"ecommerce-saas/internal/components"
 	"ecommerce-saas/internal/contact"
 	"ecommerce-saas/internal/content"
@@ -18,6 +18,7 @@ import (
 	"ecommerce-saas/internal/marketing"
 	"ecommerce-saas/internal/notification"
 	"ecommerce-saas/internal/observability"
+	"ecommerce-saas/internal/order"
 	"ecommerce-saas/internal/payment"
 	"ecommerce-saas/internal/product"
 	"ecommerce-saas/internal/returns"
@@ -156,7 +157,6 @@ func setupPublicProductRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 	productModule := product.NewModule(cfg.DB)
 	
 	// TODO: Initialize order module for public tracking - requires service dependencies
-	// orderModule := order.NewModule(cfg.DB, productService, discountService, paymentService, inventoryService, notificationService)
 	
 	// Public product routes (read-only, no auth required)
 	public := v1.Group("")
@@ -192,10 +192,24 @@ func setupPublicProductRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 }
 
 func setupOrderRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	// TODO: Implement proper service dependencies
-	// For now, comment out order routes to avoid compilation errors
-	// orderModule := order.NewModule(cfg.DB, productService, discountService, paymentService, inventoryService, notificationService)
-	// orderModule.RegisterRoutes(v1)
+	// Initialize required service dependencies
+	productRepo := product.NewRepository(cfg.DB)
+	productService := product.NewService(productRepo)
+	
+	discountRepo := discount.NewRepository(cfg.DB)
+	discountService := discount.NewService(discountRepo)
+	
+	paymentModule := payment.NewModule(cfg.DB)
+	paymentService := paymentModule.Service
+	
+	notificationModule := notification.NewModule(cfg.DB)
+	notificationService := notificationModule.GetService()
+	
+	// Initialize order module
+	orderModule := order.NewModule(cfg.DB, productService, discountService, paymentService, notificationService)
+	
+	// Register order routes
+	orderModule.RegisterRoutes(v1)
 }
 
 func setupPaymentRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
@@ -353,21 +367,24 @@ func setupBillingRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 
 // Setup cart routes
 func setupCartRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	// TODO: Fix service interface compatibility issues
-	// The cart module expects different interfaces than what the services provide
-	// Temporarily commented out to allow compilation
-	
 	// Initialize required service dependencies
-	// productModule := product.NewModule(cfg.DB)
-	// discountModule := discount.NewModule(cfg.DB)
-	// taxModule := tax.NewModule(cfg.DB)
-	// shippingModule := shipping.NewModule(cfg.DB)
+	productRepo := product.NewRepository(cfg.DB)
+	productService := product.NewService(productRepo)
 	
-	// Initialize cart module with dependencies
-	// cartModule := cart.NewModule(cfg.DB, productModule.Service, discountModule.GetService(), taxModule.GetService(), shippingModule.GetService())
+	discountRepo := discount.NewRepository(cfg.DB)
+	discountService := discount.NewService(discountRepo)
+	
+	taxRepo := tax.NewGormRepository(cfg.DB)
+	taxService := tax.NewService(taxRepo)
+	
+	shippingRepo := shipping.NewRepository(cfg.DB)
+	shippingService := shipping.NewService(shippingRepo)
+	
+	// Initialize cart module with services directly
+	cartModule := cart.NewModule(cfg.DB, productService, discountService, taxService, shippingService)
 	
 	// Register cart routes
-	// cartModule.RegisterRoutes(v1)
+	cartModule.RegisterRoutes(v1)
 }
 
 // Setup observability routes

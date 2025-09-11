@@ -112,7 +112,7 @@ func (r *repository) ListContacts(ctx context.Context, tenantID uuid.UUID, filte
 		query = query.Where("source IN ?", filter.Source)
 	}
 	if filter.Search != "" {
-		query = query.Where("(name ILIKE ? OR email ILIKE ? OR subject ILIKE ? OR message ILIKE ?)", 
+		query = query.Where("(name ILIKE ? OR email ILIKE ? OR subject ILIKE ? OR message ILIKE ?)",
 			"%"+filter.Search+"%", "%"+filter.Search+"%", "%"+filter.Search+"%", "%"+filter.Search+"%")
 	}
 	if filter.StartDate != nil {
@@ -121,7 +121,7 @@ func (r *repository) ListContacts(ctx context.Context, tenantID uuid.UUID, filte
 	if filter.EndDate != nil {
 		query = query.Where("created_at <= ?", *filter.EndDate)
 	}
-	if filter.Tags != nil && len(filter.Tags) > 0 {
+	if len(filter.Tags) > 0 {
 		// TODO: Implement proper JSONB array containment query for PostgreSQL
 		for _, tag := range filter.Tags {
 			query = query.Where("tags::text ILIKE ?", "%"+tag+"%")
@@ -381,23 +381,19 @@ func (r *repository) UpdateContactSettings(ctx context.Context, settings *Contac
 // Analytics
 func (r *repository) GetContactAnalytics(ctx context.Context, tenantID uuid.UUID, period AnalyticsPeriod) (*ContactAnalytics, error) {
 	now := time.Now()
-	
-	var analytics ContactAnalytics
-	
+
 	// TODO: Implement comprehensive analytics queries
 	// This is a complex query that would need to aggregate data from multiple periods
 	// For now, return basic structure
-	analytics = ContactAnalytics{
+	analytics := ContactAnalytics{
 		TenantID: tenantID,
 		Date:     now,
 	}
-	
+
 	return &analytics, nil
 }
 
 func (r *repository) GetContactMetrics(ctx context.Context, tenantID uuid.UUID, from, to time.Time) (*ContactMetrics, error) {
-	var metrics ContactMetrics
-
 	// TODO: Implement comprehensive metrics calculation
 	// This would involve complex aggregation queries for:
 	// - Total contacts, new contacts, resolved contacts
@@ -405,7 +401,7 @@ func (r *repository) GetContactMetrics(ctx context.Context, tenantID uuid.UUID, 
 	// - Customer satisfaction scores
 	// - Agent performance metrics
 
-	metrics = ContactMetrics{
+	metrics := ContactMetrics{
 		TenantID:  tenantID,
 		StartDate: from,
 		EndDate:   to,

@@ -10,7 +10,6 @@ type Module struct {
 	Handler *Handler
 	Service *Service
 	Repository Repository
-	InventoryService *InventoryService
 }
 
 // NewModule creates a new product module with all dependencies
@@ -18,13 +17,11 @@ func NewModule(db *gorm.DB) *Module {
 	repository := NewRepository(db)
 	service := NewService(repository)
 	handler := NewHandler(service)
-	inventoryService := NewInventoryService(repository)
 
 	return &Module{
 		Handler:    handler,
 		Service:    service,
 		Repository: repository,
-		InventoryService: inventoryService,
 	}
 }
 

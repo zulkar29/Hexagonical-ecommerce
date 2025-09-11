@@ -33,8 +33,8 @@ func NewHandler(service Service) *Handler {
 // @Router /components [post]
 func (h *Handler) CreateComponent(c *gin.Context) {
 	var req CreateComponentRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid request body", Details: err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid request body", Details: bindErr.Error()})
 		return
 	}
 	
@@ -127,8 +127,8 @@ func (h *Handler) UpdateComponent(c *gin.Context) {
 	}
 	
 	var req UpdateComponentRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid request body", Details: err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid request body", Details: bindErr.Error()})
 		return
 	}
 	
@@ -258,8 +258,8 @@ func (h *Handler) DuplicateComponent(c *gin.Context) {
 	}
 	
 	var req DuplicateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid request body", Details: err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid request body", Details: bindErr.Error()})
 		return
 	}
 	
@@ -291,8 +291,8 @@ func (h *Handler) DuplicateComponent(c *gin.Context) {
 // @Router /instances [post]
 func (h *Handler) CreateInstance(c *gin.Context) {
 	var req CreateInstanceRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid request body", Details: err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid request body", Details: bindErr.Error()})
 		return
 	}
 	
@@ -546,8 +546,8 @@ func (h *Handler) GetTemplate(c *gin.Context) {
 // @Router /theme-templates [post]
 func (h *Handler) CreateThemeTemplate(c *gin.Context) {
 	var req CreateThemeTemplateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid request body", Details: err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid request body", Details: bindErr.Error()})
 		return
 	}
 	
@@ -608,8 +608,8 @@ func (h *Handler) UpdateThemeTemplate(c *gin.Context) {
 	}
 	
 	var req UpdateThemeTemplateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid request body", Details: err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid request body", Details: bindErr.Error()})
 		return
 	}
 	

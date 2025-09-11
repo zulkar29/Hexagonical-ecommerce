@@ -7,50 +7,40 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+
+	"ecommerce-saas/internal/product"
+	"ecommerce-saas/internal/discount"
+	"ecommerce-saas/internal/payment"
+	"ecommerce-saas/internal/notification"
 )
 
 // ProductService interface for product operations
 type ProductService interface {
-	GetProduct(tenantID uuid.UUID, id string) (*Product, error)
-	GetProductBySlug(tenantID uuid.UUID, slug string) (*Product, error)
-}
-
-// Product represents a product for order integration
-type Product struct {
-	ID          uuid.UUID `json:"id"`
-	Name        string    `json:"name"`
-	SKU         string    `json:"sku"`
-	Price       float64   `json:"price"`
-	Status      string    `json:"status"`
-	Inventory   int       `json:"inventory"`
+	GetProduct(tenantID uuid.UUID, id string) (*product.Product, error)
+	GetProductBySlug(tenantID uuid.UUID, slug string) (*product.Product, error)
+	ReserveStock(tenantID uuid.UUID, productID uuid.UUID, quantity int) error
+	RestoreStock(tenantID uuid.UUID, productID uuid.UUID, quantity int) error
+	CheckAvailability(tenantID uuid.UUID, productID uuid.UUID, variantID *uuid.UUID, quantity int) (bool, error)
 }
 
 // DiscountService interface for discount operations
 type DiscountService interface {
-	ValidateDiscountCode(ctx context.Context, tenantID uuid.UUID, code string, customerID *uuid.UUID, customerEmail string, orderAmount float64, itemQuantity int, productIDs []string, categoryIDs []string) (*DiscountValidation, error)
-	ApplyDiscount(ctx context.Context, tenantID uuid.UUID, code string, orderID uuid.UUID, customerID *uuid.UUID, customerEmail string, orderAmount float64, itemQuantity int, productIDs []string, categoryIDs []string, ipAddress string, userAgent string) (*DiscountApplication, error)
-	RemoveDiscount(ctx context.Context, tenantID uuid.UUID, orderID uuid.UUID) error
+	ValidateDiscountCode(ctx context.Context, req discount.ValidateDiscountRequest) (*discount.DiscountValidation, error)
+	ApplyDiscount(ctx context.Context, req discount.ApplyDiscountRequest) (*discount.DiscountApplication, error)
 }
 
 // PaymentService interface for payment operations
 type PaymentService interface {
-	CreatePayment(ctx context.Context, tenantID uuid.UUID, orderID string, amount float64, currency string, gateway string, paymentMethodID string, customerEmail string, customerPhone string, returnURL string) (*CreatePaymentResponse, error)
-	ProcessPayment(ctx context.Context, tenantID uuid.UUID, paymentID string, gateway string, gatewayResponse map[string]interface{}) error
-	RefundPayment(ctx context.Context, tenantID uuid.UUID, paymentID string, amount float64, reason string) error
+	CreatePayment(ctx context.Context, req *payment.CreatePaymentRequest) (*payment.CreatePaymentResponse, error)
+	ProcessPayment(ctx context.Context, req *payment.ProcessPaymentRequest) (*payment.Payment, error)
+	RefundPayment(ctx context.Context, req *payment.RefundPaymentRequest) (*payment.Payment, error)
 }
 
-// InventoryService interface for inventory management
-type InventoryService interface {
-	ReserveStock(ctx context.Context, tenantID uuid.UUID, productID uuid.UUID, quantity int) error
-	RestoreStock(ctx context.Context, tenantID uuid.UUID, productID uuid.UUID, quantity int) error
-	UpdateInventory(ctx context.Context, tenantID uuid.UUID, productID uuid.UUID, quantity int) error
-}
+
 
 // NotificationService interface for notification operations
 type NotificationService interface {
-	SendNotification(ctx context.Context, tenantID uuid.UUID, notificationType string, channel string, recipients []string, subject string, content string, userID string, priority string, variables map[string]interface{}, templateID string, scheduledAt *time.Time) (*SendNotificationResponse, error)
-	SendEmail(ctx context.Context, tenantID uuid.UUID, to []string, subject string, content string, contentType string, variables map[string]interface{}, templateID string) error
-	SendSMS(ctx context.Context, tenantID uuid.UUID, to []string, message string, variables map[string]interface{}, templateID string) error
+	SendEmail(tenantID uuid.UUID, req *notification.SendEmailRequest) error
 }
 
 // Notification related structs
@@ -187,9 +177,9 @@ type Module struct {
 }
 
 // NewModule creates a new order module with all dependencies
-func NewModule(db *gorm.DB, productService ProductService, discountService DiscountService, paymentService PaymentService, inventoryService InventoryService, notificationService NotificationService) *Module {
+func NewModule(db *gorm.DB, productService ProductService, discountService DiscountService, paymentService PaymentService, notificationService NotificationService) *Module {
 	repository := NewRepository(db)
-	service := NewService(repository, db, productService, discountService, paymentService, inventoryService, notificationService)
+	service := NewService(repository, db, productService, discountService, paymentService, notificationService)
 	handler := NewHandler(service)
 
 	return &Module{

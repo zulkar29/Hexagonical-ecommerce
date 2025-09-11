@@ -218,10 +218,10 @@ func (h *ObservabilityHandler) CreateLog(c *gin.Context) {
 		Fields  map[string]interface{} `json:"fields"`
 	}
 
-	if err := c.ShouldBindJSON(&request); err != nil {
+	if bindErr := c.ShouldBindJSON(&request); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Invalid request",
-			"details": err.Error(),
+			"details": bindErr.Error(),
 		})
 		return
 	}
@@ -319,10 +319,10 @@ func (h *ObservabilityHandler) CreateAlert(c *gin.Context) {
 		Condition   string `json:"condition" binding:"required"`
 	}
 
-	if err := c.ShouldBindJSON(&request); err != nil {
+	if bindErr := c.ShouldBindJSON(&request); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Invalid request",
-			"details": err.Error(),
+			"details": bindErr.Error(),
 		})
 		return
 	}

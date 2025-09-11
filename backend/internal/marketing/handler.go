@@ -97,8 +97,8 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 // Campaign handlers
 func (h *Handler) createCampaign(c *gin.Context) {
 	var req CreateCampaignRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
@@ -188,8 +188,8 @@ func (h *Handler) updateCampaign(c *gin.Context) {
 	}
 	
 	var req UpdateCampaignRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
@@ -235,8 +235,8 @@ func (h *Handler) scheduleCampaign(c *gin.Context) {
 		ScheduledAt time.Time `json:"scheduled_at" binding:"required"`
 	}
 	
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
@@ -381,8 +381,8 @@ func (h *Handler) getCampaignStats(c *gin.Context) {
 // Template handlers
 func (h *Handler) createTemplate(c *gin.Context) {
 	var req CreateTemplateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
@@ -463,8 +463,8 @@ func (h *Handler) updateTemplate(c *gin.Context) {
 	}
 	
 	var req UpdateTemplateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
@@ -502,8 +502,8 @@ func (h *Handler) deleteTemplate(c *gin.Context) {
 // Segment handlers (similar pattern for brevity)
 func (h *Handler) createSegment(c *gin.Context) {
 	var req CreateSegmentRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
@@ -556,8 +556,8 @@ func (h *Handler) updateSegment(c *gin.Context) {
 	}
 	
 	var req UpdateSegmentRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
@@ -614,8 +614,8 @@ func (h *Handler) refreshSegment(c *gin.Context) {
 // Newsletter handlers
 func (h *Handler) subscribe(c *gin.Context) {
 	var req SubscribeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
@@ -633,8 +633,8 @@ func (h *Handler) unsubscribe(c *gin.Context) {
 		Email string `json:"email" binding:"required,email"`
 	}
 	
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
@@ -706,8 +706,8 @@ func (h *Handler) getSubscriber(c *gin.Context) {
 // Abandoned cart handlers
 func (h *Handler) createAbandonedCart(c *gin.Context) {
 	var req CreateAbandonedCartRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
@@ -790,8 +790,8 @@ func (h *Handler) markCartRecovered(c *gin.Context) {
 		RecoveredValue float64 `json:"recovered_value" binding:"required,min=0"`
 	}
 	
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
@@ -842,8 +842,8 @@ func (h *Handler) getSettings(c *gin.Context) {
 
 func (h *Handler) updateSettings(c *gin.Context) {
 	var req UpdateSettingsRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	

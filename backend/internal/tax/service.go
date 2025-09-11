@@ -967,7 +967,7 @@ func (s *ServiceImpl) performTaxCalculation(req TaxCalculationRequest, rules []*
 	}
 	effectiveRate = RoundToTwoDecimals(effectiveRate)
 	
-	location := fmt.Sprintf("%s", req.Country)
+	location := req.Country
 	if req.State != "" {
 		location += ", " + req.State
 	}
