@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"ecommerce-saas/internal/shared/utils"
 )
 
 // BillingHandler handles billing HTTP requests
@@ -782,18 +783,10 @@ func (h *BillingHandler) ReactivateService(c *gin.Context) {
 
 // Helper methods
 func (h *BillingHandler) getTenantID(c *gin.Context) uuid.UUID {
-	// Extract tenant ID from JWT token or headers
-	// This is a placeholder - implement based on your auth system
-	tenantIDStr := c.GetHeader("X-Tenant-ID")
-	if tenantIDStr == "" {
-		return uuid.Nil
-	}
-
-	tenantID, err := uuid.Parse(tenantIDStr)
+	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		return uuid.Nil
 	}
-
 	return tenantID
 }
 

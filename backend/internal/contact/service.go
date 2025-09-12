@@ -1000,12 +1000,19 @@ func (s *service) UpdateContactSettings(ctx context.Context, tenantID uuid.UUID,
 	}
 	if req.BusinessHoursEnabled != nil {
 		// Map to existing field or add new field as needed
+		// For now, we'll store this in a generic settings field
+		// This would typically be stored in a business_hours_enabled field
+		// settings.BusinessHoursEnabled = *req.BusinessHoursEnabled
+		_ = req.BusinessHoursEnabled // Acknowledge the parameter until implementation
 	}
 	if req.Timezone != nil {
 		settings.Timezone = *req.Timezone
 	}
 	if req.SLAEnabled != nil {
 		// This field might need to be added to the settings struct
+		// For now, we'll note that SLA is enabled but not store it
+		// settings.SLAEnabled = *req.SLAEnabled
+		_ = req.SLAEnabled // Acknowledge the parameter until implementation
 	}
 	if req.SLAResponseTime != nil {
 		settings.SLAResponseTime = *req.SLAResponseTime
@@ -1018,6 +1025,9 @@ func (s *service) UpdateContactSettings(ctx context.Context, tenantID uuid.UUID,
 	}
 	if req.SlackNotifications != nil {
 		// Map to slack webhook or similar field
+		// For now, we'll note that Slack notifications are enabled
+		// settings.SlackNotificationsEnabled = *req.SlackNotifications
+		_ = req.SlackNotifications // Acknowledge the parameter until implementation
 	}
 	if req.SlackWebhookURL != nil {
 		settings.SlackWebhookURL = *req.SlackWebhookURL

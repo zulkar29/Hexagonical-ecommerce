@@ -1,6 +1,9 @@
 package webhook
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"time"
 
 	"github.com/google/uuid"
@@ -211,8 +214,147 @@ func (wrl *WebhookRateLimit) IsRateLimited() bool {
 	return wrl.RequestCount >= wrl.Limit && time.Now().Before(wrl.WindowEnd)
 }
 
-// TODO: Add more business logic methods
-// - GenerateSignature(payload, secret) string
-// - VerifySignature(payload, signature, secret) bool
-// - CalculateRetryDelay(attemptCount int) time.Duration
-// - ShouldDisableEndpoint(failureCount int) bool
+// Additional business logic methods
+
+// GenerateSignature generates HMAC-SHA256 signature for webhook payload
+func GenerateSignature(payload []byte, secret string) string {
+	h := hmac.New(sha256.New, []byte(secret))
+	h.Write(payload)
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// VerifySignature verifies webhook signature
+func VerifySignature(payload []byte, signature, secret string) bool {
+	expectedSignature := GenerateSignature(payload, secret)
+	return hmac.Equal([]byte(signature), []byte(expectedSignature))
+}
+
+// CalculateRetryDelay calculates retry delay based on attempt count
+func CalculateRetryDelay(attemptCount int, policy string) time.Duration {
+	switch policy {
+	case "linear":
+		return time.Duration(attemptCount) * time.Minute
+	case "exponential":
+		baseDelay := 1 * time.Minute
+		multiplier := time.Duration(attemptCount * attemptCount)
+		return baseDelay * multiplier
+	case "none":
+		return 0
+	default:
+		// Default to exponential
+		baseDelay := 1 * time.Minute
+		multiplier := time.Duration(attemptCount * attemptCount)
+		return baseDelay * multiplier
+	}
+}
+
+// ShouldDisableEndpoint checks if endpoint should be disabled due to failures
+func ShouldDisableEndpoint(failureCount int) bool {
+	return failureCount >= 10 // Disable after 10 consecutive failures
+}
+
+// Webhook endpoint business logic methods
+
+// UpdateLastDelivery updates the last delivery status and timestamp
+func (we *WebhookEndpoint) UpdateLastDelivery(status WebhookStatus) {
+	we.LastStatus = status
+	now := time.Now()
+	we.LastDeliveryAt = &now
+	
+	if status == StatusFailed {
+		we.FailureCount++
+	} else if status == StatusDelivered {
+		we.FailureCount = 0 // Reset failure count on success
+	}
+}
+
+// ShouldDisable checks if this endpoint should be disabled
+func (we *WebhookEndpoint) ShouldDisable() bool {
+	return ShouldDisableEndpoint(we.FailureCount)
+}
+
+// GetEffectiveTimeout returns the timeout with a reasonable maximum
+func (we *WebhookEndpoint) GetEffectiveTimeout() time.Duration {
+	timeout := time.Duration(we.TimeoutSeconds) * time.Second
+	if timeout > 5*time.Minute {
+		return 5 * time.Minute // Maximum 5 minutes
+	}
+	if timeout < 5*time.Second {
+		return 5 * time.Second // Minimum 5 seconds
+	}
+	return timeout
+}
+
+// Webhook delivery business logic methods
+
+// MarkAsDelivered marks the delivery as successfully delivered
+func (wd *WebhookDelivery) MarkAsDelivered(responseStatus int, responseHeaders map[string]string, responseBody string, responseTime int) {
+	wd.Status = StatusDelivered
+	now := time.Now()
+	wd.DeliveredAt = &now
+	wd.LastAttemptAt = &now
+	wd.ResponseStatus = responseStatus
+	wd.ResponseHeaders = responseHeaders
+	wd.ResponseBody = responseBody
+	wd.ResponseTime = responseTime
+}
+
+// MarkAsFailed marks the delivery as failed and schedules retry if applicable
+func (wd *WebhookDelivery) MarkAsFailed(errorMessage string, responseStatus int, responseHeaders map[string]string, responseBody string, responseTime int) {
+	wd.AttemptCount++
+	now := time.Now()
+	wd.LastAttemptAt = &now
+	wd.ErrorMessage = errorMessage
+	wd.ResponseStatus = responseStatus
+	wd.ResponseHeaders = responseHeaders
+	wd.ResponseBody = responseBody
+	wd.ResponseTime = responseTime
+	
+	if wd.AttemptCount >= wd.MaxAttempts {
+		wd.Status = StatusFailed
+		wd.FailedAt = &now
+		wd.NextRetryAt = nil
+	} else {
+		// Schedule next retry
+		retryDelay := CalculateRetryDelay(wd.AttemptCount, "exponential")
+		nextRetry := now.Add(retryDelay)
+		wd.NextRetryAt = &nextRetry
+		wd.Status = StatusFailed // Will be retried
+	}
+}
+
+// Webhook incoming business logic methods
+
+// MarkAsProcessed marks the incoming webhook as processed
+func (wi *WebhookIncoming) MarkAsProcessed() {
+	wi.IsProcessed = true
+	now := time.Now()
+	wi.ProcessedAt = &now
+}
+
+// MarkAsProcessingFailed marks the incoming webhook as failed to process
+func (wi *WebhookIncoming) MarkAsProcessingFailed(errorMessage string) {
+	wi.ProcessingError = errorMessage
+	now := time.Now()
+	wi.ProcessedAt = &now
+}
+
+// Webhook rate limit business logic methods
+
+// IncrementCount increments the request count for rate limiting
+func (wrl *WebhookRateLimit) IncrementCount() {
+	wrl.RequestCount++
+}
+
+// IsExpired checks if the rate limit window has expired
+func (wrl *WebhookRateLimit) IsExpired() bool {
+	return time.Now().After(wrl.WindowEnd)
+}
+
+// Reset resets the rate limit counter for a new window
+func (wrl *WebhookRateLimit) Reset(windowDuration time.Duration) {
+	now := time.Now()
+	wrl.WindowStart = now
+	wrl.WindowEnd = now.Add(windowDuration)
+	wrl.RequestCount = 0
+}

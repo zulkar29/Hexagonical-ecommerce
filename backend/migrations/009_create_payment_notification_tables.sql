@@ -44,8 +44,8 @@ CREATE TABLE IF NOT EXISTS payments (
     cancelled_at TIMESTAMP,
     refunded_at TIMESTAMP,
     expires_at TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
     -- Constraints
     CONSTRAINT payments_amount_positive CHECK (amount > 0),
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS payment_transactions (
     
     -- Additional info
     notes TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Refunds table
@@ -96,8 +96,8 @@ CREATE TABLE IF NOT EXISTS refunds (
     -- Timestamps
     processed_at TIMESTAMP,
     failed_at TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
     CONSTRAINT refunds_amount_positive CHECK (amount > 0)
 );
@@ -135,8 +135,8 @@ CREATE TABLE IF NOT EXISTS notifications (
     template_id UUID,
     
     -- Timestamps
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
     CONSTRAINT notifications_priority_range CHECK (priority >= 1 AND priority <= 10)
 );
@@ -164,8 +164,8 @@ CREATE TABLE IF NOT EXISTS notification_deliveries (
     sent_at TIMESTAMP,
     delivered_at TIMESTAMP,
     failed_at TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Notification templates table
@@ -188,8 +188,8 @@ CREATE TABLE IF NOT EXISTS notification_templates (
     language VARCHAR(5) NOT NULL DEFAULT 'en', -- en, bn
     
     -- Timestamps
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
     UNIQUE(tenant_id, name, type, channel)
 );
@@ -211,11 +211,36 @@ CREATE TABLE IF NOT EXISTS notification_preferences (
     timezone VARCHAR(50) DEFAULT 'Asia/Dhaka',
     
     -- Timestamps
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
     UNIQUE(tenant_id, user_id, notification_type)
 );
+
+-- ================================
+-- FOREIGN KEY CONSTRAINTS
+-- ================================
+
+-- Payment module foreign keys
+ALTER TABLE payments ADD CONSTRAINT fk_payments_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+ALTER TABLE payments ADD CONSTRAINT fk_payments_order_id FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL;
+ALTER TABLE payments ADD CONSTRAINT fk_payments_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+
+ALTER TABLE payment_transactions ADD CONSTRAINT fk_payment_transactions_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+
+ALTER TABLE refunds ADD CONSTRAINT fk_refunds_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+
+-- Notification module foreign keys
+ALTER TABLE notifications ADD CONSTRAINT fk_notifications_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+ALTER TABLE notifications ADD CONSTRAINT fk_notifications_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE notifications ADD CONSTRAINT fk_notifications_template_id FOREIGN KEY (template_id) REFERENCES notification_templates(id) ON DELETE SET NULL;
+
+ALTER TABLE notification_deliveries ADD CONSTRAINT fk_notification_deliveries_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+
+ALTER TABLE notification_templates ADD CONSTRAINT fk_notification_templates_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+
+ALTER TABLE notification_preferences ADD CONSTRAINT fk_notification_preferences_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+ALTER TABLE notification_preferences ADD CONSTRAINT fk_notification_preferences_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
 
 -- ================================
 -- INDEXES FOR BETTER PERFORMANCE
@@ -250,7 +275,7 @@ CREATE INDEX IF NOT EXISTS idx_notification_preferences_tenant_user ON notificat
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
-    NEW.updated_at = NOW();
+    NEW.updated_at = CURRENT_TIMESTAMP;
     RETURN NEW;
 END;
 $$ language 'plpgsql';

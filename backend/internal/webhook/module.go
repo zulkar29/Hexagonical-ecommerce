@@ -1,6 +1,8 @@
 package webhook
 
 import (
+	"os"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -17,9 +19,8 @@ func NewModule(db *gorm.DB) *Module {
 	// Initialize repository
 	repo := NewRepository(db)
 	
-	// Initialize service with signing key
-	// TODO: Get signing key from config
-	signingKey := []byte("webhook-signing-key-change-in-production")
+	// Initialize service with signing key from environment or default
+	signingKey := getSigningKeyFromConfig()
 	service := NewService(repo, signingKey)
 	
 	// Initialize handler
@@ -50,4 +51,25 @@ func (m *Module) GetService() *Service {
 // GetRepository returns the webhook repository
 func (m *Module) GetRepository() *Repository {
 	return m.repository
+}
+
+// getSigningKeyFromConfig retrieves the webhook signing key from environment variables
+// Falls back to a default key if not configured (should be changed in production)
+func getSigningKeyFromConfig() []byte {
+	// Try to get from environment variable
+	if key := os.Getenv("WEBHOOK_SIGNING_KEY"); key != "" {
+		return []byte(key)
+	}
+	
+	// Try alternative environment variable names
+	if key := os.Getenv("WEBHOOK_SECRET"); key != "" {
+		return []byte(key)
+	}
+	
+	if key := os.Getenv("WEBHOOK_SECRET_KEY"); key != "" {
+		return []byte(key)
+	}
+	
+	// Default fallback (should be changed in production)
+	return []byte("webhook-signing-key-change-in-production")
 }

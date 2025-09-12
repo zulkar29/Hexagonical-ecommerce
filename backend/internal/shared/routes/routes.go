@@ -199,7 +199,7 @@ func setupOrderRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 	discountRepo := discount.NewRepository(cfg.DB)
 	discountService := discount.NewService(discountRepo)
 	
-	paymentModule := payment.NewModule(cfg.DB)
+	paymentModule := payment.NewModule(cfg.DB, cfg.Config)
 	paymentService := paymentModule.Service
 	
 	notificationModule := notification.NewModule(cfg.DB)
@@ -214,7 +214,7 @@ func setupOrderRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 
 func setupPaymentRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 	// Initialize payment module
-	paymentModule := payment.NewModule(cfg.DB)
+	paymentModule := payment.NewModule(cfg.DB, cfg.Config)
 	
 	// Register payment routes
 	paymentModule.RegisterRoutes(v1)
@@ -358,11 +358,21 @@ func setupAdminRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 
 // Setup billing routes
 func setupBillingRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	billingRepo := billing.NewRepository(cfg.DB)
-	billingService := billing.NewService(billingRepo)
-	billingHandler := billing.NewHandler(billingService)
+	// Initialize required service dependencies
+	paymentRepo := payment.NewRepository(cfg.DB)
+	paymentService := payment.NewService(paymentRepo, cfg.Config)
 	
-	billingHandler.RegisterRoutes(v1)
+	contactRepo := contact.NewRepository(cfg.DB)
+	contactService := contact.NewService(contactRepo)
+	
+	analyticsRepo := analytics.NewRepository(cfg.DB)
+	analyticsService := analytics.NewService(analyticsRepo)
+	
+	// Initialize billing module with all dependencies
+	billingModule := billing.NewModule(cfg.DB, paymentService, contactService, analyticsService)
+	
+	// Register billing routes
+	billingModule.RegisterRoutes(v1)
 }
 
 // Setup cart routes

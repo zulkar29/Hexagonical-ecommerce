@@ -33,6 +33,7 @@ type ServiceInterface interface {
 	CreateTenant(req CreateTenantRequest) (*Tenant, error)
 	GetTenant(id string) (*Tenant, error)
 	GetTenantBySubdomain(subdomain string) (*Tenant, error)
+	GetTenantByCustomDomain(domain string) (*Tenant, error)
 	UpdateTenant(id string, req UpdateTenantRequest) (*Tenant, error)
 	UpdatePlan(id string, req UpdatePlanRequest) (*Tenant, error)
 	ListTenants(offset, limit int) ([]*Tenant, int64, error)

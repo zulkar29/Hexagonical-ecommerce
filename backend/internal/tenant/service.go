@@ -84,6 +84,16 @@ func (s *Service) GetTenantBySubdomain(subdomain string) (*Tenant, error) {
 	return s.repo.FindBySubdomain(subdomain)
 }
 
+// GetTenantByCustomDomain retrieves a tenant by custom domain
+func (s *Service) GetTenantByCustomDomain(domain string) (*Tenant, error) {
+	domain = strings.ToLower(strings.TrimSpace(domain))
+	if domain == "" {
+		return nil, errors.New("domain is required")
+	}
+
+	return s.repo.FindByCustomDomain(domain)
+}
+
 // UpdateTenant updates tenant information
 func (s *Service) UpdateTenant(id string, req UpdateTenantRequest) (*Tenant, error) {
 	// Validate request
@@ -258,7 +268,7 @@ func (s *Service) ValidateCustomDomain(id, domain string) error {
 	domain = strings.ToLower(strings.TrimSpace(domain))
 
 	// Check if domain is already taken
-	if exists, err := s.repo.CustomDomainExists(domain); err != nil {
+	if exists, _ := s.repo.CustomDomainExists(domain); err != nil {
 		return err
 	} else if exists {
 		return errors.New("domain already in use")

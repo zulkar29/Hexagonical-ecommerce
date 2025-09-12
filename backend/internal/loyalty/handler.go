@@ -89,8 +89,8 @@ func (h *Handler) UpdateProgram(c *gin.Context) {
 	}
 
 	var req UpdateProgramRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
@@ -249,8 +249,8 @@ func (h *Handler) UpdateAccount(c *gin.Context) {
 	}
 
 	var req UpdateAccountRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
@@ -336,8 +336,8 @@ func (h *Handler) EarnPoints(c *gin.Context) {
 		OrderID *uuid.UUID `json:"order_id,omitempty"`
 	}
 
-	if err := c.ShouldBindJSON(&reqData); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&reqData); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
@@ -378,8 +378,8 @@ func (h *Handler) RedeemPoints(c *gin.Context) {
 		OrderID *uuid.UUID `json:"order_id,omitempty"`
 	}
 
-	if err := c.ShouldBindJSON(&reqData); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&reqData); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
@@ -418,8 +418,8 @@ func (h *Handler) RedeemReward(c *gin.Context) {
 		RewardID uuid.UUID `json:"reward_id" binding:"required"`
 	}
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
@@ -514,12 +514,12 @@ func (h *Handler) ListAccountTransactions(c *gin.Context) {
 
 	// Parse query parameters
 	if limitStr := c.Query("limit"); limitStr != "" {
-		if limit, err := strconv.Atoi(limitStr); err == nil {
+		if limit, _ := strconv.Atoi(limitStr); err == nil {
 			req.Limit = &limit
 		}
 	}
 	if offsetStr := c.Query("offset"); offsetStr != "" {
-		if offset, err := strconv.Atoi(offsetStr); err == nil {
+		if offset, _ := strconv.Atoi(offsetStr); err == nil {
 			req.Offset = &offset
 		}
 	}
@@ -598,8 +598,8 @@ func (h *Handler) UpdateReward(c *gin.Context) {
 	}
 
 	var req UpdateRewardRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
@@ -698,12 +698,12 @@ func (h *Handler) ListProgramRewards(c *gin.Context) {
 
 	// Parse query parameters
 	if limitStr := c.Query("limit"); limitStr != "" {
-		if limit, err := strconv.Atoi(limitStr); err == nil {
+		if limit, _ := strconv.Atoi(limitStr); err == nil {
 			req.Limit = limit
 		}
 	}
 	if offsetStr := c.Query("offset"); offsetStr != "" {
-		if offset, err := strconv.Atoi(offsetStr); err == nil {
+		if offset, _ := strconv.Atoi(offsetStr); err == nil {
 			req.Offset = offset
 		}
 	}

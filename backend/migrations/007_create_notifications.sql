@@ -63,6 +63,15 @@ CREATE TABLE IF NOT EXISTS notification_logs (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Add foreign key constraints
+ALTER TABLE notifications ADD CONSTRAINT fk_notifications_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+ALTER TABLE notifications ADD CONSTRAINT fk_notifications_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+
+ALTER TABLE notification_templates ADD CONSTRAINT fk_notification_templates_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+
+ALTER TABLE notification_preferences ADD CONSTRAINT fk_notification_preferences_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+ALTER TABLE notification_preferences ADD CONSTRAINT fk_notification_preferences_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_notifications_tenant_id ON notifications(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -147,7 +148,9 @@ func (s *service) sendNotificationAsync(notification *Notification) {
 		notification.Status = StatusDelivered
 		now := time.Now()
 		notification.DeliveredAt = &now
-		s.repository.Update(notification)
+		if err := s.repository.Update(notification); err != nil {
+			log.Printf("Failed to update notification status: %v", err)
+		}
 	}
 }
 
@@ -275,7 +278,9 @@ func (s *service) updateNotificationStatus(notification *Notification, err error
 		notification.SentAt = &now
 	}
 
-	s.repository.Update(notification)
+	if err := s.repository.Update(notification); err != nil {
+		log.Printf("Failed to update notification status: %v", err)
+	}
 }
 
 func (s *service) processTemplate(template string, variables map[string]interface{}) string {

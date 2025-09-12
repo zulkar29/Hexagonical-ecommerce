@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -141,7 +142,11 @@ func (s *Service) DispatchEvent(tenantID uuid.UUID, event WebhookEvent, eventID 
 		}
 		
 		// Attempt immediate delivery
-		go s.DeliverWebhook(delivery)
+		go func(d *WebhookDelivery) {
+			if err := s.DeliverWebhook(d); err != nil {
+				log.Printf("Failed to deliver webhook: %v", err)
+			}
+		}(delivery)
 	}
 	
 	return nil
@@ -214,15 +219,21 @@ func (s *Service) DeliverWebhook(delivery *WebhookDelivery) error {
 	}
 	
 	// Update delivery record
-	s.repo.UpdateDelivery(delivery)
+	if _, err := s.repo.UpdateDelivery(delivery); err != nil {
+		log.Printf("Failed to update delivery record: %v", err)
+	}
 	
 	// Schedule retry if failed and retries remaining
 	if delivery.Status == StatusFailed && delivery.ShouldRetry() {
-		s.ScheduleRetry(delivery)
+		if err := s.ScheduleRetry(delivery); err != nil {
+			log.Printf("Failed to schedule retry: %v", err)
+		}
 	}
 	
 	// Increment rate limit
-	s.IncrementRateLimit(delivery.TenantID, delivery.EndpointID)
+	if err := s.IncrementRateLimit(delivery.TenantID, delivery.EndpointID); err != nil {
+		log.Printf("Failed to increment rate limit: %v", err)
+	}
 	
 	return nil
 }
@@ -236,7 +247,11 @@ func (s *Service) RetryFailedDeliveries() error {
 	
 	for _, delivery := range deliveries {
 		if delivery.ShouldRetry() {
-			go s.DeliverWebhook(delivery)
+			go func(d *WebhookDelivery) {
+				if err := s.DeliverWebhook(d); err != nil {
+					log.Printf("Failed to retry webhook delivery: %v", err)
+				}
+			}(delivery)
 		}
 	}
 	
@@ -476,7 +491,9 @@ func (s *Service) handleIncomingWebhook(incoming *WebhookIncoming) {
 		now := time.Now()
 		incoming.ProcessedAt = &now
 		incoming.UpdatedAt = time.Now()
-		s.repo.UpdateIncomingWebhook(incoming)
+		if _, err := s.repo.UpdateIncomingWebhook(incoming); err != nil {
+			log.Printf("Failed to update incoming webhook: %v", err)
+		}
 	}()
 	
 	// Handle based on provider and event type
@@ -509,7 +526,7 @@ func (s *Service) handleShippingEvent(incoming *WebhookIncoming) {
 	// Handle shipping provider events
 }
 
-func (s *Service) validateStripeSignature(signature string, body []byte) bool {
+func (s *Service) validateStripeSignature(signature string, _ []byte) bool {
 	// Implement Stripe signature validation
 	// This is a simplified version - real implementation would use Stripe's validation
 	return signature != ""
@@ -551,7 +568,9 @@ func (s *Service) IsRateLimited(tenantID uuid.UUID, endpointID uuid.UUID) bool {
 		rateLimit.RequestCount = 0
 		rateLimit.WindowStart = time.Now()
 		rateLimit.UpdatedAt = time.Now()
-		s.repo.UpdateRateLimit(rateLimit)
+		if _, err := s.repo.UpdateRateLimit(rateLimit); err != nil {
+			log.Printf("Failed to update rate limit: %v", err)
+		}
 		return false
 	}
 	
@@ -578,8 +597,11 @@ func (s *Service) IncrementRateLimit(tenantID uuid.UUID, endpointID uuid.UUID) e
 			CreatedAt:  time.Now(),
 			UpdatedAt:  time.Now(),
 		}
-		_, err := s.repo.CreateRateLimit(rateLimit)
-		return err
+		_, createErr := s.repo.CreateRateLimit(rateLimit)
+		if createErr != nil {
+			return createErr
+		}
+		return nil
 	}
 	
 	// Check if we're in a new time window (1 hour)

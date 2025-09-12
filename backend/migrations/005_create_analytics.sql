@@ -60,6 +60,21 @@ CREATE TABLE IF NOT EXISTS purchases (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Add foreign key constraints
+ALTER TABLE analytics_events ADD CONSTRAINT fk_analytics_events_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+ALTER TABLE analytics_events ADD CONSTRAINT fk_analytics_events_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+
+ALTER TABLE page_views ADD CONSTRAINT fk_page_views_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+ALTER TABLE page_views ADD CONSTRAINT fk_page_views_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+
+ALTER TABLE product_views ADD CONSTRAINT fk_product_views_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+ALTER TABLE product_views ADD CONSTRAINT fk_product_views_product_id FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE;
+ALTER TABLE product_views ADD CONSTRAINT fk_product_views_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+
+ALTER TABLE purchases ADD CONSTRAINT fk_purchases_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+ALTER TABLE purchases ADD CONSTRAINT fk_purchases_order_id FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE;
+ALTER TABLE purchases ADD CONSTRAINT fk_purchases_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_analytics_events_tenant_id ON analytics_events(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_analytics_events_event_type ON analytics_events(event_type);

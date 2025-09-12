@@ -65,11 +65,12 @@ func Connect(cfg *config.Config) (*gorm.DB, error) {
 
 // AutoMigrate runs database migrations
 func AutoMigrate(db *gorm.DB) error {
-	log.Println("Skipping GORM auto-migration - using SQL migrations instead")
+	log.Println("Running SQL migrations...")
 
-	// Skip GORM auto-migration to avoid conflicts with SQL migrations
-	// The database schema is managed by SQL migration files
-	// TODO: Re-enable auto-migration if needed for development
+	// Run SQL migrations
+	if err := RunMigrations(db); err != nil {
+		return fmt.Errorf("failed to run SQL migrations: %w", err)
+	}
 	
 	log.Println("Database migrations completed successfully")
 	return nil

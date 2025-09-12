@@ -1,6 +1,7 @@
 package cart
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -157,7 +158,11 @@ func (h *Handler) GetCart(c *gin.Context) {
 	// Handle include options
 	response := gin.H{"data": cart}
 	if strings.Contains(include, "summary") {
-		summary, _ := h.service.GetCartSummary(tenantID.(uuid.UUID), cart.ID)
+		summary, err := h.service.GetCartSummary(tenantID.(uuid.UUID), cart.ID)
+		if err != nil {
+			log.Printf("Failed to get cart summary: %v", err)
+			summary = nil
+		}
 		response["summary"] = summary
 	}
 	if strings.Contains(include, "shipping_methods") {
@@ -194,8 +199,8 @@ func (h *Handler) UpdateCartItem(c *gin.Context) {
 	}
 
 	var req UpdateItemRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
@@ -323,7 +328,11 @@ func (h *Handler) GetGuestCart(c *gin.Context) {
 	// Handle include options
 	response := gin.H{"data": cart}
 	if strings.Contains(include, "summary") {
-		summary, _ := h.service.GetCartSummary(tenantID.(uuid.UUID), cart.ID)
+		summary, err := h.service.GetCartSummary(tenantID.(uuid.UUID), cart.ID)
+		if err != nil {
+			log.Printf("Failed to get cart summary: %v", err)
+			summary = nil
+		}
 		response["summary"] = summary
 	}
 
@@ -499,8 +508,16 @@ func (h *Handler) ListCarts(c *gin.Context) {
 	}
 
 	// Parse query parameters for regular listing
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	if err != nil {
+		log.Printf("Invalid offset parameter, using default: %v", err)
+		offset = 0
+	}
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	if err != nil {
+		log.Printf("Invalid limit parameter, using default: %v", err)
+		limit = 20
+	}
 	if limit > 100 {
 		limit = 100
 	}

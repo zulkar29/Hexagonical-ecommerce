@@ -57,6 +57,16 @@ CREATE TABLE IF NOT EXISTS shipping_addresses (
     deleted_at TIMESTAMP
 );
 
+-- Add foreign key constraints
+ALTER TABLE orders ADD CONSTRAINT fk_orders_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+ALTER TABLE orders ADD CONSTRAINT fk_orders_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+
+ALTER TABLE order_items ADD CONSTRAINT fk_order_items_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+ALTER TABLE order_items ADD CONSTRAINT fk_order_items_product_id FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE;
+ALTER TABLE order_items ADD CONSTRAINT fk_order_items_product_variant_id FOREIGN KEY (product_variant_id) REFERENCES product_variants(id) ON DELETE SET NULL;
+
+ALTER TABLE shipping_addresses ADD CONSTRAINT fk_shipping_addresses_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_orders_tenant_id ON orders(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);

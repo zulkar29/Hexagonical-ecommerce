@@ -109,10 +109,16 @@ func (r *observabilityRepository) Migrate() error {
 
 // SaveLogEntry saves a log entry to the database
 func (r *observabilityRepository) SaveLogEntry(ctx context.Context, entry *LogEntry) error {
-	fieldsJSON, _ := json.Marshal(entry.Fields)
+	fieldsJSON, err := json.Marshal(entry.Fields)
+	if err != nil {
+		return err
+	}
 	errorJSON := ""
 	if entry.Error != nil {
-		errorData, _ := json.Marshal(entry.Error)
+		errorData, err := json.Marshal(entry.Error)
+		if err != nil {
+			return err
+		}
 		errorJSON = string(errorData)
 	}
 
@@ -168,10 +174,7 @@ func (r *observabilityRepository) GetLogEntries(ctx context.Context, filters map
 
 	entries := make([]*LogEntry, len(models))
 	for i, model := range models {
-		entry, err := r.logModelToEntry(&model)
-		if err != nil {
-			continue
-		}
+		entry := r.logModelToEntry(&model)
 		entries[i] = entry
 	}
 
@@ -182,7 +185,10 @@ func (r *observabilityRepository) GetLogEntries(ctx context.Context, filters map
 
 // SaveMetric saves a metric to the database
 func (r *observabilityRepository) SaveMetric(ctx context.Context, metric *Metric) error {
-	tagsJSON, _ := json.Marshal(metric.Tags)
+	tagsJSON, err := json.Marshal(metric.Tags)
+	if err != nil {
+		return err
+	}
 
 	model := &MetricModel{
 		ID:        metric.ID.String(),
@@ -227,10 +233,7 @@ func (r *observabilityRepository) GetMetrics(ctx context.Context, filters map[st
 
 	metrics := make([]*Metric, len(models))
 	for i, model := range models {
-		metric, convertErr := r.metricModelToMetric(&model)
-		if convertErr != nil {
-			continue
-		}
+		metric := r.metricModelToMetric(&model)
 		metrics[i] = metric
 	}
 
@@ -241,7 +244,10 @@ func (r *observabilityRepository) GetMetrics(ctx context.Context, filters map[st
 
 // SaveTrace saves a trace to the database
 func (r *observabilityRepository) SaveTrace(ctx context.Context, trace *Trace) error {
-	tagsJSON, _ := json.Marshal(trace.Tags)
+	tagsJSON, err := json.Marshal(trace.Tags)
+	if err != nil {
+		return err
+	}
 
 	model := &TraceModel{
 		ID:            trace.ID,
@@ -263,8 +269,14 @@ func (r *observabilityRepository) SaveTrace(ctx context.Context, trace *Trace) e
 
 // SaveSpan saves a span to the database
 func (r *observabilityRepository) SaveSpan(ctx context.Context, span *Span) error {
-	tagsJSON, _ := json.Marshal(span.Tags)
-	logsJSON, _ := json.Marshal(span.Logs)
+	tagsJSON, err := json.Marshal(span.Tags)
+	if err != nil {
+		return err
+	}
+	logsJSON, err := json.Marshal(span.Logs)
+	if err != nil {
+		return err
+	}
 
 	model := &SpanModel{
 		ID:            span.ID,
@@ -306,10 +318,7 @@ func (r *observabilityRepository) GetSpansByTraceID(ctx context.Context, traceID
 
 	spans := make([]*Span, len(models))
 	for i, model := range models {
-		span, convertErr := r.spanModelToSpan(&model)
-		if convertErr != nil {
-			continue
-		}
+		span := r.spanModelToSpan(&model)
 		spans[i] = span
 	}
 
@@ -373,15 +382,21 @@ func (r *observabilityRepository) GetAlerts(ctx context.Context, filters map[str
 
 // Helper methods for model conversion
 
-func (r *observabilityRepository) logModelToEntry(model *LogEntryModel) (*LogEntry, error) {
+func (r *observabilityRepository) logModelToEntry(model *LogEntryModel) *LogEntry {
 	var fields map[string]interface{}
 	if model.Fields != "" {
-		json.Unmarshal([]byte(model.Fields), &fields)
+		if err := json.Unmarshal([]byte(model.Fields), &fields); err != nil {
+			// Log error but continue with nil fields
+			fields = nil
+		}
 	}
 
 	var errorDetails *ErrorDetails
 	if model.Error != "" {
-		json.Unmarshal([]byte(model.Error), &errorDetails)
+		if err := json.Unmarshal([]byte(model.Error), &errorDetails); err != nil {
+			// Log error but continue with nil error details
+			errorDetails = nil
+		}
 	}
 
 	return &LogEntry{
@@ -397,13 +412,16 @@ func (r *observabilityRepository) logModelToEntry(model *LogEntryModel) (*LogEnt
 		SpanID:    model.SpanID,
 		Fields:    fields,
 		Error:     errorDetails,
-	}, nil
+	}
 }
 
-func (r *observabilityRepository) metricModelToMetric(model *MetricModel) (*Metric, error) {
+func (r *observabilityRepository) metricModelToMetric(model *MetricModel) *Metric {
 	var tags map[string]string
 	if model.Tags != "" {
-		json.Unmarshal([]byte(model.Tags), &tags)
+		if err := json.Unmarshal([]byte(model.Tags), &tags); err != nil {
+			// Log error but continue with nil tags
+			tags = nil
+		}
 	}
 
 	return &Metric{
@@ -414,13 +432,16 @@ func (r *observabilityRepository) metricModelToMetric(model *MetricModel) (*Metr
 		Timestamp: model.CreatedAt,
 		Service:   model.Service,
 		Version:   model.Version,
-	}, nil
+	}
 }
 
 func (r *observabilityRepository) traceModelToTrace(model *TraceModel) (*Trace, error) {
 	var tags map[string]interface{}
 	if model.Tags != "" {
-		json.Unmarshal([]byte(model.Tags), &tags)
+		if err := json.Unmarshal([]byte(model.Tags), &tags); err != nil {
+			// Log error but continue with nil tags
+			tags = nil
+		}
 	}
 
 	trace := &Trace{
@@ -441,15 +462,21 @@ func (r *observabilityRepository) traceModelToTrace(model *TraceModel) (*Trace, 
 	return trace, nil
 }
 
-func (r *observabilityRepository) spanModelToSpan(model *SpanModel) (*Span, error) {
+func (r *observabilityRepository) spanModelToSpan(model *SpanModel) *Span {
 	var tags map[string]interface{}
 	if model.Tags != "" {
-		json.Unmarshal([]byte(model.Tags), &tags)
+		if err := json.Unmarshal([]byte(model.Tags), &tags); err != nil {
+			// Log error but continue with nil tags
+			tags = nil
+		}
 	}
 
 	var logs []SpanLog
 	if model.Logs != "" {
-		json.Unmarshal([]byte(model.Logs), &logs)
+		if err := json.Unmarshal([]byte(model.Logs), &logs); err != nil {
+			// Log error but continue with nil logs
+			logs = nil
+		}
 	}
 
 	span := &Span{
@@ -468,7 +495,7 @@ func (r *observabilityRepository) spanModelToSpan(model *SpanModel) (*Span, erro
 		span.Duration = time.Duration(model.Duration) * time.Millisecond
 	}
 
-	return span, nil
+	return span
 }
 
 func (r *observabilityRepository) alertModelToAlert(model *AlertModel) *Alert {

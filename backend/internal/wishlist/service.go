@@ -366,7 +366,9 @@ func (s *ServiceImpl) UpdateItem(ctx context.Context, tenantID, itemID uuid.UUID
 	
 	// Update fields
 	if req.Quantity != nil {
-		item.UpdateQuantity(*req.Quantity)
+		if err := item.UpdateQuantity(*req.Quantity); err != nil {
+			return nil, fmt.Errorf("failed to update quantity: %w", err)
+		}
 	}
 	
 	if req.Notes != nil {

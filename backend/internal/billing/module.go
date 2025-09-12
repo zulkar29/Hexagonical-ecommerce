@@ -1,8 +1,12 @@
 package billing
 
 import (
-	"gorm.io/gorm"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+
+	"ecommerce-saas/internal/analytics"
+	"ecommerce-saas/internal/contact"
+	"ecommerce-saas/internal/payment"
 )
 
 // Module represents the billing module
@@ -13,17 +17,19 @@ type Module struct {
 }
 
 // NewModule creates a new billing module instance
-func NewModule(db *gorm.DB) *Module {
-	repo := NewRepository(db)
-	svc := NewService(repo)
-	handler := NewHandler(svc)
+func NewModule(db *gorm.DB, paymentService payment.Service, contactService contact.Service, analyticsService analytics.Service) *Module {
+	repo := NewBillingRepository(db)
+	service := NewBillingService(repo, paymentService, contactService, analyticsService)
+	handler := NewHandler(service)
 
 	return &Module{
 		repository: repo,
-		service:    svc,
+		service:    service,
 		handler:    handler,
 	}
 }
+
+
 
 // RegisterRoutes registers all billing routes
 func (m *Module) RegisterRoutes(router *gin.RouterGroup) {

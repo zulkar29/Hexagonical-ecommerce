@@ -145,7 +145,7 @@ func (r *Repository) SlugExists(tenantID uuid.UUID, slug string, excludeID uuid.
 
 func (r *Repository) AssociatePageTags(pageID uuid.UUID, tagIDs []uuid.UUID) error {
 	// First, clear existing associations
-	if err := r.db.Exec("DELETE FROM page_tags WHERE page_id = ?", pageID).Error; err != nil {
+	if err := r.db.Exec("DELETE FROM page_tags WHERE page_id = ? AND EXISTS (SELECT 1 FROM pages WHERE pages.id = page_tags.page_id)", pageID).Error; err != nil {
 		return err
 	}
 
@@ -166,7 +166,7 @@ func (r *Repository) UpdatePageTags(pageID uuid.UUID, tagIDs []uuid.UUID) error 
 
 func (r *Repository) AssociatePageCategories(pageID uuid.UUID, categoryIDs []uuid.UUID) error {
 	// First, clear existing associations
-	if err := r.db.Exec("DELETE FROM page_categories WHERE page_id = ?", pageID).Error; err != nil {
+	if err := r.db.Exec("DELETE FROM page_categories WHERE page_id = ? AND EXISTS (SELECT 1 FROM pages WHERE pages.id = page_categories.page_id)", pageID).Error; err != nil {
 		return err
 	}
 
@@ -388,7 +388,7 @@ func (r *Repository) UpdateTag(tag *Tag) (*Tag, error) {
 
 func (r *Repository) DeleteTag(tenantID, tagID uuid.UUID) error {
 	// Remove associations first
-	if err := r.db.Exec("DELETE FROM page_tags WHERE tag_id = ?", tagID).Error; err != nil {
+	if err := r.db.Exec("DELETE FROM page_tags WHERE tag_id = ? AND EXISTS (SELECT 1 FROM tags WHERE tags.id = page_tags.tag_id AND tags.tenant_id = ?)", tagID, tenantID).Error; err != nil {
 		return err
 	}
 	
@@ -436,7 +436,7 @@ func (r *Repository) UpdateCategory(category *Category) (*Category, error) {
 
 func (r *Repository) DeleteCategory(tenantID, categoryID uuid.UUID) error {
 	// Remove associations first
-	if err := r.db.Exec("DELETE FROM page_categories WHERE category_id = ?", categoryID).Error; err != nil {
+	if err := r.db.Exec("DELETE FROM page_categories WHERE category_id = ? AND EXISTS (SELECT 1 FROM categories WHERE categories.id = page_categories.category_id AND categories.tenant_id = ?)", categoryID, tenantID).Error; err != nil {
 		return err
 	}
 	
@@ -688,12 +688,12 @@ func (r *Repository) BulkUpdatePageStatus(tenantID uuid.UUID, pageIDs []uuid.UUI
 func (r *Repository) BulkDeletePages(tenantID uuid.UUID, pageIDs []uuid.UUID) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		// Delete tag associations
-		if err := tx.Exec("DELETE FROM page_tags WHERE page_id IN ?", pageIDs).Error; err != nil {
+		if err := tx.Exec("DELETE FROM page_tags WHERE page_id IN ? AND EXISTS (SELECT 1 FROM pages WHERE pages.id = page_tags.page_id AND pages.tenant_id = ?)", pageIDs, tenantID).Error; err != nil {
 			return err
 		}
 		
 		// Delete category associations
-		if err := tx.Exec("DELETE FROM page_categories WHERE page_id IN ?", pageIDs).Error; err != nil {
+		if err := tx.Exec("DELETE FROM page_categories WHERE page_id IN ? AND EXISTS (SELECT 1 FROM pages WHERE pages.id = page_categories.page_id AND pages.tenant_id = ?)", pageIDs, tenantID).Error; err != nil {
 			return err
 		}
 		

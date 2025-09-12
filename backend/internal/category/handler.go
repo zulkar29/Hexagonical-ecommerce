@@ -58,8 +58,8 @@ func (h *Handler) CreateCategory(c *gin.Context) {
 	
 	// Parse request body
 	var req CreateCategoryRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
 	
@@ -149,8 +149,8 @@ func (h *Handler) UpdateCategory(c *gin.Context) {
 	
 	// Parse request body
 	var req UpdateCategoryRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
 	
@@ -238,9 +238,9 @@ func (h *Handler) GetCategoryTree(c *gin.Context) {
 	// Parse parent ID if provided
 	var parentID *uuid.UUID
 	if parentIDStr := c.Query("parent_id"); parentIDStr != "" {
-		parsedID, err := uuid.Parse(parentIDStr)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid parent ID", "details": err.Error()})
+		parsedID, parseErr := uuid.Parse(parentIDStr)
+		if parseErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid parent ID", "details": parseErr.Error()})
 			return
 		}
 		parentID = &parsedID
@@ -511,7 +511,7 @@ func (h *Handler) GetFeaturedCategories(c *gin.Context) {
 	// Parse limit
 	limit := 10 // default
 	if limitStr := c.Query("limit"); limitStr != "" {
-		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
+		if parsedLimit, parseErr := strconv.Atoi(limitStr); parseErr == nil && parsedLimit > 0 {
 			limit = parsedLimit
 		}
 	}
@@ -540,7 +540,7 @@ func (h *Handler) GetPopularCategories(c *gin.Context) {
 	// Parse limit
 	limit := 10 // default
 	if limitStr := c.Query("limit"); limitStr != "" {
-		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
+		if parsedLimit, parseErr := strconv.Atoi(limitStr); parseErr == nil && parsedLimit > 0 {
 			limit = parsedLimit
 		}
 	}

@@ -139,9 +139,9 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "Product status updated successfully"})
 		return
 	case "duplicate":
-		product, err := h.service.DuplicateProduct(tenantID.(uuid.UUID), productID.String())
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		product, duplicateErr := h.service.DuplicateProduct(tenantID.(uuid.UUID), productID.String())
+		if duplicateErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": duplicateErr.Error()})
 			return
 		}
 		c.JSON(http.StatusCreated, gin.H{
@@ -615,7 +615,7 @@ func (h *Handler) UpdateCategory(c *gin.Context) {
 	}
 	
 	var category Category
-	if err := c.ShouldBindJSON(&category); err != nil {
+	if bindErr := c.ShouldBindJSON(&category); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
@@ -1044,8 +1044,12 @@ func (h *Handler) GetPublicProduct(c *gin.Context) {
 	responseData := gin.H{"product": product}
 	
 	if strings.Contains(include, "variants") {
-		variants, _ := h.service.GetProductVariants(tenantID.(uuid.UUID), productIDStr)
-		responseData["variants"] = variants
+		variants, variantErr := h.service.GetProductVariants(tenantID.(uuid.UUID), productIDStr)
+		if variantErr == nil {
+			responseData["variants"] = variants
+		} else {
+			responseData["variants"] = []interface{}{} // Empty array if error occurs
+		}
 	}
 	
 	// TODO: Add reviews and related products when those modules are implemented

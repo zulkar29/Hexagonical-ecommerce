@@ -7,10 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/go-playground/validator/v10"
+	"ecommerce-saas/internal/shared/config"
 )
 
 type Service interface {
@@ -33,6 +35,7 @@ type Service interface {
 type service struct {
 	repository Repository
 	validator  *validator.Validate
+	config     *config.Config
 	
 	// SSLCommerz configuration
 	sslCommerzStoreID    string
@@ -41,15 +44,52 @@ type service struct {
 	sslCommerzBaseURL    string
 }
 
-func NewService(repository Repository) Service {
-	return &service{
-		repository:        repository,
-		validator:         validator.New(),
-		sslCommerzStoreID: "test_store", // TODO: Load from config
-		sslCommerzStorePass: "test_pass", // TODO: Load from config
-		sslCommerzSandbox: true,
-		sslCommerzBaseURL: "https://sandbox.sslcommerz.com", // Sandbox URL
+func NewService(repository Repository, cfg *config.Config) Service {
+	s := &service{
+		repository: repository,
+		validator:  validator.New(),
+		config:     cfg,
 	}
+	
+	// Load SSLCommerz configuration from config
+	s.loadSSLCommerzConfig()
+	
+	return s
+}
+
+// loadSSLCommerzConfig loads SSLCommerz configuration from config
+func (s *service) loadSSLCommerzConfig() {
+	// Load from environment variables or use defaults
+	s.sslCommerzStoreID = s.getEnvOrDefault("SSLCOMMERZ_STORE_ID", "test_store")
+	s.sslCommerzStorePass = s.getEnvOrDefault("SSLCOMMERZ_STORE_PASSWORD", "test_pass")
+	s.sslCommerzSandbox = s.config.App.Environment != "production"
+	
+	if s.sslCommerzSandbox {
+		s.sslCommerzBaseURL = "https://sandbox.sslcommerz.com"
+	} else {
+		s.sslCommerzBaseURL = "https://securepay.sslcommerz.com"
+	}
+}
+
+// getEnvOrDefault gets environment variable or returns default
+func (s *service) getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+// getTenantIDFromContext extracts tenant ID from context
+func (s *service) getTenantIDFromContext(ctx context.Context) (uuid.UUID, error) {
+	if tenantID := ctx.Value("tenant_id"); tenantID != nil {
+		if tenantIDStr, ok := tenantID.(string); ok {
+			return uuid.Parse(tenantIDStr)
+		}
+		if tenantIDUUID, ok := tenantID.(uuid.UUID); ok {
+			return tenantIDUUID, nil
+		}
+	}
+	return uuid.Nil, errors.New("tenant ID not found in context")
 }
 
 func (s *service) CreatePayment(ctx context.Context, req *CreatePaymentRequest) (*CreatePaymentResponse, error) {
@@ -62,9 +102,11 @@ func (s *service) CreatePayment(ctx context.Context, req *CreatePaymentRequest) 
 		return nil, fmt.Errorf("invalid order ID: %w", err)
 	}
 
-	// Extract tenant ID from context (assuming it's stored there)
-	// TODO: Implement proper tenant extraction from context
-	tenantID := uuid.New() // Placeholder - should be extracted from context
+	// Extract tenant ID from context
+	tenantID, err := s.getTenantIDFromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tenant ID: %w", err)
+	}
 	
 	// Create payment record
 	payment := &Payment{
@@ -98,7 +140,9 @@ func (s *service) CreatePayment(ctx context.Context, req *CreatePaymentRequest) 
 		
 		// Update payment with session key
 		payment.PaymentIntentID = sslResponse.SessionKey
-		s.repository.Update(payment)
+		if err := s.repository.Update(payment); err != nil {
+			return nil, fmt.Errorf("failed to update payment: %w", err)
+		}
 		
 	case GatewayBKash:
 		// TODO: Implement bKash integration
@@ -178,8 +222,11 @@ func (s *service) ProcessPayment(ctx context.Context, req *ProcessPaymentRequest
 		return nil, fmt.Errorf("invalid payment ID: %w", err)
 	}
 
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New()
+	// Extract tenant ID from context
+	tenantID, err := s.getTenantIDFromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tenant ID: %w", err)
+	}
 	
 	payment, err := s.repository.GetByID(tenantID, paymentID)
 	if err != nil {
@@ -224,8 +271,11 @@ func (s *service) GetPayment(ctx context.Context, paymentID string) (*Payment, e
 		return nil, fmt.Errorf("invalid payment ID: %w", err)
 	}
 
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New()
+	// Extract tenant ID from context
+	tenantID, err := s.getTenantIDFromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tenant ID: %w", err)
+	}
 
 	return s.repository.GetByID(tenantID, id)
 }
@@ -240,8 +290,11 @@ func (s *service) RefundPayment(ctx context.Context, req *RefundPaymentRequest) 
 		return nil, fmt.Errorf("invalid payment ID: %w", err)
 	}
 
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New()
+	// Extract tenant ID from context
+	tenantID, err := s.getTenantIDFromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tenant ID: %w", err)
+	}
 
 	payment, err := s.repository.GetByID(tenantID, paymentID)
 	if err != nil {
@@ -290,8 +343,11 @@ func (s *service) ListPayments(ctx context.Context, req *ListPaymentsRequest) (*
 		req.Limit = 100
 	}
 
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New()
+	// Extract tenant ID from context
+	tenantID, err := s.getTenantIDFromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tenant ID: %w", err)
+	}
 	
 	// List payments with basic filtering
 	payments, total, err := s.repository.List(tenantID, nil, req.Offset, req.Limit)
@@ -349,8 +405,11 @@ func (s *service) UpdatePayment(ctx context.Context, id string, updates map[stri
 }
 
 func (s *service) GetPaymentMethods(ctx context.Context, userID string) ([]*PaymentMethod, error) {
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New()
+	// Extract tenant ID from context
+	tenantID, err := s.getTenantIDFromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tenant ID: %w", err)
+	}
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid user ID: %w", err)
@@ -367,8 +426,11 @@ func (s *service) UpdatePaymentMethod(ctx context.Context, id string, req *Updat
 	// Get user ID from context
 	userID := ctx.Value("user_id").(string)
 
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New()
+	// Extract tenant ID from context
+	tenantID, err := s.getTenantIDFromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tenant ID: %w", err)
+	}
 	methodID, err := uuid.Parse(id)
 	if err != nil {
 		return nil, fmt.Errorf("invalid method ID: %w", err)

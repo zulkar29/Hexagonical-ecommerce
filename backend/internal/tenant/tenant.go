@@ -20,10 +20,10 @@ const (
 )
 
 const (
-	PlanStarter    Plan = "starter"     // ৳1,990
+	PlanStarter    Plan = "starter"      // ৳1,990
 	PlanPro        Plan = "professional" // ৳4,990
-	PlanPremium    Plan = "premium"     // ৳7,990
-	PlanEnterprise Plan = "enterprise"  // ৳12,990
+	PlanPremium    Plan = "premium"      // ৳7,990
+	PlanEnterprise Plan = "enterprise"   // ৳12,990
 )
 
 // Tenant represents a store/tenant in the system

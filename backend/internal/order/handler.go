@@ -2,6 +2,7 @@ package order
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -230,8 +231,16 @@ func (h *Handler) ListOrders(c *gin.Context) {
 
 	// Default: Regular order listing with pagination and filtering
 	// Parse pagination parameters
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil {
+		log.Printf("Invalid page parameter, using default: %v", err)
+		page = 1
+	}
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	if err != nil {
+		log.Printf("Invalid limit parameter, using default: %v", err)
+		limit = 20
+	}
 	
 	if page < 1 {
 		page = 1
@@ -313,7 +322,9 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 		var req struct {
 			Reason string `json:"reason"`
 		}
-		c.ShouldBindJSON(&req)
+		if err := c.ShouldBindJSON(&req); err != nil {
+			log.Printf("Failed to bind cancel request JSON: %v", err)
+		}
 		order, cancelErr := h.service.CancelOrder(tenantID.(uuid.UUID), orderID.String(), req.Reason)
 		if cancelErr != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to cancel order"})

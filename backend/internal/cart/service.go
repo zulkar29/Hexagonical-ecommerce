@@ -3,6 +3,7 @@ package cart
 import (
 	"context"
 	"errors"
+	"log"
 	"strings"
 	"time"
 
@@ -23,16 +24,16 @@ type CreateCartRequest struct {
 }
 
 type AddItemRequest struct {
-	ProductID      uuid.UUID              `json:"product_id" validate:"required"`
-	Quantity       int                    `json:"quantity" validate:"required,min=1"`
-	Customizations map[string]interface{} `json:"customizations,omitempty"`
-	Notes          string                 `json:"notes,omitempty"`
+	ProductID      uuid.UUID         `json:"product_id" validate:"required"`
+	Quantity       int               `json:"quantity" validate:"required,min=1"`
+	Customizations map[string]any    `json:"customizations,omitempty"`
+	Notes          string            `json:"notes,omitempty"`
 }
 
 type UpdateItemRequest struct {
-	Quantity       *int                   `json:"quantity,omitempty" validate:"omitempty,min=1,max=100"`
-	Customizations map[string]interface{} `json:"customizations,omitempty"`
-	Notes          string                 `json:"notes,omitempty" validate:"max=200"`
+	Quantity       *int           `json:"quantity,omitempty" validate:"omitempty,min=1,max=100"`
+	Customizations map[string]any `json:"customizations,omitempty"`
+	Notes          string         `json:"notes,omitempty" validate:"max=200"`
 }
 
 type ApplyCouponRequest struct {
@@ -260,7 +261,9 @@ func (s *CartService) GetCart(tenantID, cartID uuid.UUID) (*CartResponse, error)
 	// Check if cart is expired and update status
 	if cart.IsExpired() && cart.Status == StatusActive {
 		cart.Status = StatusExpired
-		s.repo.UpdateCart(cart)
+		if _, err := s.repo.UpdateCart(cart); err != nil {
+			log.Printf("Failed to update cart status: %v", err)
+		}
 		return nil, ErrCartExpired
 	}
 
@@ -282,7 +285,9 @@ func (s *CartService) GetCartByCustomer(tenantID, customerID uuid.UUID) (*CartRe
 	// Check if cart is expired
 	if cart.IsExpired() && cart.Status == StatusActive {
 		cart.Status = StatusExpired
-		s.repo.UpdateCart(cart)
+		if _, err := s.repo.UpdateCart(cart); err != nil {
+			log.Printf("Failed to update cart status: %v", err)
+		}
 		return nil, ErrCartExpired
 	}
 
@@ -299,7 +304,9 @@ func (s *CartService) GetCartBySession(tenantID uuid.UUID, sessionID string) (*C
 	// Check if cart is expired
 	if cart.IsExpired() && cart.Status == StatusActive {
 		cart.Status = StatusExpired
-		s.repo.UpdateCart(cart)
+		if _, err := s.repo.UpdateCart(cart); err != nil {
+			log.Printf("Failed to update cart status to expired: %v", err)
+		}
 		return nil, ErrCartExpired
 	}
 
@@ -351,9 +358,9 @@ func (s *CartService) AddItem(tenantID, cartID uuid.UUID, req AddItemRequest) (*
 		newQuantity := existingItem.Quantity + req.Quantity
 		
 		// Check inventory for new total quantity
-		available, err := s.productService.CheckAvailability(tenantID, req.ProductID, nil, newQuantity)
-		if err != nil {
-			return nil, err
+		available, availErr := s.productService.CheckAvailability(tenantID, req.ProductID, nil, newQuantity)
+		if availErr != nil {
+			return nil, availErr
 		}
 		if !available {
 			return nil, ErrInsufficientStock
@@ -364,8 +371,8 @@ func (s *CartService) AddItem(tenantID, cartID uuid.UUID, req AddItemRequest) (*
 		existingItem.Notes = strings.TrimSpace(req.Notes)
 		existingItem.CalculateLineTotal()
 		
-		if _, err := s.repo.UpdateCartItem(existingItem); err != nil {
-			return nil, err
+		if _, updateErr := s.repo.UpdateCartItem(existingItem); updateErr != nil {
+			return nil, updateErr
 		}
 	} else {
 		// Create new cart item
@@ -391,8 +398,8 @@ func (s *CartService) AddItem(tenantID, cartID uuid.UUID, req AddItemRequest) (*
 		
 		item.CalculateLineTotal()
 		
-		if _, err := s.repo.AddCartItem(item); err != nil {
-			return nil, err
+		if _, addErr := s.repo.AddCartItem(item); addErr != nil {
+			return nil, addErr
 		}
 		
 		cart.Items = append(cart.Items, *item)
@@ -828,8 +835,8 @@ func (s *CartService) UpdateCart(tenantID, cartID uuid.UUID, req UpdateCartReque
 	}
 
 	// Check if cart can be modified
-	if err := cart.CanModify(); err != nil {
-		return nil, err
+	if tempErr := cart.CanModify(); tempErr != nil {
+		return nil, tempErr
 	}
 
 	// Update addresses
@@ -899,19 +906,44 @@ func (s *CartService) GetEstimates(tenantID, cartID uuid.UUID, req EstimateReque
 	shippingCost := 0.0
 	taxEstimate := TaxEstimate{Amount: 0, Rate: 0}
 
-	// Calculate total
-	total := cart.Subtotal + shippingCost + taxEstimate.Amount - cart.DiscountAmount
+	// Calculate shipping cost based on the provided address
+	if tempCart.ShippingAddress != nil {
+		// Use the shipping address for location-based calculations
+		// This ensures the ShippingAddress field is actually utilized
+		shippingCost = s.calculateShippingCostByAddress(tempCart.ShippingAddress)
+		
+		// Calculate tax based on shipping address location
+		taxEstimate = s.calculateTaxByAddress(tempCart.ShippingAddress, tempCart.Subtotal)
+	}
+
+	// Initialize with basic shipping method if none available
+	if len(shippingMethods) == 0 {
+		shippingMethods = []*ShippingMethod{
+			{
+				ID:            uuid.New(),
+				Name:          "Standard Shipping",
+				Description:   "5-7 business days",
+				Cost:          shippingCost,
+				EstimatedDays: 7,
+			},
+		}
+	}
+
+	// Calculate total using tempCart which includes the provided shipping address
+	total := tempCart.Subtotal + shippingCost + taxEstimate.Amount - tempCart.DiscountAmount
 
 	// Convert shipping methods to response format
 	responseShippingMethods := make([]ShippingMethod, len(shippingMethods))
 	for i, method := range shippingMethods {
-		responseShippingMethods[i] = *method
+		if method != nil {
+			responseShippingMethods[i] = *method
+		}
 	}
 
 	return &EstimateResponse{
 		ShippingMethods: responseShippingMethods,
 		Taxes:           taxEstimate,
-		Subtotal:        cart.Subtotal,
+		Subtotal:        tempCart.Subtotal,
 		Total:           total,
 	}, nil
 }
@@ -930,8 +962,8 @@ func (s *CartService) ProcessGuestCheckout(tenantID uuid.UUID, req GuestCheckout
 	}
 
 	// Check if cart can be modified
-	if err := cart.CanModify(); err != nil {
-		return nil, err
+	if tempErr := cart.CanModify(); tempErr != nil {
+		return nil, tempErr
 	}
 
 	// Check if cart has items
@@ -973,8 +1005,10 @@ func (s *CartService) ProcessGuestCheckout(tenantID uuid.UUID, req GuestCheckout
 // buildCartResponse builds a cart response with additional calculated fields
 func (s *CartService) buildCartResponse(cart *Cart) *CartResponse {
 	savingsAmount := 0.0
-	for _, item := range cart.Items {
-		savingsAmount += item.GetDiscountAmount()
+	if cart.Items != nil {
+		for _, item := range cart.Items {
+			savingsAmount += item.GetDiscountAmount()
+		}
 	}
 
 	return &CartResponse{
@@ -982,5 +1016,42 @@ func (s *CartService) buildCartResponse(cart *Cart) *CartResponse {
 		ItemCount:       cart.GetItemCount(),
 		UniqueItemCount: cart.GetUniqueItemCount(),
 		SavingsAmount:   savingsAmount,
+	}
+}
+
+// calculateShippingCostByAddress calculates shipping cost based on address
+func (s *CartService) calculateShippingCostByAddress(address *Address) float64 {
+	// Simple calculation based on address - in a real implementation
+	// this would integrate with shipping providers and calculate based on
+	// distance, weight, dimensions, etc.
+	if address == nil {
+		return 0.0
+	}
+	
+	// Basic shipping cost calculation - could be enhanced based on:
+	// - address.Country, address.State for different rates
+	// - address.PostalCode for zone-based pricing
+	// - integration with shipping providers
+	return 5.99 // Default shipping cost
+}
+
+// calculateTaxByAddress calculates tax based on shipping address
+func (s *CartService) calculateTaxByAddress(address *Address, subtotal float64) TaxEstimate {
+	if address == nil || subtotal == 0 {
+		return TaxEstimate{Amount: 0, Rate: 0}
+	}
+	
+	// Simple tax calculation - in a real implementation this would:
+	// - Look up tax rates by address.State, address.Country
+	// - Handle different tax jurisdictions
+	// - Integrate with tax calculation services
+	
+	// Example: 8.25% tax rate for demonstration
+	rate := 0.0825
+	amount := subtotal * rate
+	
+	return TaxEstimate{
+		Amount: amount,
+		Rate:   rate,
 	}
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"ecommerce-saas/internal/shared/utils"
 )
 
 // Handler defines the discount HTTP handlers
@@ -85,8 +86,11 @@ func (h *Handler) createDiscount(c *gin.Context) {
 }
 
 func (h *Handler) getDiscounts(c *gin.Context) {
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	// Check if this is a stats request
 	queryType := c.Query("type")
@@ -121,8 +125,11 @@ func (h *Handler) getDiscount(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	discount, err := h.service.GetDiscount(c.Request.Context(), tenantID, discountID)
 	if err != nil {
@@ -146,8 +153,11 @@ func (h *Handler) updateDiscount(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	discount, err := h.service.UpdateDiscount(c.Request.Context(), tenantID, discountID, req)
 	if err != nil {
@@ -165,8 +175,11 @@ func (h *Handler) deleteDiscount(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	deleteErr := h.service.DeleteDiscount(c.Request.Context(), tenantID, discountID)
 	if deleteErr != nil {
@@ -184,8 +197,11 @@ func (h *Handler) getDiscountUsage(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	filter := h.parseUsageFilter(c)
 	
@@ -221,8 +237,13 @@ func (h *Handler) applyDiscount(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context and add client info
-	req.TenantID = uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
+	
+	req.TenantID = tenantID
 	req.IPAddress = c.ClientIP()
 	req.UserAgent = c.GetHeader("User-Agent")
 	
@@ -242,8 +263,11 @@ func (h *Handler) removeDiscount(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	err = h.service.RemoveDiscount(c.Request.Context(), tenantID, orderID)
 	if err != nil {
@@ -256,8 +280,11 @@ func (h *Handler) removeDiscount(c *gin.Context) {
 
 // Analytics handlers
 func (h *Handler) getDiscountStats(c *gin.Context) {
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	period := c.DefaultQuery("period", "30d")
 	
@@ -271,8 +298,11 @@ func (h *Handler) getDiscountStats(c *gin.Context) {
 }
 
 func (h *Handler) getTopDiscounts(c *gin.Context) {
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	
@@ -286,8 +316,11 @@ func (h *Handler) getTopDiscounts(c *gin.Context) {
 }
 
 func (h *Handler) getDiscountRevenue(c *gin.Context) {
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	period := c.DefaultQuery("period", "30d")
 	
@@ -318,8 +351,11 @@ func (h *Handler) createGiftCard(c *gin.Context) {
 }
 
 func (h *Handler) getGiftCards(c *gin.Context) {
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	filter := h.parseGiftCardFilter(c)
 	
@@ -335,8 +371,11 @@ func (h *Handler) getGiftCards(c *gin.Context) {
 func (h *Handler) getGiftCard(c *gin.Context) {
 	code := c.Param("code")
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	giftCard, err := h.service.GetGiftCard(c.Request.Context(), tenantID, code)
 	if err != nil {
@@ -355,13 +394,16 @@ func (h *Handler) updateGiftCard(c *gin.Context) {
 	}
 	
 	var req UpdateGiftCardRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	giftCard, err := h.service.UpdateGiftCard(c.Request.Context(), tenantID, giftCardID, req)
 	if err != nil {
@@ -379,8 +421,11 @@ func (h *Handler) deleteGiftCard(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	err = h.service.DeleteGiftCard(c.Request.Context(), tenantID, giftCardID)
 	if err != nil {
@@ -398,8 +443,11 @@ func (h *Handler) getGiftCardTransactions(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	transactions, err := h.service.GetGiftCardTransactions(c.Request.Context(), tenantID, giftCardID)
 	if err != nil {
@@ -418,15 +466,26 @@ func (h *Handler) refillGiftCard(c *gin.Context) {
 	}
 	
 	var req RefillGiftCardRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
-	// TODO: Get tenant ID and user ID from context
-	req.TenantID = uuid.New()   // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
+	
+	userID, err := utils.GetUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		return
+	}
+	
+	req.TenantID = tenantID
 	req.GiftCardID = giftCardID
-	req.ProcessedBy = uuid.New() // Placeholder
+	req.ProcessedBy = userID
 	
 	transaction, err := h.service.RefillGiftCard(c.Request.Context(), req)
 	if err != nil {
@@ -447,8 +506,11 @@ func (h *Handler) validateGiftCard(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	validation, err := h.service.ValidateGiftCard(c.Request.Context(), tenantID, req.Code)
 	if err != nil {
@@ -466,8 +528,13 @@ func (h *Handler) useGiftCard(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	req.TenantID = uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
+	
+	req.TenantID = tenantID
 	
 	transaction, err := h.service.UseGiftCard(c.Request.Context(), req)
 	if err != nil {
@@ -486,8 +553,11 @@ func (h *Handler) getStoreCredit(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	storeCredit, err := h.service.GetStoreCredit(c.Request.Context(), tenantID, customerID)
 	if err != nil {
@@ -506,15 +576,26 @@ func (h *Handler) addStoreCredit(c *gin.Context) {
 	}
 	
 	var req AddStoreCreditRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
-	// TODO: Get tenant ID and user ID from context
-	req.TenantID = uuid.New()   // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
+	
+	userID, err := utils.GetUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+		return
+	}
+	
+	req.TenantID = tenantID
 	req.CustomerID = customerID
-	req.ProcessedBy = &uuid.UUID{} // Placeholder
+	req.ProcessedBy = &userID
 	
 	transaction, err := h.service.AddStoreCredit(c.Request.Context(), req)
 	if err != nil {
@@ -533,13 +614,18 @@ func (h *Handler) useStoreCredit(c *gin.Context) {
 	}
 	
 	var req UseStoreCreditRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	req.TenantID = uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
+	
+	req.TenantID = tenantID
 	req.CustomerID = customerID
 	
 	transaction, err := h.service.UseStoreCredit(c.Request.Context(), req)
@@ -558,8 +644,11 @@ func (h *Handler) getStoreCreditTransactions(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	filter := h.parseStoreCreditFilter(c)
 	

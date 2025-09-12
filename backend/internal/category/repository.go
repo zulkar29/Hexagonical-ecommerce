@@ -316,8 +316,8 @@ func (r *GormRepository) AddProduct(ctx context.Context, tenantID, categoryID, p
 // RemoveProduct removes a product from a category
 func (r *GormRepository) RemoveProduct(ctx context.Context, tenantID, categoryID, productID uuid.UUID) error {
 	return r.db.WithContext(ctx).Exec(
-		"DELETE FROM product_categories WHERE product_id = ? AND category_id = ?",
-		productID, categoryID,
+		"DELETE FROM product_categories WHERE product_id = ? AND category_id = ? AND EXISTS (SELECT 1 FROM products WHERE products.id = product_categories.product_id AND products.tenant_id = ?)",
+		productID, categoryID, tenantID,
 	).Error
 }
 

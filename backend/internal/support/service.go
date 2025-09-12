@@ -2,6 +2,7 @@ package support
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -180,7 +181,7 @@ type TicketStats struct {
 	TicketsByPriority map[TicketPriority]int  `json:"tickets_by_priority"`
 }
 
-// Implementation methods (TODO: implement business logic)
+// Implementation methods - Service layer business logic
 func (s *service) CreateTicket(ctx context.Context, req CreateTicketRequest) (*Ticket, error) {
 	ticket := &Ticket{
 		ID:            uuid.New(),
@@ -272,12 +273,26 @@ func (s *service) AssignTicket(ctx context.Context, tenantID, ticketID, userID u
 }
 
 func (s *service) ResolveTicket(ctx context.Context, tenantID, ticketID uuid.UUID) error {
-	// TODO: Implement ticket resolution logic
+	// First, verify the ticket exists and belongs to the tenant
+	ticket, err := s.repo.GetTicketByID(ctx, tenantID, ticketID)
+	if err != nil {
+		return err
+	}
+
+	// Check if ticket is already resolved
+	if ticket.Status == StatusResolved {
+		return fmt.Errorf("ticket is already resolved")
+	}
+
+	// Update ticket status to resolved with timestamp
 	now := time.Now()
-	return s.repo.UpdateTicket(ctx, tenantID, ticketID, map[string]interface{}{
-		"status": StatusResolved,
+	updates := map[string]interface{}{
+		"status":      StatusResolved,
 		"resolved_at": &now,
-	})
+		"updated_at":  now,
+	}
+
+	return s.repo.UpdateTicket(ctx, tenantID, ticketID, updates)
 }
 
 func (s *service) AddMessage(ctx context.Context, req AddMessageRequest) (*TicketMessage, error) {

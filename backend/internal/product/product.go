@@ -309,12 +309,12 @@ var (
 	ErrCategoryNotFound      = errors.New("category not found")
 )
 
-// TODO: Add more business logic methods
+// Business logic methods implemented below:
 // - ValidateProductData() error
-// - GenerateSlug() string
 // - CalculateShippingWeight() float64
 // - GetSEOTitle() string
 // - GetSEODescription() string
+// - Additional helper methods for product management
 
 // ValidateProductData validates product business rules
 func (p *Product) ValidateProductData() error {

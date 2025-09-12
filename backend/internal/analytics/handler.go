@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"ecommerce-saas/internal/shared/utils"
 )
 
 type Handler struct {
@@ -68,8 +70,11 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 
 // Event tracking handlers
 func (h *Handler) TrackEvent(c *gin.Context) {
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 
 	var event AnalyticsEvent
 	if bindErr := c.ShouldBindJSON(&event); bindErr != nil {
@@ -89,8 +94,11 @@ func (h *Handler) TrackEvent(c *gin.Context) {
 }
 
 func (h *Handler) TrackPageView(c *gin.Context) {
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 
 	var pageView PageView
 	if bindErr := c.ShouldBindJSON(&pageView); bindErr != nil {
@@ -110,8 +118,11 @@ func (h *Handler) TrackPageView(c *gin.Context) {
 }
 
 func (h *Handler) TrackProductView(c *gin.Context) {
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 
 	var productView ProductView
 	if bindErr := c.ShouldBindJSON(&productView); bindErr != nil {
@@ -131,8 +142,11 @@ func (h *Handler) TrackProductView(c *gin.Context) {
 }
 
 func (h *Handler) TrackPurchase(c *gin.Context) {
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 
 	var purchase Purchase
 	if bindErr := c.ShouldBindJSON(&purchase); bindErr != nil {
@@ -153,8 +167,11 @@ func (h *Handler) TrackPurchase(c *gin.Context) {
 
 // Analytics dashboard handlers
 func (h *Handler) GetDashboardStats(c *gin.Context) {
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 
 	dateRange := h.parseDateRange(c)
 	stats, err := h.service.GetDashboardStats(c.Request.Context(), tenantID, dateRange)
@@ -167,8 +184,11 @@ func (h *Handler) GetDashboardStats(c *gin.Context) {
 }
 
 func (h *Handler) GetTrafficStats(c *gin.Context) {
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 
 	dateRange := h.parseDateRange(c)
 	stats, err := h.service.GetTrafficStats(c.Request.Context(), tenantID, dateRange)
@@ -181,8 +201,11 @@ func (h *Handler) GetTrafficStats(c *gin.Context) {
 }
 
 func (h *Handler) GetSalesStats(c *gin.Context) {
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 
 	dateRange := h.parseDateRange(c)
 	stats, err := h.service.GetSalesStats(c.Request.Context(), tenantID, dateRange)
@@ -195,8 +218,11 @@ func (h *Handler) GetSalesStats(c *gin.Context) {
 }
 
 func (h *Handler) GetRealTimeStats(c *gin.Context) {
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 
 	stats, err := h.service.GetRealTimeStats(c.Request.Context(), tenantID)
 	if err != nil {
@@ -209,8 +235,11 @@ func (h *Handler) GetRealTimeStats(c *gin.Context) {
 
 // Top performers handlers
 func (h *Handler) GetTopProducts(c *gin.Context) {
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 
 	dateRange := h.parseDateRange(c)
 	limit := h.parseLimit(c, 10)
@@ -225,8 +254,11 @@ func (h *Handler) GetTopProducts(c *gin.Context) {
 }
 
 func (h *Handler) GetTopPages(c *gin.Context) {
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 
 	dateRange := h.parseDateRange(c)
 	limit := h.parseLimit(c, 10)
@@ -241,8 +273,11 @@ func (h *Handler) GetTopPages(c *gin.Context) {
 }
 
 func (h *Handler) GetTopReferrers(c *gin.Context) {
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 
 	dateRange := h.parseDateRange(c)
 	limit := h.parseLimit(c, 10)
@@ -258,8 +293,11 @@ func (h *Handler) GetTopReferrers(c *gin.Context) {
 
 // Advanced analytics handlers
 func (h *Handler) GetCohortAnalysis(c *gin.Context) {
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 
 	dateRange := h.parseDateRange(c)
 	cohorts, err := h.service.GetCohortAnalysis(c.Request.Context(), tenantID, dateRange)
@@ -272,15 +310,25 @@ func (h *Handler) GetCohortAnalysis(c *gin.Context) {
 }
 
 func (h *Handler) GetFunnelAnalysis(c *gin.Context) {
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 
 	dateRange := h.parseDateRange(c)
 	
 	// Parse funnel steps from query params or request body
 	funnelSteps := []string{"page_view", "add_to_cart", "checkout", "purchase"} // Default funnel
 	if steps := c.Query("steps"); steps != "" {
-		// TODO: Parse comma-separated funnel steps
+		// Parse comma-separated funnel steps
+		parsedSteps := strings.Split(steps, ",")
+		for i, step := range parsedSteps {
+			parsedSteps[i] = strings.TrimSpace(step)
+		}
+		if len(parsedSteps) > 0 {
+			funnelSteps = parsedSteps
+		}
 	}
 
 	funnel, err := h.service.GetFunnelAnalysis(c.Request.Context(), tenantID, funnelSteps, dateRange)
@@ -293,8 +341,11 @@ func (h *Handler) GetFunnelAnalysis(c *gin.Context) {
 }
 
 func (h *Handler) GetCustomerLifetimeValue(c *gin.Context) {
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 
 	dateRange := h.parseDateRange(c)
 	clv, err := h.service.GetCustomerLifetimeValue(c.Request.Context(), tenantID, dateRange)
@@ -307,8 +358,11 @@ func (h *Handler) GetCustomerLifetimeValue(c *gin.Context) {
 }
 
 func (h *Handler) GetRetentionRate(c *gin.Context) {
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 
 	days := 30 // Default retention period
 	if d := c.Query("days"); d != "" {
@@ -328,8 +382,11 @@ func (h *Handler) GetRetentionRate(c *gin.Context) {
 
 // Reports handlers
 func (h *Handler) GenerateReport(c *gin.Context) {
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 
 	var request ReportRequest
 	if bindErr := c.ShouldBindJSON(&request); bindErr != nil {
@@ -350,8 +407,11 @@ func (h *Handler) GenerateReport(c *gin.Context) {
 }
 
 func (h *Handler) ScheduleReport(c *gin.Context) {
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 
 	var request ScheduleReportRequest
 	if bindErr := c.ShouldBindJSON(&request); bindErr != nil {
@@ -369,8 +429,11 @@ func (h *Handler) ScheduleReport(c *gin.Context) {
 }
 
 func (h *Handler) GetScheduledReports(c *gin.Context) {
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 
 	reports, err := h.service.GetScheduledReports(c.Request.Context(), tenantID)
 	if err != nil {
@@ -382,29 +445,34 @@ func (h *Handler) GetScheduledReports(c *gin.Context) {
 }
 
 func (h *Handler) DeleteScheduledReport(c *gin.Context) {
-	// TODO: Extract tenant ID from context
-	_ = uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 
-	_, parseErr := uuid.Parse(c.Param("id"))
+	reportID, parseErr := uuid.Parse(c.Param("id"))
 	if parseErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid report ID"})
 		return
 	}
 
-	// TODO: Call service method to delete scheduled report
-	// err = h.service.DeleteScheduledReport(c.Request.Context(), tenantID, reportID)
-	// if err != nil {
-	//     c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-	//     return
-	// }
+	err = h.service.DeleteScheduledReport(c.Request.Context(), tenantID, reportID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	c.JSON(http.StatusNoContent, nil)
 }
 
 // Data export handler
 func (h *Handler) ExportData(c *gin.Context) {
-	// TODO: Extract tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 
 	var request ExportRequest
 	if bindErr := c.ShouldBindJSON(&request); bindErr != nil {

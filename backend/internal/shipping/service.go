@@ -596,35 +596,35 @@ func (s *Service) createProviderLabel(label *ShippingLabel, req CreateShippingLa
 	}
 }
 
-func (s *Service) createPathaoLabel(label *ShippingLabel, req CreateShippingLabelRequest) error {
+func (s *Service) createPathaoLabel(label *ShippingLabel, _ CreateShippingLabelRequest) error {
 	// TODO: Implement Pathao API integration
 	label.LabelURL = "https://pathao.com/label/" + label.TrackingNumber
 	label.ProviderOrderID = "PATHAO-" + label.TrackingNumber
 	return nil
 }
 
-func (s *Service) createRedXLabel(label *ShippingLabel, req CreateShippingLabelRequest) error {
+func (s *Service) createRedXLabel(label *ShippingLabel, _ CreateShippingLabelRequest) error {
 	// TODO: Implement RedX API integration
 	label.LabelURL = "https://redx.com.bd/label/" + label.TrackingNumber
 	label.ProviderOrderID = "REDX-" + label.TrackingNumber
 	return nil
 }
 
-func (s *Service) createPaperflyLabel(label *ShippingLabel, req CreateShippingLabelRequest) error {
+func (s *Service) createPaperflyLabel(label *ShippingLabel, _ CreateShippingLabelRequest) error {
 	// TODO: Implement Paperfly API integration
 	label.LabelURL = "https://paperfly.com.bd/label/" + label.TrackingNumber
 	label.ProviderOrderID = "PPF-" + label.TrackingNumber
 	return nil
 }
 
-func (s *Service) createDHLLabel(label *ShippingLabel, req CreateShippingLabelRequest) error {
+func (s *Service) createDHLLabel(label *ShippingLabel, _ CreateShippingLabelRequest) error {
 	// TODO: Implement DHL API integration
 	label.LabelURL = "https://dhl.com/label/" + label.TrackingNumber
 	label.ProviderOrderID = "DHL-" + label.TrackingNumber
 	return nil
 }
 
-func (s *Service) createFedExLabel(label *ShippingLabel, req CreateShippingLabelRequest) error {
+func (s *Service) createFedExLabel(label *ShippingLabel, _ CreateShippingLabelRequest) error {
 	// TODO: Implement FedEx API integration
 	label.LabelURL = "https://fedex.com/label/" + label.TrackingNumber
 	label.ProviderOrderID = "FDX-" + label.TrackingNumber

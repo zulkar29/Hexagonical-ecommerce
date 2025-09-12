@@ -24,7 +24,7 @@ func main() {
 
 	// Run migrations
 	// Temporarily disabled to avoid GORM schema conflicts
-	// if err := database.AutoMigrate(db); err != nil {
+	// if parseErr := database.AutoMigrate(db); parseErr != nil {
 	// 	log.Fatalf("Failed to migrate database: %v", err)
 	// }
 
@@ -35,7 +35,7 @@ func main() {
 	srv := server.New(cfg, db, jwtManager)
 
 	// Start server
-	if err := srv.Start(); err != nil {
+	if parseErr := srv.Start(); parseErr != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }

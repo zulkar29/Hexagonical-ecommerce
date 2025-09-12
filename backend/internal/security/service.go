@@ -631,7 +631,7 @@ func (s *securityService) UpdateDeviceActivity(ctx context.Context, userID uuid.
 	
 	// Update trust score based on consistent usage
 	if device.AccessCount > 10 && device.TrustScore < 1.0 {
-		device.TrustScore = min(1.0, device.TrustScore+0.1)
+		device.TrustScore = minFloat(1.0, device.TrustScore+0.1)
 	}
 	
 	return s.repo.UpdateTrustedDevice(ctx, device)
@@ -824,7 +824,7 @@ func (s *securityService) calculatePasswordStrength(password string) int {
 		score -= 10
 	}
 	
-	return max(0, min(100.0, float64(score)))
+	return maxInt(0, int(minFloat(100.0, float64(score))))
 }
 
 func (s *securityService) generateDeviceFingerprint(userAgent, ipAddress string) string {
@@ -841,16 +841,16 @@ func (s *securityService) isPrivateIP(ipAddress string) bool {
 	return ip.IsPrivate() || ip.IsLoopback()
 }
 
-func min(a, b float64) float64 {
+func minFloat(a, b float64) float64 {
 	if a < b {
 		return a
 	}
 	return b
 }
 
-func max(a float64, b float64) int {
+func maxInt(a, b int) int {
 	if a > b {
-		return int(a)
+		return a
 	}
-	return int(b)
+	return b
 }

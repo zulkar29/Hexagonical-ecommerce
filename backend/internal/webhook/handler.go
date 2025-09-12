@@ -64,8 +64,8 @@ func (h *Handler) CreateEndpoint(c *gin.Context) {
 	}
 	
 	var req CreateEndpointRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
@@ -106,8 +106,8 @@ func (h *Handler) UpdateEndpoint(c *gin.Context) {
 	}
 	
 	var req UpdateEndpointRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	

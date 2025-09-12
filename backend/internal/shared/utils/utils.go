@@ -11,8 +11,9 @@ import (
 	"time"
 	"unicode"
 
-	"golang.org/x/crypto/bcrypt"
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // String utilities
@@ -51,7 +52,10 @@ func GenerateRandomString(length int) string {
 	b := make([]byte, length)
 	for i := range b {
 		randomBytes := make([]byte, 1)
-		rand.Read(randomBytes)
+		if _, err := rand.Read(randomBytes); err != nil {
+			// Fallback to time-based randomness if crypto/rand fails
+			randomBytes[0] = byte(time.Now().UnixNano() % int64(len(charset)))
+		}
 		b[i] = charset[randomBytes[0]%byte(len(charset))]
 	}
 	return string(b)
@@ -63,7 +67,10 @@ func GenerateRandomNumbers(length int) string {
 	b := make([]byte, length)
 	for i := range b {
 		randomBytes := make([]byte, 1)
-		rand.Read(randomBytes)
+		if _, err := rand.Read(randomBytes); err != nil {
+			// Fallback to time-based randomness if crypto/rand fails
+			randomBytes[0] = byte(time.Now().UnixNano() % int64(len(charset)))
+		}
 		b[i] = charset[randomBytes[0]%byte(len(charset))]
 	}
 	return string(b)
@@ -307,6 +314,53 @@ func Unique[T comparable](slice []T) []T {
 	}
 	
 	return result
+}
+
+// Context utilities
+
+// GetTenantIDFromContext extracts tenant ID from Gin context
+func GetTenantIDFromContext(c *gin.Context) (uuid.UUID, error) {
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		return uuid.Nil, fmt.Errorf("tenant ID not found in context")
+	}
+	
+	id, ok := tenantID.(uuid.UUID)
+	if !ok {
+		return uuid.Nil, fmt.Errorf("invalid tenant ID format in context")
+	}
+	
+	return id, nil
+}
+
+// GetUserIDFromContext extracts user ID from Gin context
+func GetUserIDFromContext(c *gin.Context) (uuid.UUID, error) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		return uuid.Nil, fmt.Errorf("user ID not found in context")
+	}
+	
+	id, ok := userID.(uuid.UUID)
+	if !ok {
+		return uuid.Nil, fmt.Errorf("invalid user ID format in context")
+	}
+	
+	return id, nil
+}
+
+// GetUserRoleFromContext extracts user role from Gin context
+func GetUserRoleFromContext(c *gin.Context) (string, error) {
+	userRole, exists := c.Get("user_role")
+	if !exists {
+		return "", fmt.Errorf("user role not found in context")
+	}
+	
+	role, ok := userRole.(string)
+	if !ok {
+		return "", fmt.Errorf("invalid user role format in context")
+	}
+	
+	return role, nil
 }
 
 // TODO: Add more utility functions

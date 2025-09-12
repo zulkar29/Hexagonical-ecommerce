@@ -42,8 +42,8 @@ func (h *Handler) CreateTaxRule(c *gin.Context) {
 	}
 	
 	var req CreateTaxRuleRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
@@ -124,8 +124,8 @@ func (h *Handler) UpdateTaxRule(c *gin.Context) {
 	}
 	
 	var req UpdateTaxRuleRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
@@ -257,8 +257,8 @@ func (h *Handler) CalculateTax(c *gin.Context) {
 	}
 	
 	var req TaxCalculationRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
@@ -347,8 +347,8 @@ func (h *Handler) GetApplicableTaxRules(c *gin.Context) {
 	}
 	
 	var req TaxCalculationRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	

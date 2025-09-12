@@ -27,14 +27,14 @@ func main() {
 	switch *action {
 	case "up":
 		log.Println("Running migrations...")
-		if err := database.AutoMigrate(db); err != nil {
+		if parseErr := database.AutoMigrate(db); parseErr != nil {
 			log.Fatalf("Failed to run migrations: %v", err)
 		}
 		log.Println("Migrations completed successfully")
 
 	case "seed":
 		log.Println("Seeding database...")
-		if err := database.Seed(db); err != nil {
+		if parseErr := database.Seed(db); parseErr != nil {
 			log.Fatalf("Failed to seed database: %v", err)
 		}
 		log.Println("Database seeded successfully")

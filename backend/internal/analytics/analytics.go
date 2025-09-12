@@ -178,8 +178,181 @@ func (pv *PageView) GetDuration() int {
 	return *pv.DurationSeconds
 }
 
-// TODO: Add more business logic methods
-// - CalculateConversionRate() float64
-// - GetTopReferrers(limit int) []string
-// - GetUserJourney(userID uuid.UUID) []*AnalyticsEvent
-// - CalculateRetentionRate(days int) float64
+// Additional business logic methods
+
+// CalculateConversionRate calculates the conversion rate for analytics stats
+func (as *AnalyticsStats) CalculateConversionRate() float64 {
+	if as.UniqueVisitors == 0 {
+		return 0
+	}
+	return (float64(as.Orders) / float64(as.UniqueVisitors)) * 100
+}
+
+// UpdateConversionRate updates the conversion rate based on current data
+func (as *AnalyticsStats) UpdateConversionRate() {
+	as.ConversionRate = as.CalculateConversionRate()
+}
+
+// CalculateAvgOrderValue calculates the average order value
+func (as *AnalyticsStats) CalculateAvgOrderValue() float64 {
+	if as.Orders == 0 {
+		return 0
+	}
+	return as.Revenue / float64(as.Orders)
+}
+
+// UpdateAvgOrderValue updates the average order value based on current data
+func (as *AnalyticsStats) UpdateAvgOrderValue() {
+	as.AvgOrderValue = as.CalculateAvgOrderValue()
+}
+
+// CalculateBounceRate calculates bounce rate from page views
+func (as *AnalyticsStats) CalculateBounceRate(bounces int64) {
+	if as.PageViews == 0 {
+		as.BounceRate = 0
+		return
+	}
+	as.BounceRate = (float64(bounces) / float64(as.PageViews)) * 100
+}
+
+// IsHighPerforming checks if the stats indicate high performance
+func (as *AnalyticsStats) IsHighPerforming() bool {
+	return as.ConversionRate > 2.0 && as.BounceRate < 50.0
+}
+
+// GetRevenueGrowth calculates revenue growth compared to previous period
+func (as *AnalyticsStats) GetRevenueGrowth(previousRevenue float64) float64 {
+	if previousRevenue == 0 {
+		return 0
+	}
+	return ((as.Revenue - previousRevenue) / previousRevenue) * 100
+}
+
+// Product view business logic methods
+
+// IsEngaged checks if the product view shows user engagement
+func (pv *ProductView) IsEngaged() bool {
+	if pv.DurationSeconds == nil {
+		return false
+	}
+	return *pv.DurationSeconds > 60 // More than 1 minute is considered engaged
+}
+
+// GetEngagementLevel returns the engagement level based on duration
+func (pv *ProductView) GetEngagementLevel() string {
+	if pv.DurationSeconds == nil {
+		return "unknown"
+	}
+	
+	duration := *pv.DurationSeconds
+	switch {
+	case duration < 10:
+		return "low"
+	case duration < 60:
+		return "medium"
+	case duration < 300:
+		return "high"
+	default:
+		return "very_high"
+	}
+}
+
+// Purchase business logic methods
+
+// IsHighValue checks if the purchase is considered high value
+func (p *Purchase) IsHighValue(threshold float64) bool {
+	return p.TotalAmount >= threshold
+}
+
+// GetOrderSize returns the order size category
+func (p *Purchase) GetOrderSize() string {
+	switch {
+	case p.ItemCount == 1:
+		return "single"
+	case p.ItemCount <= 5:
+		return "small"
+	case p.ItemCount <= 15:
+		return "medium"
+	default:
+		return "large"
+	}
+}
+
+// GetAverageItemValue calculates the average value per item
+func (p *Purchase) GetAverageItemValue() float64 {
+	if p.ItemCount == 0 {
+		return 0
+	}
+	return p.TotalAmount / float64(p.ItemCount)
+}
+
+// Analytics event business logic methods
+
+// GetEventCategory returns the category of the event
+func (e *AnalyticsEvent) GetEventCategory() string {
+	switch e.EventType {
+	case "page_view":
+		return "engagement"
+	case "product_view":
+		return "product"
+	case "purchase", "add_to_cart", "checkout":
+		return "ecommerce"
+	case "signup", "login", "logout":
+		return "user"
+	default:
+		return "other"
+	}
+}
+
+// HasUTMParameters checks if the event has UTM tracking parameters
+func (e *AnalyticsEvent) HasUTMParameters() bool {
+	return e.UTMSource != "" || e.UTMMedium != "" || e.UTMCampaign != ""
+}
+
+// GetTrafficSource returns the traffic source based on referrer and UTM
+func (e *AnalyticsEvent) GetTrafficSource() string {
+	if e.UTMSource != "" {
+		return e.UTMSource
+	}
+	
+	if e.Referrer == "" {
+		return "direct"
+	}
+	
+	// Simple referrer categorization
+	if contains(e.Referrer, "google") {
+		return "google"
+	}
+	if contains(e.Referrer, "facebook") {
+		return "facebook"
+	}
+	if contains(e.Referrer, "twitter") {
+		return "twitter"
+	}
+	
+	return "referral"
+}
+
+// IsFromMobile checks if the event is from a mobile device
+func (e *AnalyticsEvent) IsFromMobile() bool {
+	return contains(e.UserAgent, "Mobile") || contains(e.UserAgent, "Android") || contains(e.UserAgent, "iPhone")
+}
+
+// Helper function for string contains check
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || 
+		(len(s) > len(substr) && 
+			(s[:len(substr)] == substr || 
+			 s[len(s)-len(substr):] == substr || 
+			 indexOfSubstring(s, substr) >= 0)))
+}
+
+// Helper function to find substring index
+func indexOfSubstring(s, substr string) int {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return i
+		}
+	}
+	return -1
+}

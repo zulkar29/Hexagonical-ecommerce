@@ -6,6 +6,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"log"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -174,7 +175,11 @@ func (s *Service) CreateOrder(ctx context.Context, tenantID uuid.UUID, order *Or
 	}
 
 	// Send order confirmation notification
-	go s.sendOrderConfirmationNotification(ctx, order)
+	go func() {
+		if err := s.sendOrderConfirmationNotification(ctx, order); err != nil {
+			log.Printf("Failed to send order confirmation notification: %v", err)
+		}
+	}()
 
 	return order, nil
 }
@@ -252,15 +257,23 @@ func (s *Service) UpdateOrderStatus(ctx context.Context, tenantID, orderID uuid.
 
 	if _, err := s.repository.CreateOrderHistory(history); err != nil {
 		// Log error but don't fail the status update
-		// s.logger.Error("Failed to create order history", "error", err)
+		log.Printf("Failed to create order history: %v", err)
 	}
 
 	// Send notifications based on status
 	switch status {
 	case StatusShipped:
-		go s.sendOrderShippingNotification(ctx, order)
+		go func() {
+			if err := s.sendOrderShippingNotification(ctx, order); err != nil {
+				log.Printf("Failed to send order shipping notification: %v", err)
+			}
+		}()
 	case StatusCancelled:
-		go s.sendOrderCancellationNotification(ctx, order)
+		go func() {
+			if err := s.sendOrderCancellationNotification(ctx, order); err != nil {
+				log.Printf("Failed to send order cancellation notification: %v", err)
+			}
+		}()
 	}
 
 	return order, nil
@@ -292,7 +305,11 @@ func (s *Service) CancelOrder(tenantID uuid.UUID, orderID string, reason string)
 	// TODO: Handle refund if payment was processed
 
 	// Send order cancellation notification
-	go s.sendOrderCancellationNotification(context.Background(), order)
+	go func() {
+		if err := s.sendOrderCancellationNotification(context.Background(), order); err != nil {
+			log.Printf("Failed to send order cancellation notification: %v", err)
+		}
+	}()
 
 	return s.repository.UpdateOrder(order)
 }
@@ -376,7 +393,7 @@ func (s *Service) RefundOrder(ctx context.Context, tenantID, orderID uuid.UUID, 
 
 	if _, err := s.repository.CreateOrderHistory(history); err != nil {
 		// Log error but don't fail the refund
-		// s.logger.Error("Failed to create order history", "error", err)
+		log.Printf("Failed to create order history: %v", err)
 	}
 
 	// Create a payment response for the refund
@@ -420,7 +437,7 @@ func (s *Service) TrackOrder(tenantID uuid.UUID, orderNumber string) (map[string
 // Helper methods
 
 // generateOrderNumber generates a unique order number
-func (s *Service) generateOrderNumber(tenantID uuid.UUID) string {
+func (s *Service) generateOrderNumber(_ uuid.UUID) string {
 	timestamp := time.Now().Unix()
 	random := rand.Intn(1000)
 	return fmt.Sprintf("ORD-%d-%03d", timestamp, random)
@@ -835,7 +852,7 @@ func (s *Service) parseAddressFromString(addrStr string) Address {
 }
 
 // sendOrderConfirmationNotification sends order confirmation notification
-func (s *Service) sendOrderConfirmationNotification(ctx context.Context, order *Order) error {
+func (s *Service) sendOrderConfirmationNotification(_ context.Context, order *Order) error {
 	req := &notification.SendEmailRequest{
 		To:      []string{order.CustomerEmail},
 		Subject: fmt.Sprintf("Order Confirmation - %s", order.OrderNumber),
@@ -852,7 +869,7 @@ func (s *Service) sendOrderConfirmationNotification(ctx context.Context, order *
 }
 
 // sendOrderCancellationNotification sends order cancellation notification
-func (s *Service) sendOrderCancellationNotification(ctx context.Context, order *Order) error {
+func (s *Service) sendOrderCancellationNotification(_ context.Context, order *Order) error {
 	req := &notification.SendEmailRequest{
 		To:      []string{order.CustomerEmail},
 		Subject: fmt.Sprintf("Order Cancelled - %s", order.OrderNumber),
@@ -868,7 +885,7 @@ func (s *Service) sendOrderCancellationNotification(ctx context.Context, order *
 }
 
 // sendOrderShippingNotification sends order shipping notification
-func (s *Service) sendOrderShippingNotification(ctx context.Context, order *Order) error {
+func (s *Service) sendOrderShippingNotification(_ context.Context, order *Order) error {
 	req := &notification.SendEmailRequest{
 		To:      []string{order.CustomerEmail},
 		Subject: fmt.Sprintf("Order Shipped - %s", order.OrderNumber),
@@ -888,7 +905,7 @@ func (s *Service) sendOrderShippingNotification(ctx context.Context, order *Orde
 
 
 // createPayment creates a payment for the order
-func (s *Service) createPayment(tenantID, userID uuid.UUID, order *Order) (*payment.CreatePaymentResponse, error) {
+func (s *Service) createPayment(_, _ uuid.UUID, order *Order) (*payment.CreatePaymentResponse, error) {
 	// Create payment request
 	paymentReq := &payment.CreatePaymentRequest{
 		OrderID:         order.ID.String(),
@@ -1013,7 +1030,7 @@ func (s *Service) bulkUpdateOrderStatus(ctx context.Context, tenantID, orderID u
 }
 
 // bulkCancelOrder cancels a single order in bulk operation
-func (s *Service) bulkCancelOrder(ctx context.Context, tenantID, orderID uuid.UUID) error {
+func (s *Service) bulkCancelOrder(_ context.Context, tenantID, orderID uuid.UUID) error {
 	_, err := s.CancelOrder(tenantID, orderID.String(), "Bulk cancellation")
 	return err
 }
@@ -1161,7 +1178,9 @@ func (s *Service) UpdateOrder(ctx context.Context, tenantID uuid.UUID, orderID s
 	}
 	
 	// Add history entry
-	s.AddOrderHistoryEntry(order.ID, "order_updated", "Order details updated", uuid.Nil, "user", nil)
+	if err := s.AddOrderHistoryEntry(order.ID, "order_updated", "Order details updated", uuid.Nil, "user", nil); err != nil {
+		log.Printf("Failed to add order history entry: %v", err)
+	}
 	
 	return updatedOrder, nil
 }
@@ -1180,7 +1199,9 @@ func (s *Service) DeleteOrder(ctx context.Context, tenantID uuid.UUID, orderID u
 	}
 	
 	// Add history entry before deletion
-	s.AddOrderHistoryEntry(order.ID, "order_deleted", "Order deleted", uuid.Nil, "user", nil)
+	if err := s.AddOrderHistoryEntry(order.ID, "order_deleted", "Order deleted", uuid.Nil, "user", nil); err != nil {
+		log.Printf("Failed to add order history entry: %v", err)
+	}
 	
 	// Delete order
 	if err := s.repository.DeleteOrder(tenantID, order.ID); err != nil {
@@ -1217,7 +1238,9 @@ func (s *Service) BulkDeleteOrders(ctx context.Context, tenantID uuid.UUID, orde
 		}
 		
 		// Add history entry before deletion
-		s.AddOrderHistoryEntry(order.ID, "order_deleted", fmt.Sprintf("Order deleted: %s", reason), uuid.Nil, "user", nil)
+		if err := s.AddOrderHistoryEntry(order.ID, "order_deleted", fmt.Sprintf("Order deleted: %s", reason), uuid.Nil, "user", nil); err != nil {
+			log.Printf("Failed to add order history entry: %v", err)
+		}
 		
 		// Delete order
 		if err := s.repository.DeleteOrder(tenantID, order.ID); err != nil {

@@ -61,8 +61,8 @@ func (h *Handler) CreateAddress(c *gin.Context) {
 	}
 	
 	var req CreateAddressRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
 	
@@ -115,8 +115,8 @@ func (h *Handler) UpdateAddress(c *gin.Context) {
 	}
 	
 	var req UpdateAddressRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
 	
@@ -190,7 +190,7 @@ func (h *Handler) ListAddresses(c *gin.Context) {
 	
 	// Handle customer-specific addresses
 	if customerID != "" {
-		if customerUUID, err := uuid.Parse(customerID); err == nil {
+		if customerUUID, parseErr := uuid.Parse(customerID); parseErr == nil {
 			c.Set("customerId", customerUUID.String())
 			h.GetCustomerAddresses(c)
 			return
@@ -336,8 +336,8 @@ func (h *Handler) ValidateAddress(c *gin.Context) {
 	}
 	
 	var req ValidateAddressRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
 	
@@ -517,7 +517,7 @@ func (h *Handler) CleanupOperations(c *gin.Context) {
 func (h *Handler) handleCleanupUnvalidated(c *gin.Context, ctx context.Context, tenantID uuid.UUID) {
 	days := 90 // Default
 	if daysStr := c.Query("days"); daysStr != "" {
-		if parsedDays, err := strconv.Atoi(daysStr); err == nil && parsedDays > 0 {
+		if parsedDays, parseErr := strconv.Atoi(daysStr); parseErr == nil && parsedDays > 0 {
 			days = parsedDays
 		}
 	}
@@ -664,7 +664,7 @@ func (h *Handler) GetRecentAddresses(c *gin.Context) {
 	
 	days := 30 // Default
 	if daysStr := c.Query("days"); daysStr != "" {
-		if parsedDays, err := strconv.Atoi(daysStr); err == nil && parsedDays > 0 {
+		if parsedDays, parseErr := strconv.Atoi(daysStr); parseErr == nil && parsedDays > 0 {
 			days = parsedDays
 		}
 	}
@@ -707,7 +707,7 @@ func (h *Handler) parseAddressFilter(c *gin.Context) AddressFilter {
 	filter := AddressFilter{}
 	
 	if customerIDStr := c.Query("customer_id"); customerIDStr != "" {
-		if customerID, err := uuid.Parse(customerIDStr); err == nil {
+		if customerID, parseErr := uuid.Parse(customerIDStr); parseErr == nil {
 			filter.CustomerID = &customerID
 		}
 	}
@@ -733,13 +733,13 @@ func (h *Handler) parseAddressFilter(c *gin.Context) AddressFilter {
 	}
 	
 	if isDefaultStr := c.Query("is_default"); isDefaultStr != "" {
-		if isDefault, err := strconv.ParseBool(isDefaultStr); err == nil {
+		if isDefault, parseErr := strconv.ParseBool(isDefaultStr); parseErr == nil {
 			filter.IsDefault = &isDefault
 		}
 	}
 	
 	if isValidatedStr := c.Query("is_validated"); isValidatedStr != "" {
-		if isValidated, err := strconv.ParseBool(isValidatedStr); err == nil {
+		if isValidated, parseErr := strconv.ParseBool(isValidatedStr); parseErr == nil {
 			filter.IsValidated = &isValidated
 		}
 	}
@@ -757,7 +757,7 @@ func (h *Handler) parsePagination(c *gin.Context) (limit, offset int) {
 	offset = 0
 	
 	if limitStr := c.Query("limit"); limitStr != "" {
-		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
+		if parsedLimit, parseErr := strconv.Atoi(limitStr); parseErr == nil && parsedLimit > 0 {
 			limit = parsedLimit
 			if limit > MaxPageSize {
 				limit = MaxPageSize
@@ -766,7 +766,7 @@ func (h *Handler) parsePagination(c *gin.Context) (limit, offset int) {
 	}
 	
 	if offsetStr := c.Query("offset"); offsetStr != "" {
-		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
+		if parsedOffset, parseErr := strconv.Atoi(offsetStr); parseErr == nil && parsedOffset >= 0 {
 			offset = parsedOffset
 		}
 	}

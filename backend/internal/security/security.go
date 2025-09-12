@@ -430,14 +430,20 @@ func isCommonPassword(password string) bool {
 // GenerateDeviceID generates a unique device identifier
 func GenerateDeviceID() string {
 	bytes := make([]byte, 16)
-	rand.Read(bytes)
+	if _, err := rand.Read(bytes); err != nil {
+		// Fallback to timestamp-based ID if random generation fails
+		return fmt.Sprintf("%d", time.Now().UnixNano())
+	}
 	return hex.EncodeToString(bytes)
 }
 
 // GenerateVerificationCode generates a random verification code
 func GenerateVerificationCode() string {
 	bytes := make([]byte, 3)
-	rand.Read(bytes)
+	if _, err := rand.Read(bytes); err != nil {
+		// Fallback to timestamp-based code if random generation fails
+		return fmt.Sprintf("%06d", time.Now().Unix()%1000000)
+	}
 	return fmt.Sprintf("%06d", int(bytes[0])<<16|int(bytes[1])<<8|int(bytes[2]))
 }
 

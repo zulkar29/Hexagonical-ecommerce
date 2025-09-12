@@ -73,10 +73,7 @@ func (s *Service) RegisterUser(ctx context.Context, user *User) (*User, error) {
 	}
 
 	// Send verification email
-	if err := s.sendVerificationEmail(user); err != nil {
-		// Log error but don't fail registration
-		log.Printf("Failed to send verification email: %v", err)
-	}
+	s.sendVerificationEmail(user)
 
 	return user, nil
 }
@@ -90,7 +87,7 @@ func (s *Service) LoginUser(ctx context.Context, email, password string) (*Login
 	}
 
 	// Check password
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+	if tempErr := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); tempErr != nil {
 		return nil, errors.New("invalid credentials")
 	}
 
@@ -127,7 +124,9 @@ func (s *Service) LoginUser(ctx context.Context, email, password string) (*Login
 
 	// Update last login
 	user.LastLoginAt = &[]time.Time{time.Now()}[0]
-	s.repo.Update(user)
+	if err := s.repo.Update(user); err != nil {
+		log.Printf("Failed to update user last login: %v", err)
+	}
 
 	return &LoginResponse{
 		User:         user,
@@ -172,7 +171,9 @@ func (s *Service) RefreshToken(refreshToken string) (*TokenResponse, error) {
 	session.Token = newRefreshToken
 	session.ExpiresAt = time.Now().Add(7 * 24 * time.Hour)
 	session.UpdatedAt = time.Now()
-	s.repo.UpdateSession(session)
+	if err := s.repo.UpdateSession(session); err != nil {
+		log.Printf("Failed to update session: %v", err)
+	}
 
 	return &TokenResponse{
 		AccessToken:  accessToken,
@@ -227,12 +228,12 @@ func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassw
 	}
 
 	// Verify old password
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(oldPassword)); err != nil {
+	if tempErr := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(oldPassword)); tempErr != nil {
 		return errors.New("current password is incorrect")
 	}
 
 	// Validate new password
-	if err := s.validatePassword(newPassword); err != nil {
+	if tempErr := s.validatePassword(newPassword); tempErr != nil {
 		return err
 	}
 
@@ -249,7 +250,9 @@ func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassw
 	user.UpdatedAt = now
 
 	// Invalidate all existing sessions
-	s.repo.InvalidateUserSessions(ctx, userID)
+	if err := s.repo.InvalidateUserSessions(ctx, userID); err != nil {
+		log.Printf("Failed to invalidate user sessions: %v", err)
+	}
 
 	return s.repo.Update(user)
 }
@@ -453,7 +456,9 @@ func (s *Service) DeleteUser(adminUserID, targetUserID uuid.UUID) error {
 	}
 
 	// Invalidate all sessions first
-	s.repo.InvalidateUserSessions(context.Background(), targetUserID)
+	if err := s.repo.InvalidateUserSessions(context.Background(), targetUserID); err != nil {
+		log.Printf("Failed to invalidate user sessions: %v", err)
+	}
 
 	// Delete user
 	return s.repo.Delete(targetUserID)
@@ -475,11 +480,10 @@ func (s *Service) CleanupExpiredSessions() error {
 }
 
 // sendVerificationEmail sends email verification email
-func (s *Service) sendVerificationEmail(user *User) error {
+func (s *Service) sendVerificationEmail(user *User) {
 	// TODO: Implement email service integration
 	// For now, just log that verification email would be sent
 	log.Printf("Verification email would be sent to: %s", user.Email)
-	return nil
 }
 
 // ForgotPassword initiates password reset process

@@ -23,6 +23,7 @@ type SubscriptionStatus string
 const (
 	SubscriptionStatusActive    SubscriptionStatus = "active"
 	SubscriptionStatusPending   SubscriptionStatus = "pending"
+	SubscriptionStatusTrialing  SubscriptionStatus = "trialing"
 	SubscriptionStatusSuspended SubscriptionStatus = "suspended"
 	SubscriptionStatusCanceled  SubscriptionStatus = "canceled"
 	SubscriptionStatusExpired   SubscriptionStatus = "expired"
@@ -372,7 +373,7 @@ func (d *DunningProcess) ShouldCancelSubscription() bool {
 }
 
 // CalculateProration calculates prorated amount for plan changes
-func CalculateProration(oldAmount, newAmount float64, daysUsed, totalDays int) float64 {
+func CalculateProration(oldAmount, newAmount float64, daysUsed, totalDays float64) float64 {
 	if totalDays <= 0 {
 		return 0
 	}
@@ -383,10 +384,10 @@ func CalculateProration(oldAmount, newAmount float64, daysUsed, totalDays int) f
 	}
 	
 	// Credit for unused portion of old plan
-	oldCredit := oldAmount * float64(daysRemaining) / float64(totalDays)
+	oldCredit := oldAmount * daysRemaining / totalDays
 	
 	// Charge for new plan for remaining days
-	newCharge := newAmount * float64(daysRemaining) / float64(totalDays)
+	newCharge := newAmount * daysRemaining / totalDays
 	
 	return newCharge - oldCredit
 }
@@ -416,8 +417,100 @@ func GenerateInvoiceNumber(tenantID uuid.UUID) string {
 	return fmt.Sprintf("INV-%s-%s-%04d", timestamp, tenantShort, sequence)
 }
 
-// TODO: Add more business logic methods
-// - CalculateUsageCharges(usageRecords []UsageRecord, usageTiers []UsageTier) float64
-// - DetermineNextBillingDate(currentDate time.Time, cycle BillingCycle) time.Time
-// - ValidateSubscriptionLimits(subscription *TenantSubscription, usage map[UsageType]int64) error
-// - CalculateTax(amount float64, tenantLocation string) float64
+// CalculateUsageCharges calculates charges based on usage records and pricing tiers
+func CalculateUsageCharges(usageRecords []UsageRecord, usageTiers []UsageTier) float64 {
+	// Group usage by type
+	usageByType := make(map[UsageType]int64)
+	for _, record := range usageRecords {
+		usageByType[record.UsageType] += record.Quantity
+	}
+
+	// Group tiers by usage type
+	tiersByType := make(map[UsageType][]UsageTier)
+	for _, tier := range usageTiers {
+		tiersByType[tier.UsageType] = append(tiersByType[tier.UsageType], tier)
+	}
+
+	totalCharges := 0.0
+	for usageType, totalUsage := range usageByType {
+		tiers, exists := tiersByType[usageType]
+		if !exists {
+			continue
+		}
+
+		remainingUsage := totalUsage
+		for _, tier := range tiers {
+			if remainingUsage <= 0 {
+				break
+			}
+
+			var unitsInTier int64
+			if tier.MaxUnits == nil {
+				unitsInTier = remainingUsage
+			} else {
+				tierCapacity := *tier.MaxUnits - tier.MinUnits
+				if remainingUsage <= tierCapacity {
+					unitsInTier = remainingUsage
+				} else {
+					unitsInTier = tierCapacity
+				}
+			}
+
+			if unitsInTier > 0 {
+				totalCharges += float64(unitsInTier) * tier.PricePerUnit
+				remainingUsage -= unitsInTier
+			}
+		}
+	}
+
+	return totalCharges
+}
+
+// DetermineNextBillingDate calculates the next billing date based on current date and cycle
+func DetermineNextBillingDate(currentDate time.Time, cycle BillingCycle) time.Time {
+	switch cycle {
+	case BillingCycleMonthly:
+		return currentDate.AddDate(0, 1, 0)
+	case BillingCycleQuarterly:
+		return currentDate.AddDate(0, 3, 0)
+	case BillingCycleYearly:
+		return currentDate.AddDate(1, 0, 0)
+	default:
+		return currentDate.AddDate(0, 1, 0)
+	}
+}
+
+// ValidateSubscriptionLimits checks if current usage exceeds subscription limits
+func ValidateSubscriptionLimits(subscription *TenantSubscription, usage map[UsageType]int64) error {
+	if subscription.Plan.Limits == nil {
+		return nil // No limits defined
+	}
+
+	for usageType, currentUsage := range usage {
+		if limitInterface, exists := subscription.Plan.Limits[string(usageType)]; exists {
+			if limit, ok := limitInterface.(float64); ok {
+				if currentUsage > int64(limit) {
+					return fmt.Errorf("usage limit exceeded for %s: %d > %d", usageType, currentUsage, int64(limit))
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// CalculateTax calculates tax amount based on location (simplified implementation)
+func CalculateTax(amount float64, tenantLocation string) float64 {
+	// Simplified tax calculation - in real implementation, this would
+	// integrate with tax calculation services like TaxJar or Avalara
+	switch tenantLocation {
+	case "BD", "Bangladesh":
+		return amount * 0.15 // 15% VAT in Bangladesh
+	case "US":
+		return amount * 0.08 // Average US sales tax
+	case "EU":
+		return amount * 0.20 // Average EU VAT
+	default:
+		return 0 // No tax for other locations
+	}
+}

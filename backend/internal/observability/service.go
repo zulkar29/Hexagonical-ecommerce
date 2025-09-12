@@ -170,7 +170,7 @@ func (s *ObservabilityService) CreateAlert(ctx context.Context, alert *Alert) er
 
 // Helper methods for health checks
 
-func (s *ObservabilityService) checkDatabaseHealth(ctx context.Context) ServiceHealth {
+func (s *ObservabilityService) checkDatabaseHealth(_ context.Context) ServiceHealth {
 	health := ServiceHealth{
 		Status:    "healthy",
 		Timestamp: time.Now().UTC(),
@@ -185,7 +185,7 @@ func (s *ObservabilityService) checkDatabaseHealth(ctx context.Context) ServiceH
 	return health
 }
 
-func (s *ObservabilityService) checkCacheHealth(ctx context.Context) ServiceHealth {
+func (s *ObservabilityService) checkCacheHealth(_ context.Context) ServiceHealth {
 	health := ServiceHealth{
 		Status:    "healthy",
 		Timestamp: time.Now().UTC(),

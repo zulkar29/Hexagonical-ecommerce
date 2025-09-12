@@ -112,8 +112,8 @@ func (h *Handler) CreateCustomerWishlist(c *gin.Context) {
 	}
 	
 	var req CreateWishlistRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
 	
@@ -180,8 +180,8 @@ func (h *Handler) UpdateWishlist(c *gin.Context) {
 	}
 	
 	var req UpdateWishlistRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
 	
@@ -252,8 +252,8 @@ func (h *Handler) ShareWishlist(c *gin.Context) {
 	var req struct {
 		IsPublic bool `json:"is_public"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
 	
@@ -352,8 +352,8 @@ func (h *Handler) AddItem(c *gin.Context) {
 	}
 	
 	var req AddItemRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
 	
@@ -400,8 +400,8 @@ func (h *Handler) UpdateItem(c *gin.Context) {
 	}
 	
 	var req UpdateItemRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
 	
@@ -579,8 +579,8 @@ func (h *Handler) BulkAddItems(c *gin.Context) {
 	var req struct {
 		Items []AddItemRequest `json:"items"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
 	
@@ -807,7 +807,7 @@ func (h *Handler) CleanupOrphanedItems(c *gin.Context) {
 // Helper methods
 
 // getTenantID extracts tenant ID from request context or headers
-func (h *Handler) getTenantID(c *gin.Context) uuid.UUID {
+func (h *Handler) getTenantID(_ *gin.Context) uuid.UUID {
 	// This would typically come from JWT token or request context
 	// For now, return a placeholder
 	return uuid.New()

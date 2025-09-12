@@ -96,8 +96,8 @@ func (h *Handler) ValidatePassword(c *gin.Context) {
 		UserID   uuid.UUID `json:"user_id" binding:"required"`
 	}
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
 

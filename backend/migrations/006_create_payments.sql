@@ -66,6 +66,19 @@ CREATE TABLE IF NOT EXISTS payment_history (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Add foreign key constraints
+ALTER TABLE payments ADD CONSTRAINT fk_payments_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+ALTER TABLE payments ADD CONSTRAINT fk_payments_order_id FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE;
+ALTER TABLE payments ADD CONSTRAINT fk_payments_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+
+ALTER TABLE payment_methods ADD CONSTRAINT fk_payment_methods_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+ALTER TABLE payment_methods ADD CONSTRAINT fk_payment_methods_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+
+ALTER TABLE refunds ADD CONSTRAINT fk_refunds_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+ALTER TABLE refunds ADD CONSTRAINT fk_refunds_order_id FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE;
+
+ALTER TABLE payment_history ADD CONSTRAINT fk_payment_history_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_payments_tenant_id ON payments(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_payments_order_id ON payments(order_id);

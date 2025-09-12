@@ -220,8 +220,8 @@ func (h *Handler) UpdateAccount(c *gin.Context) {
 	}
 
 	var account Account
-	if err := c.ShouldBindJSON(&account); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+	if bindErr := c.ShouldBindJSON(&account); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
 
@@ -380,8 +380,8 @@ func (h *Handler) UpdateTransaction(c *gin.Context) {
 	}
 
 	var transaction Transaction
-	if err := c.ShouldBindJSON(&transaction); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+	if bindErr := c.ShouldBindJSON(&transaction); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
 
@@ -507,8 +507,8 @@ func (h *Handler) ProcessPayout(c *gin.Context) {
 	var req struct {
 		ProcessedBy uuid.UUID `json:"processed_by" binding:"required"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
 

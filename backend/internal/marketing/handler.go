@@ -1,10 +1,12 @@
 package marketing
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"time"
 
+	"ecommerce-saas/internal/shared/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -112,8 +114,11 @@ func (h *Handler) createCampaign(c *gin.Context) {
 }
 
 func (h *Handler) getCampaigns(c *gin.Context) {
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	var filter CampaignFilter
 	
@@ -168,8 +173,11 @@ func (h *Handler) getCampaign(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	campaign, err := h.service.GetCampaign(c.Request.Context(), tenantID, campaignID)
 	if err != nil {
@@ -193,8 +201,11 @@ func (h *Handler) updateCampaign(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	campaign, err := h.service.UpdateCampaign(c.Request.Context(), tenantID, campaignID, req)
 	if err != nil {
@@ -212,8 +223,11 @@ func (h *Handler) deleteCampaign(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	err = h.service.DeleteCampaign(c.Request.Context(), tenantID, campaignID)
 	if err != nil {
@@ -240,8 +254,11 @@ func (h *Handler) scheduleCampaign(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	err = h.service.ScheduleCampaign(c.Request.Context(), tenantID, campaignID, req.ScheduledAt)
 	if err != nil {
@@ -259,8 +276,11 @@ func (h *Handler) startCampaign(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	err = h.service.StartCampaign(c.Request.Context(), tenantID, campaignID)
 	if err != nil {
@@ -278,8 +298,11 @@ func (h *Handler) pauseCampaign(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	err = h.service.PauseCampaign(c.Request.Context(), tenantID, campaignID)
 	if err != nil {
@@ -297,8 +320,11 @@ func (h *Handler) stopCampaign(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	err = h.service.StopCampaign(c.Request.Context(), tenantID, campaignID)
 	if err != nil {
@@ -316,8 +342,11 @@ func (h *Handler) getCampaignEmails(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	var filter EmailFilter
 	
@@ -331,22 +360,22 @@ func (h *Handler) getCampaignEmails(c *gin.Context) {
 	filter.Search = c.Query("search")
 	
 	if startDate := c.Query("start_date"); startDate != "" {
-		if t, err := time.Parse("2006-01-02", startDate); err == nil {
+		if t, _ := time.Parse("2006-01-02", startDate); err == nil {
 			filter.StartDate = &t
 		}
 	}
 	
 	if endDate := c.Query("end_date"); endDate != "" {
-		if t, err := time.Parse("2006-01-02", endDate); err == nil {
+		if t, _ := time.Parse("2006-01-02", endDate); err == nil {
 			filter.EndDate = &t
 		}
 	}
 	
-	if page, err := strconv.Atoi(c.DefaultQuery("page", "1")); err == nil {
+	if page, _ := strconv.Atoi(c.DefaultQuery("page", "1")); err == nil {
 		filter.Page = page
 	}
 	
-	if limit, err := strconv.Atoi(c.DefaultQuery("limit", "20")); err == nil {
+	if limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20")); err == nil {
 		filter.Limit = limit
 	}
 	
@@ -366,8 +395,11 @@ func (h *Handler) getCampaignStats(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	stats, err := h.service.GetCampaignStats(c.Request.Context(), tenantID, campaignID)
 	if err != nil {
@@ -396,8 +428,11 @@ func (h *Handler) createTemplate(c *gin.Context) {
 }
 
 func (h *Handler) getTemplates(c *gin.Context) {
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	var filter TemplateFilter
 	filter.Category = c.Query("category")
@@ -443,8 +478,11 @@ func (h *Handler) getTemplate(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	template, err := h.service.GetTemplate(c.Request.Context(), tenantID, templateID)
 	if err != nil {
@@ -468,8 +506,11 @@ func (h *Handler) updateTemplate(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	template, err := h.service.UpdateTemplate(c.Request.Context(), tenantID, templateID, req)
 	if err != nil {
@@ -487,8 +528,11 @@ func (h *Handler) deleteTemplate(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	err = h.service.DeleteTemplate(c.Request.Context(), tenantID, templateID)
 	if err != nil {
@@ -517,8 +561,11 @@ func (h *Handler) createSegment(c *gin.Context) {
 }
 
 func (h *Handler) getSegments(c *gin.Context) {
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	segments, err := h.service.GetSegments(c.Request.Context(), tenantID)
 	if err != nil {
@@ -536,8 +583,11 @@ func (h *Handler) getSegment(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	segment, err := h.service.GetSegment(c.Request.Context(), tenantID, segmentID)
 	if err != nil {
@@ -561,8 +611,11 @@ func (h *Handler) updateSegment(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	segment, err := h.service.UpdateSegment(c.Request.Context(), tenantID, segmentID, req)
 	if err != nil {
@@ -580,8 +633,11 @@ func (h *Handler) deleteSegment(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	err = h.service.DeleteSegment(c.Request.Context(), tenantID, segmentID)
 	if err != nil {
@@ -599,8 +655,11 @@ func (h *Handler) refreshSegment(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	err = h.service.RefreshSegment(c.Request.Context(), tenantID, segmentID)
 	if err != nil {
@@ -638,10 +697,13 @@ func (h *Handler) unsubscribe(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
-	err := h.service.Unsubscribe(c.Request.Context(), tenantID, req.Email)
+	err = h.service.Unsubscribe(c.Request.Context(), tenantID, req.Email)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -651,8 +713,11 @@ func (h *Handler) unsubscribe(c *gin.Context) {
 }
 
 func (h *Handler) getSubscribers(c *gin.Context) {
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	var filter SubscriberFilter
 	filter.Status = c.QueryArray("status")
@@ -691,8 +756,11 @@ func (h *Handler) getSubscribers(c *gin.Context) {
 func (h *Handler) getSubscriber(c *gin.Context) {
 	email := c.Param("email")
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	subscriber, err := h.service.GetSubscriber(c.Request.Context(), tenantID, email)
 	if err != nil {
@@ -721,8 +789,11 @@ func (h *Handler) createAbandonedCart(c *gin.Context) {
 }
 
 func (h *Handler) getAbandonedCarts(c *gin.Context) {
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	var filter AbandonedCartFilter
 	
@@ -795,8 +866,11 @@ func (h *Handler) markCartRecovered(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	err = h.service.MarkCartRecovered(c.Request.Context(), tenantID, cartID, req.RecoveredValue)
 	if err != nil {
@@ -814,8 +888,11 @@ func (h *Handler) sendAbandonedCartEmail(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	err = h.service.SendAbandonedCartEmail(c.Request.Context(), tenantID, cartID)
 	if err != nil {
@@ -828,8 +905,11 @@ func (h *Handler) sendAbandonedCartEmail(c *gin.Context) {
 
 // Settings handlers
 func (h *Handler) getSettings(c *gin.Context) {
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	settings, err := h.service.GetSettings(c.Request.Context(), tenantID)
 	if err != nil {
@@ -847,8 +927,11 @@ func (h *Handler) updateSettings(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	settings, err := h.service.UpdateSettings(c.Request.Context(), tenantID, req)
 	if err != nil {
@@ -861,8 +944,11 @@ func (h *Handler) updateSettings(c *gin.Context) {
 
 // Analytics handlers
 func (h *Handler) getMarketingOverview(c *gin.Context) {
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+		return
+	}
 	
 	period := c.DefaultQuery("period", "30d")
 	
@@ -920,7 +1006,7 @@ func (h *Handler) trackEmailClick(c *gin.Context) {
 	err = h.service.TrackEmailClick(c.Request.Context(), emailID)
 	if err != nil {
 		// Log error but don't fail the redirect
-		// TODO: Add proper logging
+		log.Printf("Failed to track email click for email %s: %v", emailID, err)
 	}
 	
 	c.Redirect(http.StatusFound, redirectURL)

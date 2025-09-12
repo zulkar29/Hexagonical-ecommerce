@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"ecommerce-saas/internal/shared/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -73,9 +74,13 @@ func (h *Handler) createTicket(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	// tenantID := c.GetString("tenant_id")
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
 	
+	req.TenantID = tenantID
 	ticket, err := h.service.CreateTicket(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -86,9 +91,11 @@ func (h *Handler) createTicket(c *gin.Context) {
 }
 
 func (h *Handler) getTickets(c *gin.Context) {
-	// TODO: Get tenant ID from context
-	// tenantID, _ := uuid.Parse(c.GetString("tenant_id"))
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
 	
 	var filter TicketFilter
 	
@@ -146,8 +153,11 @@ func (h *Handler) getTicket(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
 	
 	ticket, err := h.service.GetTicket(c.Request.Context(), tenantID, ticketID)
 	if err != nil {
@@ -166,13 +176,16 @@ func (h *Handler) updateTicket(c *gin.Context) {
 	}
 	
 	var req UpdateTicketRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
 	
 	ticket, err := h.service.UpdateTicket(c.Request.Context(), tenantID, ticketID, req)
 	if err != nil {
@@ -190,8 +203,11 @@ func (h *Handler) deleteTicket(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
 	
 	err = h.service.DeleteTicket(c.Request.Context(), tenantID, ticketID)
 	if err != nil {
@@ -213,13 +229,16 @@ func (h *Handler) assignTicket(c *gin.Context) {
 		UserID uuid.UUID `json:"user_id" binding:"required"`
 	}
 	
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
 	
 	err = h.service.AssignTicket(c.Request.Context(), tenantID, ticketID, req.UserID)
 	if err != nil {
@@ -237,8 +256,11 @@ func (h *Handler) resolveTicket(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
 	
 	err = h.service.ResolveTicket(c.Request.Context(), tenantID, ticketID)
 	if err != nil {
@@ -256,8 +278,11 @@ func (h *Handler) getTicketMessages(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
 	
 	messages, err := h.service.GetMessages(c.Request.Context(), tenantID, ticketID)
 	if err != nil {
@@ -276,8 +301,8 @@ func (h *Handler) addTicketMessage(c *gin.Context) {
 	}
 	
 	var req AddMessageRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
@@ -310,8 +335,11 @@ func (h *Handler) createFAQ(c *gin.Context) {
 }
 
 func (h *Handler) getFAQs(c *gin.Context) {
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
 	
 	var filter FAQFilter
 	filter.Category = c.Query("category")
@@ -351,8 +379,11 @@ func (h *Handler) getFAQ(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
 	
 	faq, err := h.service.GetFAQ(c.Request.Context(), tenantID, faqID)
 	if err != nil {
@@ -371,13 +402,16 @@ func (h *Handler) updateFAQ(c *gin.Context) {
 	}
 	
 	var req UpdateFAQRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
 	
 	faq, err := h.service.UpdateFAQ(c.Request.Context(), tenantID, faqID, req)
 	if err != nil {
@@ -395,8 +429,11 @@ func (h *Handler) deleteFAQ(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
 	
 	err = h.service.DeleteFAQ(c.Request.Context(), tenantID, faqID)
 	if err != nil {
@@ -425,8 +462,11 @@ func (h *Handler) createArticle(c *gin.Context) {
 }
 
 func (h *Handler) getArticles(c *gin.Context) {
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
 	
 	var filter ArticleFilter
 	filter.Category = c.Query("category")
@@ -462,8 +502,11 @@ func (h *Handler) getArticles(c *gin.Context) {
 func (h *Handler) getArticle(c *gin.Context) {
 	slug := c.Param("slug")
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
 	
 	article, err := h.service.GetArticle(c.Request.Context(), tenantID, slug)
 	if err != nil {
@@ -482,13 +525,16 @@ func (h *Handler) updateArticle(c *gin.Context) {
 	}
 	
 	var req UpdateArticleRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
 	
 	article, err := h.service.UpdateArticle(c.Request.Context(), tenantID, articleID, req)
 	if err != nil {
@@ -506,8 +552,11 @@ func (h *Handler) deleteArticle(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
 	
 	err = h.service.DeleteArticle(c.Request.Context(), tenantID, articleID)
 	if err != nil {
@@ -520,8 +569,11 @@ func (h *Handler) deleteArticle(c *gin.Context) {
 
 // Settings handlers
 func (h *Handler) getSettings(c *gin.Context) {
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
 	
 	settings, err := h.service.GetSettings(c.Request.Context(), tenantID)
 	if err != nil {
@@ -539,8 +591,11 @@ func (h *Handler) updateSettings(c *gin.Context) {
 		return
 	}
 	
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
 	
 	settings, err := h.service.UpdateSettings(c.Request.Context(), tenantID, req)
 	if err != nil {
@@ -553,8 +608,11 @@ func (h *Handler) updateSettings(c *gin.Context) {
 
 // Analytics handlers
 func (h *Handler) getTicketStats(c *gin.Context) {
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		return
+	}
 	
 	period := c.DefaultQuery("period", "30d")
 	

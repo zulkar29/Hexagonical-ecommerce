@@ -3,6 +3,7 @@ package payment
 import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"ecommerce-saas/internal/shared/config"
 )
 
 // Module represents the payment module
@@ -13,9 +14,9 @@ type Module struct {
 }
 
 // NewModule creates a new payment module with all dependencies
-func NewModule(db *gorm.DB) *Module {
+func NewModule(db *gorm.DB, cfg *config.Config) *Module {
 	repository := NewRepository(db)
-	service := NewService(repository)
+	service := NewService(repository, cfg)
 	handler := NewHandler(service)
 
 	return &Module{

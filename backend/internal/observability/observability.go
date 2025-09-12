@@ -484,8 +484,10 @@ func (l *logger) outputDevelopment(entry LogEntry) {
 
 	// Add fields
 	if len(entry.Fields) > 0 {
-		fieldsJSON, _ := json.Marshal(entry.Fields)
-		logLine += fmt.Sprintf(" fields=%s", string(fieldsJSON))
+		fieldsJSON, err := json.Marshal(entry.Fields)
+		if err == nil {
+			logLine += fmt.Sprintf(" fields=%s", string(fieldsJSON))
+		}
 	}
 
 	// Add error information

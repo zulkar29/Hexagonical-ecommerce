@@ -3,8 +3,13 @@ package billing
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
+
 	"github.com/google/uuid"
+	"ecommerce-saas/internal/analytics"
+	"ecommerce-saas/internal/contact"
+	"ecommerce-saas/internal/payment"
 )
 
 // BillingService handles all billing operations
@@ -180,77 +185,25 @@ type ChurnAnalysis struct {
 
 // service implements BillingService
 type service struct {
-	repo            BillingRepository
-	paymentProvider PaymentProvider
-	emailService    EmailService
-	analyticsService AnalyticsService
+	repo             BillingRepository
+	paymentService   payment.Service
+	contactService   contact.Service
+	analyticsService analytics.Service
 }
 
 // Service is an alias for BillingService
 type Service = BillingService
 
-// NewService creates a new billing service
-func NewService(repo BillingRepository) Service {
-	return &service{
-		repo: repo,
-		// TODO: Initialize payment provider, email service, analytics service
-	}
-}
 
-// PaymentProvider interface for payment processing
-type PaymentProvider interface {
-	CreateCharge(amount float64, currency, paymentMethodID string, metadata map[string]interface{}) (*PaymentResult, error)
-	RefundCharge(chargeID string, amount float64, reason string) (*RefundResult, error)
-	GetPaymentMethod(paymentMethodID string) (*PaymentMethod, error)
-}
 
-// PaymentResult represents the result of a payment attempt
-type PaymentResult struct {
-	ID          string                 `json:"id"`
-	Status      string                 `json:"status"`
-	Amount      float64                `json:"amount"`
-	Currency    string                 `json:"currency"`
-	Metadata    map[string]interface{} `json:"metadata"`
-	FailureReason *string              `json:"failure_reason,omitempty"`
-}
 
-// RefundResult represents the result of a refund
-type RefundResult struct {
-	ID       string  `json:"id"`
-	Amount   float64 `json:"amount"`
-	Currency string  `json:"currency"`
-	Status   string  `json:"status"`
-}
-
-// PaymentMethod represents a payment method
-type PaymentMethod struct {
-	ID       string `json:"id"`
-	Type     string `json:"type"`
-	Last4    string `json:"last4"`
-	Brand    string `json:"brand"`
-	ExpMonth int    `json:"exp_month"`
-	ExpYear  int    `json:"exp_year"`
-}
-
-// EmailService interface for sending billing emails
-type EmailService interface {
-	SendInvoice(ctx context.Context, tenantID uuid.UUID, invoice *Invoice) error
-	SendPaymentFailedEmail(ctx context.Context, tenantID uuid.UUID, invoice *Invoice) error
-	SendDunningEmail(ctx context.Context, tenantID uuid.UUID, step int, invoice *Invoice) error
-	SendSubscriptionCanceledEmail(ctx context.Context, tenantID uuid.UUID, subscription *TenantSubscription) error
-}
-
-// AnalyticsService interface for tracking billing events
-type AnalyticsService interface {
-	TrackBillingEvent(ctx context.Context, tenantID uuid.UUID, eventType string, properties map[string]interface{}) error
-}
 
 // NewBillingService creates a new billing service
-func NewBillingService(repo BillingRepository, paymentProvider PaymentProvider, emailService EmailService, analyticsService AnalyticsService) BillingService {
+func NewBillingService(repo BillingRepository, paymentService payment.Service, contactService contact.Service, analyticsService analytics.Service) BillingService {
 	return &service{
-		repo:            repo,
-		paymentProvider: paymentProvider,
-		emailService:    emailService,
+		repo:             repo,
+		paymentService:   paymentService,
+		contactService:   contactService,
 		analyticsService: analyticsService,
 	}
 }
@@ -297,100 +250,210 @@ func (s *service) DeleteUsageTier(ctx context.Context, tierID uuid.UUID) error {
 
 // Subscription management implementations
 func (s *service) CreateSubscription(ctx context.Context, tenantID, planID uuid.UUID, paymentMethodID *string) (*TenantSubscription, error) {
-	// TODO: Implement subscription creation
-	// 1. Get billing plan details
-	// 2. Calculate trial period if applicable
-	// 3. Set initial billing period
-	// 4. Create subscription record
-	// 5. Track analytics event
-	
+	// 1. Get billing plan details and validate
 	plan, err := s.repo.GetBillingPlan(ctx, planID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get billing plan: %w", err)
 	}
 	
-	subscription := &TenantSubscription{
-		ID:       uuid.New(),
-		TenantID: tenantID,
-		PlanID:   planID,
-		Status:   SubscriptionStatusActive,
-		BillingCycle: plan.BillingCycle,
-		BaseAmount: plan.BasePrice,
-		Currency: plan.Currency,
-		PaymentMethodID: paymentMethodID,
-		CurrentPeriodStart: time.Now(),
-		CurrentPeriodEnd: time.Now().AddDate(0, 0, plan.BillingCycle.GetDays()),
-		NextBillingDate: time.Now().AddDate(0, 0, plan.BillingCycle.GetDays()),
+	if !plan.IsActive {
+		return nil, fmt.Errorf("billing plan is not active")
 	}
 	
-	// Set trial end if applicable
+	// Check if tenant already has an active subscription
+	existingSubscription, err := s.repo.GetSubscriptionByTenantID(ctx, tenantID)
+	if err == nil && (existingSubscription.Status == SubscriptionStatusActive || existingSubscription.Status == SubscriptionStatusTrialing) {
+		return nil, fmt.Errorf("tenant already has an active subscription")
+	}
+	
+	now := time.Now()
+	
+	// 2. Calculate trial period if applicable
+	var status SubscriptionStatus = SubscriptionStatusActive
+	var trialEnd *time.Time
+	var nextBillingDate time.Time
+	
 	if plan.TrialPeriodDays > 0 {
-		trialEnd := time.Now().AddDate(0, 0, plan.TrialPeriodDays)
-		subscription.TrialEnd = &trialEnd
-		subscription.NextBillingDate = trialEnd
+		status = SubscriptionStatusTrialing
+		trialEndTime := now.AddDate(0, 0, plan.TrialPeriodDays)
+		trialEnd = &trialEndTime
+		nextBillingDate = trialEndTime
+	} else {
+		nextBillingDate = now.AddDate(0, 0, plan.BillingCycle.GetDays())
 	}
 	
+	// 3. Set initial billing period and create subscription record
+	subscription := &TenantSubscription{
+		ID:                 uuid.New(),
+		TenantID:           tenantID,
+		PlanID:             planID,
+		Status:             status,
+		BillingCycle:       plan.BillingCycle,
+		BaseAmount:         plan.BasePrice,
+		Currency:           plan.Currency,
+		PaymentMethodID:    paymentMethodID,
+		CurrentPeriodStart: now,
+		CurrentPeriodEnd:   nextBillingDate,
+		NextBillingDate:    nextBillingDate,
+		TrialEnd:           trialEnd,
+		CreatedAt:          now,
+		UpdatedAt:          now,
+	}
+	
+	// 4. Create subscription record
 	err = s.repo.CreateSubscription(ctx, subscription)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create subscription: %w", err)
 	}
 	
-	// Track analytics
-	s.analyticsService.TrackBillingEvent(ctx, tenantID, "subscription_created", map[string]interface{}{
-		"plan_id": planID,
-		"trial_days": plan.TrialPeriodDays,
-		"base_amount": plan.BasePrice,
-	})
+	// Send welcome email using contact service
+	if s.contactService != nil {
+		go func() {
+			ctx := context.Background()
+			// Note: Using SendAutoReply as placeholder - should be replaced with proper email template
+			if err := s.contactService.SendAutoReply(ctx, subscription.ID); err != nil {
+			log.Printf("Failed to send auto reply: %v", err)
+		}
+		}()
+	}
+
+	// 5. Track analytics event
+	if s.analyticsService != nil {
+		go func() {
+			ctx := context.Background()
+			event := &analytics.AnalyticsEvent{
+				ID:        uuid.New(),
+				TenantID:  tenantID,
+				EventType: "billing",
+				EventName: "subscription_created",
+				Properties: map[string]interface{}{
+					"subscription_id": subscription.ID,
+					"plan_id":         planID,
+					"trial_days":      plan.TrialPeriodDays,
+					"base_amount":     plan.BasePrice,
+					"billing_cycle":   plan.BillingCycle,
+					"has_trial":       plan.TrialPeriodDays > 0,
+				},
+				Timestamp: time.Now(),
+			}
+			if err := s.analyticsService.TrackEvent(ctx, tenantID, event); err != nil {
+				log.Printf("Failed to track analytics event: %v", err)
+			}
+		}()
+	}
 	
 	return subscription, nil
 }
 
 func (s *service) GetSubscription(ctx context.Context, tenantID uuid.UUID) (*TenantSubscription, error) {
-	// TODO: Implement get subscription with caching
-	return s.repo.GetSubscriptionByTenantID(ctx, tenantID)
+	// Get subscription from repository
+	subscription, err := s.repo.GetSubscriptionByTenantID(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	
+	// TODO: Implement caching layer when cache service is available
+	// if s.cacheService != nil {
+	//     cacheKey := fmt.Sprintf("subscription:%s", tenantID)
+	//     s.cacheService.Set(ctx, cacheKey, subscription, 5*time.Minute)
+	// }
+	
+	return subscription, nil
 }
 
 func (s *service) UpdateSubscription(ctx context.Context, tenantID uuid.UUID, updates SubscriptionUpdate) (*TenantSubscription, error) {
-	// TODO: Implement subscription updates
 	// 1. Get current subscription
-	// 2. Validate updates
-	// 3. Apply updates
-	// 4. Track analytics
-	
 	subscription, err := s.repo.GetSubscriptionByTenantID(ctx, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("subscription not found: %w", err)
 	}
 	
-	// Apply updates
+	// 2. Validate updates - cannot update canceled subscriptions
+	if subscription.Status == SubscriptionStatusCanceled {
+		return nil, fmt.Errorf("cannot update canceled subscription")
+	}
+	
+	changes := make(map[string]interface{})
+	updated := false
+	
+	// 3. Apply updates with validation
 	if updates.PaymentMethodID != nil {
 		subscription.PaymentMethodID = updates.PaymentMethodID
+		changes["payment_method_id"] = *updates.PaymentMethodID
+		updated = true
 	}
-	if updates.BillingCycle != nil {
-		subscription.BillingCycle = *updates.BillingCycle
+	
+	if updates.BillingCycle != nil && *updates.BillingCycle != subscription.BillingCycle {
+		// Validate billing cycle change
+		if subscription.Status == SubscriptionStatusActive {
+			// Calculate new billing dates based on current period
+			daysInNewCycle := updates.BillingCycle.GetDays()
+			newPeriodEnd := subscription.CurrentPeriodStart.AddDate(0, 0, daysInNewCycle)
+			
+			subscription.BillingCycle = *updates.BillingCycle
+			subscription.CurrentPeriodEnd = newPeriodEnd
+			subscription.NextBillingDate = newPeriodEnd
+			
+			changes["billing_cycle"] = *updates.BillingCycle
+			changes["new_period_end"] = newPeriodEnd
+			updated = true
+		}
 	}
+	
+	// Note: Metadata field removed from TenantSubscription struct
+	// if updates.Metadata != nil {
+	//	subscription.Metadata = updates.Metadata
+	//	changes["metadata"] = updates.Metadata
+	//	updated = true
+	// }
+	
+	if !updated {
+		return subscription, nil
+	}
+	
+	subscription.UpdatedAt = time.Now()
 	
 	err = s.repo.UpdateSubscription(ctx, subscription)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update subscription: %w", err)
 	}
 	
+	// 4. Track analytics
+	if s.analyticsService != nil {
+		go func() {
+			ctx := context.Background()
+			event := &analytics.AnalyticsEvent{
+				ID:        uuid.New(),
+				TenantID:  tenantID,
+				EventType: "billing",
+				EventName: "subscription_updated",
+				Properties: map[string]interface{}{
+					"subscription_id": subscription.ID,
+					"tenant_id":       tenantID,
+					"changes":         changes,
+				},
+				Timestamp: time.Now(),
+			}
+			if err := s.analyticsService.TrackEvent(ctx, tenantID, event); err != nil {
+			log.Printf("Failed to track analytics event: %v", err)
+		}
+		}()
+	}
+	
 	return subscription, nil
 }
 
 func (s *service) CancelSubscription(ctx context.Context, tenantID uuid.UUID, reason string, cancelImmediately bool) error {
-	// TODO: Implement subscription cancellation
-	// 1. Get subscription
-	// 2. Set cancellation date (immediate or end of period)
-	// 3. Update status
-	// 4. Send cancellation email
-	// 5. Track analytics
-	
 	subscription, err := s.repo.GetSubscriptionByTenantID(ctx, tenantID)
 	if err != nil {
 		return fmt.Errorf("subscription not found: %w", err)
 	}
 	
+	if subscription.Status == SubscriptionStatusCanceled {
+		return fmt.Errorf("subscription is already canceled")
+	}
+	
+	// Update subscription status
 	now := time.Now()
 	subscription.CanceledAt = &now
 	subscription.CancellationReason = reason
@@ -409,27 +472,139 @@ func (s *service) CancelSubscription(ctx context.Context, tenantID uuid.UUID, re
 		return fmt.Errorf("failed to cancel subscription: %w", err)
 	}
 	
-	// Send cancellation email
-	s.emailService.SendSubscriptionCanceledEmail(ctx, tenantID, subscription)
-	
+	// Send cancellation email using contact service
+	if s.contactService != nil {
+		// Note: Using SendAutoReply as placeholder - should be replaced with proper cancellation email template
+		if err := s.contactService.SendAutoReply(ctx, subscription.ID); err != nil {
+			log.Printf("Failed to send auto reply: %v", err)
+		}
+	}
+
 	// Track analytics
-	s.analyticsService.TrackBillingEvent(ctx, tenantID, "subscription_canceled", map[string]interface{}{
-		"reason": reason,
-		"immediate": cancelImmediately,
-	})
+	if s.analyticsService != nil {
+		event := &analytics.AnalyticsEvent{
+			ID:        uuid.New(),
+			TenantID:  tenantID,
+			EventType: "billing",
+			EventName: "subscription_canceled",
+			Properties: map[string]interface{}{
+				"reason":    reason,
+				"immediate": cancelImmediately,
+				"amount":    subscription.BaseAmount,
+			},
+			Timestamp: time.Now(),
+		}
+		if err := s.analyticsService.TrackEvent(ctx, tenantID, event); err != nil {
+			log.Printf("Failed to track analytics event: %v", err)
+		}
+	}
 	
 	return nil
 }
 
 // Plan change implementations
 func (s *service) UpgradePlan(ctx context.Context, tenantID, newPlanID uuid.UUID) (*TenantSubscription, error) {
-	// TODO: Implement plan upgrade with proration
+	// Get current subscription
+	subscription, err := s.repo.GetSubscriptionByTenantID(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Get new plan details
+	newPlan, err := s.repo.GetBillingPlan(ctx, newPlanID)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Calculate proration for immediate upgrade
+	prorationAmount, err := s.calculateProration(ctx, subscription, newPlan)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Create proration invoice if amount > 0
+	if prorationAmount > 0 {
+		invoice := &Invoice{
+			ID:           uuid.New(),
+			TenantID:     subscription.TenantID,
+			TotalAmount:  prorationAmount,
+			Status:       InvoiceStatusPending,
+			DueDate:      time.Now().AddDate(0, 0, 7), // 7 days to pay
+			CreatedAt:    time.Now(),
+		}
+		
+		err = s.repo.CreateInvoice(ctx, invoice)
+		if err != nil {
+			return nil, err
+		}
+	}
+	
 	return s.changePlan(ctx, tenantID, newPlanID, "upgrade")
 }
 
 func (s *service) DowngradePlan(ctx context.Context, tenantID, newPlanID uuid.UUID) (*TenantSubscription, error) {
-	// TODO: Implement plan downgrade (effective at period end)
-	return s.changePlan(ctx, tenantID, newPlanID, "downgrade")
+	// Get current subscription
+	subscription, err := s.repo.GetSubscriptionByTenantID(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Schedule downgrade for end of current period
+	pendingChange := &PlanChange{
+		NewPlanID:       newPlanID,
+		EffectiveDate:   subscription.CurrentPeriodEnd,
+		ProrationAmount: 0,
+		ChangeReason:    "downgrade",
+	}
+	
+	// Set the pending plan change on the subscription
+	subscription.PendingPlanChange = pendingChange
+	err = s.repo.UpdateSubscription(ctx, subscription)
+	if err != nil {
+		return nil, fmt.Errorf("failed to schedule plan change: %w", err)
+	}
+	
+	// Track analytics
+	if s.analyticsService != nil {
+		event := &analytics.AnalyticsEvent{
+			ID:        uuid.New(),
+			TenantID:  subscription.TenantID,
+			EventType: "billing",
+			EventName: "plan_downgrade_scheduled",
+			Properties: map[string]interface{}{
+				"old_plan_id":    subscription.PlanID,
+				"new_plan_id":    newPlanID,
+				"effective_date": subscription.CurrentPeriodEnd,
+			},
+			Timestamp: time.Now(),
+		}
+		if err := s.analyticsService.TrackEvent(ctx, subscription.TenantID, event); err != nil {
+			log.Printf("Failed to track analytics event: %v", err)
+		}
+	}
+	
+	return subscription, nil
+}
+
+func (s *service) calculateProration(ctx context.Context, subscription *TenantSubscription, newPlan *BillingPlan) (float64, error) {
+	// Calculate days remaining in current period
+	daysRemaining := int(time.Until(subscription.CurrentPeriodEnd).Hours() / 24)
+	totalDays := subscription.BillingCycle.GetDays()
+	
+	// Calculate unused amount from current plan
+	unusedAmount := (subscription.BaseAmount * float64(daysRemaining)) / float64(totalDays)
+	
+	// Calculate amount for new plan for remaining period
+	newPlanAmount := (newPlan.BasePrice * float64(daysRemaining)) / float64(totalDays)
+	
+	// Proration is the difference
+	prorationAmount := newPlanAmount - unusedAmount
+	
+	if prorationAmount < 0 {
+		return 0, nil // No charge for downgrades
+	}
+	
+	return prorationAmount, nil
 }
 
 func (s *service) changePlan(ctx context.Context, tenantID, newPlanID uuid.UUID, changeType string) (*TenantSubscription, error) {
@@ -456,7 +631,7 @@ func (s *service) changePlan(ctx context.Context, tenantID, newPlanID uuid.UUID,
 		effectiveDate = time.Now()
 		daysUsed := int(time.Since(subscription.CurrentPeriodStart).Hours() / 24)
 		totalDays := subscription.BillingCycle.GetDays()
-		prorationAmount = CalculateProration(subscription.BaseAmount, newPlan.BasePrice, daysUsed, totalDays)
+		prorationAmount = CalculateProration(subscription.BaseAmount, newPlan.BasePrice, float64(daysUsed), float64(totalDays))
 	} else {
 		// Downgrade at end of current period
 		effectiveDate = subscription.CurrentPeriodEnd
@@ -485,34 +660,48 @@ func (s *service) changePlan(ctx context.Context, tenantID, newPlanID uuid.UUID,
 	}
 	
 	// Track analytics
-	s.analyticsService.TrackBillingEvent(ctx, tenantID, fmt.Sprintf("plan_%s_scheduled", changeType), map[string]interface{}{
-		"old_plan_id": subscription.PlanID,
-		"new_plan_id": newPlanID,
-		"proration_amount": prorationAmount,
-		"effective_date": effectiveDate,
-	})
+	event := &analytics.AnalyticsEvent{
+		ID:        uuid.New(),
+		TenantID:  tenantID,
+		EventType: "billing",
+		EventName: fmt.Sprintf("plan_%s_scheduled", changeType),
+		Properties: map[string]interface{}{
+			"old_plan_id": subscription.PlanID,
+			"new_plan_id": newPlanID,
+			"proration_amount": prorationAmount,
+			"effective_date": effectiveDate,
+		},
+		Timestamp: time.Now(),
+	}
+	if err := s.analyticsService.TrackEvent(ctx, tenantID, event); err != nil {
+		log.Printf("Failed to track analytics event: %v", err)
+	}
 	
 	return subscription, nil
 }
 
 func (s *service) ProcessPendingPlanChanges(ctx context.Context) error {
-	// TODO: Process all pending plan changes that are due
 	subscriptions, err := s.repo.GetSubscriptionsWithPendingChanges(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get subscriptions with pending changes: %w", err)
 	}
+	
+	var processedCount, errorCount int
 	
 	for _, subscription := range subscriptions {
 		if subscription.PendingPlanChange != nil && time.Now().After(subscription.PendingPlanChange.EffectiveDate) {
 			err := s.processPlanChange(ctx, subscription)
 			if err != nil {
 				// Log error but continue with other subscriptions
-				// TODO: Implement proper error logging
+				log.Printf("Error processing plan change for subscription %s: %v", subscription.ID, err)
+				errorCount++
 				continue
 			}
+			processedCount++
 		}
 	}
 	
+	log.Printf("Processed %d plan changes, %d errors", processedCount, errorCount)
 	return nil
 }
 
@@ -540,8 +729,26 @@ func (s *service) processPlanChange(ctx context.Context, subscription *TenantSub
 	
 	// If there's a proration amount, create an immediate invoice
 	if change.ProrationAmount != 0 {
-		// TODO: Create proration invoice
-		// This would create an invoice for the prorated amount
+		invoice := &Invoice{
+			ID:          uuid.New(),
+			TenantID:    subscription.TenantID,
+			SubscriptionID: subscription.ID,
+			InvoiceNumber:  fmt.Sprintf("PRO-%s", uuid.New().String()[:8]),
+			TotalAmount: change.ProrationAmount,
+			SubtotalAmount: change.ProrationAmount,
+			Status:      InvoiceStatusPending,
+			DueDate:     time.Now().AddDate(0, 0, 7), // 7 days to pay
+			PeriodStart: time.Now(),
+			PeriodEnd:   time.Now(),
+			Currency:    "BDT",
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+		}
+		
+		err = s.repo.CreateInvoice(ctx, invoice)
+		if err != nil {
+			return fmt.Errorf("failed to create proration invoice: %w", err)
+		}
 	}
 	
 	err = s.repo.UpdateSubscription(ctx, subscription)
@@ -554,11 +761,10 @@ func (s *service) processPlanChange(ctx context.Context, subscription *TenantSub
 
 // Usage tracking implementations
 func (s *service) RecordUsage(ctx context.Context, tenantID uuid.UUID, usageType UsageType, quantity int64, metadata map[string]interface{}) error {
-	// TODO: Implement usage recording
-	// 1. Determine current billing period
-	// 2. Create usage record
-	// 3. Check if usage limits are exceeded
-	// 4. Track analytics
+	// Validate input
+	if quantity <= 0 {
+		return fmt.Errorf("quantity must be positive")
+	}
 	
 	subscription, err := s.repo.GetSubscriptionByTenantID(ctx, tenantID)
 	if err != nil {
@@ -584,24 +790,26 @@ func (s *service) RecordUsage(ctx context.Context, tenantID uuid.UUID, usageType
 	
 	// Check usage limits asynchronously
 	go func() {
-		s.CheckUsageLimits(context.Background(), tenantID)
+		if _, err := s.CheckUsageLimits(context.Background(), tenantID); err != nil {
+			log.Printf("Failed to check usage limits for tenant %s: %v", tenantID, err)
+		}
 	}()
 	
 	return nil
 }
 
 func (s *service) GetUsageSummary(ctx context.Context, tenantID uuid.UUID, startDate, endDate time.Time) (map[UsageType]int64, error) {
-	// TODO: Implement usage summary aggregation
+	// Validate date range
+	if endDate.Before(startDate) {
+		return nil, fmt.Errorf("end date cannot be before start date")
+	}
+	
 	return s.repo.GetUsageSummary(ctx, tenantID, startDate, endDate)
 }
 
 func (s *service) CheckUsageLimits(ctx context.Context, tenantID uuid.UUID) (*UsageLimitStatus, error) {
-	// TODO: Implement usage limit checking
-	// 1. Get subscription and plan limits
-	// 2. Get current usage for billing period
-	// 3. Compare against limits
-	// 4. Generate warnings and overages
-	// 5. Calculate estimated overage costs
+	// Get subscription and plan limits, current usage for billing period,
+	// compare against limits, generate warnings and overages, calculate estimated overage costs
 	
 	subscription, err := s.repo.GetSubscriptionByTenantID(ctx, tenantID)
 	if err != nil {
@@ -623,11 +831,41 @@ func (s *service) CheckUsageLimits(ctx context.Context, tenantID uuid.UUID) (*Us
 		PlanLimits:   plan.Limits,
 		CurrentUsage: currentUsage,
 		Overages:     make(map[UsageType]int64),
+		LimitWarnings: make([]UsageLimitWarning, 0),
 	}
 	
-	// TODO: Implement limit checking logic
-	// This would compare currentUsage against plan.Limits
-	// and generate warnings and calculate overages
+	// Check each usage type against plan limits
+	for usageType, currentAmount := range currentUsage {
+		if limitInterface, exists := plan.Limits[string(usageType)]; exists {
+			// Convert interface{} to int64
+			limit, ok := limitInterface.(int64)
+			if !ok {
+				// Try converting from float64 or other numeric types
+				if limitFloat, ok := limitInterface.(float64); ok {
+					limit = int64(limitFloat)
+				} else {
+					continue // Skip if we can't convert to int64
+				}
+			}
+			
+			// Check for overages
+			if currentAmount > limit {
+			status.Overages[usageType] = currentAmount - limit
+		}
+			
+			// Check for warnings (80% of limit)
+			if currentAmount > int64(float64(limit)*0.8) {
+				warning := UsageLimitWarning{
+					UsageType:      usageType,
+					CurrentUsage:   currentAmount,
+					Limit:          limit,
+					PercentageUsed: float64(currentAmount) / float64(limit) * 100,
+					Warning:        fmt.Sprintf("Usage for %s is at %.1f%% of limit", usageType, float64(currentAmount)/float64(limit)*100),
+				}
+				status.LimitWarnings = append(status.LimitWarnings, warning)
+			}
+		}
+	}
 	
 	return status, nil
 }
@@ -685,8 +923,13 @@ func (s *service) GenerateInvoice(ctx context.Context, subscriptionID uuid.UUID,
 	}
 
 	// Calculate tax (if applicable)
-	// TODO: Implement tax calculation based on tenant location
-	invoice.TaxAmount = 0
+	taxRate, err := s.getTaxRate(ctx, subscription.TenantID)
+	if err != nil {
+		// Log error but continue with 0 tax
+		log.Printf("Failed to get tax rate for tenant %s: %v", subscription.TenantID, err)
+		taxRate = 0
+	}
+	invoice.TaxAmount = invoice.SubtotalAmount * taxRate
 
 	invoice.TotalAmount = invoice.SubtotalAmount + invoice.TaxAmount
 
@@ -695,7 +938,11 @@ func (s *service) GenerateInvoice(ctx context.Context, subscriptionID uuid.UUID,
 	if err != nil {
 		return nil, fmt.Errorf("failed to start transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			log.Printf("Failed to rollback transaction: %v", err)
+		}
+	}()
 
 	// Create invoice
 	err = s.repo.CreateInvoice(tx.GetContext(), invoice)
@@ -723,17 +970,42 @@ func (s *service) GenerateInvoice(ctx context.Context, subscriptionID uuid.UUID,
 		return nil, fmt.Errorf("failed to update invoice status: %w", err)
 	}
 
-	// Send invoice email
-	go s.emailService.SendInvoice(ctx, subscription.TenantID, invoice)
+	// Send invoice email using contact service
+	go func() {
+		// Note: Using SendAutoReply as placeholder - should be replaced with proper invoice email template
+		if err := s.contactService.SendAutoReply(ctx, invoice.ID); err != nil {
+			log.Printf("Failed to send auto reply: %v", err)
+		}
+	}()
 
 	// Track analytics
-	s.analyticsService.TrackBillingEvent(ctx, subscription.TenantID, "invoice_generated", map[string]interface{}{
-		"invoice_id":     invoice.ID,
-		"amount":         invoice.TotalAmount,
-		"billing_period": fmt.Sprintf("%s to %s", periodStart.Format("2006-01-02"), periodEnd.Format("2006-01-02")),
-	})
+	event := &analytics.AnalyticsEvent{
+		ID:        uuid.New(),
+		TenantID:  subscription.TenantID,
+		EventType: "billing",
+		EventName: "invoice_generated",
+		Properties: map[string]interface{}{
+			"invoice_id":     invoice.ID,
+			"amount":         invoice.TotalAmount,
+			"billing_period": fmt.Sprintf("%s to %s", periodStart.Format("2006-01-02"), periodEnd.Format("2006-01-02")),
+		},
+		Timestamp: time.Now(),
+	}
+	if err := s.analyticsService.TrackEvent(ctx, subscription.TenantID, event); err != nil {
+		log.Printf("Failed to track analytics event: %v", err)
+	}
 
 	return invoice, nil
+}
+
+func (s *service) getTaxRate(ctx context.Context, tenantID uuid.UUID) (float64, error) {
+	// Simplified tax rate implementation
+	// In production, this would integrate with tax services like Avalara, TaxJar
+	// or maintain a proper tax rate database with tenant location information
+	
+	// For now, return 0% tax rate as default
+	// TODO: Implement proper tax calculation when tenant service is available
+	return 0.0, nil
 }
 
 func (s *service) calculateUsageCharges(ctx context.Context, subscription *TenantSubscription, periodStart, periodEnd time.Time) ([]InvoiceLineItem, error) {
@@ -843,14 +1115,20 @@ func (s *service) ProcessRecurringBilling(ctx context.Context) error {
 		return fmt.Errorf("failed to get subscriptions due for billing: %w", err)
 	}
 
+	var processedCount, errorCount int
+	
 	for _, subscription := range subscriptions {
 		err := s.processSubscriptionBilling(ctx, subscription)
 		if err != nil {
 			// Log error but continue with other subscriptions
-			// TODO: Implement proper error logging
+			log.Printf("Error processing billing for subscription %s: %v", subscription.ID, err)
+			errorCount++
 			continue
 		}
+		processedCount++
 	}
+	
+	log.Printf("Processed %d subscriptions, %d errors", processedCount, errorCount)
 
 	return nil
 }
@@ -869,6 +1147,7 @@ func (s *service) processSubscriptionBilling(ctx context.Context, subscription *
 		if err != nil {
 			// Payment failed, but invoice is created
 			// Dunning process will handle failed payments
+			log.Printf("Payment failed for invoice %s: %v", invoice.ID, err)
 		}
 	}
 
@@ -914,25 +1193,27 @@ func (s *service) ProcessPayment(ctx context.Context, invoiceID uuid.UUID, payme
 		return nil, fmt.Errorf("failed to create payment attempt: %w", err)
 	}
 
-	// Process payment with payment provider
-	paymentResult, err := s.paymentProvider.CreateCharge(
-		attempt.Amount,
-		attempt.Currency,
-		paymentMethodID,
-		map[string]interface{}{
-			"invoice_id":     invoiceID,
-			"tenant_id":      invoice.TenantID,
-			"attempt_id":     attempt.ID,
-		},
-	)
+	// Process payment with payment service
+	paymentRequest := &payment.CreatePaymentRequest{
+		OrderID:         invoiceID.String(),
+		Amount:          attempt.Amount,
+		Currency:        attempt.Currency,
+		Gateway:         "default",
+		PaymentMethodID: paymentMethodID,
+		CustomerEmail:   "", // TODO: Get from tenant/user data
+		CustomerPhone:   "",
+		ReturnURL:       "",
+	}
+	paymentResult, err := s.paymentService.CreatePayment(ctx, paymentRequest)
 
 	// Update payment attempt based on result
-	if err != nil || paymentResult.Status != "succeeded" {
+	if err != nil || (paymentResult != nil && paymentResult.Status != "completed") {
 		attempt.Status = PaymentStatusFailed
-		if paymentResult != nil && paymentResult.FailureReason != nil {
-			attempt.FailureReason = paymentResult.FailureReason
-		} else {
+		if err != nil {
 			reason := err.Error()
+			attempt.FailureReason = &reason
+		} else if paymentResult != nil {
+			reason := "Payment failed"
 			attempt.FailureReason = &reason
 		}
 		
@@ -943,7 +1224,7 @@ func (s *service) ProcessPayment(ctx context.Context, invoiceID uuid.UUID, payme
 		}
 	} else {
 		attempt.Status = PaymentStatusSuccess
-		attempt.ProviderChargeID = &paymentResult.ID
+		attempt.ProviderChargeID = &paymentResult.PaymentID
 		completedAt := time.Now()
 		attempt.CompletedAt = &completedAt
 
@@ -960,7 +1241,11 @@ func (s *service) ProcessPayment(ctx context.Context, invoiceID uuid.UUID, payme
 	}
 
 	if paymentResult != nil {
-		attempt.ProviderResponse = paymentResult.Metadata
+		// Store payment metadata if available
+		attempt.ProviderResponse = map[string]interface{}{
+			"payment_id": paymentResult.PaymentID,
+			"status":     paymentResult.Status,
+		}
 	}
 
 	err = s.repo.UpdatePaymentAttempt(ctx, attempt)
@@ -973,21 +1258,40 @@ func (s *service) ProcessPayment(ctx context.Context, invoiceID uuid.UUID, payme
 	if attempt.Status == PaymentStatusFailed {
 		eventType = "payment_failed"
 		
-		// Send payment failed email
-		go s.emailService.SendPaymentFailedEmail(ctx, invoice.TenantID, invoice)
+		// Send payment failed email using contact service
+		go func() {
+			// Note: Using SendAutoReply as placeholder - should be replaced with proper payment failed email template
+			if err := s.contactService.SendAutoReply(ctx, invoice.ID); err != nil {
+				log.Printf("Failed to send auto reply: %v", err)
+			}
+		}()
 		
 		// Start dunning process if this is the first failure
 		if attempt.RetryCount == 0 {
-			go s.StartDunningProcess(ctx, invoiceID)
+			go func() {
+			if _, err := s.StartDunningProcess(ctx, invoiceID); err != nil {
+				log.Printf("Failed to start dunning process: %v", err)
+			}
+		}()
 		}
 	}
 
-	s.analyticsService.TrackBillingEvent(ctx, invoice.TenantID, eventType, map[string]interface{}{
-		"invoice_id":     invoiceID,
-		"amount":         attempt.Amount,
-		"payment_method": paymentMethodID,
-		"retry_count":    attempt.RetryCount,
-	})
+	event := &analytics.AnalyticsEvent{
+		ID:        uuid.New(),
+		TenantID:  invoice.TenantID,
+		EventType: "billing",
+		EventName: eventType,
+		Properties: map[string]interface{}{
+			"invoice_id":     invoiceID,
+			"amount":         attempt.Amount,
+			"payment_method": paymentMethodID,
+			"retry_count":    attempt.RetryCount,
+		},
+		Timestamp: time.Now(),
+	}
+	if err := s.analyticsService.TrackEvent(ctx, invoice.TenantID, event); err != nil {
+		log.Printf("Failed to track analytics event: %v", err)
+	}
 
 	return attempt, nil
 }
@@ -1001,9 +1305,9 @@ func (s *service) RetryFailedPayments(ctx context.Context) error {
 
 	for _, attempt := range attempts {
 		// Retry the payment
-		_, err := s.ProcessPayment(ctx, attempt.InvoiceID, attempt.PaymentMethod)
-		if err != nil {
+		if _, err := s.ProcessPayment(ctx, attempt.InvoiceID, attempt.PaymentMethod); err != nil {
 			// Log error but continue with other attempts
+			log.Printf("Failed to retry payment for invoice %s: %v", attempt.InvoiceID, err)
 			continue
 		}
 	}
@@ -1043,8 +1347,13 @@ func (s *service) RefundPayment(ctx context.Context, invoiceID uuid.UUID, amount
 		return fmt.Errorf("no successful payment found to refund")
 	}
 
-	// Process refund with payment provider
-	refundResult, err := s.paymentProvider.RefundCharge(*successfulAttempt.ProviderChargeID, amount, reason)
+	// Process refund with payment service
+	refundRequest := &payment.RefundPaymentRequest{
+		PaymentID: *successfulAttempt.ProviderChargeID,
+		Amount:    amount,
+		Reason:    reason,
+	}
+	refundResult, err := s.paymentService.RefundPayment(ctx, refundRequest)
 	if err != nil {
 		return fmt.Errorf("failed to process refund: %w", err)
 	}
@@ -1059,12 +1368,22 @@ func (s *service) RefundPayment(ctx context.Context, invoiceID uuid.UUID, amount
 	}
 
 	// Track analytics
-	s.analyticsService.TrackBillingEvent(ctx, invoice.TenantID, "payment_refunded", map[string]interface{}{
-		"invoice_id":   invoiceID,
-		"amount":       amount,
-		"reason":       reason,
-		"refund_id":    refundResult.ID,
-	})
+	event := &analytics.AnalyticsEvent{
+		ID:        uuid.New(),
+		TenantID:  invoice.TenantID,
+		EventType: "billing",
+		EventName: "payment_refunded",
+		Properties: map[string]interface{}{
+			"invoice_id":   invoiceID,
+			"amount":       amount,
+			"reason":       reason,
+			"payment_id":   refundResult.ID,
+		},
+		Timestamp: time.Now(),
+	}
+	if err := s.analyticsService.TrackEvent(ctx, invoice.TenantID, event); err != nil {
+		log.Printf("Failed to track analytics event: %v", err)
+	}
 
 	return nil
 }
@@ -1133,9 +1452,9 @@ func (s *service) ProcessDunning(ctx context.Context) error {
 	}
 
 	for _, process := range processes {
-		err := s.processDunningStep(ctx, process)
-		if err != nil {
+		if err := s.processDunningStep(ctx, process); err != nil {
 			// Log error but continue with other processes
+			log.Printf("Failed to process dunning step for process %s: %v", process.ID, err)
 			continue
 		}
 	}
@@ -1147,9 +1466,9 @@ func (s *service) ProcessDunning(ctx context.Context) error {
 	}
 
 	for _, action := range actions {
-		err := s.executeDunningAction(ctx, action)
-		if err != nil {
+		if err := s.executeDunningAction(ctx, action); err != nil {
 			// Log error but continue with other actions
+			log.Printf("Failed to execute dunning action %s: %v", action.ID, err)
 			continue
 		}
 	}
@@ -1285,7 +1604,9 @@ func (s *service) sendDunningEmail(ctx context.Context, action *DunningAction) e
 		return fmt.Errorf("failed to get dunning process: %w", err)
 	}
 
-	err = s.emailService.SendDunningEmail(ctx, process.TenantID, action.StepNumber, &process.Invoice)
+	// Send dunning email using contact service
+	// Note: Using SendAutoReply as placeholder - should be replaced with proper dunning email template
+	err = s.contactService.SendAutoReply(ctx, process.InvoiceID)
 	if err != nil {
 		return fmt.Errorf("failed to send dunning email: %w", err)
 	}
@@ -1346,9 +1667,19 @@ func (s *service) SuspendService(ctx context.Context, tenantID uuid.UUID, reason
 	}
 
 	// Track analytics
-	s.analyticsService.TrackBillingEvent(ctx, tenantID, "service_suspended", map[string]interface{}{
-		"reason": reason,
-	})
+	event := &analytics.AnalyticsEvent{
+		ID:        uuid.New(),
+		TenantID:  tenantID,
+		EventType: "billing",
+		EventName: "service_suspended",
+		Properties: map[string]interface{}{
+			"reason": reason,
+		},
+		Timestamp: time.Now(),
+	}
+	if err := s.analyticsService.TrackEvent(ctx, tenantID, event); err != nil {
+		log.Printf("Failed to track analytics event: %v", err)
+	}
 
 	return nil
 }
@@ -1366,7 +1697,17 @@ func (s *service) ReactivateService(ctx context.Context, tenantID uuid.UUID) err
 	}
 
 	// Track analytics
-	s.analyticsService.TrackBillingEvent(ctx, tenantID, "service_reactivated", map[string]interface{}{})
+	event := &analytics.AnalyticsEvent{
+		ID:        uuid.New(),
+		TenantID:  tenantID,
+		EventType: "billing",
+		EventName: "service_reactivated",
+		Properties: map[string]interface{}{},
+		Timestamp: time.Now(),
+	}
+	if err := s.analyticsService.TrackEvent(ctx, tenantID, event); err != nil {
+		log.Printf("Failed to track analytics event: %v", err)
+	}
 
 	return nil
 }
@@ -1397,11 +1738,14 @@ func (s *service) GetBillingAnalytics(ctx context.Context, filter AnalyticsFilte
 		return nil, fmt.Errorf("failed to get churn metrics: %w", err)
 	}
 
+	// Calculate new customer revenue
+	newRevenue := float64(subscriptionMetrics.NewSubscriptions) * revenueSummary.AverageRevenuePerUser
+	
 	return &BillingAnalytics{
 		Period:               filter.EndDate.Sub(filter.StartDate),
 		TotalRevenue:         revenueSummary.TotalRevenue,
 		RecurringRevenue:     revenueSummary.RecurringRevenue,
-		NewRevenue:           0, // TODO: Calculate new customer revenue
+		NewRevenue:           newRevenue,
 		ChurnedRevenue:       churnMetrics.ChurnedRevenue,
 		ActiveSubscriptions:  subscriptionMetrics.ActiveSubscriptions,
 		NewSubscriptions:     subscriptionMetrics.NewSubscriptions,
@@ -1424,6 +1768,22 @@ func (s *service) GetRevenueReport(ctx context.Context, filter RevenueReportFilt
 		return nil, fmt.Errorf("failed to get revenue summary: %w", err)
 	}
 
+	// Get additional breakdown data
+	monthlyBreakdown, _ := s.repo.GetMonthlyRevenueBreakdown(ctx, analyticsFilter)
+	
+	// Convert map[string]float64 to []PlanRevenue
+	var planBreakdown []PlanRevenue
+	for planName, revenue := range revenueSummary.RevenueByPlan {
+		planBreakdown = append(planBreakdown, PlanRevenue{
+			PlanID:      uuid.Nil, // We don't have plan ID in the map, would need to query separately
+			PlanName:    planName,
+			Revenue:     revenue,
+			Subscribers: 0, // Would need separate query to get subscriber count
+		})
+	}
+	
+	countryBreakdown, _ := s.repo.GetRevenueByCountry(ctx, analyticsFilter)
+	
 	return &RevenueReport{
 		Period:              filter.EndDate.Sub(filter.StartDate),
 		TotalRevenue:        revenueSummary.TotalRevenue,
@@ -1431,7 +1791,9 @@ func (s *service) GetRevenueReport(ctx context.Context, filter RevenueReportFilt
 		SubscriptionRevenue: revenueSummary.RecurringRevenue,
 		Refunds:            revenueSummary.RefundedRevenue,
 		NetRevenue:         revenueSummary.NetRevenue,
-		// TODO: Implement monthly/plan/country breakdowns
+		RevenueByMonth:     monthlyBreakdown,
+		RevenueByPlan:      planBreakdown,
+		RevenueByCountry:   countryBreakdown,
 	}, nil
 }
 

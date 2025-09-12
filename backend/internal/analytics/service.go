@@ -148,6 +148,7 @@ type Service interface {
 	GenerateReport(ctx context.Context, tenantID uuid.UUID, request ReportRequest) ([]byte, string, error)
 	ScheduleReport(ctx context.Context, tenantID uuid.UUID, request ScheduleReportRequest) (*ScheduledReport, error)
 	GetScheduledReports(ctx context.Context, tenantID uuid.UUID) ([]*ScheduledReport, error)
+	DeleteScheduledReport(ctx context.Context, tenantID uuid.UUID, reportID uuid.UUID) error
 
 	// Data export
 	ExportData(ctx context.Context, tenantID uuid.UUID, request ExportRequest) ([]byte, string, error)
@@ -425,7 +426,9 @@ func (s *service) trafficStatsToCSV(stats *TrafficStats) ([]byte, string, error)
 	
 	// Write headers
 	headers := []string{"Metric", "Value"}
-	w.Write(headers)
+	if err := w.Write(headers); err != nil {
+		return nil, "", fmt.Errorf("failed to write CSV headers: %w", err)
+	}
 	
 	// Write data
 	data := [][]string{
@@ -437,7 +440,9 @@ func (s *service) trafficStatsToCSV(stats *TrafficStats) ([]byte, string, error)
 	}
 	
 	for _, row := range data {
-		w.Write(row)
+		if err := w.Write(row); err != nil {
+			return nil, "", fmt.Errorf("failed to write CSV row: %w", err)
+		}
 	}
 	w.Flush()
 	
@@ -450,7 +455,9 @@ func (s *service) salesStatsToCSV(stats *SalesStats) ([]byte, string, error) {
 	w := csv.NewWriter(&result)
 	
 	headers := []string{"Metric", "Value"}
-	w.Write(headers)
+	if err := w.Write(headers); err != nil {
+		return nil, "", fmt.Errorf("failed to write CSV headers: %w", err)
+	}
 	
 	data := [][]string{
 		{"Total Revenue", fmt.Sprintf("%.2f", stats.TotalRevenue)},
@@ -460,7 +467,9 @@ func (s *service) salesStatsToCSV(stats *SalesStats) ([]byte, string, error) {
 	}
 	
 	for _, row := range data {
-		w.Write(row)
+		if err := w.Write(row); err != nil {
+			return nil, "", fmt.Errorf("failed to write CSV row: %w", err)
+		}
 	}
 	w.Flush()
 	
@@ -473,7 +482,9 @@ func (s *service) productStatsToCSV(products []*ProductStats) ([]byte, string, e
 	w := csv.NewWriter(&result)
 	
 	headers := []string{"Product Name", "Views", "Sales", "Revenue", "Conversion Rate"}
-	w.Write(headers)
+	if err := w.Write(headers); err != nil {
+		return nil, "", fmt.Errorf("failed to write CSV headers: %w", err)
+	}
 	
 	for _, product := range products {
 		row := []string{
@@ -483,7 +494,9 @@ func (s *service) productStatsToCSV(products []*ProductStats) ([]byte, string, e
 			fmt.Sprintf("%.2f", product.Revenue),
 			fmt.Sprintf("%.2f%%", product.ConversionRate*100),
 		}
-		w.Write(row)
+		if err := w.Write(row); err != nil {
+			return nil, "", fmt.Errorf("failed to write CSV row: %w", err)
+		}
 	}
 	w.Flush()
 	
@@ -502,6 +515,13 @@ func (s *service) ScheduleReport(ctx context.Context, tenantID uuid.UUID, reques
 func (s *service) GetScheduledReports(ctx context.Context, tenantID uuid.UUID) ([]*ScheduledReport, error) {
 	// TODO: Get all scheduled reports for tenant
 	return s.repo.GetScheduledReports(ctx, tenantID)
+}
+
+func (s *service) DeleteScheduledReport(ctx context.Context, tenantID uuid.UUID, reportID uuid.UUID) error {
+	// TODO: Delete scheduled report
+	// - Validate report belongs to tenant
+	// - Remove from repository
+	return s.repo.DeleteScheduledReport(ctx, tenantID, reportID)
 }
 
 // Data export

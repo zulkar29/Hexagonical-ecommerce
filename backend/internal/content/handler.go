@@ -1,6 +1,7 @@
 package content
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -63,7 +64,7 @@ func (h *Handler) UpdatePage(c *gin.Context) {
 	}
 
 	var req UpdatePageRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
@@ -141,7 +142,11 @@ func (h *Handler) GetPageBySlug(c *gin.Context) {
 
 	// Increment view count for published pages
 	if page.IsPublished() {
-		go h.service.IncrementPageViews(tenantID.(uuid.UUID), page.ID)
+		go func() {
+			if err := h.service.IncrementPageViews(tenantID.(uuid.UUID), page.ID); err != nil {
+				log.Printf("Failed to increment page views: %v", err)
+			}
+		}()
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": page})
@@ -249,7 +254,7 @@ func (h *Handler) DuplicatePage(c *gin.Context) {
 	}
 
 	var req DuplicatePageRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
@@ -321,7 +326,7 @@ func (h *Handler) UpdateMedia(c *gin.Context) {
 	}
 
 	var req UpdateMediaRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
@@ -452,7 +457,7 @@ func (h *Handler) UpdateMenu(c *gin.Context) {
 	}
 
 	var req UpdateMenuRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
@@ -566,7 +571,7 @@ func (h *Handler) CreateMenuItem(c *gin.Context) {
 	}
 
 	var req CreateMenuItemRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
@@ -594,7 +599,7 @@ func (h *Handler) UpdateMenuItem(c *gin.Context) {
 	}
 
 	var req UpdateMenuItemRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
@@ -694,7 +699,7 @@ func (h *Handler) UpdateTag(c *gin.Context) {
 	}
 
 	var req UpdateTagRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
@@ -785,7 +790,7 @@ func (h *Handler) UpdateCategory(c *gin.Context) {
 	}
 
 	var req UpdateCategoryRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
@@ -1016,7 +1021,11 @@ func (h *Handler) GetPublicPage(c *gin.Context) {
 	}
 
 	// Increment view count
-	go h.service.IncrementPageViews(tenantID, page.ID)
+	go func() {
+		if err := h.service.IncrementPageViews(tenantID, page.ID); err != nil {
+			log.Printf("Failed to increment page views: %v", err)
+		}
+	}()
 
 	c.JSON(http.StatusOK, gin.H{"data": page})
 }

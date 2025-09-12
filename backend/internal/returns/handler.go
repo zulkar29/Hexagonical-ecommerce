@@ -31,19 +31,19 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		returns.GET("/:id", h.GetReturn)
 		returns.PUT("/:id", h.UpdateReturn) // Supports ?action=approve|reject|process|complete for workflow
 		returns.DELETE("/:id", h.DeleteReturn)
-		
+
 		// Return items (consolidated)
 		returns.POST("/:id/items", h.AddReturnItem)
 		returns.PUT("/:id/items/:itemId", h.UpdateReturnItem)
 		returns.DELETE("/:id/items/:itemId", h.RemoveReturnItem)
-		
+
 		// Return operations (consolidated)
 		returns.POST("/:id/operations", h.HandleReturnOperation) // Supports operation=label|track for shipping
-		
+
 		// Return lookup by number
 		returns.GET("/number/:number", h.GetReturnByNumber)
 	}
-	
+
 	// Return reasons
 	reasons := router.Group("/return-reasons")
 	{
@@ -72,13 +72,13 @@ func (h *Handler) CreateReturn(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
-	
+
 	return_, err := h.service.CreateReturn(c.Request.Context(), &returnReq)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create return", "details": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, return_)
 }
 
@@ -108,7 +108,7 @@ func (h *Handler) CreateReturn(c *gin.Context) {
 // @Router /returns [get]
 func (h *Handler) ListReturns(c *gin.Context) {
 	tenantID := getTenantIDFromContext(c)
-	
+
 	// Check for analytics type
 	analyticsType := c.Query("type")
 	switch analyticsType {
@@ -174,7 +174,7 @@ func (h *Handler) ListReturns(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	// Parse query parameters
 	filter := ReturnFilter{
 		Page:      getIntQueryParam(c, "page", 1),
@@ -183,72 +183,72 @@ func (h *Handler) ListReturns(c *gin.Context) {
 		SortOrder: c.DefaultQuery("sort_order", "desc"),
 		Search:    c.Query("search"),
 	}
-	
+
 	// Parse status filter
 	if statusParams := c.QueryArray("status"); len(statusParams) > 0 {
 		for _, status := range statusParams {
 			filter.Status = append(filter.Status, ReturnStatus(status))
 		}
 	}
-	
+
 	// Parse type filter
 	if typeParams := c.QueryArray("type"); len(typeParams) > 0 {
 		for _, returnType := range typeParams {
 			filter.Type = append(filter.Type, ReturnType(returnType))
 		}
 	}
-	
+
 	// Parse UUID filters
 	if customerID := c.Query("customer_id"); customerID != "" {
 		if id, err := uuid.Parse(customerID); err == nil {
 			filter.CustomerID = &id
 		}
 	}
-	
+
 	if orderID := c.Query("order_id"); orderID != "" {
 		if id, err := uuid.Parse(orderID); err == nil {
 			filter.OrderID = &id
 		}
 	}
-	
+
 	if reasonID := c.Query("reason_id"); reasonID != "" {
 		if id, err := uuid.Parse(reasonID); err == nil {
 			filter.ReasonID = &id
 		}
 	}
-	
+
 	// Parse date filters
 	if createdAfter := c.Query("created_after"); createdAfter != "" {
 		if date, err := time.Parse(time.RFC3339, createdAfter); err == nil {
 			filter.CreatedAfter = &date
 		}
 	}
-	
+
 	if createdBefore := c.Query("created_before"); createdBefore != "" {
 		if date, err := time.Parse(time.RFC3339, createdBefore); err == nil {
 			filter.CreatedBefore = &date
 		}
 	}
-	
+
 	// Parse amount filters
 	if minAmount := c.Query("min_refund_amount"); minAmount != "" {
 		if amount, err := strconv.ParseFloat(minAmount, 64); err == nil {
 			filter.MinRefundAmount = &amount
 		}
 	}
-	
+
 	if maxAmount := c.Query("max_refund_amount"); maxAmount != "" {
 		if amount, err := strconv.ParseFloat(maxAmount, 64); err == nil {
 			filter.MaxRefundAmount = &amount
 		}
 	}
-	
+
 	returns, total, err := h.service.ListReturns(c.Request.Context(), tenantID, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list returns", "details": err.Error()})
 		return
 	}
-	
+
 	response := PaginatedReturnsResponse{
 		Data:       returns,
 		Total:      total,
@@ -256,7 +256,7 @@ func (h *Handler) ListReturns(c *gin.Context) {
 		Limit:      filter.Limit,
 		TotalPages: (total + int64(filter.Limit) - 1) / int64(filter.Limit),
 	}
-	
+
 	c.JSON(http.StatusOK, response)
 }
 
@@ -278,7 +278,7 @@ func (h *Handler) GetReturn(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid return ID"})
 		return
 	}
-	
+
 	tenantID := getTenantIDFromContext(c)
 	return_, err := h.service.GetReturn(c.Request.Context(), tenantID, returnID)
 	if err != nil {
@@ -289,7 +289,7 @@ func (h *Handler) GetReturn(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get return", "details": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, return_)
 }
 
@@ -310,7 +310,7 @@ func (h *Handler) GetReturnByNumber(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Return number is required"})
 		return
 	}
-	
+
 	tenantID := getTenantIDFromContext(c)
 	return_, err := h.service.GetReturnByNumber(c.Request.Context(), tenantID, returnNumber)
 	if err != nil {
@@ -321,7 +321,7 @@ func (h *Handler) GetReturnByNumber(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get return", "details": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, return_)
 }
 
@@ -344,56 +344,56 @@ func (h *Handler) UpdateReturn(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid return ID"})
 		return
 	}
-	
+
 	// Check for workflow action
 	action := c.Query("action")
 	switch action {
 	case "approve":
 		var req ApprovalRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+		if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 			return
 		}
 		tenantID := getTenantIDFromContext(c)
-		return_, err := h.service.ApproveReturn(c.Request.Context(), tenantID, returnID, req.ApprovedBy, req.ApprovalNote)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to approve return", "details": err.Error()})
+		return_, approveErr := h.service.ApproveReturn(c.Request.Context(), tenantID, returnID, req.ApprovedBy, req.ApprovalNote)
+		if approveErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to approve return", "details": approveErr.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, return_)
 		return
 	case "reject":
 		var req RejectionRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+		if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 			return
 		}
 		tenantID := getTenantIDFromContext(c)
-		return_, err := h.service.RejectReturn(c.Request.Context(), tenantID, returnID, req.RejectedBy, req.RejectionReason)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reject return", "details": err.Error()})
+		return_, rejectErr := h.service.RejectReturn(c.Request.Context(), tenantID, returnID, req.RejectedBy, req.RejectionReason)
+		if rejectErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reject return", "details": rejectErr.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, return_)
 		return
 	case "process":
 		var req ProcessingRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+		if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 			return
 		}
 		tenantID := getTenantIDFromContext(c)
-		return_, err := h.service.ProcessReturn(c.Request.Context(), tenantID, returnID, req.ProcessedBy, req.ProcessingNote, req.TrackingNumber)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process return", "details": err.Error()})
+		return_, processErr := h.service.ProcessReturn(c.Request.Context(), tenantID, returnID, req.ProcessedBy, req.ProcessingNote, req.TrackingNumber)
+		if processErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process return", "details": processErr.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, return_)
 		return
 	case "complete":
 		var req CompletionRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+		if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 			return
 		}
 		tenantID := getTenantIDFromContext(c)
@@ -401,22 +401,22 @@ func (h *Handler) UpdateReturn(c *gin.Context) {
 		if req.RefundAmount != nil {
 			refundAmount = *req.RefundAmount
 		}
-		return_, err := h.service.CompleteReturn(c.Request.Context(), tenantID, returnID, req.CompletedBy, req.CompletionNote, refundAmount, req.RefundMethod)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to complete return", "details": err.Error()})
+		return_, completeErr := h.service.CompleteReturn(c.Request.Context(), tenantID, returnID, req.CompletedBy, req.CompletionNote, refundAmount, req.RefundMethod)
+		if completeErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to complete return", "details": completeErr.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, return_)
 		return
 	}
-	
+
 	// Regular update
 	var updatedReturn Return
-	if err := c.ShouldBindJSON(&updatedReturn); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+	if bindErr := c.ShouldBindJSON(&updatedReturn); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
-	
+
 	tenantID := getTenantIDFromContext(c)
 	updatedReturn.ID = returnID
 	updatedReturn.TenantID = tenantID
@@ -429,7 +429,7 @@ func (h *Handler) UpdateReturn(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update return", "details": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, return_)
 }
 
@@ -451,7 +451,7 @@ func (h *Handler) DeleteReturn(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid return ID"})
 		return
 	}
-	
+
 	tenantID := getTenantIDFromContext(c)
 	err = h.service.DeleteReturn(c.Request.Context(), tenantID, returnID)
 	if err != nil {
@@ -462,7 +462,7 @@ func (h *Handler) DeleteReturn(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete return", "details": err.Error()})
 		return
 	}
-	
+
 	c.Status(http.StatusNoContent)
 }
 
@@ -491,20 +491,20 @@ func (h *Handler) ApproveReturn(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid return ID"})
 		return
 	}
-	
+
 	var req ApprovalRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
-	
+
 	tenantID := getTenantIDFromContext(c)
 	return_, err := h.service.ApproveReturn(c.Request.Context(), tenantID, returnID, req.ApprovedBy, req.ApprovalNote)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to approve return", "details": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, return_)
 }
 
@@ -533,20 +533,20 @@ func (h *Handler) RejectReturn(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid return ID"})
 		return
 	}
-	
+
 	var req RejectionRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
-	
+
 	tenantID := getTenantIDFromContext(c)
 	return_, err := h.service.RejectReturn(c.Request.Context(), tenantID, returnID, req.RejectedBy, req.RejectionReason)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reject return", "details": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, return_)
 }
 
@@ -576,29 +576,29 @@ func (h *Handler) ProcessReturn(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid return ID"})
 		return
 	}
-	
+
 	var req ProcessingRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
-	
+
 	tenantID := getTenantIDFromContext(c)
 	return_, err := h.service.ProcessReturn(c.Request.Context(), tenantID, returnID, req.ProcessedBy, req.ProcessingNote, req.TrackingNumber)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process return", "details": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, return_)
 }
 
 // CompletionRequest represents the request body for completing a return
 type CompletionRequest struct {
-	CompletedBy     uuid.UUID `json:"completed_by" binding:"required"`
-	CompletionNote  string    `json:"completion_note,omitempty"`
-	RefundAmount    *float64  `json:"refund_amount,omitempty"`
-	RefundMethod    string    `json:"refund_method,omitempty"`
+	CompletedBy    uuid.UUID `json:"completed_by" binding:"required"`
+	CompletionNote string    `json:"completion_note,omitempty"`
+	RefundAmount   *float64  `json:"refund_amount,omitempty"`
+	RefundMethod   string    `json:"refund_method,omitempty"`
 }
 
 // CompleteReturn completes a return
@@ -620,13 +620,13 @@ func (h *Handler) CompleteReturn(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid return ID"})
 		return
 	}
-	
+
 	var req CompletionRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
-	
+
 	tenantID := getTenantIDFromContext(c)
 	var refundAmount float64
 	if req.RefundAmount != nil {
@@ -637,7 +637,7 @@ func (h *Handler) CompleteReturn(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to complete return", "details": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, return_)
 }
 
@@ -660,22 +660,22 @@ func (h *Handler) AddReturnItem(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid return ID"})
 		return
 	}
-	
+
 	var item ReturnItem
-	if err := c.ShouldBindJSON(&item); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+	if bindErr := c.ShouldBindJSON(&item); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
-	
+
 	// Set the return ID from the URL parameter
 	item.ReturnID = returnID
-	
+
 	createdItem, err := h.service.AddReturnItem(c.Request.Context(), &item)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add return item", "details": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, createdItem)
 }
 
@@ -699,29 +699,29 @@ func (h *Handler) UpdateReturnItem(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid return ID"})
 		return
 	}
-	
+
 	itemID, err := uuid.Parse(c.Param("itemId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid item ID"})
 		return
 	}
-	
+
 	var item ReturnItem
-	if err := c.ShouldBindJSON(&item); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+	if bindErr := c.ShouldBindJSON(&item); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
-	
+
 	// Set the IDs from the URL parameters
 	item.ID = itemID
 	item.ReturnID = returnID
-	
+
 	updatedItem, err := h.service.UpdateReturnItem(c.Request.Context(), &item)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update return item", "details": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, updatedItem)
 }
 
@@ -744,20 +744,20 @@ func (h *Handler) RemoveReturnItem(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid return ID"})
 		return
 	}
-	
+
 	itemID, err := uuid.Parse(c.Param("item_id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid item ID"})
 		return
 	}
-	
+
 	tenantID := getTenantIDFromContext(c)
 	err = h.service.RemoveReturnItem(c.Request.Context(), tenantID, returnID, itemID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove return item", "details": err.Error()})
 		return
 	}
-	
+
 	c.Status(http.StatusNoContent)
 }
 
@@ -779,14 +779,14 @@ func (h *Handler) GenerateReturnLabel(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid return ID"})
 		return
 	}
-	
+
 	tenantID := getTenantIDFromContext(c)
 	label, err := h.service.GenerateReturnLabel(c.Request.Context(), tenantID, returnID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate return label", "details": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, label)
 }
 
@@ -808,14 +808,14 @@ func (h *Handler) TrackReturnShipment(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid return ID"})
 		return
 	}
-	
+
 	tenantID := getTenantIDFromContext(c)
 	// Get tracking number from query parameter or return record
 	trackingNumber := c.Query("tracking_number")
 	if trackingNumber == "" {
 		// If no tracking number provided, get it from the return record
-		returnRecord, err := h.service.GetReturn(c.Request.Context(), tenantID, returnID)
-		if err != nil {
+		returnRecord, getErr := h.service.GetReturn(c.Request.Context(), tenantID, returnID)
+		if getErr != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Return not found"})
 			return
 		}
@@ -825,13 +825,13 @@ func (h *Handler) TrackReturnShipment(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	tracking, err := h.service.TrackReturnShipment(c.Request.Context(), tenantID, returnID, trackingNumber)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to track return shipment", "details": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, tracking)
 }
 
@@ -850,30 +850,30 @@ func (h *Handler) TrackReturnShipment(c *gin.Context) {
 // @Router /returns/stats [get]
 func (h *Handler) GetReturnStats(c *gin.Context) {
 	tenantID := getTenantIDFromContext(c)
-	
+
 	filter := StatsFilter{
 		GroupBy: c.DefaultQuery("group_by", "day"),
 	}
-	
+
 	// Parse date filters
 	if dateFrom := c.Query("date_from"); dateFrom != "" {
 		if date, err := time.Parse(time.RFC3339, dateFrom); err == nil {
 			filter.DateFrom = &date
 		}
 	}
-	
+
 	if dateTo := c.Query("date_to"); dateTo != "" {
 		if date, err := time.Parse(time.RFC3339, dateTo); err == nil {
 			filter.DateTo = &date
 		}
 	}
-	
+
 	stats, err := h.service.GetReturnStats(c.Request.Context(), tenantID, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get return stats", "details": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, stats)
 }
 
@@ -895,20 +895,20 @@ func (h *Handler) GetReturnsByCustomer(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid customer ID"})
 		return
 	}
-	
+
 	tenantID := getTenantIDFromContext(c)
-	
+
 	// Create filter from query parameters
 	filter := ReturnFilter{
 		Limit: getIntQueryParam(c, "limit", 10),
 	}
-	
+
 	returns, total, err := h.service.GetReturnsByCustomer(c.Request.Context(), tenantID, customerID, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get returns by customer", "details": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"returns": returns,
 		"total":   total,
@@ -932,14 +932,14 @@ func (h *Handler) GetReturnsByOrder(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
 		return
 	}
-	
+
 	tenantID := getTenantIDFromContext(c)
 	returns, err := h.service.GetReturnsByOrder(c.Request.Context(), tenantID, orderID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get returns by order", "details": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, returns)
 }
 
@@ -960,16 +960,16 @@ func (h *Handler) CreateReturnReason(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
-	
+
 	tenantID := getTenantIDFromContext(c)
 	reason.TenantID = tenantID
-	
+
 	createdReason, err := h.service.CreateReturnReason(c.Request.Context(), &reason)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create return reason", "details": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, createdReason)
 }
 
@@ -986,13 +986,13 @@ func (h *Handler) CreateReturnReason(c *gin.Context) {
 func (h *Handler) ListReturnReasons(c *gin.Context) {
 	activeOnly := c.DefaultQuery("active_only", "false") == "true"
 	tenantID := getTenantIDFromContext(c)
-	
+
 	reasons, err := h.service.ListReturnReasons(c.Request.Context(), tenantID, activeOnly)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list return reasons", "details": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, reasons)
 }
 
@@ -1014,7 +1014,7 @@ func (h *Handler) GetReturnReason(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reason ID"})
 		return
 	}
-	
+
 	tenantID := getTenantIDFromContext(c)
 	reason, err := h.service.GetReturnReason(c.Request.Context(), tenantID, reasonID)
 	if err != nil {
@@ -1025,7 +1025,7 @@ func (h *Handler) GetReturnReason(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get return reason", "details": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, reason)
 }
 
@@ -1048,16 +1048,16 @@ func (h *Handler) UpdateReturnReason(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reason ID"})
 		return
 	}
-	
+
 	var reason ReturnReason
-	if err := c.ShouldBindJSON(&reason); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+	if bindErr := c.ShouldBindJSON(&reason); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
-	
+
 	// Set the ID from the URL parameter
 	reason.ID = reasonID
-	
+
 	tenantID := getTenantIDFromContext(c)
 	reason.TenantID = tenantID
 	updatedReason, err := h.service.UpdateReturnReason(c.Request.Context(), &reason)
@@ -1069,7 +1069,7 @@ func (h *Handler) UpdateReturnReason(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update return reason", "details": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, updatedReason)
 }
 
@@ -1091,14 +1091,14 @@ func (h *Handler) DeleteReturnReason(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reason ID"})
 		return
 	}
-	
+
 	tenantID := getTenantIDFromContext(c)
 	err = h.service.DeleteReturnReason(c.Request.Context(), tenantID, reasonID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete return reason", "details": err.Error()})
 		return
 	}
-	
+
 	c.Status(http.StatusNoContent)
 }
 
@@ -1171,7 +1171,7 @@ func (h *Handler) HandleReturnOperation(c *gin.Context) {
 }
 
 // Helper functions
-func getTenantIDFromContext(c *gin.Context) uuid.UUID {
+func getTenantIDFromContext(_ *gin.Context) uuid.UUID {
 	// TODO: Extract tenant ID from context/middleware
 	// This should be set by authentication middleware
 	return uuid.New() // Placeholder

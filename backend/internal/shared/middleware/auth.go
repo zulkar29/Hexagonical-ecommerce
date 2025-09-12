@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -8,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	
+
 	"ecommerce-saas/internal/shared/utils"
 	"ecommerce-saas/internal/tenant"
 )
@@ -85,41 +86,58 @@ func TenantMiddleware(db *gorm.DB) gin.HandlerFunc {
 	tenantService := tenant.NewService(tenantRepo)
 	
 	return func(c *gin.Context) {
-		host := c.GetHeader("Host")
+		// Get host from request (more reliable than header)
+		host := c.Request.Host
+		fmt.Printf("[DEBUG] TenantMiddleware - Host: '%s'\n", host)
 		if host == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Host header required"})
 			c.Abort()
 			return
 		}
 
-		// Parse subdomain from host
+		// Remove port if present
+		if colonIndex := strings.Index(host, ":"); colonIndex != -1 {
+			host = host[:colonIndex]
+		}
+
+		var tenantEntity *tenant.Tenant
+		var err error
+
+		// First, try to resolve by custom domain
+		tenantEntity, err = tenantService.GetTenantByCustomDomain(host)
+		if err == nil {
+			// Found tenant by custom domain
+			c.Set("tenant_domain", host)
+			c.Set("tenant_id", tenantEntity.ID)
+			c.Set("tenant", tenantEntity)
+			c.Set("domain_type", "custom")
+			c.Next()
+			return
+		}
+
+		// If not found by custom domain, try subdomain resolution
 		parts := strings.Split(host, ".")
-		if len(parts) < 2 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid host format"})
-			c.Abort()
-			return
+		if len(parts) >= 2 {
+			subdomain := parts[0]
+			
+			// Skip reserved subdomains
+			if subdomain != "" && subdomain != "www" && subdomain != "api" && subdomain != "admin" {
+				tenantEntity, err = tenantService.GetTenantBySubdomain(subdomain)
+				if err == nil {
+					// Found tenant by subdomain
+					c.Set("tenant_subdomain", subdomain)
+					c.Set("tenant_id", tenantEntity.ID)
+					c.Set("tenant", tenantEntity)
+					c.Set("domain_type", "subdomain")
+					c.Next()
+					return
+				}
+			}
 		}
 
-		subdomain := parts[0]
-		if subdomain == "" || subdomain == "www" || subdomain == "api" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant subdomain"})
-			c.Abort()
-			return
-		}
-
-		// Resolve tenant from subdomain
-		tenant, err := tenantService.GetTenantBySubdomain(subdomain)
-		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Tenant not found"})
-			c.Abort()
-			return
-		}
-
-		// Set tenant context
-		c.Set("tenant_subdomain", subdomain)
-		c.Set("tenant_id", tenant.ID)
-		c.Set("tenant", tenant)
-		c.Next()
+		// If no tenant found by either method
+		c.JSON(http.StatusNotFound, gin.H{"error": "Tenant not found for domain: " + host})
+		c.Abort()
 	}
 }
 

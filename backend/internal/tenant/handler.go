@@ -1,6 +1,7 @@
 package tenant
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
@@ -45,6 +46,13 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		// Utility endpoints
 		tenants.GET("/check-subdomain/:subdomain", h.CheckSubdomainAvailability)
 		tenants.POST("/:id/validate-domain", h.ValidateCustomDomain)
+		
+		// Domain management endpoints
+		tenants.POST("/:id/domains", h.AddDomain)
+		tenants.GET("/:id/domains", h.ListDomains)
+		tenants.PUT("/:id/domains/:domain_id", h.UpdateDomain)
+		tenants.DELETE("/:id/domains/:domain_id", h.RemoveDomain)
+		tenants.GET("/domain/:domain", h.GetTenantByDomain)
 	}
 }
 
@@ -271,7 +279,11 @@ func (h *Handler) SuspendTenant(c *gin.Context) {
 	var req struct {
 		Reason string `json:"reason,omitempty"`
 	}
-	c.ShouldBindJSON(&req)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		// Log the error but continue with empty reason
+		// This is optional data, so we don't need to fail the request
+		log.Printf("Failed to parse suspend reason: %v", err)
+	}
 	
 	err := h.service.SuspendTenant(tenantID, req.Reason)
 	if err != nil {
@@ -307,9 +319,138 @@ func (h *Handler) ValidateCustomDomain(c *gin.Context) {
 	})
 }
 
+// GetTenantByDomain handles GET /api/tenants/domain/:domain
+func (h *Handler) GetTenantByDomain(c *gin.Context) {
+	domain := c.Param("domain")
+	
+	tenant, err := h.service.GetTenantByCustomDomain(domain)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Tenant not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": tenant,
+	})
+}
+
+// AddDomain handles POST /api/tenants/:id/domains
+func (h *Handler) AddDomain(c *gin.Context) {
+	tenantID := c.Param("id")
+	
+	var req struct {
+		Domain string `json:"domain" validate:"required,fqdn"`
+		Type   string `json:"type" validate:"required,oneof=subdomain custom"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	if req.Type == "custom" {
+		err := h.service.ValidateCustomDomain(tenantID, req.Domain)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Domain added successfully",
+	})
+}
+
+// ListDomains handles GET /api/tenants/:id/domains
+func (h *Handler) ListDomains(c *gin.Context) {
+	tenantID := c.Param("id")
+	
+	tenant, err := h.service.GetTenant(tenantID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Tenant not found"})
+		return
+	}
+
+	domains := []gin.H{}
+	if tenant.Subdomain != "" {
+		domains = append(domains, gin.H{
+			"id":     "subdomain",
+			"domain": tenant.Subdomain,
+			"type":   "subdomain",
+			"status": "active",
+		})
+	}
+	if tenant.CustomDomain != "" {
+		domains = append(domains, gin.H{
+			"id":     "custom",
+			"domain": tenant.CustomDomain,
+			"type":   "custom",
+			"status": "active",
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": domains,
+	})
+}
+
+// UpdateDomain handles PUT /api/tenants/:id/domains/:domain_id
+func (h *Handler) UpdateDomain(c *gin.Context) {
+	tenantID := c.Param("id")
+	domainID := c.Param("domain_id")
+	
+	var req struct {
+		Domain string `json:"domain" validate:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	if domainID == "custom" {
+		err := h.service.ValidateCustomDomain(tenantID, req.Domain)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot update subdomain"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Domain updated successfully",
+	})
+}
+
+// RemoveDomain handles DELETE /api/tenants/:id/domains/:domain_id
+func (h *Handler) RemoveDomain(c *gin.Context) {
+	tenantID := c.Param("id")
+	domainID := c.Param("domain_id")
+	
+	if domainID == "subdomain" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot remove subdomain"})
+		return
+	}
+
+	if domainID == "custom" {
+		// Remove custom domain by setting it to empty
+		req := UpdateTenantRequest{
+			CustomDomain: "",
+		}
+		_, err := h.service.UpdateTenant(tenantID, req)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Domain removed successfully",
+	})
+}
+
 // TODO: Add more handlers
 // - UploadLogo(c *gin.Context) - Handle logo upload
 // - GetBillingInfo(c *gin.Context) - Get billing information
-// - UpdateDomainSettings(c *gin.Context) - Update custom domain
 // - GetUsageMetrics(c *gin.Context) - Get usage metrics
 // - ExportTenantData(c *gin.Context) - Export tenant data

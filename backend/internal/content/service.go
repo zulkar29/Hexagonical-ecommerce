@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"os"
 	"path/filepath"
@@ -485,7 +486,7 @@ func (s *Service) DuplicatePage(tenantID, authorID, pageID uuid.UUID, req Duplic
 	}
 
 	// Validate slug uniqueness
-	if err := s.validateSlugUniqueness(tenantID, duplicatePage.Slug, uuid.Nil); err != nil {
+	if tempErr := s.validateSlugUniqueness(tenantID, duplicatePage.Slug, uuid.Nil); tempErr != nil {
 		return nil, err
 	}
 
@@ -503,7 +504,9 @@ func (s *Service) DuplicatePage(tenantID, authorID, pageID uuid.UUID, req Duplic
 			tagIDs[i] = tag.ID
 		}
 		if len(tagIDs) > 0 {
-			s.repository.AssociatePageTags(createdPage.ID, tagIDs)
+			if err := s.repository.AssociatePageTags(createdPage.ID, tagIDs); err != nil {
+				log.Printf("Failed to associate page tags: %v", err)
+			}
 		}
 
 		categoryIDs := make([]uuid.UUID, len(originalPageWithRelations.Categories))
@@ -511,7 +514,9 @@ func (s *Service) DuplicatePage(tenantID, authorID, pageID uuid.UUID, req Duplic
 			categoryIDs[i] = category.ID
 		}
 		if len(categoryIDs) > 0 {
-			s.repository.AssociatePageCategories(createdPage.ID, categoryIDs)
+			if err := s.repository.AssociatePageCategories(createdPage.ID, categoryIDs); err != nil {
+				log.Printf("Failed to associate page categories: %v", err)
+			}
 		}
 	}
 
@@ -541,8 +546,13 @@ func (s *Service) UploadMedia(tenantID, userID uuid.UUID, req UploadMediaRequest
 	}
 
 	// Get file size
-	fileSize, _ := req.File.Seek(0, 2)
-	req.File.Seek(0, 0)
+	fileSize, err := req.File.Seek(0, 2)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get file size: %w", err)
+	}
+	if _, err := req.File.Seek(0, 0); err != nil {
+		return nil, fmt.Errorf("failed to reset file position: %w", err)
+	}
 
 	// Create media record
 	media := &Media{

@@ -4,8 +4,8 @@ FROM golang:1.23-alpine AS development
 # Install development tools
 RUN apk add --no-cache git curl
 
-# Install Air for hot reloading
-RUN go install github.com/air-verse/air@latest
+# Install Air for hot reloading (using compatible version)
+RUN go install github.com/air-verse/air@v1.52.3
 
 # Set working directory
 WORKDIR /app
