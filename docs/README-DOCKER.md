@@ -1,6 +1,8 @@
-# Docker Development Environment
+# Hexagonal E-commerce SaaS Docker Development Environment
 
-Complete Docker setup for the e-commerce SaaS platform with all services containerized for easy development and deployment.
+📋 **Documentation Navigation**: [📖 Project Home](../README.md) | [🏗️ Architecture](./ARCHITECTURE.md) | [🚢 Deployment](./DEPLOYMENT.md) | [🚀 Features](./FEATURES.md)
+
+Complete Docker setup for the hexagonal e-commerce SaaS platform with all services containerized for easy development and deployment.
 
 ## 🚀 Quick Start
 
@@ -14,7 +16,7 @@ Complete Docker setup for the e-commerce SaaS platform with all services contain
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd esass
+cd hexagonal-ecommerce
 
 # Start all services with one command
 make dev-up
@@ -75,7 +77,7 @@ make services-down   # Stop only core services
 ## 📂 Project Structure
 
 ```
-esass/
+hexagonal-ecommerce/
 ├── docker-compose.dev.yml    # Development services
 ├── docker-compose.prod.yml   # Production configuration
 ├── Makefile                  # Development commands
@@ -86,7 +88,7 @@ esass/
 ├── storefront/
 │   ├── Dockerfile.dev       # Next.js dev container
 │   └── Dockerfile.prod      # Next.js production
-├── sass-admin-panel/
+├── shop-keeper-dashboard/
 │   ├── Dockerfile.dev       # React admin dev
 │   └── Dockerfile.prod      # React admin prod
 └── database/

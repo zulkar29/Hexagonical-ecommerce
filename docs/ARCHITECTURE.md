@@ -1,14 +1,21 @@
-# E-commerce SaaS Platform Architecture
+# Hexagonal E-commerce SaaS Platform Architecture
+
+📋 **Documentation Navigation**: [📖 Project Home](../README.md) | [🚀 Features](./FEATURES.md) | [📋 Roadmap](./ROADMAP.md) | [🚢 Deployment](./DEPLOYMENT.md)
 
 ## Overview
-Technical architecture for a multi-tenant e-commerce SaaS platform using hexagonal (clean) architecture principles.
+Technical architecture for a single vendor multi-tenant e-commerce SaaS platform using hexagonal (clean) architecture principles with modular monolith design for optimal performance and maintainability.
 
-> **Note**: For detailed API specifications and endpoint documentation, see [API_ARCHITECTURE.md](./API_ARCHITECTURE.md)
+**Important Clarification**:
+- **"Hexagonal"** refers to the **Hexagonal Architecture pattern** (Clean Architecture by Robert Martin)
+- **Multi-tenancy** is achieved through **shared database with tenant_id isolation**
+- These are separate architectural concerns that work together
+
+> **Note**: For detailed API specifications and endpoint documentation, see [API_REFERENCE.md](./API_REFERENCE.md)
 
 ## System Architecture
 
-### Optimized Modular Monolith Architecture
-**Design**: Modular monolith architecture for solo developer efficiency and local market requirements
+### Hexagonal Architecture with Modular Monolith Implementation
+**Design**: Hexagonal (clean) architecture implemented as modular monolith for solo developer efficiency, testability, and local market requirements
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -39,7 +46,7 @@ Technical architecture for a multi-tenant e-commerce SaaS platform using hexagon
 │                      PORTS & ADAPTERS                      │
 │  ┌─────────────┬─────────────┬─────────────┬─────────────┐  │
 │  │    HTTP     │  Repository │   Payment   │    Email    │  │
-│  │   Handler   │   (GORM)    │  (Stripe)   │ (SendGrid)  │  │
+│  │   Handler   │   (GORM)    │(SSLCommerz) │ (SendGrid)  │  │
 │  └─────────────┴─────────────┴─────────────┴─────────────┘  │
 └─────────────────────────────────────────────────────────────┘
                             │
@@ -59,9 +66,12 @@ Technical architecture for a multi-tenant e-commerce SaaS platform using hexagon
 - **Product Module**: Catalog management, inventory, variants, categories
 - **Order Module**: Cart, checkout, order processing, fulfillment
 - **User Module**: Authentication, authorization, customer management
-- **Payment Module**: bKash/Nagad integration, Stripe for international, subscription billing
-- **Notification Module**: Email notifications, webhooks
-- **Analytics Module**: Basic reporting and metrics
+- **Payment Module**: SSLCommerz integration for local payments, subscription billing
+- **Notification Module**: Email/SMS notifications, system alerts, webhooks, event-driven notifications
+- **Analytics Module**: Sales analytics, customer insights, platform monitoring
+- **Security Module**: Multi-tenant data isolation, audit trails, fraud detection
+- **Shipping Module**: Shipping zones, rates, tracking, courier integration
+- **Support Module**: Contact forms, ticketing system, FAQ management
 
 **Benefits of Modular Monolith for Solo Developer**:
 - Single deployment unit (solo-friendly complexity)
@@ -85,33 +95,46 @@ Technical architecture for a multi-tenant e-commerce SaaS platform using hexagon
   - Order processing
   - Theme customization
 
-## Multi-Tenancy Strategy (Optimized)
+## Multi-Tenancy Strategy (Shared Database with tenant_id)
 
-### Hybrid Database Approach
-**Small-Medium Tenants (Starter/Professional/Pro Plans)**:
-- Shared PostgreSQL database with `tenant_id` column
-- Row-level security for data isolation
-- Cost-effective for up to 10,000 products per tenant
-- 60-80% reduction in infrastructure costs
+### Initial Implementation: Shared Database Approach
+**All Plans (Starter/Professional/Pro/Enterprise)**:
+- **Shared PostgreSQL database** with `tenant_id` column for data isolation
+- **Row-level security policies** to enforce tenant boundaries
+- **Automatic tenant_id injection** in all database queries
+- **Cost-effective** approach reducing infrastructure complexity by 80%
+- **Scalable** for up to 10,000+ products per tenant initially
 
-**Enterprise Tenants (Enterprise Plan)**:
-- Dedicated database per tenant
-- Complete isolation for large-scale operations
-- Custom scaling and backup strategies
-- Triggered when tenant exceeds 10,000 products
+### Future Scaling Options:
+**When Individual Tenants Exceed Capacity**:
+- Option to migrate specific high-volume tenants to dedicated databases
+- Hybrid approach available for enterprise customers requiring complete isolation
+- Maintains cost efficiency for majority of tenants while allowing custom scaling
 
-### Tenant Type Selection Logic
+### Tenant Context Resolution (Hexagonal Pattern)
 ```go
-func (t *Tenant) ShouldUseDedicatedDatabase() bool {
-    return t.Plan == PlanEnterprise || t.ProductCount >= 10000
+// Domain layer - tenant context is injected at the boundary
+func (s *ProductService) GetProducts(ctx context.Context, tenantID string) ([]*domain.Product, error) {
+    // Business logic with tenant context
+    return s.productRepo.FindByTenant(ctx, tenantID)
+}
+
+// Repository adapter - automatic tenant_id filtering
+func (r *ProductRepository) FindByTenant(ctx context.Context, tenantID string) ([]*domain.Product, error) {
+    var products []*Product
+    err := r.db.WithContext(ctx).
+        Where("tenant_id = ?", tenantID).
+        Where("deleted_at IS NULL").
+        Find(&products).Error
+    return mapToModels(products), err
 }
 ```
 
-### Benefits of Hybrid Approach
-- **Cost Efficiency**: Shared DB for 95% of tenants
-- **Scalability**: Dedicated DB for high-volume tenants
-- **Simplified Operations**: Reduced backup/monitoring overhead
-- **Gradual Migration**: Seamless upgrade path
+### Benefits of Shared Database Approach
+- **Cost Efficiency**: Single database infrastructure for all tenants
+- **Simplified Operations**: One backup, monitoring, and maintenance process
+- **Performance**: No cross-database queries needed
+- **Tenant Isolation**: Row-level security ensures complete data separation
 
 ## Domain Management
 - Custom domain support via DNS CNAME
@@ -125,12 +148,18 @@ func (t *Tenant) ShouldUseDedicatedDatabase() bool {
 - Rate limiting and throttling per tenant
 
 ## Security Architecture
-- OAuth2/JWT authentication
-- Multi-factor authentication
-- Role-based access control (RBAC)
-- API rate limiting and throttling
+- OAuth2/JWT authentication with multi-tenant context
+- Multi-factor authentication for admin accounts
+- Role-based access control (RBAC) with tenant isolation
+- Multi-tenant data isolation with row-level security
+- Tenant-aware database queries with automatic tenant_id injection
+- Cross-tenant boundary validation and access prevention
+- API rate limiting and throttling per tenant
 - Input validation and sanitization
 - HTTPS everywhere with HSTS
+- Comprehensive audit trails for compliance
+- Real-time fraud detection and monitoring
+- Security vulnerability scanning and prevention
 
 ## Scalability Considerations (Optimized)
 - **Modular monolith** with clear module boundaries for future microservices split

@@ -1,4 +1,6 @@
-# User Flows for Testing
+# Hexagonal E-commerce SaaS - User Flows for Testing
+
+📋 **Documentation Navigation**: [📖 Project Home](../README.md) | [🏗️ Architecture](./ARCHITECTURE.md) | [🚀 Features](./FEATURES.md) | [📡 API Reference](./API_REFERENCE.md)
 
 This document outlines all user flows in the system to help plan comprehensive testing coverage.
 
@@ -7,19 +9,30 @@ This document outlines all user flows in the system to help plan comprehensive t
 ### Platform Admin Authentication
 - [ ] **Admin Login**: Email/password → JWT token → Platform admin dashboard
 - [ ] **Admin Password Reset**: Request reset → Email verification → New password → Login
-- [ ] **Admin Logout**: Clear session → Redirect to login
+- [ ] **Admin Logout**: Clear JWT token → Redirect to login
 
-### Tenant Authentication  
+### Platform Admin Management
+- [ ] **Admin Profile Update**: Modify profile → Validation → Save changes
+- [ ] **Admin User Management**: Create/edit admin users → Role assignment → Permission matrix → Account status management
+- [ ] **Platform Configuration**: System-wide settings → Feature toggles → Maintenance schedules → Global policies
+- [ ] **Tenant Oversight**: Tenant list management → Status monitoring → Manual suspend/activate → Bulk tenant operations (suspend/activate/migrate)
+
+### Tenant Authentication
 - [ ] **Tenant Login**: Email/password → JWT token → Tenant dashboard access
 - [ ] **Tenant Password Reset**: Request reset → Email verification → New password → Login
+- [ ] **Tenant Logout**: Clear JWT token → Redirect to login
 - [ ] **Tenant Profile Update**: Modify profile → Validation → Save changes
 
 ### Customer Authentication
-- [ ] **Customer Registration**: Email/password → Email verification → Profile setup
+- [ ] **Customer Registration**: Email/phone → Email/SMS verification → Profile setup
 - [ ] **Customer Login**: Email/password → JWT token → Storefront access
+- [ ] **Customer Password Reset**: Request reset → Email verification → New password → Login
+- [ ] **Customer Logout**: Clear JWT token → Redirect to storefront
+- [ ] **Mobile Number Verification**: Phone input → OTP generation → SMS delivery → Code verification → Account activation
 
 ### Guest Access
-- [ ] **Guest Checkout**: No account required → Guest session → Cart & Checkout process (see Section 5) → Order creation → Order completion
+- [ ] **Guest Checkout**: No account required → Anonymous session token → Cart & Checkout process → Order creation → Order completion
+- [ ] **Guest to Customer Conversion**: Guest order completion → Account creation prompt → Profile setup → Order history migration
 
 ## 2. Security & Access Control Flows
 
@@ -32,54 +45,85 @@ This document outlines all user flows in the system to help plan comprehensive t
 ### Security Monitoring
 - [ ] **Fraud Detection**: Suspicious activity → Pattern analysis → Risk assessment → Account flag/suspension
 - [ ] **Login Monitoring**: Login attempts → IP tracking → Unusual location detection → Security alert
-- [ ] **Session Management**: Login → Session token → Activity tracking → Session cleanup → Auto logout notification
-- [ ] **API Rate Limiting**: Request monitoring → Rate threshold check → Limit enforcement → Temporary blocking
+- [ ] **JWT Token Management**: Login → JWT token generation → Token validation → Token refresh → Expiry handling
 - [ ] **Security Vulnerability Scanning**: SQL injection detection → XSS prevention → Input validation → Security alert
+
+### API Security & Management
+- [ ] **API Key Management**: Key generation → Tenant assignment → Usage tracking → Key rotation → Revocation
+- [ ] **API Rate Limiting**: Request monitoring → Rate threshold check → Limit enforcement → Temporary blocking
+
+### Multi-tenant Security
+- [ ] **Tenant Data Isolation Validation**: Database query execution → Tenant_id filter verification → Access control validation → Query result scoping
+- [ ] **Cross-tenant Security Testing**: Data access attempt → Tenant boundary validation → Unauthorized access prevention → Security violation logging
+- [ ] **API Response Tenant Scoping**: API request processing → Tenant_id validation → Response data filtering → Tenant-specific data only
+- [ ] **Database Query Tenant Filtering**: Query execution → Automatic tenant_id injection → Data isolation verification → Cross-tenant access prevention
+- [ ] **File Upload Tenant Segregation**: File upload → Tenant folder creation → Access permission setting → Cross-tenant file access prevention
+- [ ] **Cache Key Tenant Isolation**: Cache operations → Tenant-specific key generation → Cache data isolation → Cross-tenant cache access prevention
 
 ### Data Protection & Compliance
 - [ ] **Data Backup**: Scheduled backup → Data verification → Secure storage → Recovery testing
-- [ ] **GDPR Compliance**: Data deletion request → Identity verification → Data removal → Confirmation notification
 - [ ] **Data Export**: Tenant data request → Data compilation → Secure export → Download provision
 - [ ] **Audit Trail**: System events → Log generation → Secure storage → Compliance reporting
 
 ## 3. Tenant & Store Management Flows
 
 ### Tenant Onboarding
-- [ ] **Tenant Registration**: Email/password → Email verification → Company details → Subdomain selection → Plan selection → Payment processing → SSLCommerz payment → Account activation
+- [ ] **Tenant Registration**: Email/password → Email verification → Company details → Subdomain creation → Subdomain availability check → Plan selection → Payment processing → SSLCommerz payment → Pending approval status
+- [ ] **Subdomain Setup**: DNS configuration → SSL certificate generation → Subdomain activation
+- [ ] **Tenant Onboarding Approval**: Admin review → Approval/rejection → Account activation → Trigger notification system (Section 8)
 - [ ] **Tenant Setup**: Store configuration → Product categories → Payment methods → Store customization
 - [ ] **Custom Domain Configuration**: Custom domain setup → DNS configuration → DNS propagation wait (24-48 hours) → Domain verification → SSL certificate generation → Domain activation
-- [ ] **Subdomain Setup**: Subdomain creation → Instant DNS configuration → SSL certificate generation → Subdomain activation
+- [ ] **Tenant Trial Management**: Trial activation → Usage tracking → Trial expiry monitoring → Conversion prompts → Plan upgrade
 
 ### Tenant Subscription Management
-- [ ] **Plan Upgrade**: Current plan → Available upgrades → SSLCommerz payment → Plan activation
-- [ ] **Plan Downgrade**: Current plan → Downgrade options → Confirmation → Plan change
-- [ ] **Subscription Renewal**: Renewal reminder → Manual payment → SSLCommerz processing → Plan extension → Notification
-- [ ] **Subscription Cancellation**: Cancellation request → Confirmation → Account deactivation
-- [ ] **Plan Limit Monitoring**: Track usage → Compare with limits → Notify on threshold → Restrict access
-- [ ] **Usage Monitoring**: Track storage, products, API calls → Generate usage reports → Plan enforcement
+- [ ] **Plan Upgrade**: Current plan → Available upgrades → SSLCommerz payment → Plan activation → Trigger notification system (Section 8)
+- [ ] **Plan Downgrade**: Current plan → Downgrade options → Confirmation → Plan change → Trigger notification system (Section 8)
+- [ ] **Subscription Renewal**: Renewal reminder → Manual payment → SSLCommerz processing → Plan extension → Trigger notification system (Section 8)
+- [ ] **Subscription Cancellation**: Cancellation request → Confirmation → Account deactivation → Trigger notification system (Section 8)
+- [ ] **Plan Limit Monitoring**: Track usage → Compare with limits → Notify on threshold → Restrict access → Generate usage reports → Plan enforcement
 
 ### Tenant Status Management
-- [ ] **Tenant Activation**: Inactive tenant → Activation process → Active status
-- [ ] **Tenant Suspension**: Active tenant → Suspension reason → Suspended status
-- [ ] **Tenant Deactivation**: Active tenant → Deactivation process → Inactive status
+- [ ] **Tenant Activation**: Inactive tenant → Activation process → Active status → Trigger notification system (Section 8)
+- [ ] **Tenant Suspension**: Active tenant → Suspension reason → Suspended status → Trigger notification system (Section 8)
+- [ ] **Tenant Deactivation**: Active tenant → Deactivation process → Inactive status → Trigger notification system (Section 8)
+- [ ] **Tenant Data Retention**: Tenant deactivation → Data retention policy → Backup creation → Scheduled deletion → Data purge confirmation
+
+### Tenant Resource Management
+- [ ] **Shared Resource Management**: Image storage → CDN distribution → Tenant-specific access → Resource optimization
+- [ ] **Tenant Configuration Validation**: Configuration changes → Tenant_id scoping → Setting validation → Cross-tenant conflict prevention
+- [ ] **Tenant Migration**: Data export → Migration package → Target environment setup → Data import → Tenant_id remapping → Verification
+- [ ] **Platform Feature Flags**: Feature definition → Tenant-specific enablement → Real-time toggle control → Usage tracking
 
 ## 4. Product Management Flows
 
+### Product Categories & Setup
+- [ ] **Category Management**: Create categories → Assign products → Category hierarchy
+- [ ] **Product Tags Management**: Create/assign tags → Product keyword tagging → Search optimization → Tag-based filtering
+- [ ] **Variant Management**: Add/edit variants (size, color) → Price/stock per variant → Save
+
 ### Product CRUD Operations
 - [ ] **Product Creation**: Product details → Images upload → Categories → Variants → Stock → Publish
-- [ ] **Product Update**: Edit product → Modify details/images → Update stock → Save changes
+- [ ] **Product Update**: Edit product → Modify details/images → Save changes
 - [ ] **Product Deletion**: Select product → Confirmation → Remove from catalog
 - [ ] **Product Import**: CSV/Excel upload → Data validation → Bulk product creation
 - [ ] **Product Export**: Select products → Generate export → Download file
+- [ ] **Bulk Product Status Change**: Select multiple products → Status change (active/inactive) → Confirmation → Mass update
+- [ ] **Product Image Optimization**: Image upload → Multi-resolution generation → Format optimization → CDN distribution → Device-specific delivery
+- [ ] **Product SEO Management**: Meta title/description → URL slug → Keywords → Schema markup → Search optimization
+- [ ] **Product Tags Management**: Create/assign tags → Product keyword tagging → Search optimization → Tag-based filtering → Popular tags tracking
 
 ### Product Stock Management
 - [ ] **Stock Update**: Product selection → Stock field modification → Save changes
-- [ ] **Low Stock Alerts**: Product stock threshold reached → Alert generation → Tenant notification → Manual restock action → Optional threshold adjustment
+- [ ] **Stock Reservation**: Cart item addition → Temporary stock reserve → Timeout/checkout completion → Stock release/deduction
+- [ ] **Inventory Synchronization**: Reserved stock tracking → Actual stock validation → Discrepancy detection → Stock correction → Audit trail
+- [ ] **Product Availability Checks**: Inventory verification → Tenant-specific stock validation → Cross-tenant boundary check → Availability status update
 
-### Product Variants & Categories
-- [ ] **Variant Management**: Add/edit variants (size, color) → Price/stock per variant → Save
-- [ ] **Category Management**: Create categories → Assign products → Category hierarchy
-- [ ] **Product Search**: Search query → Results display → Filter application → Sort options
+### Product Discovery & Search
+- [ ] **Product Search**: Search query → Multiple filters (price, brand, category, tags) → Sort options → Results display → Search analytics tracking
+- [ ] **Category Browsing**: Category selection → Product listing → Pagination → Filter application
+- [ ] **Search Autocomplete**: Search input → Real-time suggestions → Search term completion → Result selection
+- [ ] **Product Comparison**: Select products → Feature comparison → Side-by-side display → Add to cart option
+- [ ] **Recently Viewed Products**: Product view tracking → Session storage → Display recent items → Quick re-access
 
 ## 5. Order Management Flows
 
@@ -87,26 +131,40 @@ This document outlines all user flows in the system to help plan comprehensive t
 - [ ] **Add to Cart**: Product selection → Variant selection → Stock validation → Add to cart → Cart update
 - [ ] **Cart Management**: View cart → Update quantities → Remove items → Calculate totals → Save cart state
 - [ ] **Cart Validation**: Cart review → Stock verification → Price validation → Invalid item removal → Proceed to checkout
+- [ ] **Coupon Application**: Coupon code entry → Code verification → Eligibility check → Usage limit validation → Discount application → Cart update
+- [ ] **Shipping Calculation**: Address input → Shipping options → Cost calculation → Selection
 - [ ] **Checkout Process**: Cart validation → Address selection/validation → Shipping calculation → Payment method → Payment success → Order creation → Order confirmation
-- [ ] **Guest Cart**: Anonymous cart → Session management → Cart persistence → Checkout conversion
+- [ ] **Guest Cart**: Anonymous cart → Tenant context validation → Anonymous session token → Cart persistence → Checkout conversion
+- [ ] **Cart Abandonment Recovery**: Cart items left → Timer trigger → Email reminder → Recovery link → Conversion tracking
 
 ### Order Processing
-- [ ] **Order Update**: Modify order details → Update status → Customer notification
+- [ ] **Order Update**: Modify order details → Update status → Trigger notification system (Section 8)
+- [ ] **Customer Order Modification**: Order edit request → Modification window check → Availability validation → Price adjustment → Payment handling → Order update
 - [ ] **Order Fulfillment**: Order confirmation → Inventory validation → Stock deduction from reserved inventory → Shipping arrangement → Delivery tracking → Completion
-- [ ] **Order Cancellation**: Cancel request → Refund processing → Stock restore → Notification
+- [ ] **Partial Order Fulfillment**: Item availability check → Split shipment → Partial stock deduction → Multiple tracking numbers → Status updates
+- [ ] **Order Cancellation (Admin)**: Cancel request → Refund processing → Stock restore → Trigger notification system (Section 8)
+- [ ] **Customer Order Cancellation**: Customer cancel request → Cancellation window check → Admin approval → Refund processing → Stock restore → Trigger notification system (Section 8)
+- [ ] **Order Dispute Resolution**: Dispute creation → Evidence collection → Admin review → Resolution decision → Action execution → Trigger notification system (Section 8)
+- [ ] **Bulk Order Processing**: Multiple orders → Batch status update → Bulk shipping labels → Trigger notification system (Section 8) → Processing status display
 
 ### Order Status Tracking
-- [ ] **Status Updates**: Order status change → Database update → Customer notification
+- [ ] **Status Updates**: Order status change → Database update → Trigger notification system (Section 8)
+- [ ] **Order Status Transition Rules**: Current status validation → Allowed transition check → Business rule validation → Status change authorization
 - [ ] **Delivery Tracking**: Order fulfillment → Tracking number → Status updates → Delivery confirmation
 - [ ] **Order History**: Customer order lookup → Filter/search → Display results
+- [ ] **Third-party Courier Integration**: Courier selection → API setup → Order handoff → Real-time tracking → Status synchronization
+- [ ] **Tracking Number Generation**: Order shipment → Courier API call → Tracking number retrieval → Trigger notification system (Section 8) → Tracking page creation
+- [ ] **Delivery Status Webhooks**: Courier status update → Webhook reception → Order status update → Trigger notification system (Section 8)
 
 ## 6. Payment & Billing Flows
 
 ### Customer Order Payments
 - [ ] **SSLCommerz Payment**: Order total → SSLCommerz gateway → Payment processing → Confirmation
 - [ ] **Cash on Delivery**: Order creation → COD selection → Order confirmation → Delivery payment
+- [ ] **Cash Payment Verification**: COD delivery → Payment collection → Amount verification → Payment confirmation → Order completion
 - [ ] **Payment Webhooks**: SSLCommerz notification → Duplicate check → Payment verification → Order update → Acknowledgment
-- [ ] **Refund Processing**: Refund request → SSLCommerz refund → Execution → Notification
+- [ ] **Refund Processing**: Refund request → SSLCommerz refund → Execution → Trigger notification system (Section 8)
+- [ ] **Failed Transaction Cleanup**: Transaction failure detection → Partial data cleanup → Stock restoration → Payment reversal → Error logging
 
 ### Subscription & Billing
 - [ ] **Plan Subscription**: Plan selection → SSLCommerz payment → Subscription activation → Access granted
@@ -119,8 +177,15 @@ This document outlines all user flows in the system to help plan comprehensive t
 ### Payment Management
 - [ ] **Payment Reports**: Transaction data → Report generation → Export functionality
 - [ ] **Billing History**: View invoices → Download receipts → Payment status tracking
+- [ ] **Tenant Billing Aggregation**: Multi-store billing → Consolidated invoicing → Payment allocation → Cross-tenant billing reports
 
-## 7. Customer Address Management Flows
+## 7. Customer Management Flows
+
+### Customer Profile Management
+- [ ] **Customer Profile Update**: Modify personal details → Validation → Save changes → Email confirmation
+- [ ] **Customer Preferences**: Set communication preferences → Marketing opt-in/out → Language selection → Save settings
+- [ ] **Customer Account Deactivation**: Deactivation request → Data export option → Account closure confirmation → Data retention handling
+- [ ] **Customer Data Export**: Data request → Identity verification → Data compilation → Export generation → Secure download
 
 ### Customer Address Management
 - [ ] **Add Address**: Enter address details → Validate address → Save as shipping/billing
@@ -130,22 +195,32 @@ This document outlines all user flows in the system to help plan comprehensive t
 
 ## 8. Notification Management Flows
 
-- [ ] **Order Notifications**: Order events → Email/SMS generation → Customer notification
+### System Notifications
+- [ ] **Order Email Notifications**: Order events → Email generation → Customer notification
+- [ ] **Order SMS Notifications**: Order status changes → SMS generation → Customer mobile notification → Delivery confirmation
 - [ ] **Account Notifications**: Account changes → Email generation → User notification
 - [ ] **System Alerts**: Critical events → Alert generation → Admin notification
 - [ ] **Plan Limit Alerts**: Usage threshold reached → Alert generation → Tenant notification
 - [ ] **Payment Alerts**: Payment issues → Alert generation → Admin notification
+- [ ] **Low Stock Alerts**: Product stock threshold reached → Alert generation → Tenant notification → Manual restock action → Optional threshold adjustment
+
+### Email Template Management
+- [ ] **Template Creation**: Create email templates → Subject/body design → Variable insertion → Preview → Save
+- [ ] **Template Customization**: Tenant-specific templates → Brand customization → Logo/colors → Content modification → Activation
+- [ ] **Template Testing**: Send test emails → Delivery verification → Format validation → Performance tracking
 
 ## 9. Analytics & Reporting Flows
 
 ### Sales Analytics
+- [ ] **Simple Analytics Dashboard**: Order count → Sales total → Top products → Customer metrics → Real-time overview
 - [ ] **Sales Reports**: Date range selection → Data aggregation → Report generation → Export
 - [ ] **Product Analytics**: Product performance → Metrics calculation → Dashboard display
 - [ ] **Customer Analytics**: Customer behavior → Analysis → Insights generation
+- [ ] **Search Analytics**: Search queries → Popular terms tracking → No-result queries → Search performance metrics → Store optimization insights
+- [ ] **Cross-tenant Platform Analytics**: Platform-wide metrics → Usage patterns → Revenue analytics → Platform insights
 
 ### System Monitoring
 - [ ] **System Health**: Performance metrics → Monitoring dashboard → Alert generation
-- [ ] **Usage Analytics**: Tenant usage → Metrics collection → Reporting
 - [ ] **Error Tracking**: System errors → Error logging → Admin notification → Issue assignment → Resolution → Status update
 
 ### Error Handling & Recovery
@@ -163,14 +238,17 @@ This document outlines all user flows in the system to help plan comprehensive t
 - [ ] **Shipping Settings**: Shipping zones → Rates configuration → Carrier integration
 - [ ] **Carrier Integration**: Carrier selection → API setup → Rate configuration → Testing → Activation
 - [ ] **Theme Customization**: Theme selection → Color/font customization → Logo upload → Save
+- [ ] **Store Maintenance Mode**: Maintenance toggle → Trigger notification system (Section 8) → Store closure → Maintenance message → Reactivation
+
+### Marketing & Promotions
+- [ ] **Coupon Management**: Create coupon codes → Set discount rules (percentage/fixed) → Usage limits → Expiry dates → Activation → Usage tracking
+- [ ] **Bulk Coupon Creation**: CSV upload → Coupon generation → Validation → Activation → Distribution
+- [ ] **Promotion Campaigns**: Campaign creation → Target audience → Discount rules → Schedule → Performance tracking
 
 ### Tenant Staff Management
 - [ ] **Tenant Staff Creation**: User details → Role assignment → Account activation → Login credentials
 - [ ] **Role Management**: Role definition → Permission assignment → User assignment
 - [ ] **User Permissions**: Permission matrix → Role-based access → Access control
-
-### Additional Settings
-- [ ] **Discount Management**: Create discount codes → Set rules → Activation → Usage tracking
 
 ## 11. Additional E-commerce Flows
 
@@ -182,13 +260,9 @@ This document outlines all user flows in the system to help plan comprehensive t
 - [ ] **Product Reviews**: Purchase verification → Review submission → Moderation → Display
 - [ ] **Review Management**: View reviews → Moderate content → Respond to reviews
 
-### Shipping & Returns
-- [ ] **Shipping Calculation**: Address input → Shipping options → Cost calculation → Selection
-- [ ] **Return Request**: Return initiation → Reason selection → Return approval → Refund processing (see line 108: Refund Processing)
+### Order Documentation & Returns
 - [ ] **Order Invoice**: Generate invoice → PDF creation → Email to customer → Download option
-
-### Search & Filtering
-- [ ] **Category Browsing**: Category selection → Product listing → Pagination → Filter application
+- [ ] **Return Request**: Return initiation → Reason selection → Return approval → Refund processing → SSLCommerz refund → Trigger notification system (Section 8)
 
 ## 12. Webhook Management Flows
 
@@ -198,18 +272,19 @@ This document outlines all user flows in the system to help plan comprehensive t
 - [ ] **Webhook Monitoring**: Delivery tracking → Failed deliveries → Retry mechanism
 
 ### Webhook Deliveries
-- [ ] **Shipping Webhooks**: Delivery partner events → Status updates → Customer notification
+- [ ] **Shipping Webhooks**: Delivery partner events → Status updates → Trigger notification system (Section 8)
 - [ ] **Custom Webhooks**: System events → Custom endpoint delivery → Response handling
 
 ### API Security & Management
 - [ ] **API Key Management**: Key generation → Tenant assignment → Usage tracking → Key rotation → Revocation
+- [ ] **API Rate Limiting**: Request monitoring → Rate threshold check → Limit enforcement → Temporary blocking
 - [ ] **Webhook Security**: Webhook payload → Signature generation → Delivery → Signature verification → Response validation
 - [ ] **Third-party Integration**: Integration setup → Authentication → API testing → Activation → Monitoring
 
 ## 13. Contact & Support Flows
 
 ### Customer Support
-- [ ] **Contact Form**: Customer inquiry → Form submission → Tenant admin notification → Response
+- [ ] **Contact Form**: Customer inquiry → Form submission → Trigger notification system (Section 8) → Tenant admin response → Customer follow-up
 - [ ] **Support Ticket**: Issue creation → Ticket assignment → Resolution → Closure
 - [ ] **FAQ Management**: FAQ creation → Categorization → Public display
 
@@ -217,22 +292,23 @@ This document outlines all user flows in the system to help plan comprehensive t
 
 ### Critical (Must Test) - 🔴
 - Authentication & Authorization Flows
-- Security & Access Control Flows (including Data Protection & Compliance)
+- Security & Access Control Flows (including Multi-tenant Security & Data Protection)
 - Order Management Flows (including Cart & Checkout validation)
 - Payment & Billing Flows (including error handling)
 - Tenant & Store Management Flows
+- Customer Management Flows
 
-### Important (Should Test) - 🟡  
+### Important (Should Test) - 🟡
 - Product Management Flows
-- Customer Address Management Flows
 - Notification Management Flows
 - Settings & Configuration Flows
 - Error Handling & Recovery Flows
+- Simple Analytics Dashboard
 
 ### Nice to Have (Could Test) - 🟢
-- Analytics & Reporting Flows
+- Advanced Analytics & Reporting Flows
 - Webhook Management Flows (including API Security)
-- Additional E-commerce Flows
+- Additional E-commerce Flows (Wishlist, Reviews, Returns)
 - Contact & Support Flows
 
 ## Test Coverage Goals

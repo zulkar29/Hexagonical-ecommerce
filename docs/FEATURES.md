@@ -1,4 +1,6 @@
-# E-commerce SaaS Platform Features
+# Hexagonal E-commerce SaaS Platform Features
+
+📋 **Documentation Navigation**: [📖 Project Home](../README.md) | [🏗️ Architecture](./ARCHITECTURE.md) | [📋 Roadmap](./ROADMAP.md) | [💰 Business Analysis](./PROFIT_ANALYSIS.md)
 
 ## Core Platform Features
 
@@ -47,12 +49,14 @@
 - **Social Commerce**: Facebook/Instagram integration, WhatsApp catalog
 - **Referral Program**: Partner management with Bengali interface
 - **Local Marketing**: Regional promotions, family discount programs
+- **Comprehensive Notification System**: Order status updates, payment alerts, system notifications via email/SMS
+- **Template Management**: Customizable email/SMS templates with tenant branding
 
 ### Analytics & Reporting
 - **Sales Reports**: Revenue, orders, top products
 - **Basic Customer Analytics**: Acquisition, retention, lifetime value
 - **Traffic Analytics**: Page views, conversion rates
-- **Financial Reports**: Profit/loss, tax reports
+- **Financial Reports**: Profit/loss statements
 - **Export Data**: CSV/PDF export capabilities
 
 ## Customer Storefront Features
@@ -67,11 +71,13 @@
 
 ### Checkout & Payments
 - **Guest Checkout**: No account required option
-- **Multiple Payment Methods**: Credit cards, PayPal, Apple Pay, Google Pay
+- **SSLCommerz Integration**: Local payment gateway for Bangladesh market
+- **Cash on Delivery**: Payment collection on delivery with verification
 - **Secure Checkout**: SSL encryption, PCI compliance
-- **Tax Calculation**: Automatic tax calculation by location
 - **Shipping Calculator**: Real-time shipping rates
-- **Multi-Currency**: Support for international customers
+- **Multi-Currency**: Support for international customers (BDT primary)
+- **Payment Verification**: Automated payment confirmation and order processing
+- **Refund Processing**: Automated refund through SSLCommerz gateway
 
 ### Customer Account
 - **Account Dashboard**: Order history, addresses, preferences
@@ -86,7 +92,6 @@
 - **Multi-Language**: Localization support
 - **Multi-Currency**: Dynamic currency conversion
 - **International Shipping**: Global shipping rate calculation
-- **Tax Compliance**: VAT, GST handling by region
 - **Legal Compliance**: GDPR, CCPA data protection
 
 ### B2B Capabilities
@@ -97,8 +102,8 @@
 - **Purchase Orders**: B2B payment terms
 
 ### Integration Ecosystem
-- **Payment Gateways**: Stripe, PayPal, Square, Razorpay
-- **Shipping Providers**: FedEx, UPS, DHL, local couriers
+- **Payment Gateways**: SSLCommerz (primary), PayPal/others (international fallback)
+- **Shipping Providers**: Pathao, Steadfast, RedX, FedEx, UPS, DHL
 - **Accounting Software**: QuickBooks, Xero integration
 - **Email Marketing Platforms**: Mailchimp, Klaviyo, SendGrid integration
 - **Analytics**: Google Analytics, Facebook Pixel
@@ -148,7 +153,9 @@
 - Unlimited storage
 - Full API access
 - Advanced integrations
-- Dedicated database
+- Priority database performance (shared DB with optimized queries)
+- Custom development support
+- Priority feature requests
 
 ## AI-Powered Features
 
@@ -201,7 +208,6 @@
 - **Advanced Reviews & Ratings**: AI-moderated review management system
 - **Q&A Platform**: Customer questions and merchant answers
 - **User-Generated Content**: Customer photo/video submissions
-- **Loyalty Community**: Gamified customer engagement
 - **Advanced Referral Program**: Automated customer referral system
 
 ## Advanced Shipping & Logistics
@@ -216,7 +222,6 @@
 ### International Expansion
 - **Auto Currency Conversion**: Real-time exchange rate updates
 - **Multi-Language AI Translation**: Automated store translations
-- **Global Tax Calculation**: Automatic international tax handling
 - **Customs Documentation**: Auto-generate shipping documents
 - **Regional Compliance**: Automatic adherence to local regulations
 
@@ -229,11 +234,14 @@
 ## Security & Compliance
 
 ### Security Features
+- **Multi-tenant Data Isolation**: Comprehensive tenant boundary enforcement
 - **Basic Fraud Detection**: Rule-based fraud prevention
-- **Standard Authentication**: Two-factor authentication
+- **Standard Authentication**: Two-factor authentication with JWT tokens
 - **Data Encryption**: Standard SSL/TLS encryption
 - **Compliance**: Basic GDPR, CCPA compliance tools
-- **Security Monitoring**: Standard security logging
+- **Security Monitoring**: Standard security logging with audit trails
+- **Cross-tenant Security**: Automatic tenant context validation and boundary protection
+- **Database Security**: Row-level security policies and tenant-aware queries
 
 ## Developer & Integration Features
 

@@ -63,7 +63,6 @@ const getOrderData = (order) => {
     total: order.final_price || order.total,
     subtotal: order.total_price || order.subtotal,
     discount: order.discount_amount || order.discount || 0,
-    tax: order.tax || 0,
     shipping_cost: order.shipping_cost || 0,
     payment_status: order.payment_status || 'pending',
     // Mock shipping data structure until we have it in backend
@@ -347,10 +346,6 @@ export default function OrderDetails() {
             </div>
           ` : ''}
           <div class="total-row">
-            <span>Tax:</span>
-            <span>${formatCurrency(order.tax)}</span>
-          </div>
-          <div class="total-row">
             <span>Shipping:</span>
             <span>${formatCurrency(order.shipping_cost)}</span>
           </div>
@@ -580,10 +575,6 @@ export default function OrderDetails() {
                     <span>-{formatCurrency(order.discount)}</span>
                   </div>
                 )}
-                <div className="flex justify-between">
-                  <span>Tax:</span>
-                  <span>{formatCurrency(order.tax)}</span>
-                </div>
                 <div className="flex justify-between">
                   <span>Shipping:</span>
                   <span>{formatCurrency(order.shipping_cost)}</span>

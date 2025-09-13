@@ -54,7 +54,6 @@ const CreateOrder = () => {
   const [orderSummary, setOrderSummary] = useState({
     subtotal: 0,
     discount: 0,
-    tax: 0,
     shipping: 0,
     total: 0
   });
@@ -106,14 +105,12 @@ const CreateOrder = () => {
         (subtotal * appliedCoupon.value / 100) : 
         Math.min(appliedCoupon.value, subtotal)
       ) : 0;
-    const tax = (subtotal - discount) * 0.08; // 8% tax rate
     const shipping = subtotal > 100 ? 0 : 15; // Free shipping over $100
-    const total = subtotal - discount + tax + shipping;
+    const total = subtotal - discount + shipping;
 
     setOrderSummary({
       subtotal: subtotal,
       discount: discount,
-      tax: tax,
       shipping: shipping,
       total: total
     });

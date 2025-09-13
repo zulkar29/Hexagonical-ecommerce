@@ -1,10 +1,16 @@
 # Deployment Guide - Hexagonal E-commerce SaaS Platform
 
+📋 **Documentation Navigation**: [📖 Project Home](../README.md) | [🏗️ Architecture](./ARCHITECTURE.md) | [🐳 Docker Setup](./README-DOCKER.md) | [🚀 Features](./FEATURES.md)
+
 This guide covers deploying the multi-tenant hexagonal e-commerce SaaS platform on a single VPS with Docker, supporting subdomain and custom domain routing for unlimited tenants.
 
 ## 🏗️ Hexagonal Architecture Overview
 
-### System Architecture (Clean Architecture + Multi-tenancy)
+**Architecture Clarification**:
+- **"Hexagonal"** = Hexagonal Architecture pattern (Clean Architecture)
+- **Multi-tenancy** = Shared database with `tenant_id` isolation strategy
+
+### System Architecture (Hexagonal Pattern + Multi-tenant Database)
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                  SINGLE VPS DEPLOYMENT                     │
@@ -49,7 +55,7 @@ This guide covers deploying the multi-tenant hexagonal e-commerce SaaS platform 
 │  │  Secondary Adapters (Output)                           │
 │  │  ├── PostgreSQL Repository (GORM)                      │
 │  │  ├── Redis Cache Adapter                               │
-│  │  ├── Payment Gateways (Stripe, bKash, Nagad)          │
+│  │  ├── Payment Gateways (SSLCommerz primary, others)    │
 │  │  ├── Email Service (SMTP)                              │
 │  │  └── File Storage (S3 Compatible)                      │
 │  └─────────────────────────────────────────────────────────┘
@@ -208,10 +214,9 @@ JWT_SECRET=your-256-bit-jwt-secret-key
 ENCRYPTION_KEY=your-32-byte-encryption-key
 
 # Payment Gateways
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_PUBLISHABLE_KEY=pk_live_...
-BKASH_APP_KEY=your-bkash-app-key
-BKASH_APP_SECRET=your-bkash-app-secret
+SSLCOMMERZ_STORE_ID=your-sslcommerz-store-id
+SSLCOMMERZ_STORE_PASSWD=your-sslcommerz-store-password
+SSLCOMMERZ_SANDBOX=true  # Set to false for production
 
 # Email Configuration
 SMTP_HOST=smtp.gmail.com
@@ -695,7 +700,7 @@ Password: [generated during first run]
 **Platform Settings:**
 - Set company name and branding
 - Configure subscription plans (Starter, Pro, Enterprise)
-- Set up payment gateways (Stripe, bKash, Nagad)
+- Set up payment gateways (SSLCommerz primary for Bangladesh market)
 - Configure email templates
 
 **Domain Settings:**
@@ -759,9 +764,10 @@ curl -X POST https://yourdomain.com/api/v1/admin/tenants \
 ```
 
 **Payment Gateway Integration:**
-- **Stripe**: International customers (credit cards)
-- **bKash**: Bangladesh mobile banking (40% market share)
+- **SSLCommerz**: Primary payment gateway for Bangladesh (cards, banking)
+- **bKash**: Bangladesh mobile banking (40% market share)  
 - **Nagad**: Bangladesh mobile banking (25% market share)
+- **Cash on Delivery**: COD payment method with verification
 
 ### 6. Monitoring Your SaaS
 
