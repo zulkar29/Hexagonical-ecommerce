@@ -13,22 +13,22 @@ type Repository interface {
 	Delete(tenantID, notificationID uuid.UUID) error
 	List(tenantID uuid.UUID, userID *uuid.UUID, offset, limit int) ([]*Notification, int64, error)
 	ListByStatus(tenantID uuid.UUID, status string, offset, limit int) ([]*Notification, int64, error)
-	
+
 	// Template operations
 	CreateTemplate(template *NotificationTemplate) error
 	GetTemplate(tenantID, templateID uuid.UUID) (*NotificationTemplate, error)
 	UpdateTemplate(template *NotificationTemplate) error
 	DeleteTemplate(tenantID, templateID uuid.UUID) error
 	ListTemplates(tenantID uuid.UUID, notificationType, channel string) ([]*NotificationTemplate, error)
-	
+
 	// Preference operations
 	GetPreferences(tenantID, userID uuid.UUID) (*NotificationPreference, error)
 	UpdatePreferences(preference *NotificationPreference) error
-	
+
 	// Log operations
 	CreateLog(log *NotificationLog) error
 	GetLogs(notificationID uuid.UUID) ([]*NotificationLog, error)
-	
+
 	// Stats operations
 	GetNotificationStats(tenantID uuid.UUID) (map[string]int64, error)
 }
@@ -64,7 +64,7 @@ func (r *repository) List(tenantID uuid.UUID, userID *uuid.UUID, offset, limit i
 	var total int64
 
 	query := r.db.Model(&Notification{}).Where("tenant_id = ?", tenantID)
-	
+
 	if userID != nil {
 		query = query.Where("user_id = ?", *userID)
 	}
@@ -122,13 +122,13 @@ func (r *repository) DeleteTemplate(tenantID, templateID uuid.UUID) error {
 
 func (r *repository) ListTemplates(tenantID uuid.UUID, notificationType, channel string) ([]*NotificationTemplate, error) {
 	var templates []*NotificationTemplate
-	
+
 	query := r.db.Where("tenant_id = ? AND is_active = ?", tenantID, true)
-	
+
 	if notificationType != "" {
 		query = query.Where("type = ?", notificationType)
 	}
-	
+
 	if channel != "" {
 		query = query.Where("channel = ?", channel)
 	}
@@ -162,14 +162,14 @@ func (r *repository) GetLogs(notificationID uuid.UUID) ([]*NotificationLog, erro
 // Stats operations
 func (r *repository) GetNotificationStats(tenantID uuid.UUID) (map[string]int64, error) {
 	stats := make(map[string]int64)
-	
+
 	// Use temporary variables to avoid taking address of map index expressions
 	var total, sent, delivered, failed, email, sms, push, inApp int64
-	
+
 	// Total notifications
 	r.db.Model(&Notification{}).Where("tenant_id = ?", tenantID).Count(&total)
 	stats["total"] = total
-	
+
 	// By status
 	r.db.Model(&Notification{}).Where("tenant_id = ? AND status = ?", tenantID, StatusSent).Count(&sent)
 	stats["sent"] = sent
@@ -177,7 +177,7 @@ func (r *repository) GetNotificationStats(tenantID uuid.UUID) (map[string]int64,
 	stats["delivered"] = delivered
 	r.db.Model(&Notification{}).Where("tenant_id = ? AND status = ?", tenantID, StatusFailed).Count(&failed)
 	stats["failed"] = failed
-	
+
 	// By type
 	r.db.Model(&Notification{}).Where("tenant_id = ? AND type = ?", tenantID, TypeEmail).Count(&email)
 	stats["email"] = email
@@ -187,6 +187,6 @@ func (r *repository) GetNotificationStats(tenantID uuid.UUID) (map[string]int64,
 	stats["push"] = push
 	r.db.Model(&Notification{}).Where("tenant_id = ? AND type = ?", tenantID, TypeInApp).Count(&inApp)
 	stats["in_app"] = inApp
-	
+
 	return stats, nil
 }

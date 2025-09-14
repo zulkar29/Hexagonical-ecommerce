@@ -2,12 +2,12 @@ package database
 
 import (
 	"fmt"
+	"gorm.io/gorm"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
-	"gorm.io/gorm"
 )
 
 // RunMigrations executes all pending database migrations from files

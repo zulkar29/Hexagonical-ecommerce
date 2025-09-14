@@ -57,12 +57,12 @@ func (r *Repository) GetShippingZones(tenantID uuid.UUID) ([]ShippingZone, error
 
 func (r *Repository) GetShippingZonesForDestination(tenantID uuid.UUID, country, state, city string) ([]ShippingZone, error) {
 	var zones []ShippingZone
-	
+
 	// Subquery to find zone IDs that match the destination
 	subQuery := r.db.Model(&ShippingZoneCountry{}).
 		Select("zone_id").
 		Where("country = ?", country)
-	
+
 	if state != "" {
 		subQuery = subQuery.Where("states IS NULL OR states LIKE ?", "%"+state+"%")
 	}
@@ -168,17 +168,17 @@ func (r *Repository) GetShippingLabelsByOrder(tenantID, orderID uuid.UUID) ([]Sh
 func (r *Repository) GetShippingLabels(tenantID uuid.UUID, offset, limit int) ([]ShippingLabel, int64, error) {
 	var labels []ShippingLabel
 	var total int64
-	
+
 	// Get total count
 	r.db.Model(&ShippingLabel{}).Where("tenant_id = ?", tenantID).Count(&total)
-	
+
 	// Get paginated results
 	err := r.db.Where("tenant_id = ?", tenantID).
 		Order("created_at DESC").
 		Offset(offset).
 		Limit(limit).
 		Find(&labels).Error
-		
+
 	return labels, total, err
 }
 
@@ -216,14 +216,14 @@ func (r *Repository) CreateOrUpdateProvider(provider *ShippingProviderConfig) er
 	// First try to find existing provider
 	var existing ShippingProviderConfig
 	err := r.db.Where("tenant_id = ? AND provider = ?", provider.TenantID, provider.Provider).First(&existing).Error
-	
+
 	if err == gorm.ErrRecordNotFound {
 		// Create new provider
 		return r.db.Create(provider).Error
 	} else if err != nil {
 		return err
 	}
-	
+
 	// Update existing provider
 	existing.Name = provider.Name
 	existing.IsActive = provider.IsActive
@@ -231,7 +231,7 @@ func (r *Repository) CreateOrUpdateProvider(provider *ShippingProviderConfig) er
 	existing.APISecret = provider.APISecret
 	existing.SandboxMode = provider.SandboxMode
 	existing.Settings = provider.Settings
-	
+
 	return r.db.Save(&existing).Error
 }
 
@@ -264,13 +264,13 @@ func (r *Repository) GetActiveShippingProviders(tenantID uuid.UUID) ([]ShippingP
 
 func (r *Repository) GetShippingStats(tenantID uuid.UUID) (*ShippingStats, error) {
 	stats := &ShippingStats{}
-	
+
 	// Get basic label counts
 	r.db.Model(&ShippingLabel{}).Where("tenant_id = ?", tenantID).Count(&[]int64{int64(stats.TotalLabels)}[0])
 	r.db.Model(&ShippingLabel{}).Where("tenant_id = ? AND status NOT IN (?)", tenantID, []string{"cancelled", "delivered"}).Count(&[]int64{int64(stats.ActiveLabels)}[0])
 	r.db.Model(&ShippingLabel{}).Where("tenant_id = ? AND status = ?", tenantID, "delivered").Count(&[]int64{int64(stats.DeliveredLabels)}[0])
 	r.db.Model(&ShippingLabel{}).Where("tenant_id = ? AND status = ?", tenantID, "cancelled").Count(&[]int64{int64(stats.CancelledLabels)}[0])
-	
+
 	// Get total cost
 	var totalCostResult struct {
 		TotalCost float64 `json:"total_cost"`
@@ -280,7 +280,7 @@ func (r *Repository) GetShippingStats(tenantID uuid.UUID) (*ShippingStats, error
 		Select("SUM(cost) as total_cost").
 		Scan(&totalCostResult)
 	stats.TotalCost = totalCostResult.TotalCost
-	
+
 	// Get provider stats
 	var providerResults []struct {
 		Provider      string  `json:"provider"`
@@ -288,13 +288,13 @@ func (r *Repository) GetShippingStats(tenantID uuid.UUID) (*ShippingStats, error
 		DeliveredRate float64 `json:"delivered_rate"`
 		TotalCost     float64 `json:"total_cost"`
 	}
-	
+
 	r.db.Model(&ShippingLabel{}).
 		Where("tenant_id = ?", tenantID).
 		Select("provider, COUNT(*) as total_labels, AVG(CASE WHEN status = 'delivered' THEN 1.0 ELSE 0.0 END) as delivered_rate, SUM(cost) as total_cost").
 		Group("provider").
 		Scan(&providerResults)
-	
+
 	for _, result := range providerResults {
 		providerStat := ProviderStats{
 			Provider:      ShippingProvider(result.Provider),
@@ -304,7 +304,7 @@ func (r *Repository) GetShippingStats(tenantID uuid.UUID) (*ShippingStats, error
 		}
 		stats.ProviderStats = append(stats.ProviderStats, providerStat)
 	}
-	
+
 	// Get monthly stats for last 12 months
 	var monthlyResults []struct {
 		Month         string  `json:"month"`
@@ -312,14 +312,14 @@ func (r *Repository) GetShippingStats(tenantID uuid.UUID) (*ShippingStats, error
 		TotalCost     float64 `json:"total_cost"`
 		DeliveredRate float64 `json:"delivered_rate"`
 	}
-	
+
 	r.db.Model(&ShippingLabel{}).
 		Where("tenant_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)", tenantID).
 		Select("DATE_FORMAT(created_at, '%Y-%m') as month, COUNT(*) as total_labels, SUM(cost) as total_cost, AVG(CASE WHEN status = 'delivered' THEN 1.0 ELSE 0.0 END) as delivered_rate").
 		Group("DATE_FORMAT(created_at, '%Y-%m')").
 		Order("month DESC").
 		Scan(&monthlyResults)
-	
+
 	for _, result := range monthlyResults {
 		monthlyStat := MonthlyShippingStats{
 			Month:         result.Month,
@@ -329,7 +329,7 @@ func (r *Repository) GetShippingStats(tenantID uuid.UUID) (*ShippingStats, error
 		}
 		stats.MonthlyStats = append(stats.MonthlyStats, monthlyStat)
 	}
-	
+
 	return stats, nil
 }
 

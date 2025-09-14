@@ -17,36 +17,36 @@ type Repository interface {
 	Update(ctx context.Context, address *Address) error
 	Delete(ctx context.Context, tenantID, addressID uuid.UUID) error
 	List(ctx context.Context, tenantID uuid.UUID, filter AddressFilter, limit, offset int) ([]*Address, int64, error)
-	
+
 	// Customer address operations
 	GetCustomerAddresses(ctx context.Context, tenantID, customerID uuid.UUID) ([]*Address, error)
 	GetDefaultAddress(ctx context.Context, tenantID, customerID uuid.UUID, addressType string) (*Address, error)
 	SetDefaultAddress(ctx context.Context, tenantID, customerID, addressID uuid.UUID) error
 	UnsetDefaultAddresses(ctx context.Context, tenantID, customerID uuid.UUID, addressType string) error
-	
+
 	// Address validation operations
 	CreateValidation(ctx context.Context, validation *AddressValidation) error
 	GetValidation(ctx context.Context, tenantID, addressID uuid.UUID) (*AddressValidation, error)
 	GetValidationByID(ctx context.Context, tenantID, validationID uuid.UUID) (*AddressValidation, error)
 	UpdateValidation(ctx context.Context, validation *AddressValidation) error
 	ListValidations(ctx context.Context, tenantID uuid.UUID, limit, offset int) ([]*AddressValidation, int64, error)
-	
+
 	// Bulk operations
 	BulkCreate(ctx context.Context, addresses []*Address) error
 	BulkUpdate(ctx context.Context, addresses []*Address) error
 	BulkDelete(ctx context.Context, tenantID uuid.UUID, addressIDs []uuid.UUID) error
-	
+
 	// Validation and checks
 	ExistsByID(ctx context.Context, tenantID, addressID uuid.UUID) (bool, error)
 	CountCustomerAddresses(ctx context.Context, tenantID, customerID uuid.UUID) (int64, error)
 	HasDefaultAddress(ctx context.Context, tenantID, customerID uuid.UUID, addressType string) (bool, error)
-	
+
 	// Statistics and analytics
 	GetStats(ctx context.Context, tenantID uuid.UUID) (*AddressStats, error)
 	GetAddressesByCountry(ctx context.Context, tenantID uuid.UUID) (map[string]int64, error)
 	GetAddressesByType(ctx context.Context, tenantID uuid.UUID) (map[string]int64, error)
 	GetRecentAddresses(ctx context.Context, tenantID uuid.UUID, days int) ([]*Address, error)
-	
+
 	// Maintenance operations
 	CleanupUnvalidatedAddresses(ctx context.Context, tenantID uuid.UUID, days int) (int64, error)
 	CleanupOrphanedValidations(ctx context.Context, tenantID uuid.UUID) (int64, error)
@@ -80,14 +80,14 @@ func (r *GormRepository) GetByID(ctx context.Context, tenantID, addressID uuid.U
 	err := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND id = ?", tenantID, addressID).
 		First(&address).Error
-	
+
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrAddressNotFound
 		}
 		return nil, err
 	}
-	
+
 	return &address, nil
 }
 
@@ -96,15 +96,15 @@ func (r *GormRepository) Update(ctx context.Context, address *Address) error {
 	result := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND id = ?", address.TenantID, address.ID).
 		Updates(address)
-	
+
 	if result.Error != nil {
 		return result.Error
 	}
-	
+
 	if result.RowsAffected == 0 {
 		return ErrAddressNotFound
 	}
-	
+
 	return nil
 }
 
@@ -113,38 +113,38 @@ func (r *GormRepository) Delete(ctx context.Context, tenantID, addressID uuid.UU
 	result := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND id = ?", tenantID, addressID).
 		Delete(&Address{})
-	
+
 	if result.Error != nil {
 		return result.Error
 	}
-	
+
 	if result.RowsAffected == 0 {
 		return ErrAddressNotFound
 	}
-	
+
 	return nil
 }
 
 // List retrieves addresses with filtering and pagination
 func (r *GormRepository) List(ctx context.Context, tenantID uuid.UUID, filter AddressFilter, limit, offset int) ([]*Address, int64, error) {
 	query := r.db.WithContext(ctx).Where("tenant_id = ?", tenantID)
-	
+
 	// Apply filters
 	query = r.applyAddressFilters(query, filter)
-	
+
 	// Count total records
 	var total int64
 	if err := query.Model(&Address{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	
+
 	// Get paginated results
 	var addresses []*Address
 	err := query.Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).
 		Find(&addresses).Error
-	
+
 	return addresses, total, err
 }
 
@@ -157,7 +157,7 @@ func (r *GormRepository) GetCustomerAddresses(ctx context.Context, tenantID, cus
 		Where("tenant_id = ? AND customer_id = ?", tenantID, customerID).
 		Order("is_default DESC, created_at DESC").
 		Find(&addresses).Error
-	
+
 	return addresses, err
 }
 
@@ -166,11 +166,11 @@ func (r *GormRepository) GetDefaultAddress(ctx context.Context, tenantID, custom
 	var address Address
 	query := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND customer_id = ? AND is_default = ?", tenantID, customerID, true)
-	
+
 	if addressType != "" {
 		query = query.Where("type = ? OR type = ?", addressType, AddressTypeBoth)
 	}
-	
+
 	err := query.First(&address).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -178,7 +178,7 @@ func (r *GormRepository) GetDefaultAddress(ctx context.Context, tenantID, custom
 		}
 		return nil, err
 	}
-	
+
 	return &address, nil
 }
 
@@ -191,20 +191,20 @@ func (r *GormRepository) SetDefaultAddress(ctx context.Context, tenantID, custom
 			Update("is_default", false).Error; err != nil {
 			return err
 		}
-		
+
 		// Then set the specified address as default
 		result := tx.Model(&Address{}).
 			Where("tenant_id = ? AND customer_id = ? AND id = ?", tenantID, customerID, addressID).
 			Update("is_default", true)
-		
+
 		if result.Error != nil {
 			return result.Error
 		}
-		
+
 		if result.RowsAffected == 0 {
 			return ErrAddressNotFound
 		}
-		
+
 		return nil
 	})
 }
@@ -213,11 +213,11 @@ func (r *GormRepository) SetDefaultAddress(ctx context.Context, tenantID, custom
 func (r *GormRepository) UnsetDefaultAddresses(ctx context.Context, tenantID, customerID uuid.UUID, addressType string) error {
 	query := r.db.WithContext(ctx).Model(&Address{}).
 		Where("tenant_id = ? AND customer_id = ? AND is_default = ?", tenantID, customerID, true)
-	
+
 	if addressType != "" {
 		query = query.Where("type = ? OR type = ?", addressType, AddressTypeBoth)
 	}
-	
+
 	return query.Update("is_default", false).Error
 }
 
@@ -235,14 +235,14 @@ func (r *GormRepository) GetValidation(ctx context.Context, tenantID, addressID 
 		Where("tenant_id = ? AND address_id = ?", tenantID, addressID).
 		Order("validated_at DESC").
 		First(&validation).Error
-	
+
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrValidationNotFound
 		}
 		return nil, err
 	}
-	
+
 	return &validation, nil
 }
 
@@ -253,14 +253,14 @@ func (r *GormRepository) GetValidationByID(ctx context.Context, tenantID, valida
 		Preload("Address").
 		Where("tenant_id = ? AND id = ?", tenantID, validationID).
 		First(&validation).Error
-	
+
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrValidationNotFound
 		}
 		return nil, err
 	}
-	
+
 	return &validation, nil
 }
 
@@ -269,15 +269,15 @@ func (r *GormRepository) UpdateValidation(ctx context.Context, validation *Addre
 	result := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND id = ?", validation.TenantID, validation.ID).
 		Updates(validation)
-	
+
 	if result.Error != nil {
 		return result.Error
 	}
-	
+
 	if result.RowsAffected == 0 {
 		return ErrValidationNotFound
 	}
-	
+
 	return nil
 }
 
@@ -286,20 +286,20 @@ func (r *GormRepository) ListValidations(ctx context.Context, tenantID uuid.UUID
 	query := r.db.WithContext(ctx).
 		Preload("Address").
 		Where("address_validations.tenant_id = ?", tenantID)
-	
+
 	// Count total records
 	var total int64
 	if err := query.Model(&AddressValidation{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	
+
 	// Get paginated results
 	var validations []*AddressValidation
 	err := query.Order("validated_at DESC").
 		Limit(limit).
 		Offset(offset).
 		Find(&validations).Error
-	
+
 	return validations, total, err
 }
 
@@ -310,7 +310,7 @@ func (r *GormRepository) BulkCreate(ctx context.Context, addresses []*Address) e
 	if len(addresses) == 0 {
 		return nil
 	}
-	
+
 	return r.db.WithContext(ctx).CreateInBatches(addresses, 100).Error
 }
 
@@ -319,7 +319,7 @@ func (r *GormRepository) BulkUpdate(ctx context.Context, addresses []*Address) e
 	if len(addresses) == 0 {
 		return nil
 	}
-	
+
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for _, address := range addresses {
 			if err := tx.Where("tenant_id = ? AND id = ?", address.TenantID, address.ID).
@@ -336,7 +336,7 @@ func (r *GormRepository) BulkDelete(ctx context.Context, tenantID uuid.UUID, add
 	if len(addressIDs) == 0 {
 		return nil
 	}
-	
+
 	return r.db.WithContext(ctx).
 		Where("tenant_id = ? AND id IN ?", tenantID, addressIDs).
 		Delete(&Address{}).Error
@@ -351,7 +351,7 @@ func (r *GormRepository) ExistsByID(ctx context.Context, tenantID, addressID uui
 		Model(&Address{}).
 		Where("tenant_id = ? AND id = ?", tenantID, addressID).
 		Count(&count).Error
-	
+
 	return count > 0, err
 }
 
@@ -362,7 +362,7 @@ func (r *GormRepository) CountCustomerAddresses(ctx context.Context, tenantID, c
 		Model(&Address{}).
 		Where("tenant_id = ? AND customer_id = ?", tenantID, customerID).
 		Count(&count).Error
-	
+
 	return count, err
 }
 
@@ -371,11 +371,11 @@ func (r *GormRepository) HasDefaultAddress(ctx context.Context, tenantID, custom
 	query := r.db.WithContext(ctx).
 		Model(&Address{}).
 		Where("tenant_id = ? AND customer_id = ? AND is_default = ?", tenantID, customerID, true)
-	
+
 	if addressType != "" {
 		query = query.Where("type = ? OR type = ?", addressType, AddressTypeBoth)
 	}
-	
+
 	var count int64
 	err := query.Count(&count).Error
 	return count > 0, err
@@ -389,7 +389,7 @@ func (r *GormRepository) GetStats(ctx context.Context, tenantID uuid.UUID) (*Add
 		AddressesByType:    make(map[string]int64),
 		AddressesByCountry: make(map[string]int64),
 	}
-	
+
 	// Total addresses
 	if err := r.db.WithContext(ctx).
 		Model(&Address{}).
@@ -397,7 +397,7 @@ func (r *GormRepository) GetStats(ctx context.Context, tenantID uuid.UUID) (*Add
 		Count(&stats.TotalAddresses).Error; err != nil {
 		return nil, err
 	}
-	
+
 	// Validated addresses
 	if err := r.db.WithContext(ctx).
 		Model(&Address{}).
@@ -405,7 +405,7 @@ func (r *GormRepository) GetStats(ctx context.Context, tenantID uuid.UUID) (*Add
 		Count(&stats.ValidatedAddresses).Error; err != nil {
 		return nil, err
 	}
-	
+
 	// Default addresses
 	if err := r.db.WithContext(ctx).
 		Model(&Address{}).
@@ -413,7 +413,7 @@ func (r *GormRepository) GetStats(ctx context.Context, tenantID uuid.UUID) (*Add
 		Count(&stats.DefaultAddresses).Error; err != nil {
 		return nil, err
 	}
-	
+
 	// Recent addresses (last 30 days)
 	thirtyDaysAgo := time.Now().AddDate(0, 0, -30)
 	if err := r.db.WithContext(ctx).
@@ -422,21 +422,21 @@ func (r *GormRepository) GetStats(ctx context.Context, tenantID uuid.UUID) (*Add
 		Count(&stats.RecentAddresses).Error; err != nil {
 		return nil, err
 	}
-	
+
 	// Addresses by type
 	typeStats, err := r.GetAddressesByType(ctx, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	stats.AddressesByType = typeStats
-	
+
 	// Addresses by country
 	countryStats, err := r.GetAddressesByCountry(ctx, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	stats.AddressesByCountry = countryStats
-	
+
 	return stats, nil
 }
 
@@ -446,7 +446,7 @@ func (r *GormRepository) GetAddressesByCountry(ctx context.Context, tenantID uui
 		Country string `json:"country"`
 		Count   int64  `json:"count"`
 	}
-	
+
 	err := r.db.WithContext(ctx).
 		Model(&Address{}).
 		Select("country, COUNT(*) as count").
@@ -454,16 +454,16 @@ func (r *GormRepository) GetAddressesByCountry(ctx context.Context, tenantID uui
 		Group("country").
 		Order("count DESC").
 		Find(&results).Error
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	stats := make(map[string]int64)
 	for _, result := range results {
 		stats[result.Country] = result.Count
 	}
-	
+
 	return stats, nil
 }
 
@@ -473,7 +473,7 @@ func (r *GormRepository) GetAddressesByType(ctx context.Context, tenantID uuid.U
 		Type  string `json:"type"`
 		Count int64  `json:"count"`
 	}
-	
+
 	err := r.db.WithContext(ctx).
 		Model(&Address{}).
 		Select("type, COUNT(*) as count").
@@ -481,29 +481,29 @@ func (r *GormRepository) GetAddressesByType(ctx context.Context, tenantID uuid.U
 		Group("type").
 		Order("count DESC").
 		Find(&results).Error
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	stats := make(map[string]int64)
 	for _, result := range results {
 		stats[result.Type] = result.Count
 	}
-	
+
 	return stats, nil
 }
 
 // GetRecentAddresses retrieves recent addresses
 func (r *GormRepository) GetRecentAddresses(ctx context.Context, tenantID uuid.UUID, days int) ([]*Address, error) {
 	cutoffDate := time.Now().AddDate(0, 0, -days)
-	
+
 	var addresses []*Address
 	err := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND created_at >= ?", tenantID, cutoffDate).
 		Order("created_at DESC").
 		Find(&addresses).Error
-	
+
 	return addresses, err
 }
 
@@ -512,11 +512,11 @@ func (r *GormRepository) GetRecentAddresses(ctx context.Context, tenantID uuid.U
 // CleanupUnvalidatedAddresses removes old unvalidated addresses
 func (r *GormRepository) CleanupUnvalidatedAddresses(ctx context.Context, tenantID uuid.UUID, days int) (int64, error) {
 	cutoffDate := time.Now().AddDate(0, 0, -days)
-	
+
 	result := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND is_validated = ? AND created_at < ?", tenantID, false, cutoffDate).
 		Delete(&Address{})
-	
+
 	return result.RowsAffected, result.Error
 }
 
@@ -525,7 +525,7 @@ func (r *GormRepository) CleanupOrphanedValidations(ctx context.Context, tenantI
 	result := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND address_id NOT IN (SELECT id FROM addresses WHERE tenant_id = ?)", tenantID, tenantID).
 		Delete(&AddressValidation{})
-	
+
 	return result.RowsAffected, result.Error
 }
 
@@ -536,35 +536,35 @@ func (r *GormRepository) applyAddressFilters(query *gorm.DB, filter AddressFilte
 	if filter.CustomerID != nil {
 		query = query.Where("customer_id = ?", *filter.CustomerID)
 	}
-	
+
 	if filter.Type != "" {
 		query = query.Where("type = ?", filter.Type)
 	}
-	
+
 	if filter.Label != "" {
 		query = query.Where("label ILIKE ?", "%"+filter.Label+"%")
 	}
-	
+
 	if filter.Country != "" {
 		query = query.Where("country = ?", strings.ToUpper(filter.Country))
 	}
-	
+
 	if filter.State != "" {
 		query = query.Where("state ILIKE ?", "%"+filter.State+"%")
 	}
-	
+
 	if filter.City != "" {
 		query = query.Where("city ILIKE ?", "%"+filter.City+"%")
 	}
-	
+
 	if filter.IsDefault != nil {
 		query = query.Where("is_default = ?", *filter.IsDefault)
 	}
-	
+
 	if filter.IsValidated != nil {
 		query = query.Where("is_validated = ?", *filter.IsValidated)
 	}
-	
+
 	if filter.Search != "" {
 		searchTerm := "%" + strings.ToLower(filter.Search) + "%"
 		query = query.Where(
@@ -572,6 +572,6 @@ func (r *GormRepository) applyAddressFilters(query *gorm.DB, filter AddressFilte
 			searchTerm, searchTerm, searchTerm, searchTerm, searchTerm,
 		)
 	}
-	
+
 	return query
 }

@@ -59,7 +59,7 @@ func New(cfg *config.Config, db *gorm.DB, jwtManager *utils.JWTManager) *Server 
 // Start starts the HTTP server
 func (s *Server) Start() error {
 	address := fmt.Sprintf("%s:%d", s.config.Server.Host, s.config.Server.Port)
-	
+
 	server := &http.Server{
 		Addr:           address,
 		Handler:        s.router,
@@ -96,8 +96,6 @@ func (s *Server) Start() error {
 	log.Println("✅ Server exited gracefully")
 	return nil
 }
-
-
 
 // GetRouter returns the gin router (for testing)
 func (s *Server) GetRouter() *gin.Engine {

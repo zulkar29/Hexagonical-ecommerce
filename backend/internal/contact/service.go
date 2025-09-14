@@ -981,8 +981,6 @@ func (s *service) UpdateContactSettings(ctx context.Context, tenantID uuid.UUID,
 			EnableSpamFilter:        true,
 			MaxDailySubmissions:     10,
 			CRMIntegrationEnabled:   false,
-			DataRetentionDays:       365,
-			ConsentRequired:         true,
 			CreatedAt:               time.Now(),
 			UpdatedAt:               time.Now(),
 		}

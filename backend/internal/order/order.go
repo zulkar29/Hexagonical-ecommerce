@@ -39,11 +39,12 @@ const (
 )
 
 const (
-	PaymentPending    PaymentStatus = "pending"
-	PaymentAuthorized PaymentStatus = "authorized"
-	PaymentPaid       PaymentStatus = "paid"
-	PaymentFailed     PaymentStatus = "failed"
-	PaymentRefunded   PaymentStatus = "refunded"
+	PaymentPending       PaymentStatus = "pending"
+	PaymentAuthorized    PaymentStatus = "authorized"
+	PaymentPaid          PaymentStatus = "paid"
+	PaymentFailed        PaymentStatus = "failed"
+	PaymentRefunded      PaymentStatus = "refunded"
+	PaymentRefundPending PaymentStatus = "refund_pending"
 )
 
 const (
@@ -86,7 +87,8 @@ type Order struct {
 	PaymentStatus  PaymentStatus `json:"payment_status" gorm:"default:pending"`
 	PaymentMethod  string        `json:"payment_method,omitempty"`
 	PaymentGateway string        `json:"payment_gateway,omitempty"`
-	TransactionID  string        `json:"transaction_id,omitempty"`
+	PaymentID      *uuid.UUID    `json:"payment_id,omitempty" gorm:"index"`
+	TransactionID  string        `json:"transaction_id,omitempty"` 
 	
 	// Fulfillment information
 	FulfillmentStatus FulfillmentStatus `json:"fulfillment_status" gorm:"default:pending"`

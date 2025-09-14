@@ -50,45 +50,45 @@ const (
 
 // Account represents a financial account in the chart of accounts
 type Account struct {
-	ID          uuid.UUID   `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
-	TenantID    uuid.UUID   `json:"tenant_id" gorm:"type:uuid;not null;index"`
-	Code        string      `json:"code" gorm:"size:20;not null;uniqueIndex:idx_tenant_account_code"`
-	Name        string      `json:"name" gorm:"size:255;not null"`
-	Description string      `json:"description" gorm:"type:text"`
-	Type        AccountType `json:"type" gorm:"size:20;not null;index"`
-	ParentID    *uuid.UUID  `json:"parent_id,omitempty" gorm:"type:uuid;index"`
-	IsActive    bool        `json:"is_active" gorm:"default:true;index"`
-	Balance     float64     `json:"balance" gorm:"type:decimal(15,2);default:0"`
-	CreatedAt   time.Time   `json:"created_at"`
-	UpdatedAt   time.Time   `json:"updated_at"`
+	ID          uuid.UUID      `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
+	TenantID    uuid.UUID      `json:"tenant_id" gorm:"type:uuid;not null;index"`
+	Code        string         `json:"code" gorm:"size:20;not null;uniqueIndex:idx_tenant_account_code"`
+	Name        string         `json:"name" gorm:"size:255;not null"`
+	Description string         `json:"description" gorm:"type:text"`
+	Type        AccountType    `json:"type" gorm:"size:20;not null;index"`
+	ParentID    *uuid.UUID     `json:"parent_id,omitempty" gorm:"type:uuid;index"`
+	IsActive    bool           `json:"is_active" gorm:"default:true;index"`
+	Balance     float64        `json:"balance" gorm:"type:decimal(15,2);default:0"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `json:"-" gorm:"index"`
 
 	// Relations
-	Parent      *Account      `json:"parent,omitempty" gorm:"foreignKey:ParentID"`
-	Children    []*Account    `json:"children,omitempty" gorm:"foreignKey:ParentID"`
+	Parent       *Account       `json:"parent,omitempty" gorm:"foreignKey:ParentID"`
+	Children     []*Account     `json:"children,omitempty" gorm:"foreignKey:ParentID"`
 	Transactions []*Transaction `json:"transactions,omitempty" gorm:"many2many:transaction_accounts;"`
 }
 
 // Transaction represents a financial transaction
 type Transaction struct {
-	ID              uuid.UUID       `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
-	TenantID        uuid.UUID       `json:"tenant_id" gorm:"type:uuid;not null;index"`
-	TransactionNumber string        `json:"transaction_number" gorm:"size:50;not null;uniqueIndex:idx_tenant_transaction_number"`
-	Description     string          `json:"description" gorm:"size:500;not null"`
-	Reference       string          `json:"reference" gorm:"size:100"`
-	Amount          float64         `json:"amount" gorm:"type:decimal(15,2);not null"`
-	Type            TransactionType `json:"type" gorm:"size:10;not null;index"`
-	TransactionDate time.Time       `json:"transaction_date" gorm:"not null;index"`
-	OrderID         *uuid.UUID      `json:"order_id,omitempty" gorm:"type:uuid;index"`
-	PaymentID       *uuid.UUID      `json:"payment_id,omitempty" gorm:"type:uuid;index"`
-	RefundID        *uuid.UUID      `json:"refund_id,omitempty" gorm:"type:uuid;index"`
-	Metadata        map[string]interface{} `json:"metadata,omitempty" gorm:"type:jsonb"`
-	CreatedAt       time.Time       `json:"created_at"`
-	UpdatedAt       time.Time       `json:"updated_at"`
-	DeletedAt       gorm.DeletedAt  `json:"-" gorm:"index"`
+	ID                uuid.UUID              `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
+	TenantID          uuid.UUID              `json:"tenant_id" gorm:"type:uuid;not null;index"`
+	TransactionNumber string                 `json:"transaction_number" gorm:"size:50;not null;uniqueIndex:idx_tenant_transaction_number"`
+	Description       string                 `json:"description" gorm:"size:500;not null"`
+	Reference         string                 `json:"reference" gorm:"size:100"`
+	Amount            float64                `json:"amount" gorm:"type:decimal(15,2);not null"`
+	Type              TransactionType        `json:"type" gorm:"size:10;not null;index"`
+	TransactionDate   time.Time              `json:"transaction_date" gorm:"not null;index"`
+	OrderID           *uuid.UUID             `json:"order_id,omitempty" gorm:"type:uuid;index"`
+	PaymentID         *uuid.UUID             `json:"payment_id,omitempty" gorm:"type:uuid;index"`
+	RefundID          *uuid.UUID             `json:"refund_id,omitempty" gorm:"type:uuid;index"`
+	Metadata          map[string]interface{} `json:"metadata,omitempty" gorm:"type:jsonb"`
+	CreatedAt         time.Time              `json:"created_at"`
+	UpdatedAt         time.Time              `json:"updated_at"`
+	DeletedAt         gorm.DeletedAt         `json:"-" gorm:"index"`
 
 	// Relations
-	Accounts []*Account `json:"accounts,omitempty" gorm:"many2many:transaction_accounts;"`
+	Accounts []*Account          `json:"accounts,omitempty" gorm:"many2many:transaction_accounts;"`
 	Entries  []*TransactionEntry `json:"entries,omitempty" gorm:"foreignKey:TransactionID"`
 }
 
@@ -109,26 +109,26 @@ type TransactionEntry struct {
 
 // Payout represents a payout to vendors or other parties
 type Payout struct {
-	ID              uuid.UUID    `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
-	TenantID        uuid.UUID    `json:"tenant_id" gorm:"type:uuid;not null;index"`
-	PayoutNumber    string       `json:"payout_number" gorm:"size:50;not null;uniqueIndex:idx_tenant_payout_number"`
-	RecipientID     uuid.UUID    `json:"recipient_id" gorm:"type:uuid;not null;index"`
-	RecipientType   string       `json:"recipient_type" gorm:"size:20;not null"` // vendor, affiliate, etc.
-	Amount          float64      `json:"amount" gorm:"type:decimal(15,2);not null"`
-	Currency        string       `json:"currency" gorm:"size:3;not null;default:'USD'"`
-	Status          PayoutStatus `json:"status" gorm:"size:20;not null;default:'pending';index"`
-	Description     string       `json:"description" gorm:"size:500"`
-	PaymentMethod   string       `json:"payment_method" gorm:"size:50"`
-	PaymentDetails  map[string]interface{} `json:"payment_details,omitempty" gorm:"type:jsonb"`
-	ScheduledDate   *time.Time   `json:"scheduled_date,omitempty" gorm:"index"`
-	ProcessedDate   *time.Time   `json:"processed_date,omitempty" gorm:"index"`
-	CompletedDate   *time.Time   `json:"completed_date,omitempty" gorm:"index"`
-	FailureReason   string       `json:"failure_reason,omitempty" gorm:"size:500"`
-	TransactionID   *uuid.UUID   `json:"transaction_id,omitempty" gorm:"type:uuid;index"`
-	Metadata        map[string]interface{} `json:"metadata,omitempty" gorm:"type:jsonb"`
-	CreatedAt       time.Time    `json:"created_at"`
-	UpdatedAt       time.Time    `json:"updated_at"`
-	DeletedAt       gorm.DeletedAt `json:"-" gorm:"index"`
+	ID             uuid.UUID              `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
+	TenantID       uuid.UUID              `json:"tenant_id" gorm:"type:uuid;not null;index"`
+	PayoutNumber   string                 `json:"payout_number" gorm:"size:50;not null;uniqueIndex:idx_tenant_payout_number"`
+	RecipientID    uuid.UUID              `json:"recipient_id" gorm:"type:uuid;not null;index"`
+	RecipientType  string                 `json:"recipient_type" gorm:"size:20;not null"` // vendor, affiliate, etc.
+	Amount         float64                `json:"amount" gorm:"type:decimal(15,2);not null"`
+	Currency       string                 `json:"currency" gorm:"size:3;not null;default:'USD'"`
+	Status         PayoutStatus           `json:"status" gorm:"size:20;not null;default:'pending';index"`
+	Description    string                 `json:"description" gorm:"size:500"`
+	PaymentMethod  string                 `json:"payment_method" gorm:"size:50"`
+	PaymentDetails map[string]interface{} `json:"payment_details,omitempty" gorm:"type:jsonb"`
+	ScheduledDate  *time.Time             `json:"scheduled_date,omitempty" gorm:"index"`
+	ProcessedDate  *time.Time             `json:"processed_date,omitempty" gorm:"index"`
+	CompletedDate  *time.Time             `json:"completed_date,omitempty" gorm:"index"`
+	FailureReason  string                 `json:"failure_reason,omitempty" gorm:"size:500"`
+	TransactionID  *uuid.UUID             `json:"transaction_id,omitempty" gorm:"type:uuid;index"`
+	Metadata       map[string]interface{} `json:"metadata,omitempty" gorm:"type:jsonb"`
+	CreatedAt      time.Time              `json:"created_at"`
+	UpdatedAt      time.Time              `json:"updated_at"`
+	DeletedAt      gorm.DeletedAt         `json:"-" gorm:"index"`
 
 	// Relations
 	Transaction *Transaction `json:"transaction,omitempty" gorm:"foreignKey:TransactionID"`
@@ -136,17 +136,17 @@ type Payout struct {
 
 // ReconciliationRecord represents account reconciliation data
 type ReconciliationRecord struct {
-	ID                uuid.UUID  `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
-	TenantID          uuid.UUID  `json:"tenant_id" gorm:"type:uuid;not null;index"`
-	AccountID         uuid.UUID  `json:"account_id" gorm:"type:uuid;not null;index"`
+	ID                 uuid.UUID `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
+	TenantID           uuid.UUID `json:"tenant_id" gorm:"type:uuid;not null;index"`
+	AccountID          uuid.UUID `json:"account_id" gorm:"type:uuid;not null;index"`
 	ReconciliationDate time.Time `json:"reconciliation_date" gorm:"not null;index"`
-	BookBalance       float64    `json:"book_balance" gorm:"type:decimal(15,2);not null"`
-	BankBalance       float64    `json:"bank_balance" gorm:"type:decimal(15,2);not null"`
-	Difference        float64    `json:"difference" gorm:"type:decimal(15,2);not null"`
-	IsReconciled      bool       `json:"is_reconciled" gorm:"default:false;index"`
-	Notes             string     `json:"notes" gorm:"type:text"`
-	CreatedAt         time.Time  `json:"created_at"`
-	UpdatedAt         time.Time  `json:"updated_at"`
+	BookBalance        float64   `json:"book_balance" gorm:"type:decimal(15,2);not null"`
+	BankBalance        float64   `json:"bank_balance" gorm:"type:decimal(15,2);not null"`
+	Difference         float64   `json:"difference" gorm:"type:decimal(15,2);not null"`
+	IsReconciled       bool      `json:"is_reconciled" gorm:"default:false;index"`
+	Notes              string    `json:"notes" gorm:"type:text"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
 
 	// Relations
 	Account *Account `json:"account,omitempty" gorm:"foreignKey:AccountID"`
@@ -301,17 +301,17 @@ type AccountFilters struct {
 
 // TransactionFilters represents filters for transaction listing
 type TransactionFilters struct {
-	Page        int               `json:"page"`
-	Limit       int               `json:"limit"`
-	SortBy      string            `json:"sort_by"`
-	SortOrder   string            `json:"sort_order"`
-	Search      string            `json:"search"`
-	Type        []TransactionType `json:"type"`
-	AccountID   *uuid.UUID        `json:"account_id"`
-	DateAfter   *time.Time        `json:"date_after"`
-	DateBefore  *time.Time        `json:"date_before"`
-	MinAmount   *float64          `json:"min_amount"`
-	MaxAmount   *float64          `json:"max_amount"`
+	Page       int               `json:"page"`
+	Limit      int               `json:"limit"`
+	SortBy     string            `json:"sort_by"`
+	SortOrder  string            `json:"sort_order"`
+	Search     string            `json:"search"`
+	Type       []TransactionType `json:"type"`
+	AccountID  *uuid.UUID        `json:"account_id"`
+	DateAfter  *time.Time        `json:"date_after"`
+	DateBefore *time.Time        `json:"date_before"`
+	MinAmount  *float64          `json:"min_amount"`
+	MaxAmount  *float64          `json:"max_amount"`
 }
 
 // PayoutFilters represents filters for payout listing

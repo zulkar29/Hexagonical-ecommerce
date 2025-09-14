@@ -21,10 +21,10 @@ func NewService(repository *Repository) *Service {
 // Request/Response Models
 
 type CreateShippingZoneRequest struct {
-	Name        string                        `json:"name" binding:"required"`
-	Description string                        `json:"description"`
-	IsActive    bool                          `json:"is_active"`
-	IsDefault   bool                          `json:"is_default"`
+	Name        string                             `json:"name" binding:"required"`
+	Description string                             `json:"description"`
+	IsActive    bool                               `json:"is_active"`
+	IsDefault   bool                               `json:"is_default"`
 	Countries   []CreateShippingZoneCountryRequest `json:"countries"`
 }
 
@@ -36,10 +36,10 @@ type CreateShippingZoneCountryRequest struct {
 }
 
 type UpdateShippingZoneRequest struct {
-	Name        *string                       `json:"name"`
-	Description *string                       `json:"description"`
-	IsActive    *bool                         `json:"is_active"`
-	IsDefault   *bool                         `json:"is_default"`
+	Name        *string                            `json:"name"`
+	Description *string                            `json:"description"`
+	IsActive    *bool                              `json:"is_active"`
+	IsDefault   *bool                              `json:"is_default"`
 	Countries   []CreateShippingZoneCountryRequest `json:"countries"`
 }
 
@@ -105,12 +105,12 @@ type Address struct {
 }
 
 type PackageDetails struct {
-	Weight      float64 `json:"weight" binding:"required,min=0"`
-	Length      float64 `json:"length" binding:"required,min=0"`
-	Width       float64 `json:"width" binding:"required,min=0"`
-	Height      float64 `json:"height" binding:"required,min=0"`
-	Value       float64 `json:"value" binding:"required,min=0"`
-	Description string  `json:"description" binding:"required"`
+	Weight      float64       `json:"weight" binding:"required,min=0"`
+	Length      float64       `json:"length" binding:"required,min=0"`
+	Width       float64       `json:"width" binding:"required,min=0"`
+	Height      float64       `json:"height" binding:"required,min=0"`
+	Value       float64       `json:"value" binding:"required,min=0"`
+	Description string        `json:"description" binding:"required"`
 	Items       []PackageItem `json:"items"`
 }
 
@@ -127,10 +127,10 @@ type AddressValidationRequest struct {
 }
 
 type AddressValidationResponse struct {
-	IsValid     bool     `json:"is_valid"`
-	Confidence  float64  `json:"confidence"`
+	IsValid     bool      `json:"is_valid"`
+	Confidence  float64   `json:"confidence"`
 	Suggestions []Address `json:"suggestions"`
-	Errors      []string `json:"errors"`
+	Errors      []string  `json:"errors"`
 }
 
 type DeliveryEstimateRequest struct {
@@ -157,28 +157,28 @@ type ProviderConfigRequest struct {
 }
 
 type ShippingStats struct {
-	TotalLabels     int                           `json:"total_labels"`
-	ActiveLabels    int                           `json:"active_labels"`
-	DeliveredLabels int                           `json:"delivered_labels"`
-	CancelledLabels int                           `json:"cancelled_labels"`
-	TotalCost       float64                       `json:"total_cost"`
-	AverageDeliveryTime float64                   `json:"average_delivery_time"`
-	ProviderStats   []ProviderStats               `json:"provider_stats"`
-	MonthlyStats    []MonthlyShippingStats        `json:"monthly_stats"`
+	TotalLabels         int                    `json:"total_labels"`
+	ActiveLabels        int                    `json:"active_labels"`
+	DeliveredLabels     int                    `json:"delivered_labels"`
+	CancelledLabels     int                    `json:"cancelled_labels"`
+	TotalCost           float64                `json:"total_cost"`
+	AverageDeliveryTime float64                `json:"average_delivery_time"`
+	ProviderStats       []ProviderStats        `json:"provider_stats"`
+	MonthlyStats        []MonthlyShippingStats `json:"monthly_stats"`
 }
 
 type ProviderStats struct {
-	Provider     ShippingProvider `json:"provider"`
-	TotalLabels  int              `json:"total_labels"`
-	DeliveredRate float64         `json:"delivered_rate"`
-	AverageTime  float64          `json:"average_time"`
-	TotalCost    float64          `json:"total_cost"`
+	Provider      ShippingProvider `json:"provider"`
+	TotalLabels   int              `json:"total_labels"`
+	DeliveredRate float64          `json:"delivered_rate"`
+	AverageTime   float64          `json:"average_time"`
+	TotalCost     float64          `json:"total_cost"`
 }
 
 type MonthlyShippingStats struct {
-	Month       string  `json:"month"`
-	TotalLabels int     `json:"total_labels"`
-	TotalCost   float64 `json:"total_cost"`
+	Month         string  `json:"month"`
+	TotalLabels   int     `json:"total_labels"`
+	TotalCost     float64 `json:"total_cost"`
 	DeliveredRate float64 `json:"delivered_rate"`
 }
 
@@ -317,7 +317,7 @@ func (s *Service) CalculateShippingRates(tenantID uuid.UUID, req ShippingRateReq
 		for _, rate := range rates {
 			if rate.IsEligible(req.Weight) {
 				cost := rate.CalculateRate(req.Weight, req.Length, req.Width, req.Height, req.OrderValue)
-				
+
 				response := ShippingRateResponse{
 					RateID:        rate.ID,
 					Provider:      rate.Provider,

@@ -3,10 +3,10 @@ package main
 import (
 	"log"
 
+	"ecommerce-saas/internal/server"
 	"ecommerce-saas/internal/shared/config"
 	"ecommerce-saas/internal/shared/database"
 	"ecommerce-saas/internal/shared/utils"
-	"ecommerce-saas/internal/server"
 )
 
 func main() {

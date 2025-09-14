@@ -29,8 +29,6 @@ func NewModule(db *gorm.DB, paymentService payment.Service, contactService conta
 	}
 }
 
-
-
 // RegisterRoutes registers all billing routes
 func (m *Module) RegisterRoutes(router *gin.RouterGroup) {
 	m.handler.RegisterRoutes(router)

@@ -94,7 +94,7 @@ func (h *Handler) GetNotification(c *gin.Context) {
 	}
 
 	notificationID := c.Param("id")
-	
+
 	notification, err := h.service.GetNotification(tenantID.(uuid.UUID), notificationID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Notification not found"})
@@ -145,10 +145,10 @@ func (h *Handler) ListNotifications(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"data": notifications,
-		"total": total,
+		"data":   notifications,
+		"total":  total,
 		"offset": offset,
-		"limit": limit,
+		"limit":  limit,
 	})
 }
 
@@ -161,7 +161,7 @@ func (h *Handler) MarkAsRead(c *gin.Context) {
 	}
 
 	notificationID := c.Param("id")
-	
+
 	err := h.service.MarkAsRead(tenantID.(uuid.UUID), notificationID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -203,7 +203,7 @@ func (h *Handler) UpdateTemplate(c *gin.Context) {
 	}
 
 	templateID := c.Param("id")
-	
+
 	var req UpdateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
@@ -228,7 +228,7 @@ func (h *Handler) GetTemplate(c *gin.Context) {
 	}
 
 	templateID := c.Param("id")
-	
+
 	template, err := h.service.GetTemplate(tenantID.(uuid.UUID), templateID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Template not found"})
@@ -310,28 +310,26 @@ func (h *Handler) UpdatePreferences(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Preferences updated successfully"})
 }
 
-
-
 // RegisterRoutes registers all notification routes
 func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 	notifications := r.Group("/notifications")
 	{
 		// Notification management
 		notifications.POST("", h.SendNotification)
-		notifications.GET("", h.ListNotifications)                    // GET /api/v1/notifications (supports ?type=stats for statistics)
+		notifications.GET("", h.ListNotifications) // GET /api/v1/notifications (supports ?type=stats for statistics)
 		notifications.GET("/:id", h.GetNotification)
 		notifications.PUT("/:id/read", h.MarkAsRead)
-		
+
 		// Specific notification types
 		notifications.POST("/email", h.SendEmail)
 		notifications.POST("/sms", h.SendSMS)
-		
+
 		// Template management
 		notifications.POST("/templates", h.CreateTemplate)
 		notifications.GET("/templates", h.ListTemplates)
 		notifications.GET("/templates/:id", h.GetTemplate)
 		notifications.PUT("/templates/:id", h.UpdateTemplate)
-		
+
 		// User preferences
 		notifications.GET("/preferences", h.GetPreferences)
 		notifications.PUT("/preferences", h.UpdatePreferences)

@@ -24,8 +24,8 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	// Settings management routes (authenticated)
 	settings := router.Group("/settings")
 	{
-		settings.GET("", h.GetSettings)           // GET /settings
-		settings.PATCH("", h.UpdateSettings)      // PATCH /settings
+		settings.GET("", h.GetSettings)      // GET /settings
+		settings.PATCH("", h.UpdateSettings) // PATCH /settings
 	}
 
 	// Note: Public settings routes are registered separately in routes.go setupPublicProductRoutes

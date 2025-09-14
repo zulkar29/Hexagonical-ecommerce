@@ -225,13 +225,13 @@ func (h *Handler) GetShippingLabels(c *gin.Context) {
 	offsetStr := c.DefaultQuery("offset", "0")
 	limitStr := c.DefaultQuery("limit", "20")
 	queryType := c.DefaultQuery("type", "list")
-	
+
 	offset, err := strconv.Atoi(offsetStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset parameter"})
 		return
 	}
-	
+
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
@@ -303,7 +303,7 @@ func (h *Handler) CancelShipment(c *gin.Context) {
 
 func (h *Handler) TrackPackage(c *gin.Context) {
 	trackingNumber := c.Param("trackingNumber")
-	
+
 	tracking, err := h.service.TrackPackage(trackingNumber)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Package not found"})
@@ -315,7 +315,7 @@ func (h *Handler) TrackPackage(c *gin.Context) {
 
 func (h *Handler) GetTrackingHistory(c *gin.Context) {
 	trackingNumber := c.Param("trackingNumber")
-	
+
 	history, err := h.service.GetTrackingHistory(trackingNumber)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Tracking history not found"})
@@ -401,8 +401,6 @@ func (h *Handler) ConfigureProvider(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Provider configured successfully"})
 }
-
-
 
 // Provider Webhooks
 

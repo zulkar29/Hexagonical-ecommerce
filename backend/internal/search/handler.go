@@ -27,16 +27,16 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	search := router.Group("/search")
 	{
 		// Global search
-		search.GET("", h.Search)                    // GET /search
+		search.GET("", h.Search) // GET /search
 		// Product search
-		search.GET("/products", h.SearchProducts)   // GET /search/products
+		search.GET("/products", h.SearchProducts) // GET /search/products
 		// Search suggestions
 		search.GET("/suggestions", h.GetSuggestions) // GET /search/suggestions
 		// Search analytics
-		search.GET("/analytics", h.GetAnalytics)    // GET /search/analytics
+		search.GET("/analytics", h.GetAnalytics) // GET /search/analytics
 		// Search filters
-		search.GET("/filters", h.GetFilters)        // GET /search/filters
-		search.POST("/filters", h.ManageFilters)    // POST /search/filters
+		search.GET("/filters", h.GetFilters)     // GET /search/filters
+		search.POST("/filters", h.ManageFilters) // POST /search/filters
 	}
 }
 

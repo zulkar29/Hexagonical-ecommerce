@@ -83,14 +83,14 @@ type ErrorDetails struct {
 
 // Metric represents a metric entry
 type Metric struct {
-	ID        uuid.UUID              `json:"id"`
-	Name      string                 `json:"name"`
-	Type      MetricType             `json:"type"`
-	Value     float64                `json:"value"`
-	Tags      map[string]string      `json:"tags,omitempty"`
-	Timestamp time.Time              `json:"timestamp"`
-	Service   string                 `json:"service"`
-	Version   string                 `json:"version"`
+	ID        uuid.UUID         `json:"id"`
+	Name      string            `json:"name"`
+	Type      MetricType        `json:"type"`
+	Value     float64           `json:"value"`
+	Tags      map[string]string `json:"tags,omitempty"`
+	Timestamp time.Time         `json:"timestamp"`
+	Service   string            `json:"service"`
+	Version   string            `json:"version"`
 }
 
 // BusinessMetric represents business-specific metrics
@@ -162,10 +162,10 @@ type Alert struct {
 
 // HealthStatus represents the health status of the system
 type HealthStatus struct {
-	Status    string                    `json:"status"`
-	Timestamp time.Time                 `json:"timestamp"`
-	Version   string                    `json:"version"`
-	Services  map[string]ServiceHealth  `json:"services"`
+	Status    string                   `json:"status"`
+	Timestamp time.Time                `json:"timestamp"`
+	Version   string                   `json:"version"`
+	Services  map[string]ServiceHealth `json:"services"`
 }
 
 // ServiceHealth represents the health of a specific service
@@ -225,21 +225,21 @@ type ObservabilityRepository interface {
 	// Log methods
 	SaveLogEntry(ctx context.Context, entry *LogEntry) error
 	GetLogEntries(ctx context.Context, filters map[string]interface{}, limit, offset int) ([]*LogEntry, error)
-	
+
 	// Metric methods
 	SaveMetric(ctx context.Context, metric *Metric) error
 	GetMetrics(ctx context.Context, filters map[string]interface{}, limit, offset int) ([]*Metric, error)
-	
+
 	// Trace methods
 	SaveTrace(ctx context.Context, trace *Trace) error
 	SaveSpan(ctx context.Context, span *Span) error
 	GetTrace(ctx context.Context, traceID string) (*Trace, error)
 	GetSpansByTraceID(ctx context.Context, traceID string) ([]*Span, error)
-	
+
 	// Alert methods
 	SaveAlert(ctx context.Context, alert *Alert) error
 	GetAlerts(ctx context.Context, filters map[string]interface{}, limit, offset int) ([]*Alert, error)
-	
+
 	// Migration
 	Migrate() error
 }
@@ -352,7 +352,7 @@ func (l *logger) copy() *logger {
 	for k, v := range l.fields {
 		fields[k] = v
 	}
-	
+
 	return &logger{
 		service:   l.service,
 		version:   l.version,
@@ -375,7 +375,7 @@ func (l *logger) shouldLog(level LogLevel) bool {
 		LogLevelError: 3,
 		LogLevelFatal: 4,
 	}
-	
+
 	return levels[level] >= levels[l.level]
 }
 
@@ -454,7 +454,7 @@ func (l *logger) outputDevelopment(entry LogEntry) {
 
 	color := colors[entry.Level]
 	timestamp := entry.Timestamp.Format("2006-01-02 15:04:05")
-	
+
 	// Basic log line
 	logLine := fmt.Sprintf("%s[%s]%s %s %s[%s]%s %s",
 		color, strings.ToUpper(string(entry.Level)), reset,
@@ -607,7 +607,7 @@ func (m *metricsCollector) RecordBusinessMetric(metric BusinessMetric) {
 		"category": metric.Category,
 		"type":     metric.Type,
 	}
-	
+
 	for k, v := range metric.Tags {
 		tags[k] = v
 	}
@@ -621,7 +621,7 @@ func (m *metricsCollector) RecordPerformanceMetric(metric PerformanceMetric) {
 		"operation": metric.Operation,
 		"status":    metric.Status,
 	}
-	
+
 	if metric.Resource != "" {
 		tags["resource"] = metric.Resource
 	}
@@ -655,7 +655,7 @@ func (m *metricsCollector) GetMetrics() map[string]*Metric {
 func (m *metricsCollector) Reset() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	m.metrics = make(map[string]*Metric)
 }
 
@@ -713,9 +713,9 @@ const (
 
 // tracer implements the Tracer interface
 type tracer struct {
-	mu      sync.RWMutex
-	traces  map[string]*Trace
-	config  TracingConfig
+	mu     sync.RWMutex
+	traces map[string]*Trace
+	config TracingConfig
 }
 
 // TracingConfig holds configuration for distributed tracing
@@ -745,7 +745,7 @@ func NewTracer(config TracingConfig) Tracer {
 // StartTrace starts a new trace
 func (t *tracer) StartTrace(ctx context.Context, operationName string, tags map[string]interface{}) (context.Context, *Trace) {
 	traceID := uuid.New().String()
-	
+
 	trace := &Trace{
 		ID:            traceID,
 		OperationName: operationName,
@@ -781,8 +781,8 @@ func (t *tracer) StartSpan(ctx context.Context, operationName string, tags map[s
 
 	spanID := uuid.New().String()
 	span := &Span{
-		ID:            spanID,
-		TraceID:       func() string {
+		ID: spanID,
+		TraceID: func() string {
 			if trace != nil {
 				return trace.ID
 			}
@@ -875,7 +875,7 @@ func (t *tracer) SetSpanError(span *Span, err error) {
 func (t *tracer) GetTrace(traceID string) *Trace {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	
+
 	return t.traces[traceID]
 }
 

@@ -196,19 +196,19 @@ func (r *Repository) GetTenantStats(tenantID uuid.UUID) (*TenantStatsResponse, e
 	// TODO: This would require joins with products, orders, etc.
 	// For now, return basic stats
 	stats := &TenantStatsResponse{
-		TenantID:     tenantID.String(),
-		ProductCount: 0,
-		OrderCount:   0,
-		Revenue:      0,
-		StorageUsed:  0,
+		TenantID:      tenantID.String(),
+		ProductCount:  0,
+		OrderCount:    0,
+		Revenue:       0,
+		StorageUsed:   0,
 		BandwidthUsed: 0,
 	}
-	
+
 	// You can add actual database queries here when product/order modules are integrated
 	// Example:
 	// r.db.Model(&Product{}).Where("tenant_id = ?", tenantID).Count(&stats.ProductCount)
 	// r.db.Model(&Order{}).Where("tenant_id = ?", tenantID).Count(&stats.OrderCount)
-	
+
 	return stats, nil
 }
 

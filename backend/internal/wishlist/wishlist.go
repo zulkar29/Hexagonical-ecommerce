@@ -10,85 +10,85 @@ import (
 
 // Wishlist represents a customer's wishlist
 type Wishlist struct {
-	ID         uuid.UUID `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
-	TenantID   uuid.UUID `json:"tenant_id" gorm:"type:uuid;not null;index"`
-	CustomerID uuid.UUID `json:"customer_id" gorm:"type:uuid;not null;index"`
-	Name       string    `json:"name" gorm:"size:255;not null"`
-	Description string   `json:"description" gorm:"type:text"`
-	IsDefault  bool      `json:"is_default" gorm:"default:false;index"`
-	IsPublic   bool      `json:"is_public" gorm:"default:false"`
-	ShareToken string    `json:"share_token,omitempty" gorm:"size:64;unique;index"`
-	ItemCount  int       `json:"item_count" gorm:"default:0"`
-	CreatedAt  time.Time `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt  time.Time `json:"updated_at" gorm:"autoUpdateTime"`
-	
+	ID          uuid.UUID `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
+	TenantID    uuid.UUID `json:"tenant_id" gorm:"type:uuid;not null;index"`
+	CustomerID  uuid.UUID `json:"customer_id" gorm:"type:uuid;not null;index"`
+	Name        string    `json:"name" gorm:"size:255;not null"`
+	Description string    `json:"description" gorm:"type:text"`
+	IsDefault   bool      `json:"is_default" gorm:"default:false;index"`
+	IsPublic    bool      `json:"is_public" gorm:"default:false"`
+	ShareToken  string    `json:"share_token,omitempty" gorm:"size:64;unique;index"`
+	ItemCount   int       `json:"item_count" gorm:"default:0"`
+	CreatedAt   time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt   time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+
 	// Relations
 	Items []WishlistItem `json:"items,omitempty" gorm:"foreignKey:WishlistID;constraint:OnDelete:CASCADE"`
 }
 
 // WishlistItem represents an item in a wishlist
 type WishlistItem struct {
-	ID         uuid.UUID `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
-	TenantID   uuid.UUID `json:"tenant_id" gorm:"type:uuid;not null;index"`
-	WishlistID uuid.UUID `json:"wishlist_id" gorm:"type:uuid;not null;index"`
-	ProductID  uuid.UUID `json:"product_id" gorm:"type:uuid;not null;index"`
+	ID         uuid.UUID  `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
+	TenantID   uuid.UUID  `json:"tenant_id" gorm:"type:uuid;not null;index"`
+	WishlistID uuid.UUID  `json:"wishlist_id" gorm:"type:uuid;not null;index"`
+	ProductID  uuid.UUID  `json:"product_id" gorm:"type:uuid;not null;index"`
 	VariantID  *uuid.UUID `json:"variant_id,omitempty" gorm:"type:uuid;index"`
-	Quantity   int       `json:"quantity" gorm:"default:1;check:quantity > 0"`
-	Notes      string    `json:"notes" gorm:"type:text"`
-	Priority   int       `json:"priority" gorm:"default:0"`
-	AddedAt    time.Time `json:"added_at" gorm:"autoCreateTime"`
-	UpdatedAt  time.Time `json:"updated_at" gorm:"autoUpdateTime"`
-	
+	Quantity   int        `json:"quantity" gorm:"default:1;check:quantity > 0"`
+	Notes      string     `json:"notes" gorm:"type:text"`
+	Priority   int        `json:"priority" gorm:"default:0"`
+	AddedAt    time.Time  `json:"added_at" gorm:"autoCreateTime"`
+	UpdatedAt  time.Time  `json:"updated_at" gorm:"autoUpdateTime"`
+
 	// Relations
-	Wishlist *Wishlist `json:"wishlist,omitempty" gorm:"foreignKey:WishlistID"`
-	Product  *Product  `json:"product,omitempty" gorm:"foreignKey:ProductID"`
+	Wishlist *Wishlist       `json:"wishlist,omitempty" gorm:"foreignKey:WishlistID"`
+	Product  *Product        `json:"product,omitempty" gorm:"foreignKey:ProductID"`
 	Variant  *ProductVariant `json:"variant,omitempty" gorm:"foreignKey:VariantID"`
 }
 
 // Product represents a simplified product for wishlist relations
 type Product struct {
-	ID          uuid.UUID `json:"id" gorm:"type:uuid;primary_key"`
-	Name        string    `json:"name"`
-	Slug        string    `json:"slug"`
-	Image       string    `json:"image"`
-	Price       float64   `json:"price"`
-	ComparePrice *float64 `json:"compare_price,omitempty"`
-	IsAvailable bool      `json:"is_available"`
-	Status      string    `json:"status"`
+	ID           uuid.UUID `json:"id" gorm:"type:uuid;primary_key"`
+	Name         string    `json:"name"`
+	Slug         string    `json:"slug"`
+	Image        string    `json:"image"`
+	Price        float64   `json:"price"`
+	ComparePrice *float64  `json:"compare_price,omitempty"`
+	IsAvailable  bool      `json:"is_available"`
+	Status       string    `json:"status"`
 }
 
 // ProductVariant represents a simplified product variant for wishlist relations
 type ProductVariant struct {
-	ID          uuid.UUID `json:"id" gorm:"type:uuid;primary_key"`
-	ProductID   uuid.UUID `json:"product_id"`
-	SKU         string    `json:"sku"`
-	Name        string    `json:"name"`
-	Price       float64   `json:"price"`
-	ComparePrice *float64 `json:"compare_price,omitempty"`
-	IsAvailable bool      `json:"is_available"`
-	Inventory   int       `json:"inventory"`
+	ID           uuid.UUID `json:"id" gorm:"type:uuid;primary_key"`
+	ProductID    uuid.UUID `json:"product_id"`
+	SKU          string    `json:"sku"`
+	Name         string    `json:"name"`
+	Price        float64   `json:"price"`
+	ComparePrice *float64  `json:"compare_price,omitempty"`
+	IsAvailable  bool      `json:"is_available"`
+	Inventory    int       `json:"inventory"`
 }
 
 // Business logic errors
 var (
-	ErrWishlistNotFound              = errors.New("wishlist not found")
-	ErrWishlistItemNotFound          = errors.New("wishlist item not found")
-	ErrWishlistNotOwned              = errors.New("wishlist not owned by user")
-	ErrWishlistItemNotOwned          = errors.New("wishlist item not owned by user")
-	ErrWishlistNameExists            = errors.New("wishlist name already exists")
-	ErrWishlistLimitExceeded         = errors.New("wishlist limit exceeded")
-	ErrWishlistFull                  = errors.New("wishlist is full")
-	ErrCannotDeleteDefaultWishlist   = errors.New("cannot delete default wishlist")
-	ErrInvalidTenantID               = errors.New("invalid tenant ID")
-	ErrInvalidCustomerID             = errors.New("invalid customer ID")
-	ErrInvalidWishlistID             = errors.New("invalid wishlist ID")
-	ErrInvalidProductID              = errors.New("invalid product ID")
-	ErrInvalidWishlistName           = errors.New("invalid wishlist name")
-	ErrWishlistNameTooLong           = errors.New("wishlist name too long")
-	ErrWishlistDescriptionTooLong    = errors.New("wishlist description too long")
-	ErrInvalidQuantity               = errors.New("invalid quantity")
-	ErrInvalidPriority               = errors.New("invalid priority")
-	ErrItemNotesTooLong              = errors.New("item notes too long")
+	ErrWishlistNotFound            = errors.New("wishlist not found")
+	ErrWishlistItemNotFound        = errors.New("wishlist item not found")
+	ErrWishlistNotOwned            = errors.New("wishlist not owned by user")
+	ErrWishlistItemNotOwned        = errors.New("wishlist item not owned by user")
+	ErrWishlistNameExists          = errors.New("wishlist name already exists")
+	ErrWishlistLimitExceeded       = errors.New("wishlist limit exceeded")
+	ErrWishlistFull                = errors.New("wishlist is full")
+	ErrCannotDeleteDefaultWishlist = errors.New("cannot delete default wishlist")
+	ErrInvalidTenantID             = errors.New("invalid tenant ID")
+	ErrInvalidCustomerID           = errors.New("invalid customer ID")
+	ErrInvalidWishlistID           = errors.New("invalid wishlist ID")
+	ErrInvalidProductID            = errors.New("invalid product ID")
+	ErrInvalidWishlistName         = errors.New("invalid wishlist name")
+	ErrWishlistNameTooLong         = errors.New("wishlist name too long")
+	ErrWishlistDescriptionTooLong  = errors.New("wishlist description too long")
+	ErrInvalidQuantity             = errors.New("invalid quantity")
+	ErrInvalidPriority             = errors.New("invalid priority")
+	ErrItemNotesTooLong            = errors.New("item notes too long")
 )
 
 // Constants
@@ -97,11 +97,11 @@ const (
 	MaxItemsPerWishlist     = 100
 	DefaultWishlistName     = "My Wishlist"
 	ShareTokenLength        = 32
-	
+
 	// Pagination constants
 	MaxPageSize     = 100
 	DefaultPageSize = 20
-	
+
 	// Validation constants
 	MaxWishlistNameLength        = 255
 	MaxWishlistDescriptionLength = 1000
@@ -187,17 +187,17 @@ func (w *Wishlist) BeforeCreate(tx *gorm.DB) error {
 	if w.ID == uuid.Nil {
 		w.ID = uuid.New()
 	}
-	
+
 	// Set default name if empty
 	if w.Name == "" {
 		w.Name = DefaultWishlistName
 	}
-	
+
 	// Generate share token if public
 	if w.IsPublic && w.ShareToken == "" {
 		w.GenerateShareToken()
 	}
-	
+
 	return nil
 }
 
@@ -207,12 +207,12 @@ func (w *Wishlist) BeforeUpdate(tx *gorm.DB) error {
 	if w.IsPublic && w.ShareToken == "" {
 		w.GenerateShareToken()
 	}
-	
+
 	// Clear share token if making private
 	if !w.IsPublic {
 		w.ShareToken = ""
 	}
-	
+
 	return nil
 }
 
@@ -233,7 +233,7 @@ func (wi *WishlistItem) UpdateQuantity(quantity int) error {
 	if quantity <= 0 {
 		return ErrInvalidQuantity
 	}
-	
+
 	wi.Quantity = quantity
 	wi.UpdatedAt = time.Now()
 	return nil
@@ -244,12 +244,12 @@ func (wi *WishlistItem) GetDisplayName() string {
 	if wi.Product == nil {
 		return "Unknown Product"
 	}
-	
+
 	name := wi.Product.Name
 	if wi.Variant != nil && wi.Variant.Name != "" {
 		name += " - " + wi.Variant.Name
 	}
-	
+
 	return name
 }
 
@@ -258,11 +258,11 @@ func (wi *WishlistItem) GetPrice() float64 {
 	if wi.Variant != nil {
 		return wi.Variant.Price
 	}
-	
+
 	if wi.Product != nil {
 		return wi.Product.Price
 	}
-	
+
 	return 0
 }
 
@@ -271,11 +271,11 @@ func (wi *WishlistItem) GetComparePrice() *float64 {
 	if wi.Variant != nil {
 		return wi.Variant.ComparePrice
 	}
-	
+
 	if wi.Product != nil {
 		return wi.Product.ComparePrice
 	}
-	
+
 	return nil
 }
 
@@ -284,11 +284,11 @@ func (wi *WishlistItem) IsAvailable() bool {
 	if wi.Product == nil || !wi.Product.IsAvailable {
 		return false
 	}
-	
+
 	if wi.Variant != nil {
 		return wi.Variant.IsAvailable && wi.Variant.Inventory >= wi.Quantity
 	}
-	
+
 	return true
 }
 
@@ -304,7 +304,7 @@ func (wi *WishlistItem) GetDiscountPercentage() float64 {
 	if comparePrice == nil || *comparePrice <= wi.GetPrice() {
 		return 0
 	}
-	
+
 	currentPrice := wi.GetPrice()
 	return (((*comparePrice) - currentPrice) / (*comparePrice)) * 100
 }
@@ -316,11 +316,11 @@ func (wi *WishlistItem) BeforeCreate(tx *gorm.DB) error {
 	if wi.ID == uuid.Nil {
 		wi.ID = uuid.New()
 	}
-	
+
 	if wi.Quantity <= 0 {
 		wi.Quantity = 1
 	}
-	
+
 	return nil
 }
 
@@ -330,10 +330,10 @@ func (wi *WishlistItem) BeforeCreate(tx *gorm.DB) error {
 type CreateWishlistRequest struct {
 	TenantID    uuid.UUID `json:"-"`
 	CustomerID  uuid.UUID `json:"-"`
-	Name        string `json:"name" validate:"required,max=255"`
-	Description string `json:"description" validate:"max=1000"`
-	IsDefault   bool   `json:"is_default"`
-	IsPublic    bool   `json:"is_public"`
+	Name        string    `json:"name" validate:"required,max=255"`
+	Description string    `json:"description" validate:"max=1000"`
+	IsDefault   bool      `json:"is_default"`
+	IsPublic    bool      `json:"is_public"`
 }
 
 // UpdateWishlistRequest represents a request to update a wishlist
@@ -347,11 +347,11 @@ type UpdateWishlistRequest struct {
 // AddItemRequest represents a request to add an item to a wishlist
 type AddItemRequest struct {
 	WishlistID uuid.UUID  `json:"-"`
-	ProductID uuid.UUID  `json:"product_id" validate:"required"`
-	VariantID *uuid.UUID `json:"variant_id"`
-	Quantity  int        `json:"quantity" validate:"min=1,max=100"`
-	Notes     string     `json:"notes" validate:"max=500"`
-	Priority  int        `json:"priority" validate:"min=0,max=10"`
+	ProductID  uuid.UUID  `json:"product_id" validate:"required"`
+	VariantID  *uuid.UUID `json:"variant_id"`
+	Quantity   int        `json:"quantity" validate:"min=1,max=100"`
+	Notes      string     `json:"notes" validate:"max=500"`
+	Priority   int        `json:"priority" validate:"min=0,max=10"`
 }
 
 // UpdateItemRequest represents a request to update a wishlist item
@@ -370,11 +370,11 @@ type WishlistResponse struct {
 // WishlistItemResponse represents a wishlist item response
 type WishlistItemResponse struct {
 	*WishlistItem
-	DisplayName        string  `json:"display_name"`
-	CurrentPrice       float64 `json:"current_price"`
+	DisplayName        string   `json:"display_name"`
+	CurrentPrice       float64  `json:"current_price"`
 	ComparePrice       *float64 `json:"compare_price,omitempty"`
-	DiscountPercentage float64 `json:"discount_percentage"`
-	IsAvailable        bool    `json:"is_available"`
+	DiscountPercentage float64  `json:"discount_percentage"`
+	IsAvailable        bool     `json:"is_available"`
 }
 
 // WishlistFilter represents filters for listing wishlists
@@ -388,24 +388,24 @@ type WishlistFilter struct {
 
 // WishlistItemFilter represents filters for listing wishlist items
 type WishlistItemFilter struct {
-	WishlistID *uuid.UUID `json:"wishlist_id"`
-	ProductID  *uuid.UUID `json:"product_id"`
-	VariantID  *uuid.UUID `json:"variant_id"`
-	IsAvailable *bool     `json:"is_available"`
-	HasDiscount *bool     `json:"has_discount"`
-	MinPriority *int      `json:"min_priority"`
-	MaxPriority *int      `json:"max_priority"`
+	WishlistID  *uuid.UUID `json:"wishlist_id"`
+	ProductID   *uuid.UUID `json:"product_id"`
+	VariantID   *uuid.UUID `json:"variant_id"`
+	IsAvailable *bool      `json:"is_available"`
+	HasDiscount *bool      `json:"has_discount"`
+	MinPriority *int       `json:"min_priority"`
+	MaxPriority *int       `json:"max_priority"`
 }
 
 // WishlistStats represents wishlist statistics
 type WishlistStats struct {
-	TotalWishlists     int64   `json:"total_wishlists"`
-	TotalItems         int64   `json:"total_items"`
-	AverageItemsPerWishlist float64 `json:"average_items_per_wishlist"`
-	PublicWishlists    int64   `json:"public_wishlists"`
-	PrivateWishlists   int64   `json:"private_wishlists"`
-	EmptyWishlists     int64   `json:"empty_wishlists"`
-	MostWishedProducts []ProductWishCount `json:"most_wished_products"`
+	TotalWishlists          int64              `json:"total_wishlists"`
+	TotalItems              int64              `json:"total_items"`
+	AverageItemsPerWishlist float64            `json:"average_items_per_wishlist"`
+	PublicWishlists         int64              `json:"public_wishlists"`
+	PrivateWishlists        int64              `json:"private_wishlists"`
+	EmptyWishlists          int64              `json:"empty_wishlists"`
+	MostWishedProducts      []ProductWishCount `json:"most_wished_products"`
 }
 
 // ProductWishCount represents product wish count statistics

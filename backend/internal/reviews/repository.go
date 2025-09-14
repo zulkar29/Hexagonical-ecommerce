@@ -18,27 +18,27 @@ type Repository interface {
 	UpdateReview(ctx context.Context, tenantID, reviewID uuid.UUID, updates map[string]interface{}) error
 	DeleteReview(ctx context.Context, tenantID, reviewID uuid.UUID) error
 	GetReviewCount(ctx context.Context, tenantID uuid.UUID, filter ReviewFilter) (int64, error)
-	
+
 	// Review reply operations
 	CreateReply(ctx context.Context, reply *ReviewReply) error
 	GetRepliesByReviewID(ctx context.Context, tenantID, reviewID uuid.UUID) ([]ReviewReply, error)
 	GetReplyByID(ctx context.Context, tenantID, replyID uuid.UUID) (*ReviewReply, error)
 	UpdateReply(ctx context.Context, tenantID, replyID uuid.UUID, updates map[string]interface{}) error
 	DeleteReply(ctx context.Context, tenantID, replyID uuid.UUID) error
-	
+
 	// Review reaction operations
 	CreateReaction(ctx context.Context, reaction *ReviewReaction) error
 	GetReactionByReviewAndEmail(ctx context.Context, tenantID, reviewID uuid.UUID, email string) (*ReviewReaction, error)
 	UpdateReaction(ctx context.Context, tenantID, reviewID uuid.UUID, email string, isHelpful bool) error
 	DeleteReaction(ctx context.Context, tenantID, reviewID uuid.UUID, email string) error
 	UpdateReviewReactionCounts(ctx context.Context, reviewID uuid.UUID) error
-	
+
 	// Review summary operations
 	CreateReviewSummary(ctx context.Context, summary *ReviewSummary) error
 	GetReviewSummary(ctx context.Context, tenantID, productID uuid.UUID) (*ReviewSummary, error)
 	UpdateReviewSummary(ctx context.Context, tenantID, productID uuid.UUID, updates map[string]interface{}) error
 	RecalculateReviewSummary(ctx context.Context, tenantID, productID uuid.UUID) error
-	
+
 	// Review invitation operations
 	CreateInvitation(ctx context.Context, invitation *ReviewInvitation) error
 	GetInvitationByID(ctx context.Context, tenantID, invitationID uuid.UUID) (*ReviewInvitation, error)
@@ -47,12 +47,12 @@ type Repository interface {
 	UpdateInvitation(ctx context.Context, tenantID, invitationID uuid.UUID, updates map[string]interface{}) error
 	DeleteInvitation(ctx context.Context, tenantID, invitationID uuid.UUID) error
 	GetExpiredInvitations(ctx context.Context, tenantID uuid.UUID) ([]ReviewInvitation, error)
-	
+
 	// Settings operations
 	CreateSettings(ctx context.Context, settings *ReviewSettings) error
 	GetSettings(ctx context.Context, tenantID uuid.UUID) (*ReviewSettings, error)
 	UpdateSettings(ctx context.Context, tenantID uuid.UUID, updates map[string]interface{}) error
-	
+
 	// Analytics operations
 	GetReviewStatsByPeriod(ctx context.Context, tenantID uuid.UUID, startDate, endDate time.Time) (*ReviewStats, error)
 	GetTopRatedProducts(ctx context.Context, tenantID uuid.UUID, limit int) ([]ProductRating, error)
@@ -88,36 +88,36 @@ func (r *repository) GetReviewByID(ctx context.Context, tenantID, reviewID uuid.
 func (r *repository) GetReviews(ctx context.Context, tenantID uuid.UUID, filter ReviewFilter) ([]Review, error) {
 	var reviews []Review
 	query := r.db.WithContext(ctx).Where("tenant_id = ?", tenantID)
-	
+
 	// Apply filters
 	if filter.ProductID != nil {
 		query = query.Where("product_id = ?", *filter.ProductID)
 	}
-	
+
 	if filter.OrderID != nil {
 		query = query.Where("order_id = ?", *filter.OrderID)
 	}
-	
+
 	if filter.UserID != nil {
 		query = query.Where("user_id = ?", *filter.UserID)
 	}
-	
+
 	if len(filter.Type) > 0 {
 		query = query.Where("type IN ?", filter.Type)
 	}
-	
+
 	if len(filter.Status) > 0 {
 		query = query.Where("status IN ?", filter.Status)
 	}
-	
+
 	if len(filter.Rating) > 0 {
 		query = query.Where("rating IN ?", filter.Rating)
 	}
-	
+
 	if filter.IsVerified != nil {
 		query = query.Where("is_verified = ?", *filter.IsVerified)
 	}
-	
+
 	if filter.HasImages != nil {
 		if *filter.HasImages {
 			query = query.Where("JSON_LENGTH(images) > 0")
@@ -125,7 +125,7 @@ func (r *repository) GetReviews(ctx context.Context, tenantID uuid.UUID, filter 
 			query = query.Where("JSON_LENGTH(images) = 0 OR images IS NULL")
 		}
 	}
-	
+
 	if filter.HasVideos != nil {
 		if *filter.HasVideos {
 			query = query.Where("JSON_LENGTH(videos) > 0")
@@ -133,20 +133,20 @@ func (r *repository) GetReviews(ctx context.Context, tenantID uuid.UUID, filter 
 			query = query.Where("JSON_LENGTH(videos) = 0 OR videos IS NULL")
 		}
 	}
-	
+
 	if filter.Search != "" {
-		query = query.Where("title ILIKE ? OR content ILIKE ? OR customer_name ILIKE ?", 
+		query = query.Where("title ILIKE ? OR content ILIKE ? OR customer_name ILIKE ?",
 			"%"+filter.Search+"%", "%"+filter.Search+"%", "%"+filter.Search+"%")
 	}
-	
+
 	if filter.StartDate != nil {
 		query = query.Where("created_at >= ?", filter.StartDate)
 	}
-	
+
 	if filter.EndDate != nil {
 		query = query.Where("created_at <= ?", filter.EndDate)
 	}
-	
+
 	// Sorting
 	sortBy := "created_at"
 	if filter.SortBy != "" {
@@ -155,14 +155,14 @@ func (r *repository) GetReviews(ctx context.Context, tenantID uuid.UUID, filter 
 			sortBy = filter.SortBy
 		}
 	}
-	
+
 	sortOrder := "DESC"
 	if filter.SortOrder == "asc" {
 		sortOrder = "ASC"
 	}
-	
+
 	query = query.Order(sortBy + " " + sortOrder)
-	
+
 	// Pagination
 	if filter.Limit > 0 {
 		query = query.Limit(filter.Limit)
@@ -170,10 +170,10 @@ func (r *repository) GetReviews(ctx context.Context, tenantID uuid.UUID, filter 
 			query = query.Offset((filter.Page - 1) * filter.Limit)
 		}
 	}
-	
+
 	// Preload relations
 	query = query.Preload("Replies").Preload("Reactions")
-	
+
 	err := query.Find(&reviews).Error
 	return reviews, err
 }
@@ -191,12 +191,12 @@ func (r *repository) DeleteReview(ctx context.Context, tenantID, reviewID uuid.U
 		if err := tx.Where("review_id = ?", reviewID).Delete(&ReviewReaction{}).Error; err != nil {
 			return err
 		}
-		
+
 		// Delete related replies
 		if err := tx.Where("review_id = ?", reviewID).Delete(&ReviewReply{}).Error; err != nil {
 			return err
 		}
-		
+
 		// Delete the review
 		return tx.Where("id = ? AND tenant_id = ?", reviewID, tenantID).Delete(&Review{}).Error
 	})
@@ -204,18 +204,18 @@ func (r *repository) DeleteReview(ctx context.Context, tenantID, reviewID uuid.U
 
 func (r *repository) GetReviewCount(ctx context.Context, tenantID uuid.UUID, filter ReviewFilter) (int64, error) {
 	query := r.db.WithContext(ctx).Model(&Review{}).Where("tenant_id = ?", tenantID)
-	
+
 	// Apply same filters as GetReviews
 	if filter.ProductID != nil {
 		query = query.Where("product_id = ?", *filter.ProductID)
 	}
-	
+
 	if len(filter.Status) > 0 {
 		query = query.Where("status IN ?", filter.Status)
 	}
-	
+
 	// Add other filter conditions as needed
-	
+
 	var count int64
 	err := query.Count(&count).Error
 	return count, err
@@ -228,28 +228,28 @@ func (r *repository) CreateReply(ctx context.Context, reply *ReviewReply) error 
 
 func (r *repository) GetRepliesByReviewID(ctx context.Context, tenantID, reviewID uuid.UUID) ([]ReviewReply, error) {
 	var replies []ReviewReply
-	
+
 	// Verify review belongs to tenant first
 	var count int64
 	r.db.WithContext(ctx).Model(&Review{}).
 		Where("id = ? AND tenant_id = ?", reviewID, tenantID).
 		Count(&count)
-	
+
 	if count == 0 {
 		return nil, gorm.ErrRecordNotFound
 	}
-	
+
 	err := r.db.WithContext(ctx).
 		Where("review_id = ? AND is_visible = ?", reviewID, true).
 		Order("created_at ASC").
 		Find(&replies).Error
-	
+
 	return replies, err
 }
 
 func (r *repository) GetReplyByID(ctx context.Context, tenantID, replyID uuid.UUID) (*ReviewReply, error) {
 	var reply ReviewReply
-	
+
 	// Join with reviews table to ensure tenant isolation
 	err := r.db.WithContext(ctx).
 		Table("review_replies").
@@ -257,7 +257,7 @@ func (r *repository) GetReplyByID(ctx context.Context, tenantID, replyID uuid.UU
 		Joins("JOIN reviews ON reviews.id = review_replies.review_id").
 		Where("review_replies.id = ? AND reviews.tenant_id = ?", replyID, tenantID).
 		First(&reply).Error
-	
+
 	return &reply, err
 }
 
@@ -286,16 +286,16 @@ func (r *repository) CreateReaction(ctx context.Context, reaction *ReviewReactio
 
 func (r *repository) GetReactionByReviewAndEmail(ctx context.Context, tenantID, reviewID uuid.UUID, email string) (*ReviewReaction, error) {
 	var reaction ReviewReaction
-	
+
 	// Verify review belongs to tenant and get reaction
 	err := r.db.WithContext(ctx).
 		Table("review_reactions").
 		Select("review_reactions.*").
 		Joins("JOIN reviews ON reviews.id = review_reactions.review_id").
-		Where("review_reactions.review_id = ? AND review_reactions.customer_email = ? AND reviews.tenant_id = ?", 
+		Where("review_reactions.review_id = ? AND review_reactions.customer_email = ? AND reviews.tenant_id = ?",
 			reviewID, email, tenantID).
 		First(&reaction).Error
-	
+
 	return &reaction, err
 }
 
@@ -304,7 +304,7 @@ func (r *repository) UpdateReaction(ctx context.Context, tenantID, reviewID uuid
 	return r.db.WithContext(ctx).
 		Table("review_reactions").
 		Joins("JOIN reviews ON reviews.id = review_reactions.review_id").
-		Where("review_reactions.review_id = ? AND review_reactions.customer_email = ? AND reviews.tenant_id = ?", 
+		Where("review_reactions.review_id = ? AND review_reactions.customer_email = ? AND reviews.tenant_id = ?",
 			reviewID, email, tenantID).
 		Update("is_helpful", isHelpful).Error
 }
@@ -313,7 +313,7 @@ func (r *repository) DeleteReaction(ctx context.Context, tenantID, reviewID uuid
 	return r.db.WithContext(ctx).
 		Table("review_reactions").
 		Joins("JOIN reviews ON reviews.id = review_reactions.review_id").
-		Where("review_reactions.review_id = ? AND review_reactions.customer_email = ? AND reviews.tenant_id = ?", 
+		Where("review_reactions.review_id = ? AND review_reactions.customer_email = ? AND reviews.tenant_id = ?",
 			reviewID, email, tenantID).
 		Delete(&ReviewReaction{}).Error
 }
@@ -327,7 +327,7 @@ func (r *repository) UpdateReviewReactionCounts(ctx context.Context, reviewID uu
 			Count(&helpfulCount).Error; err != nil {
 			return err
 		}
-		
+
 		// Count unhelpful reactions
 		var unhelpfulCount int64
 		if err := tx.Model(&ReviewReaction{}).
@@ -335,7 +335,7 @@ func (r *repository) UpdateReviewReactionCounts(ctx context.Context, reviewID uu
 			Count(&unhelpfulCount).Error; err != nil {
 			return err
 		}
-		
+
 		// Update review counts
 		return tx.Model(&Review{}).
 			Where("id = ?", reviewID).
@@ -356,7 +356,7 @@ func (r *repository) GetReviewSummary(ctx context.Context, tenantID, productID u
 	err := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND product_id = ? AND type = ?", tenantID, productID, TypeProduct).
 		First(&summary).Error
-	
+
 	if err == gorm.ErrRecordNotFound {
 		// Create default summary if not exists
 		summary = ReviewSummary{
@@ -370,7 +370,7 @@ func (r *repository) GetReviewSummary(ctx context.Context, tenantID, productID u
 		}
 		err = nil // Clear the not found error since we created the record
 	}
-	
+
 	return &summary, err
 }
 
@@ -387,23 +387,23 @@ func (r *repository) RecalculateReviewSummary(ctx context.Context, tenantID, pro
 			Rating int `json:"rating"`
 			Count  int `json:"count"`
 		}
-		
+
 		var ratings []ratingCount
 		err := tx.Model(&Review{}).
 			Select("rating, COUNT(*) as count").
 			Where("tenant_id = ? AND product_id = ? AND status = ?", tenantID, productID, StatusApproved).
 			Group("rating").
 			Find(&ratings).Error
-		
+
 		if err != nil {
 			return err
 		}
-		
+
 		// Calculate summary statistics
 		var totalReviews, verifiedCount, withPhotosCount int64
 		var ratingCounts [6]int // Index 0 unused, 1-5 for ratings
 		var totalPoints int
-		
+
 		for _, r := range ratings {
 			totalReviews += int64(r.Count)
 			totalPoints += r.Rating * r.Count
@@ -411,39 +411,39 @@ func (r *repository) RecalculateReviewSummary(ctx context.Context, tenantID, pro
 				ratingCounts[r.Rating] = r.Count
 			}
 		}
-		
+
 		// Count verified reviews and reviews with photos
 		tx.Model(&Review{}).
-			Where("tenant_id = ? AND product_id = ? AND status = ? AND is_verified = ?", 
+			Where("tenant_id = ? AND product_id = ? AND status = ? AND is_verified = ?",
 				tenantID, productID, StatusApproved, true).
 			Count(&verifiedCount)
-		
+
 		tx.Model(&Review{}).
-			Where("tenant_id = ? AND product_id = ? AND status = ? AND JSON_LENGTH(images) > 0", 
+			Where("tenant_id = ? AND product_id = ? AND status = ? AND JSON_LENGTH(images) > 0",
 				tenantID, productID, StatusApproved).
 			Count(&withPhotosCount)
-		
+
 		// Calculate average rating
 		var avgRating float64
 		if totalReviews > 0 {
 			avgRating = float64(totalPoints) / float64(totalReviews)
 		}
-		
+
 		// Update summary
 		updates := map[string]interface{}{
-			"total_reviews":     totalReviews,
-			"approved_reviews":  totalReviews,
-			"average_rating":    avgRating,
-			"rating_1_count":    ratingCounts[1],
-			"rating_2_count":    ratingCounts[2],
-			"rating_3_count":    ratingCounts[3],
-			"rating_4_count":    ratingCounts[4],
-			"rating_5_count":    ratingCounts[5],
-			"verified_reviews":  verifiedCount,
-			"with_photos":       withPhotosCount,
-			"updated_at":        time.Now(),
+			"total_reviews":    totalReviews,
+			"approved_reviews": totalReviews,
+			"average_rating":   avgRating,
+			"rating_1_count":   ratingCounts[1],
+			"rating_2_count":   ratingCounts[2],
+			"rating_3_count":   ratingCounts[3],
+			"rating_4_count":   ratingCounts[4],
+			"rating_5_count":   ratingCounts[5],
+			"verified_reviews": verifiedCount,
+			"with_photos":      withPhotosCount,
+			"updated_at":       time.Now(),
 		}
-		
+
 		return r.UpdateReviewSummary(ctx, tenantID, productID, updates)
 	})
 }
@@ -509,7 +509,7 @@ func (r *repository) GetSettings(ctx context.Context, tenantID uuid.UUID) (*Revi
 	err := r.db.WithContext(ctx).
 		Where("tenant_id = ?", tenantID).
 		First(&settings).Error
-	
+
 	if err == gorm.ErrRecordNotFound {
 		// Create default settings
 		settings = ReviewSettings{
@@ -522,7 +522,7 @@ func (r *repository) GetSettings(ctx context.Context, tenantID uuid.UUID) (*Revi
 		}
 		err = nil // Clear the not found error since we created the record
 	}
-	
+
 	return &settings, err
 }
 
@@ -541,7 +541,7 @@ func (r *repository) GetReviewStatsByPeriod(ctx context.Context, tenantID uuid.U
 
 func (r *repository) GetTopRatedProducts(ctx context.Context, tenantID uuid.UUID, limit int) ([]ProductRating, error) {
 	var ratings []ProductRating
-	
+
 	// This would need to join with products table to get product names
 	// For now, returning the structure expected
 	err := r.db.WithContext(ctx).
@@ -551,7 +551,7 @@ func (r *repository) GetTopRatedProducts(ctx context.Context, tenantID uuid.UUID
 		Order("rs.average_rating DESC, rs.approved_reviews DESC").
 		Limit(limit).
 		Find(&ratings).Error
-	
+
 	return ratings, err
 }
 
@@ -560,7 +560,7 @@ func (r *repository) GetReviewCountByStatus(ctx context.Context, tenantID uuid.U
 		Status ReviewStatus `json:"status"`
 		Count  int          `json:"count"`
 	}
-	
+
 	var results []statusCount
 	err := r.db.WithContext(ctx).
 		Model(&Review{}).
@@ -568,16 +568,16 @@ func (r *repository) GetReviewCountByStatus(ctx context.Context, tenantID uuid.U
 		Where("tenant_id = ?", tenantID).
 		Group("status").
 		Find(&results).Error
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	counts := make(map[ReviewStatus]int)
 	for _, result := range results {
 		counts[result.Status] = result.Count
 	}
-	
+
 	return counts, nil
 }
 
@@ -586,7 +586,7 @@ func (r *repository) GetReviewCountByRating(ctx context.Context, tenantID uuid.U
 		Rating int `json:"rating"`
 		Count  int `json:"count"`
 	}
-	
+
 	var results []ratingCount
 	err := r.db.WithContext(ctx).
 		Model(&Review{}).
@@ -594,15 +594,15 @@ func (r *repository) GetReviewCountByRating(ctx context.Context, tenantID uuid.U
 		Where("tenant_id = ? AND status = ?", tenantID, StatusApproved).
 		Group("rating").
 		Find(&results).Error
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	counts := make(map[int]int)
 	for _, result := range results {
 		counts[result.Rating] = result.Count
 	}
-	
+
 	return counts, nil
 }

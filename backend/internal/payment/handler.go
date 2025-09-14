@@ -152,10 +152,7 @@ func (h *Handler) PaymentWebhook(c *gin.Context) {
 	switch provider {
 	case "sslcommerz":
 		h.handleSSLCommerzWebhook(c)
-	case "bkash":
-		h.handleBkashWebhook(c)
-	case "nagad":
-		h.handleNagadWebhook(c)
+
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported payment provider"})
 	}
@@ -176,15 +173,9 @@ func (h *Handler) handleSSLCommerzWebhook(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
 
-func (h *Handler) handleBkashWebhook(c *gin.Context) {
-	// TODO: Implement bKash webhook handling
-	c.JSON(http.StatusOK, gin.H{"status": "success"})
-}
 
-func (h *Handler) handleNagadWebhook(c *gin.Context) {
-	// TODO: Implement Nagad webhook handling
-	c.JSON(http.StatusOK, gin.H{"status": "success"})
-}
+
+
 
 // RegisterRoutes registers all payment routes
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {

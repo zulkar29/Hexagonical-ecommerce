@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -51,15 +52,15 @@ func NewService(repository Repository) Service {
 		repository: repository,
 		validator:  validator.New(),
 		emailProvider: EmailProvider{
-			Name:      "sendgrid",
-			APIKey:    "your_sendgrid_key", // TODO: Load from config
-			FromEmail: "noreply@yourdomain.com",
-			FromName:  "Your Platform",
+			Name:      getEnvOrDefault("EMAIL_PROVIDER", "sendgrid"),
+			APIKey:    getEnvOrDefault("SENDGRID_API_KEY", ""),
+			FromEmail: getEnvOrDefault("FROM_EMAIL", "noreply@yourdomain.com"),
+			FromName:  getEnvOrDefault("FROM_NAME", "Your Platform"),
 		},
 		smsProvider: SMSProvider{
-			Name:      "local_bd",
-			APIKey:    "your_sms_key", // TODO: Load from config
-			APISecret: "your_sms_secret",
+			Name:      getEnvOrDefault("SMS_PROVIDER", "local_bd"),
+			APIKey:    getEnvOrDefault("SMS_API_KEY", ""),
+			APISecret: getEnvOrDefault("SMS_API_SECRET", ""),
 		},
 	}
 }
@@ -141,8 +142,8 @@ func (s *service) sendNotificationAsync(notification *Notification) {
 		smsErr := s.sendSMSNotification(notification)
 		s.updateNotificationStatus(notification, smsErr)
 	case TypePush:
-		// TODO: Implement push notification
-		s.updateNotificationStatus(notification, fmt.Errorf("push notifications not implemented"))
+		pushErr := s.sendPushNotification(notification)
+		s.updateNotificationStatus(notification, pushErr)
 	case TypeInApp:
 		// In-app notifications are just stored in database
 		notification.Status = StatusDelivered
@@ -263,6 +264,61 @@ func (s *service) sendSMSViaLocalBD(notification *Notification) error {
 func (s *service) sendSMSViaTwilio(notification *Notification) error {
 	// Twilio SMS integration - placeholder
 	return fmt.Errorf("twilio SMS not implemented yet")
+}
+
+func (s *service) sendPushNotification(notification *Notification) error {
+	// Firebase Cloud Messaging (FCM) integration
+	// This is a basic implementation - in production, you'd want to use the official FCM SDK
+	pushProvider := getEnvOrDefault("PUSH_PROVIDER", "fcm")
+	
+	switch pushProvider {
+	case "fcm":
+		return s.sendPushViaFCM(notification)
+	default:
+		return fmt.Errorf("unsupported push provider: %s", pushProvider)
+	}
+}
+
+func (s *service) sendPushViaFCM(notification *Notification) error {
+	serverKey := getEnvOrDefault("FCM_SERVER_KEY", "")
+	if serverKey == "" {
+		return fmt.Errorf("FCM server key not configured")
+	}
+
+	payload := map[string]interface{}{
+		"to": notification.Recipient, // This should be the FCM token
+		"notification": map[string]string{
+			"title": notification.Subject,
+			"body":  notification.Content,
+		},
+		"data": map[string]string{
+			"tenant_id": notification.TenantID.String(),
+			"type":      notification.Type,
+		},
+	}
+
+	jsonData, _ := json.Marshal(payload)
+	
+	req, err := http.NewRequest("POST", "https://fcm.googleapis.com/fcm/send", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Authorization", "key="+serverKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("FCM API error: status %d", resp.StatusCode)
+	}
+
+	return nil
 }
 
 func (s *service) updateNotificationStatus(notification *Notification, err error) {
@@ -446,12 +502,40 @@ func (s *service) UpdatePreferences(tenantID, userID uuid.UUID, req *Notificatio
 }
 
 func (s *service) GetStats(tenantID uuid.UUID) (*NotificationStatsResponse, error) {
-	// TODO: Implement comprehensive stats
-	return &NotificationStatsResponse{
-		TotalSent:      0,
-		TotalDelivered: 0,
-		TotalFailed:    0,
-		DeliveryRate:   0,
-		FailureRate:    0,
-	}, nil
+	statsMap, err := s.repository.GetNotificationStats(tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get notification stats: %w", err)
+	}
+
+	// Convert map to structured response
+	stats := &NotificationStatsResponse{
+		TotalSent:      statsMap["sent"],
+		TotalDelivered: statsMap["delivered"],
+		TotalFailed:    statsMap["failed"],
+	}
+
+	// Calculate rates
+	total := statsMap["total"]
+	if total > 0 {
+		stats.DeliveryRate = float64(statsMap["delivered"]) / float64(total) * 100
+		stats.FailureRate = float64(statsMap["failed"]) / float64(total) * 100
+	}
+
+	// Email stats
+	stats.EmailStats.Sent = statsMap["email"]
+	stats.EmailStats.Delivered = statsMap["email"] // Simplified for now
+
+	// SMS stats
+	stats.SMSStats.Sent = statsMap["sms"]
+	stats.SMSStats.Delivered = statsMap["sms"] // Simplified for now
+
+	return stats, nil
+}
+
+// getEnvOrDefault returns environment variable value or default if not set
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }

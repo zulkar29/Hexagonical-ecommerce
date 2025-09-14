@@ -22,63 +22,63 @@ const (
 type Category struct {
 	ID       uuid.UUID `json:"id" gorm:"primarykey"`
 	TenantID uuid.UUID `json:"tenant_id" gorm:"not null;index"`
-	
+
 	// Basic information
 	Name        string `json:"name" gorm:"not null"`
 	Slug        string `json:"slug" gorm:"not null;index"`
 	Description string `json:"description,omitempty"`
 	Image       string `json:"image,omitempty"`
 	Icon        string `json:"icon,omitempty"`
-	
+
 	// Hierarchy
 	ParentID *uuid.UUID `json:"parent_id,omitempty" gorm:"index"`
-	Level    int         `json:"level" gorm:"default:0"`
-	Path     string      `json:"path" gorm:"index"` // e.g., "/electronics/computers/laptops"
-	
+	Level    int        `json:"level" gorm:"default:0"`
+	Path     string     `json:"path" gorm:"index"` // e.g., "/electronics/computers/laptops"
+
 	// Display and ordering
 	SortOrder int            `json:"sort_order" gorm:"default:0"`
 	Status    CategoryStatus `json:"status" gorm:"default:active"`
-	
+
 	// SEO
 	MetaTitle       string `json:"meta_title,omitempty"`
 	MetaDescription string `json:"meta_description,omitempty"`
 	MetaKeywords    string `json:"meta_keywords,omitempty"`
-	
+
 	// Features
-	IsFeatured    bool `json:"is_featured" gorm:"default:false"`
-	ShowInMenu    bool `json:"show_in_menu" gorm:"default:true"`
-	ProductCount  int  `json:"product_count" gorm:"default:0"`
-	
+	IsFeatured   bool `json:"is_featured" gorm:"default:false"`
+	ShowInMenu   bool `json:"show_in_menu" gorm:"default:true"`
+	ProductCount int  `json:"product_count" gorm:"default:0"`
+
 	// Timestamps
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-	
+
 	// Relations
-	Parent   *Category   `json:"parent,omitempty" gorm:"foreignKey:ParentID"`
-	Children []Category  `json:"children,omitempty" gorm:"foreignKey:ParentID"`
-	Products []Product   `json:"products,omitempty" gorm:"many2many:product_categories;"`
+	Parent   *Category  `json:"parent,omitempty" gorm:"foreignKey:ParentID"`
+	Children []Category `json:"children,omitempty" gorm:"foreignKey:ParentID"`
+	Products []Product  `json:"products,omitempty" gorm:"many2many:product_categories;"`
 }
 
 // Product represents a simplified product structure for category relations
 type Product struct {
-	ID         uuid.UUID   `json:"id" gorm:"primarykey"`
-	TenantID   uuid.UUID   `json:"tenant_id"`
-	Name       string      `json:"name"`
-	Slug       string      `json:"slug"`
-	Status     string      `json:"status"`
-	Categories []Category  `json:"categories,omitempty" gorm:"many2many:product_categories;"`
+	ID         uuid.UUID  `json:"id" gorm:"primarykey"`
+	TenantID   uuid.UUID  `json:"tenant_id"`
+	Name       string     `json:"name"`
+	Slug       string     `json:"slug"`
+	Status     string     `json:"status"`
+	Categories []Category `json:"categories,omitempty" gorm:"many2many:product_categories;"`
 }
 
 // Business Logic Errors
 var (
-	ErrCategoryNotFound     = errors.New("category not found")
-	ErrCategoryExists       = errors.New("category already exists")
-	ErrInvalidParent        = errors.New("invalid parent category")
-	ErrCircularReference    = errors.New("circular reference detected")
-	ErrCategoryHasProducts  = errors.New("category has associated products")
-	ErrCategoryHasChildren  = errors.New("category has child categories")
-	ErrMaxDepthExceeded     = errors.New("maximum category depth exceeded")
-	ErrInvalidSlug          = errors.New("invalid category slug")
+	ErrCategoryNotFound    = errors.New("category not found")
+	ErrCategoryExists      = errors.New("category already exists")
+	ErrInvalidParent       = errors.New("invalid parent category")
+	ErrCircularReference   = errors.New("circular reference detected")
+	ErrCategoryHasProducts = errors.New("category has associated products")
+	ErrCategoryHasChildren = errors.New("category has child categories")
+	ErrMaxDepthExceeded    = errors.New("maximum category depth exceeded")
+	ErrInvalidSlug         = errors.New("invalid category slug")
 )
 
 // Business Logic Methods for Category
@@ -113,13 +113,13 @@ func (c *Category) GetAncestors() []string {
 	if c.Path == "" {
 		return []string{}
 	}
-	
+
 	// Remove leading slash and split
 	path := strings.TrimPrefix(c.Path, "/")
 	if path == "" {
 		return []string{}
 	}
-	
+
 	return strings.Split(path, "/")
 }
 
@@ -195,10 +195,10 @@ func (c *Category) BeforeCreate(tx *gorm.DB) error {
 	if c.ID == uuid.Nil {
 		c.ID = uuid.New()
 	}
-	
+
 	// Generate slug if not provided
 	c.GenerateSlug()
-	
+
 	return nil
 }
 
@@ -208,7 +208,7 @@ func (c *Category) BeforeUpdate(tx *gorm.DB) error {
 	if c.Slug == "" {
 		c.GenerateSlug()
 	}
-	
+
 	return nil
 }
 
@@ -274,10 +274,10 @@ type CategoryFilter struct {
 
 // CategoryStats represents category statistics
 type CategoryStats struct {
-	TotalCategories   int64 `json:"total_categories"`
-	ActiveCategories  int64 `json:"active_categories"`
-	RootCategories    int64 `json:"root_categories"`
-	FeaturedCategories int64 `json:"featured_categories"`
-	MaxDepth          int `json:"max_depth"`
+	TotalCategories        int64   `json:"total_categories"`
+	ActiveCategories       int64   `json:"active_categories"`
+	RootCategories         int64   `json:"root_categories"`
+	FeaturedCategories     int64   `json:"featured_categories"`
+	MaxDepth               int     `json:"max_depth"`
 	AvgProductsPerCategory float64 `json:"avg_products_per_category"`
 }

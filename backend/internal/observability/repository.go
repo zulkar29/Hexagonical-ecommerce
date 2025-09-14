@@ -144,9 +144,9 @@ func (r *observabilityRepository) SaveLogEntry(ctx context.Context, entry *LogEn
 // GetLogEntries retrieves log entries with filters
 func (r *observabilityRepository) GetLogEntries(ctx context.Context, filters map[string]interface{}, limit, offset int) ([]*LogEntry, error) {
 	var models []LogEntryModel
-	
+
 	query := r.db.WithContext(ctx).Model(&LogEntryModel{})
-	
+
 	// Apply filters
 	for key, value := range filters {
 		switch key {
@@ -166,7 +166,7 @@ func (r *observabilityRepository) GetLogEntries(ctx context.Context, filters map
 			query = query.Where("created_at <= ?", value)
 		}
 	}
-	
+
 	err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&models).Error
 	if err != nil {
 		return nil, err
@@ -207,9 +207,9 @@ func (r *observabilityRepository) SaveMetric(ctx context.Context, metric *Metric
 // GetMetrics retrieves metrics with filters
 func (r *observabilityRepository) GetMetrics(ctx context.Context, filters map[string]interface{}, limit, offset int) ([]*Metric, error) {
 	var models []MetricModel
-	
+
 	query := r.db.WithContext(ctx).Model(&MetricModel{})
-	
+
 	// Apply filters
 	for key, value := range filters {
 		switch key {
@@ -225,7 +225,7 @@ func (r *observabilityRepository) GetMetrics(ctx context.Context, filters map[st
 			query = query.Where("created_at <= ?", value)
 		}
 	}
-	
+
 	err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&models).Error
 	if err != nil {
 		return nil, err
@@ -351,9 +351,9 @@ func (r *observabilityRepository) SaveAlert(ctx context.Context, alert *Alert) e
 // GetAlerts retrieves alerts with filters
 func (r *observabilityRepository) GetAlerts(ctx context.Context, filters map[string]interface{}, limit, offset int) ([]*Alert, error) {
 	var models []AlertModel
-	
+
 	query := r.db.WithContext(ctx).Model(&AlertModel{})
-	
+
 	// Apply filters
 	for key, value := range filters {
 		switch key {
@@ -365,7 +365,7 @@ func (r *observabilityRepository) GetAlerts(ctx context.Context, filters map[str
 			query = query.Where("status = ?", value)
 		}
 	}
-	
+
 	err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&models).Error
 	if err != nil {
 		return nil, err

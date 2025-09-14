@@ -1,6 +1,6 @@
 # Hexagonal E-commerce SaaS - User Flows for Testing
 
-📋 **Documentation Navigation**: [📖 Project Home](../README.md) | [🏗️ Architecture](./ARCHITECTURE.md) | [🚀 Features](./FEATURES.md) | [📡 API Reference](./API_REFERENCE.md)
+📋 **Documentation Navigation**: [📖 Project Home](../README.md) | [🏗️ Architecture](./ARCHITECTURE.md) | [🚀 Features](./FEATURES.md) | [📋 Roadmap](./ROADMAP.md) | [📡 API Reference](./API_REFERENCE.md)
 
 This document outlines all user flows in the system to help plan comprehensive testing coverage.
 
@@ -316,6 +316,28 @@ This document outlines all user flows in the system to help plan comprehensive t
 - **Critical Flows**: 90%+ coverage
 - **Important Flows**: 70%+ coverage  
 - **Nice to Have**: 40%+ coverage
+
+## 13. Advanced SaaS Management Flows
+
+### Customer Segmentation & Analytics
+- [ ] **Create Customer Segments**: Define criteria → Analyze customer behavior → Create segment → Apply to marketing campaigns
+- [ ] **Segment Analysis**: Select segment → View customer stats → Export customer list → Analyze purchase patterns
+- [ ] **Customer Lifecycle Tracking**: Track purchase frequency → Identify VIP customers → Monitor customer value → Predict churn risk
+
+### Stock & Inventory Management
+- [ ] **Low Stock Monitoring**: Set stock thresholds → Monitor product levels → Generate alerts → Reorder automation
+- [ ] **Stock Audit Reports**: Generate audit report → Review discrepancies → Adjust stock levels → Document changes
+- [ ] **Stock Alerts Configuration**: Define alert rules → Set notification preferences → Monitor stock trends → Proactive restocking
+
+### Bulk Operations & Enterprise Features
+- [ ] **Bulk Order Processing**: Select multiple orders → Update statuses → Apply bulk actions → Generate reports
+- [ ] **Enterprise Account Management**: GDPR compliance → Data export → Account anonymization → Secure deletion
+- [ ] **API Rate Limiting**: Monitor API usage → Set rate limits per tenant → Adjust limits → Prevent abuse
+
+### Advanced Security & Compliance
+- [ ] **Rate Limit Management**: Monitor API calls → Set tenant limits → Dynamic adjustment → Abuse prevention
+- [ ] **User Data Management**: GDPR requests → Data export → Account deactivation → Data anonymization
+- [ ] **Compliance Monitoring**: Audit trails → Data retention policies → Legal compliance → Security reports
 
 ---
 

@@ -106,40 +106,7 @@ CREATE TABLE IF NOT EXISTS refunds (
 -- NOTIFICATION MODULE TABLES
 -- ================================
 
--- Notifications table
-CREATE TABLE IF NOT EXISTS notifications (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id UUID NOT NULL,
-    user_id UUID,
-    
-    -- Notification content
-    type VARCHAR(50) NOT NULL, -- order_confirmation, payment_success, shipping_update, etc.
-    title VARCHAR(255) NOT NULL,
-    message TEXT NOT NULL,
-    
-    -- Delivery channels
-    channels TEXT[] NOT NULL, -- [email, sms, push, in_app]
-    
-    -- Status
-    status VARCHAR(20) NOT NULL DEFAULT 'pending', -- pending, sent, delivered, failed, read
-    priority INTEGER NOT NULL DEFAULT 5, -- 1-10, 1 highest priority
-    
-    -- Scheduling
-    scheduled_at TIMESTAMP,
-    sent_at TIMESTAMP,
-    delivered_at TIMESTAMP,
-    read_at TIMESTAMP,
-    
-    -- Additional data
-    metadata JSONB,
-    template_id UUID,
-    
-    -- Timestamps
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    
-    CONSTRAINT notifications_priority_range CHECK (priority >= 1 AND priority <= 10)
-);
+-- Note: notifications table is already created in migration 007
 
 -- Notification deliveries table (tracks delivery per channel)
 CREATE TABLE IF NOT EXISTS notification_deliveries (
@@ -168,79 +135,19 @@ CREATE TABLE IF NOT EXISTS notification_deliveries (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Notification templates table
-CREATE TABLE IF NOT EXISTS notification_templates (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id UUID NOT NULL,
-    
-    -- Template identification
-    name VARCHAR(100) NOT NULL,
-    type VARCHAR(50) NOT NULL, -- order_confirmation, payment_success, etc.
-    channel VARCHAR(20) NOT NULL, -- email, sms, push, in_app
-    
-    -- Template content
-    subject VARCHAR(255), -- for email templates
-    body TEXT NOT NULL,
-    variables TEXT[], -- Available template variables
-    
-    -- Template settings
-    is_active BOOLEAN NOT NULL DEFAULT true,
-    language VARCHAR(5) NOT NULL DEFAULT 'en', -- en, bn
-    
-    -- Timestamps
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    
-    UNIQUE(tenant_id, name, type, channel)
-);
+-- Note: notification_templates table is already created in migration 007
 
--- Notification preferences table (user preferences for receiving notifications)
-CREATE TABLE IF NOT EXISTS notification_preferences (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id UUID NOT NULL,
-    user_id UUID NOT NULL,
-    
-    -- Preference settings
-    notification_type VARCHAR(50) NOT NULL,
-    channels TEXT[] NOT NULL DEFAULT '{}', -- enabled channels for this notification type
-    enabled BOOLEAN NOT NULL DEFAULT true,
-    
-    -- Timing preferences
-    quiet_hours_start TIME,
-    quiet_hours_end TIME,
-    timezone VARCHAR(50) DEFAULT 'Asia/Dhaka',
-    
-    -- Timestamps
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    
-    UNIQUE(tenant_id, user_id, notification_type)
-);
+-- Note: notification_preferences table is already created in migration 007
 
 -- ================================
 -- FOREIGN KEY CONSTRAINTS
 -- ================================
 
--- Payment module foreign keys
-ALTER TABLE payments ADD CONSTRAINT fk_payments_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
-ALTER TABLE payments ADD CONSTRAINT fk_payments_order_id FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL;
-ALTER TABLE payments ADD CONSTRAINT fk_payments_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
-
+-- Payment module foreign keys (payments table constraints already exist in migration 006)
 ALTER TABLE payment_transactions ADD CONSTRAINT fk_payment_transactions_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
 
-ALTER TABLE refunds ADD CONSTRAINT fk_refunds_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
-
--- Notification module foreign keys
-ALTER TABLE notifications ADD CONSTRAINT fk_notifications_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
-ALTER TABLE notifications ADD CONSTRAINT fk_notifications_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
-ALTER TABLE notifications ADD CONSTRAINT fk_notifications_template_id FOREIGN KEY (template_id) REFERENCES notification_templates(id) ON DELETE SET NULL;
-
+-- Notification module foreign keys (main notification tables already have constraints from migration 007)
 ALTER TABLE notification_deliveries ADD CONSTRAINT fk_notification_deliveries_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
-
-ALTER TABLE notification_templates ADD CONSTRAINT fk_notification_templates_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
-
-ALTER TABLE notification_preferences ADD CONSTRAINT fk_notification_preferences_tenant_id FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
-ALTER TABLE notification_preferences ADD CONSTRAINT fk_notification_preferences_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
 
 -- ================================
 -- INDEXES FOR BETTER PERFORMANCE
@@ -308,48 +215,48 @@ CREATE TRIGGER update_notification_preferences_updated_at BEFORE UPDATE ON notif
 -- SEED DATA
 -- ================================
 
+-- Insert a default tenant for seed data
+INSERT INTO tenants (id, name, subdomain, email, description, status, plan)
+VALUES 
+('00000000-0000-0000-0000-000000000001', 'Default Tenant', 'default', 'admin@example.com', 'Default tenant for system templates', 'active', 'enterprise')
+ON CONFLICT (id) DO NOTHING;
+
 -- Insert default notification templates for Bangladesh e-commerce
-INSERT INTO notification_templates (tenant_id, name, type, channel, subject, body, variables, language) 
+INSERT INTO notification_templates (tenant_id, name, type, channel, subject, content, variables) 
 VALUES 
 -- Order confirmation templates (English)
-(gen_random_uuid(), 'Order Confirmation Email', 'order_confirmation', 'email', 
+('00000000-0000-0000-0000-000000000001', 'Order Confirmation Email', 'order_confirmation', 'email', 
  'Order Confirmation - {{order_number}}', 
  'Dear {{customer_name}},\n\nYour order {{order_number}} has been confirmed.\nTotal: {{total_amount}} BDT\n\nItems:\n{{order_items}}\n\nThank you for shopping with us!',
- ARRAY['customer_name', 'order_number', 'total_amount', 'order_items'],
- 'en'),
+ '{"variables": ["customer_name", "order_number", "total_amount", "order_items"]}'),
 
-(gen_random_uuid(), 'Order Confirmation SMS', 'order_confirmation', 'sms',
+('00000000-0000-0000-0000-000000000001', 'Order Confirmation SMS', 'order_confirmation', 'sms',
  NULL,
  'Order {{order_number}} confirmed. Total: {{total_amount}} BDT. Track: {{tracking_url}}',
- ARRAY['order_number', 'total_amount', 'tracking_url'],
- 'en'),
+ '{"variables": ["order_number", "total_amount", "tracking_url"]}'),
 
 -- Payment success templates (English)
-(gen_random_uuid(), 'Payment Success Email', 'payment_success', 'email',
+('00000000-0000-0000-0000-000000000001', 'Payment Success Email', 'payment_success', 'email',
  'Payment Successful - {{order_number}}',
  'Dear {{customer_name}},\n\nYour payment of {{amount}} BDT for order {{order_number}} has been processed successfully.\n\nPayment Method: {{payment_method}}\nTransaction ID: {{transaction_id}}\n\nYour order will be processed shortly.',
- ARRAY['customer_name', 'order_number', 'amount', 'payment_method', 'transaction_id'],
- 'en'),
+ '{"variables": ["customer_name", "order_number", "amount", "payment_method", "transaction_id"]}'),
 
-(gen_random_uuid(), 'Payment Success SMS', 'payment_success', 'sms',
+('00000000-0000-0000-0000-000000000001', 'Payment Success SMS', 'payment_success', 'sms',
  NULL,
  'Payment {{amount}} BDT successful for order {{order_number}}. Transaction: {{transaction_id}}',
- ARRAY['order_number', 'amount', 'transaction_id'],
- 'en'),
+ '{"variables": ["order_number", "amount", "transaction_id"]}'),
 
 -- Bengali templates
-(gen_random_uuid(), 'Order Confirmation Email Bengali', 'order_confirmation', 'email',
+('00000000-0000-0000-0000-000000000001', 'Order Confirmation Email Bengali', 'order_confirmation', 'email',
  'অর্ডার নিশ্চিতকরণ - {{order_number}}',
  'প্রিয় {{customer_name}},\n\nআপনার অর্ডার {{order_number}} নিশ্চিত হয়েছে।\nমোট: {{total_amount}} টাকা\n\nআইটেমসমূহ:\n{{order_items}}\n\nআমাদের সাথে কেনাকাটার জন্য ধন্যবাদ!',
- ARRAY['customer_name', 'order_number', 'total_amount', 'order_items'],
- 'bn'),
+ '{"variables": ["customer_name", "order_number", "total_amount", "order_items"]}'),
 
-(gen_random_uuid(), 'Payment Success SMS Bengali', 'payment_success', 'sms',
+('00000000-0000-0000-0000-000000000001', 'Payment Success SMS Bengali', 'payment_success', 'sms',
  NULL,
  'অর্ডার {{order_number}} এর {{amount}} টাকা পেমেন্ট সফল। ট্রানজেকশন: {{transaction_id}}',
- ARRAY['order_number', 'amount', 'transaction_id'],
- 'bn')
+ '{"variables": ["order_number", "amount", "transaction_id"]}')
 
-ON CONFLICT (tenant_id, name, type, channel) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 COMMIT;

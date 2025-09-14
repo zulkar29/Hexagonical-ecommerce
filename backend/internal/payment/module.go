@@ -1,9 +1,9 @@
 package payment
 
 import (
+	"ecommerce-saas/internal/shared/config"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
-	"ecommerce-saas/internal/shared/config"
 )
 
 // Module represents the payment module

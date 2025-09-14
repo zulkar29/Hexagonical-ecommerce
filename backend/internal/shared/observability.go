@@ -4,13 +4,13 @@ import (
 	"context"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // ObservabilityIntegration provides centralized observability for all modules
 type ObservabilityIntegration struct {
-	analyticsService AnalyticsService
+	analyticsService     AnalyticsService
 	observabilityService ObservabilityService
 }
 
@@ -21,10 +21,10 @@ type AnalyticsService interface {
 	TrackBusinessMetric(ctx context.Context, tenantID uuid.UUID, metric BusinessMetric) error
 }
 
-// ObservabilityService defines the interface for observability operations  
+// ObservabilityService defines the interface for observability operations
 type ObservabilityService interface {
 	LogEvent(ctx context.Context, level string, message string, fields map[string]interface{}, err error)
-	RecordMetric(ctx context.Context, name string, metricType string, value float64, tags map[string]string) 
+	RecordMetric(ctx context.Context, name string, metricType string, value float64, tags map[string]string)
 	TraceOperation(ctx context.Context, operationName string, tags map[string]interface{}, fn func(ctx context.Context) error) error
 }
 
@@ -50,16 +50,16 @@ func NewObservabilityIntegration(analytics AnalyticsService, observability Obser
 func (o *ObservabilityIntegration) TrackUserAction(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID, action string, properties map[string]interface{}) {
 	// Track in analytics for business intelligence
 	event := map[string]interface{}{
-		"event_type":   "user_action",
-		"event_name":   action,
-		"user_id":      userID,
-		"tenant_id":    tenantID,
-		"properties":   properties,
-		"timestamp":    time.Now(),
+		"event_type": "user_action",
+		"event_name": action,
+		"user_id":    userID,
+		"tenant_id":  tenantID,
+		"properties": properties,
+		"timestamp":  time.Now(),
 	}
-	
+
 	if err := o.analyticsService.TrackEvent(ctx, tenantID, event); err != nil {
-		o.observabilityService.LogEvent(ctx, "error", "Failed to track user action in analytics", 
+		o.observabilityService.LogEvent(ctx, "error", "Failed to track user action in analytics",
 			map[string]interface{}{
 				"user_id": userID,
 				"action":  action,
@@ -88,12 +88,12 @@ func (o *ObservabilityIntegration) TrackUserAction(ctx context.Context, tenantID
 func (o *ObservabilityIntegration) TrackBusinessEvent(ctx context.Context, tenantID uuid.UUID, eventType, eventName string, value float64, properties map[string]interface{}) {
 	// Create business metric
 	metric := BusinessMetric{
-		Name:      eventName,
-		Category:  "business",
-		Type:      eventType,
-		Value:     value,
+		Name:     eventName,
+		Category: "business",
+		Type:     eventType,
+		Value:    value,
 		Tags: map[string]string{
-			"tenant_id": tenantID.String(),
+			"tenant_id":  tenantID.String(),
 			"event_type": eventType,
 		},
 		Timestamp: time.Now(),
@@ -112,11 +112,11 @@ func (o *ObservabilityIntegration) TrackBusinessEvent(ctx context.Context, tenan
 	// Log the business event
 	o.observabilityService.LogEvent(ctx, "info", "Business event tracked",
 		map[string]interface{}{
-			"tenant_id":   tenantID,
-			"event_type":  eventType,
-			"event_name":  eventName,
-			"value":       value,
-			"properties":  properties,
+			"tenant_id":  tenantID,
+			"event_type": eventType,
+			"event_name": eventName,
+			"value":      value,
+			"properties": properties,
 		}, nil)
 
 	// Record business metrics
@@ -146,7 +146,7 @@ func (o *ObservabilityIntegration) TrackAPICall(ctx context.Context, method, end
 		"status_code": statusCode,
 		"duration_ms": duration.Milliseconds(),
 	}
-	
+
 	if tenantID != nil {
 		fields["tenant_id"] = *tenantID
 	}
@@ -166,14 +166,14 @@ func (o *ObservabilityIntegration) TrackAPICall(ctx context.Context, method, end
 		"endpoint":    endpoint,
 		"status_code": string(rune(statusCode)),
 	}
-	
+
 	if tenantID != nil {
 		tags["tenant_id"] = tenantID.String()
 	}
 
 	// Record request count
 	o.observabilityService.RecordMetric(ctx, "api_requests_total", "counter", 1, tags)
-	
+
 	// Record request duration
 	o.observabilityService.RecordMetric(ctx, "api_request_duration_ms", "histogram", float64(duration.Milliseconds()), tags)
 
@@ -198,7 +198,7 @@ func (o *ObservabilityIntegration) TrackDatabaseOperation(ctx context.Context, o
 
 	logLevel := "debug"
 	message := "Database operation completed"
-	
+
 	if err != nil {
 		logLevel = "error"
 		message = "Database operation failed"
@@ -230,7 +230,7 @@ func (o *ObservabilityIntegration) TrackDatabaseOperation(ctx context.Context, o
 func (o *ObservabilityIntegration) RequestObservabilityMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
-		
+
 		// Extract tenant ID from context if available
 		var tenantID *uuid.UUID
 		if tid, exists := c.Get("tenant_id"); exists {
@@ -240,7 +240,7 @@ func (o *ObservabilityIntegration) RequestObservabilityMiddleware() gin.HandlerF
 		}
 
 		// Start distributed trace
-		err := o.observabilityService.TraceOperation(c.Request.Context(), 
+		err := o.observabilityService.TraceOperation(c.Request.Context(),
 			c.Request.Method+" "+c.FullPath(),
 			map[string]interface{}{
 				"http.method": c.Request.Method,
@@ -254,7 +254,7 @@ func (o *ObservabilityIntegration) RequestObservabilityMiddleware() gin.HandlerF
 			})
 
 		if err != nil {
-			o.observabilityService.LogEvent(c.Request.Context(), "error", 
+			o.observabilityService.LogEvent(c.Request.Context(), "error",
 				"Failed to trace request", map[string]interface{}{
 					"method": c.Request.Method,
 					"path":   c.FullPath(),
@@ -263,9 +263,9 @@ func (o *ObservabilityIntegration) RequestObservabilityMiddleware() gin.HandlerF
 		}
 
 		duration := time.Since(start)
-		
+
 		// Track API call with comprehensive metrics
-		o.TrackAPICall(c.Request.Context(), c.Request.Method, c.FullPath(), 
+		o.TrackAPICall(c.Request.Context(), c.Request.Method, c.FullPath(),
 			c.Writer.Status(), duration, tenantID)
 
 		// Track page view for analytics if it's a GET request to a page
@@ -278,17 +278,17 @@ func (o *ObservabilityIntegration) RequestObservabilityMiddleware() gin.HandlerF
 				"tenant_id":  *tenantID,
 				"timestamp":  time.Now(),
 			}
-			
+
 			if userID, exists := c.Get("user_id"); exists {
 				pageView["user_id"] = userID
 			}
-			
+
 			if sessionID, exists := c.Get("session_id"); exists {
 				pageView["session_id"] = sessionID
 			}
 
 			if err := o.analyticsService.TrackPageView(c.Request.Context(), *tenantID, pageView); err != nil {
-				o.observabilityService.LogEvent(c.Request.Context(), "warn", 
+				o.observabilityService.LogEvent(c.Request.Context(), "warn",
 					"Failed to track page view", map[string]interface{}{
 						"path":  c.FullPath(),
 						"error": err.Error(),
@@ -306,7 +306,7 @@ func (o *ObservabilityIntegration) ErrorObservabilityMiddleware() gin.HandlerFun
 		// Check for errors in the context
 		if len(c.Errors) > 0 {
 			for _, ginErr := range c.Errors {
-				o.observabilityService.LogEvent(c.Request.Context(), "error", 
+				o.observabilityService.LogEvent(c.Request.Context(), "error",
 					"Request error occurred", map[string]interface{}{
 						"method":     c.Request.Method,
 						"path":       c.FullPath(),
@@ -334,18 +334,18 @@ func isPageRequest(path string) bool {
 	// This would be customized based on your application's routing structure
 	pagePatterns := []string{
 		"/products",
-		"/orders", 
+		"/orders",
 		"/dashboard",
 		"/settings",
 		"/profile",
 	}
-	
+
 	for _, pattern := range pagePatterns {
 		if len(path) >= len(pattern) && path[:len(pattern)] == pattern {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -363,11 +363,11 @@ func (o *ObservabilityIntegration) HealthCheck(ctx context.Context) map[string]i
 				},
 			},
 			"observability": map[string]interface{}{
-				"status": "healthy", 
+				"status": "healthy",
 				"details": map[string]interface{}{
-					"logging_enabled":  true,
-					"metrics_enabled":  true,
-					"tracing_enabled":  true,
+					"logging_enabled": true,
+					"metrics_enabled": true,
+					"tracing_enabled": true,
 				},
 			},
 		},

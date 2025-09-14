@@ -16,7 +16,8 @@ type Module struct {
 // NewModule creates a new user module instance
 func NewModule(db *gorm.DB, jwtManager *utils.JWTManager) *Module {
 	repo := NewRepository(db)
-	svc := NewService(repo, jwtManager)
+	securityService := NewSecurityService(db)
+	svc := NewService(repo, jwtManager, securityService)
 	handler := NewHandler(svc)
 
 	return &Module{

@@ -1,14 +1,14 @@
 package product
 
 import (
-	"gorm.io/gorm"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // Module represents the product module
 type Module struct {
-	Handler *Handler
-	Service *Service
+	Handler    *Handler
+	Service    *Service
 	Repository Repository
 }
 

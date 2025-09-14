@@ -29,24 +29,24 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		tenants.GET("", h.ListTenants)
 		tenants.GET("/:id", h.GetTenant)
 		tenants.PUT("/:id", h.UpdateTenant)
-		
+
 		// Plan management
 		tenants.PUT("/:id/plan", h.UpdatePlan)
 		tenants.GET("/:id/upgrade-options", h.GetUpgradeOptions)
-		
+
 		// Status management
 		tenants.POST("/:id/activate", h.ActivateTenant)
 		tenants.POST("/:id/deactivate", h.DeactivateTenant)
 		tenants.POST("/:id/suspend", h.SuspendTenant)
-		
+
 		// Information and statistics
 		tenants.GET("/:id/stats", h.GetTenantStats)
 		tenants.GET("/subdomain/:subdomain", h.GetTenantBySubdomain)
-		
+
 		// Utility endpoints
 		tenants.GET("/check-subdomain/:subdomain", h.CheckSubdomainAvailability)
 		tenants.POST("/:id/validate-domain", h.ValidateCustomDomain)
-		
+
 		// Domain management endpoints
 		tenants.POST("/:id/domains", h.AddDomain)
 		tenants.GET("/:id/domains", h.ListDomains)
@@ -80,7 +80,7 @@ func (h *Handler) CreateTenant(c *gin.Context) {
 // GetTenant handles GET /api/tenants/:id
 func (h *Handler) GetTenant(c *gin.Context) {
 	tenantID := c.Param("id")
-	
+
 	tenant, err := h.service.GetTenant(tenantID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Tenant not found"})
@@ -95,7 +95,7 @@ func (h *Handler) GetTenant(c *gin.Context) {
 // GetTenantBySubdomain handles GET /api/tenants/subdomain/:subdomain
 func (h *Handler) GetTenantBySubdomain(c *gin.Context) {
 	subdomain := c.Param("subdomain")
-	
+
 	tenant, err := h.service.GetTenantBySubdomain(subdomain)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Tenant not found"})
@@ -110,7 +110,7 @@ func (h *Handler) GetTenantBySubdomain(c *gin.Context) {
 // UpdateTenant handles PUT /api/tenants/:id
 func (h *Handler) UpdateTenant(c *gin.Context) {
 	tenantID := c.Param("id")
-	
+
 	var req UpdateTenantRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
@@ -132,7 +132,7 @@ func (h *Handler) UpdateTenant(c *gin.Context) {
 // UpdatePlan handles PUT /api/tenants/:id/plan
 func (h *Handler) UpdatePlan(c *gin.Context) {
 	tenantID := c.Param("id")
-	
+
 	var req UpdatePlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
@@ -156,19 +156,19 @@ func (h *Handler) ListTenants(c *gin.Context) {
 	// Parse pagination parameters
 	offsetStr := c.DefaultQuery("offset", "0")
 	limitStr := c.DefaultQuery("limit", "20")
-	
+
 	offset, err := strconv.Atoi(offsetStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset parameter"})
 		return
 	}
-	
+
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
 		return
 	}
-	
+
 	// Validate limit
 	if limit > 100 {
 		limit = 100
@@ -196,7 +196,7 @@ func (h *Handler) ListTenants(c *gin.Context) {
 // DeactivateTenant handles POST /api/tenants/:id/deactivate
 func (h *Handler) DeactivateTenant(c *gin.Context) {
 	tenantID := c.Param("id")
-	
+
 	err := h.service.DeactivateTenant(tenantID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -211,7 +211,7 @@ func (h *Handler) DeactivateTenant(c *gin.Context) {
 // ActivateTenant handles POST /api/tenants/:id/activate
 func (h *Handler) ActivateTenant(c *gin.Context) {
 	tenantID := c.Param("id")
-	
+
 	err := h.service.ActivateTenant(tenantID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -226,7 +226,7 @@ func (h *Handler) ActivateTenant(c *gin.Context) {
 // GetTenantStats handles GET /api/tenants/:id/stats
 func (h *Handler) GetTenantStats(c *gin.Context) {
 	tenantID := c.Param("id")
-	
+
 	stats, err := h.service.GetTenantStats(tenantID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
@@ -241,13 +241,13 @@ func (h *Handler) GetTenantStats(c *gin.Context) {
 // CheckSubdomainAvailability handles GET /api/tenants/check-subdomain/:subdomain
 func (h *Handler) CheckSubdomainAvailability(c *gin.Context) {
 	subdomain := c.Param("subdomain")
-	
+
 	available, err := h.service.CheckSubdomainAvailability(subdomain)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"subdomain": subdomain,
 		"available": available,
@@ -257,7 +257,7 @@ func (h *Handler) CheckSubdomainAvailability(c *gin.Context) {
 // GetUpgradeOptions handles GET /api/tenants/:id/upgrade-options
 func (h *Handler) GetUpgradeOptions(c *gin.Context) {
 	tenantID := c.Param("id")
-	
+
 	options, err := h.service.GetPlanUpgradeOptions(tenantID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -266,7 +266,7 @@ func (h *Handler) GetUpgradeOptions(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"data": gin.H{
-			"tenant_id": tenantID,
+			"tenant_id":       tenantID,
 			"upgrade_options": options,
 		},
 	})
@@ -275,7 +275,7 @@ func (h *Handler) GetUpgradeOptions(c *gin.Context) {
 // SuspendTenant handles POST /api/tenants/:id/suspend
 func (h *Handler) SuspendTenant(c *gin.Context) {
 	tenantID := c.Param("id")
-	
+
 	var req struct {
 		Reason string `json:"reason,omitempty"`
 	}
@@ -284,7 +284,7 @@ func (h *Handler) SuspendTenant(c *gin.Context) {
 		// This is optional data, so we don't need to fail the request
 		log.Printf("Failed to parse suspend reason: %v", err)
 	}
-	
+
 	err := h.service.SuspendTenant(tenantID, req.Reason)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -299,7 +299,7 @@ func (h *Handler) SuspendTenant(c *gin.Context) {
 // ValidateCustomDomain handles POST /api/tenants/:id/validate-domain
 func (h *Handler) ValidateCustomDomain(c *gin.Context) {
 	tenantID := c.Param("id")
-	
+
 	var req struct {
 		Domain string `json:"domain" validate:"required,fqdn"`
 	}
@@ -322,7 +322,7 @@ func (h *Handler) ValidateCustomDomain(c *gin.Context) {
 // GetTenantByDomain handles GET /api/tenants/domain/:domain
 func (h *Handler) GetTenantByDomain(c *gin.Context) {
 	domain := c.Param("domain")
-	
+
 	tenant, err := h.service.GetTenantByCustomDomain(domain)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Tenant not found"})
@@ -337,7 +337,7 @@ func (h *Handler) GetTenantByDomain(c *gin.Context) {
 // AddDomain handles POST /api/tenants/:id/domains
 func (h *Handler) AddDomain(c *gin.Context) {
 	tenantID := c.Param("id")
-	
+
 	var req struct {
 		Domain string `json:"domain" validate:"required,fqdn"`
 		Type   string `json:"type" validate:"required,oneof=subdomain custom"`
@@ -363,7 +363,7 @@ func (h *Handler) AddDomain(c *gin.Context) {
 // ListDomains handles GET /api/tenants/:id/domains
 func (h *Handler) ListDomains(c *gin.Context) {
 	tenantID := c.Param("id")
-	
+
 	tenant, err := h.service.GetTenant(tenantID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Tenant not found"})
@@ -397,7 +397,7 @@ func (h *Handler) ListDomains(c *gin.Context) {
 func (h *Handler) UpdateDomain(c *gin.Context) {
 	tenantID := c.Param("id")
 	domainID := c.Param("domain_id")
-	
+
 	var req struct {
 		Domain string `json:"domain" validate:"required"`
 	}
@@ -426,7 +426,7 @@ func (h *Handler) UpdateDomain(c *gin.Context) {
 func (h *Handler) RemoveDomain(c *gin.Context) {
 	tenantID := c.Param("id")
 	domainID := c.Param("domain_id")
-	
+
 	if domainID == "subdomain" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot remove subdomain"})
 		return

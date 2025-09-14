@@ -481,10 +481,7 @@ type ContactSettings struct {
 	CRMType                  string `json:"crm_type,omitempty"` // hubspot, salesforce, etc.
 	CRMAPIKey                string `json:"crm_api_key,omitempty"`
 	
-	// GDPR compliance
-	DataRetentionDays        int    `json:"data_retention_days" gorm:"default:365"`
-	ConsentRequired          bool   `json:"consent_required" gorm:"default:true"`
-	ConsentText              string `json:"consent_text,omitempty"`
+	// Removed GDPR compliance fields - not needed for multi-tenant shared DB approach
 	
 	// Timestamps
 	CreatedAt time.Time `json:"created_at"`

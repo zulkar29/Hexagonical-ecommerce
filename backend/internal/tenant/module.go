@@ -2,8 +2,8 @@ package tenant
 
 import (
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // RepositoryInterface defines the contract for tenant data operations

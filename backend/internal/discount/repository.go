@@ -20,7 +20,7 @@ type Repository interface {
 	DeleteDiscount(ctx context.Context, tenantID, discountID uuid.UUID) error
 	IncrementUsageCount(ctx context.Context, tenantID, discountID uuid.UUID) error
 	DecrementUsageCount(ctx context.Context, tenantID, discountID uuid.UUID) error
-	
+
 	// Discount usage operations
 	CreateDiscountUsage(ctx context.Context, usage *DiscountUsage) error
 	GetDiscountUsage(ctx context.Context, tenantID, discountID uuid.UUID, filter UsageFilter) ([]DiscountUsage, error)
@@ -28,7 +28,7 @@ type Repository interface {
 	GetDiscountUsageByOrder(ctx context.Context, tenantID, orderID uuid.UUID) (*DiscountUsage, error)
 	GetCustomerDiscountUsageCount(ctx context.Context, tenantID uuid.UUID, customerEmail string, discountID uuid.UUID) (int, error)
 	DeleteDiscountUsage(ctx context.Context, tenantID, usageID uuid.UUID) error
-	
+
 	// Gift card operations
 	CreateGiftCard(ctx context.Context, giftCard *GiftCard) error
 	GetGiftCardByID(ctx context.Context, tenantID, giftCardID uuid.UUID) (*GiftCard, error)
@@ -36,20 +36,20 @@ type Repository interface {
 	GetGiftCards(ctx context.Context, tenantID uuid.UUID, filter GiftCardFilter) ([]GiftCard, error)
 	UpdateGiftCard(ctx context.Context, tenantID, giftCardID uuid.UUID, updates map[string]interface{}) error
 	DeleteGiftCard(ctx context.Context, tenantID, giftCardID uuid.UUID) error
-	
+
 	// Gift card transaction operations
 	CreateGiftCardTransaction(ctx context.Context, transaction *GiftCardTransaction) error
 	GetGiftCardTransactions(ctx context.Context, tenantID, giftCardID uuid.UUID) ([]GiftCardTransaction, error)
-	
+
 	// Store credit operations
 	CreateStoreCredit(ctx context.Context, storeCredit *StoreCredit) error
 	GetStoreCredit(ctx context.Context, tenantID, customerID uuid.UUID) (*StoreCredit, error)
 	UpdateStoreCredit(ctx context.Context, tenantID, customerID uuid.UUID, updates map[string]interface{}) error
-	
+
 	// Store credit transaction operations
 	CreateStoreCreditTransaction(ctx context.Context, transaction *StoreCreditTransaction) error
 	GetStoreCreditTransactions(ctx context.Context, tenantID, customerID uuid.UUID, filter StoreCreditFilter) ([]StoreCreditTransaction, error)
-	
+
 	// Analytics operations
 	GetDiscountUsageStats(ctx context.Context, tenantID uuid.UUID, startDate, endDate time.Time) (*DiscountStats, error)
 	GetDiscountPerformance(ctx context.Context, tenantID uuid.UUID, limit int) ([]DiscountPerformance, error)
@@ -92,25 +92,25 @@ func (r *repository) GetDiscountByCode(ctx context.Context, tenantID uuid.UUID, 
 func (r *repository) GetDiscounts(ctx context.Context, tenantID uuid.UUID, filter DiscountFilter) ([]Discount, error) {
 	var discounts []Discount
 	query := r.db.WithContext(ctx).Where("tenant_id = ?", tenantID)
-	
+
 	// Apply filters
 	if len(filter.Status) > 0 {
 		query = query.Where("status IN ?", filter.Status)
 	}
-	
+
 	if len(filter.Type) > 0 {
 		query = query.Where("type IN ?", filter.Type)
 	}
-	
+
 	if len(filter.Target) > 0 {
 		query = query.Where("target IN ?", filter.Target)
 	}
-	
+
 	if filter.Search != "" {
-		query = query.Where("code ILIKE ? OR title ILIKE ? OR description ILIKE ?", 
+		query = query.Where("code ILIKE ? OR title ILIKE ? OR description ILIKE ?",
 			"%"+filter.Search+"%", "%"+filter.Search+"%", "%"+filter.Search+"%")
 	}
-	
+
 	if filter.IsExpired != nil {
 		now := time.Now()
 		if *filter.IsExpired {
@@ -119,29 +119,29 @@ func (r *repository) GetDiscounts(ctx context.Context, tenantID uuid.UUID, filte
 			query = query.Where("expires_at IS NULL OR expires_at >= ?", now)
 		}
 	}
-	
+
 	if filter.IsActive != nil {
 		if *filter.IsActive {
 			now := time.Now()
-			query = query.Where("status = ? AND (starts_at IS NULL OR starts_at <= ?) AND (expires_at IS NULL OR expires_at >= ?)", 
+			query = query.Where("status = ? AND (starts_at IS NULL OR starts_at <= ?) AND (expires_at IS NULL OR expires_at >= ?)",
 				StatusActive, now, now)
 		} else {
 			query = query.Where("status != ?", StatusActive)
 		}
 	}
-	
+
 	if filter.CreatedBy != nil {
 		query = query.Where("created_by = ?", *filter.CreatedBy)
 	}
-	
+
 	if filter.StartDate != nil {
 		query = query.Where("created_at >= ?", filter.StartDate)
 	}
-	
+
 	if filter.EndDate != nil {
 		query = query.Where("created_at <= ?", filter.EndDate)
 	}
-	
+
 	// Sorting
 	sortBy := "created_at"
 	if filter.SortBy != "" {
@@ -150,14 +150,14 @@ func (r *repository) GetDiscounts(ctx context.Context, tenantID uuid.UUID, filte
 			sortBy = filter.SortBy
 		}
 	}
-	
+
 	sortOrder := "DESC"
 	if filter.SortOrder == "asc" {
 		sortOrder = "ASC"
 	}
-	
+
 	query = query.Order(sortBy + " " + sortOrder)
-	
+
 	// Pagination
 	if filter.Limit > 0 {
 		query = query.Limit(filter.Limit)
@@ -165,7 +165,7 @@ func (r *repository) GetDiscounts(ctx context.Context, tenantID uuid.UUID, filte
 			query = query.Offset((filter.Page - 1) * filter.Limit)
 		}
 	}
-	
+
 	err := query.Find(&discounts).Error
 	return discounts, err
 }
@@ -184,7 +184,7 @@ func (r *repository) DeleteDiscount(ctx context.Context, tenantID, discountID uu
 			Delete(&DiscountUsage{}).Error; err != nil {
 			return err
 		}
-		
+
 		// Delete the discount
 		return tx.Where("id = ? AND tenant_id = ?", discountID, tenantID).
 			Delete(&Discount{}).Error
@@ -214,16 +214,16 @@ func (r *repository) GetDiscountUsage(ctx context.Context, tenantID, discountID 
 	var usages []DiscountUsage
 	query := r.db.WithContext(ctx).
 		Where("discount_id = ? AND tenant_id = ?", discountID, tenantID)
-	
+
 	// Apply filters
 	if filter.StartDate != nil {
 		query = query.Where("used_at >= ?", filter.StartDate)
 	}
-	
+
 	if filter.EndDate != nil {
 		query = query.Where("used_at <= ?", filter.EndDate)
 	}
-	
+
 	// Pagination
 	if filter.Limit > 0 {
 		query = query.Limit(filter.Limit)
@@ -231,7 +231,7 @@ func (r *repository) GetDiscountUsage(ctx context.Context, tenantID, discountID 
 			query = query.Offset((filter.Page - 1) * filter.Limit)
 		}
 	}
-	
+
 	err := query.Order("used_at DESC").Find(&usages).Error
 	return usages, err
 }
@@ -294,17 +294,17 @@ func (r *repository) GetGiftCardByCode(ctx context.Context, tenantID uuid.UUID, 
 func (r *repository) GetGiftCards(ctx context.Context, tenantID uuid.UUID, filter GiftCardFilter) ([]GiftCard, error) {
 	var giftCards []GiftCard
 	query := r.db.WithContext(ctx).Where("tenant_id = ?", tenantID)
-	
+
 	// Apply filters
 	if len(filter.Status) > 0 {
 		query = query.Where("status IN ?", filter.Status)
 	}
-	
+
 	if filter.Search != "" {
-		query = query.Where("code ILIKE ? OR recipient_name ILIKE ? OR recipient_email ILIKE ?", 
+		query = query.Where("code ILIKE ? OR recipient_name ILIKE ? OR recipient_email ILIKE ?",
 			"%"+filter.Search+"%", "%"+filter.Search+"%", "%"+filter.Search+"%")
 	}
-	
+
 	if filter.IsExpired != nil {
 		now := time.Now()
 		if *filter.IsExpired {
@@ -313,15 +313,15 @@ func (r *repository) GetGiftCards(ctx context.Context, tenantID uuid.UUID, filte
 			query = query.Where("expires_at IS NULL OR expires_at >= ?", now)
 		}
 	}
-	
+
 	if filter.StartDate != nil {
 		query = query.Where("created_at >= ?", filter.StartDate)
 	}
-	
+
 	if filter.EndDate != nil {
 		query = query.Where("created_at <= ?", filter.EndDate)
 	}
-	
+
 	// Pagination
 	if filter.Limit > 0 {
 		query = query.Limit(filter.Limit)
@@ -329,7 +329,7 @@ func (r *repository) GetGiftCards(ctx context.Context, tenantID uuid.UUID, filte
 			query = query.Offset((filter.Page - 1) * filter.Limit)
 		}
 	}
-	
+
 	err := query.Order("created_at DESC").Find(&giftCards).Error
 	return giftCards, err
 }
@@ -348,7 +348,7 @@ func (r *repository) DeleteGiftCard(ctx context.Context, tenantID, giftCardID uu
 			Delete(&GiftCardTransaction{}).Error; err != nil {
 			return err
 		}
-		
+
 		// Delete the gift card
 		return tx.Where("id = ? AND tenant_id = ?", giftCardID, tenantID).
 			Delete(&GiftCard{}).Error
@@ -380,7 +380,7 @@ func (r *repository) GetStoreCredit(ctx context.Context, tenantID, customerID uu
 		Where("tenant_id = ? AND customer_id = ?", tenantID, customerID).
 		Preload("Transactions").
 		First(&storeCredit).Error
-	
+
 	if err == gorm.ErrRecordNotFound {
 		// Create default store credit record
 		storeCredit = StoreCredit{
@@ -394,7 +394,7 @@ func (r *repository) GetStoreCredit(ctx context.Context, tenantID, customerID uu
 			return nil, createErr
 		}
 	}
-	
+
 	return &storeCredit, err
 }
 
@@ -412,34 +412,34 @@ func (r *repository) CreateStoreCreditTransaction(ctx context.Context, transacti
 
 func (r *repository) GetStoreCreditTransactions(ctx context.Context, tenantID, customerID uuid.UUID, filter StoreCreditFilter) ([]StoreCreditTransaction, error) {
 	var transactions []StoreCreditTransaction
-	
+
 	// First get the store credit ID
 	var storeCredit StoreCredit
 	err := r.db.WithContext(ctx).
 		Select("id").
 		Where("tenant_id = ? AND customer_id = ?", tenantID, customerID).
 		First(&storeCredit).Error
-	
+
 	if err != nil {
 		return transactions, err
 	}
-	
+
 	query := r.db.WithContext(ctx).
 		Where("store_credit_id = ? AND tenant_id = ?", storeCredit.ID, tenantID)
-	
+
 	// Apply filters
 	if len(filter.Type) > 0 {
 		query = query.Where("type IN ?", filter.Type)
 	}
-	
+
 	if filter.StartDate != nil {
 		query = query.Where("created_at >= ?", filter.StartDate)
 	}
-	
+
 	if filter.EndDate != nil {
 		query = query.Where("created_at <= ?", filter.EndDate)
 	}
-	
+
 	// Pagination
 	if filter.Limit > 0 {
 		query = query.Limit(filter.Limit)
@@ -447,7 +447,7 @@ func (r *repository) GetStoreCreditTransactions(ctx context.Context, tenantID, c
 			query = query.Offset((filter.Page - 1) * filter.Limit)
 		}
 	}
-	
+
 	err = query.Order("created_at DESC").Find(&transactions).Error
 	return transactions, err
 }
@@ -460,7 +460,7 @@ func (r *repository) GetDiscountUsageStats(ctx context.Context, tenantID uuid.UU
 
 func (r *repository) GetDiscountPerformance(ctx context.Context, tenantID uuid.UUID, limit int) ([]DiscountPerformance, error) {
 	var performance []DiscountPerformance
-	
+
 	// Query to get top performing discounts
 	err := r.db.WithContext(ctx).
 		Table("discounts d").
@@ -478,12 +478,12 @@ func (r *repository) GetDiscountPerformance(ctx context.Context, tenantID uuid.U
 		Order("d.usage_count DESC").
 		Limit(limit).
 		Find(&performance).Error
-	
+
 	// Calculate conversion rates (would need additional data)
 	for i := range performance {
 		performance[i].ConversionRate = 0 // TODO: Calculate actual conversion rate
 	}
-	
+
 	return performance, err
 }
 

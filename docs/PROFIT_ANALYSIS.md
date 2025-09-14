@@ -102,14 +102,20 @@ Starter Plan: ৳1,990/month (⚒️50% cheaper than Shopify Basic)
 - Competitive advantage: ৳1,210/month savings vs Shopify + local features
 
 Professional Plan: ৳4,990/month (⚒️40% cheaper than international platforms)
-- Target: Growing SMEs, established businesses  
-- Features: 5,000 products, advanced analytics, priority support, API access
-- Expected adoption: 12% of customers
+- Target: Growing SMEs, established businesses
+- Features: 2,000 products, advanced analytics, priority support, email marketing
+- Expected adoption: 30% of customers
 - Competitive advantage: ৳3,210/month savings + superior local integrations
+
+Pro Plan: ৳7,990/month (⚒️Premium features + advanced capabilities)
+- Target: Established online businesses, scaling companies
+- Features: 10,000 products, custom branding, API access, advanced integrations
+- Expected adoption: 12% of customers
+- Competitive advantage: 40% cheaper than international platforms + complete feature set
 
 Enterprise Plan: ৳12,990/month (⚒️Custom solutions + dedicated infrastructure)
 - Target: Large businesses, agencies, white-label
-- Features: Unlimited products, priority database performance, SLA support, custom development
+- Features: Unlimited products, priority database performance (shared DB with optimized queries), SLA support, custom development
 - Expected adoption: 3% of customers  
 - Competitive advantage: 45% cheaper than custom development + faster deployment
 ```
@@ -666,7 +672,7 @@ This competitive analysis demonstrates our strong positioning to survive and thr
 - **Target**: Small traditional businesses
 - **Monthly revenue range**: ৳200,000-800,000 (typical SMEs)
 - **Software budget**: 2-5% of revenue = ৳4,000-40,000/month
-- **Our pricing**: ৳3,990/month = 1-2% of revenue (very affordable)
+- **Our pricing**: ৳4,990/month = 1-2% of revenue (very affordable)
 - **Competitive**: 60% cheaper than manual operations (৳10,000-25,000/month)
 
 **Pro Plan (৳7,990/month) - REALISTIC ✅**
@@ -749,7 +755,7 @@ This competitive analysis demonstrates our strong positioning to survive and thr
 #### Enterprise Plan (REDUCE TO ৳12,990/month)
 ```
 ✅ Unlimited products
-✅ Priority database performance
+✅ Priority database performance (shared DB with optimized queries)
 ✅ Priority support
 ✅ Custom development
 ✅ Advanced API access

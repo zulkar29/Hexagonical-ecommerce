@@ -8,9 +8,7 @@ A multi-tenant e-commerce SaaS platform built with hexagonal architecture, enabl
 
 ### **Quick Links**
 - [🏗️ Architecture](./docs/ARCHITECTURE.md) - System architecture and hexagonal design patterns
-- [📡 API Documentation](./docs/API_REFERENCE.md) - Complete REST API documentation (450+ endpoints)
-- [🚀 API Architecture](./docs/API_ARCHITECTURE.md) - Socket communication, advanced pagination
-- [🗄️ Database Strategy](./docs/DATABASE.md) - Hybrid multi-tenant database design
+- [📡 API Documentation](./docs/API_REFERENCE.md) - Complete REST API documentation (275 endpoints)
 - [✨ Features](./docs/FEATURES.md) - Complete feature list and pricing tiers  
 - [🐳 Docker Setup](./docs/README-DOCKER.md) - Development environment with Docker
 
@@ -49,7 +47,7 @@ cd dashboard && npm start
 
 ```
 ├── docs/                    # All documentation
-├── backend/                 # Go Fiber API
+├── backend/                 # Go Gin API
 ├── storefront/              # Next.js customer store  
 ├── dashboard/               # React.js merchant admin
 ├── docker-compose.dev.yml   # Development environment
@@ -72,7 +70,7 @@ cd dashboard && npm start
 | Service | Port | Description |
 |---------|------|-------------|
 | Backend API | 8080 | Go Gin REST API |
-| Storefront | 3000 | Customer-facing store |
+| Storefront | 3002 | Customer-facing store |
 | Dashboard | 3001 | Merchant admin panel |
 | PostgreSQL | 5432 | Primary database |
 | Redis | 6379 | Cache & sessions |
@@ -97,31 +95,13 @@ make format         # Format code
 ## 📚 Additional Resources
 
 - **Architecture**: Hexagonal (Clean) Architecture with Go
-- **Multi-tenancy**: Database-per-tenant isolation
+- **Multi-tenancy**: Shared database with tenant_id isolation
 - **Authentication**: JWT with role-based access
-- **Payments**: Stripe integration
+- **Payments**: SSLCommerz integration
 - **Real-time**: WebSocket communication
 - **Deployment**: Docker containers on VPS
 
 ---
 
-**Status**: Development Setup Complete  
-**Next**: Implement core business logic
-
-
-
-  # Stop all services
-  make dev-down
-
-  # Clean restart
-  docker-compose -f docker-compose.dev.yml down -v
-  make dev-up
-
-
- 🟢 Services Running Successfully:
-
-  | Service    | Status    | Port | URL                   |
-  |------------|-----------|------|-----------------------|
-  | PostgreSQL | ✅ Running | 5432 | localhost:5432        |
-  | Redis      | ✅ Running | 6379 | localhost:6379        |
-  | Storefront | ✅ Running | 3002 | http://localhost:3002 |
+**Status**: Active Development
+**Features**: 275 API endpoints across 27 modules implemented

@@ -73,8 +73,5 @@ CREATE INDEX IF NOT EXISTS idx_theme_template_components_position ON theme_templ
 -- Note: Default theme templates should be inserted per tenant during tenant creation
 -- This ensures proper tenant isolation
 
--- Grant permissions to roles
-GRANT SELECT, INSERT, UPDATE, DELETE ON theme_templates TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON theme_template_components TO authenticated;
-GRANT SELECT ON theme_templates TO anon;
-GRANT SELECT ON theme_template_components TO anon;
+-- Note: Role-based permissions should be configured at the application level
+-- or through database-specific role management

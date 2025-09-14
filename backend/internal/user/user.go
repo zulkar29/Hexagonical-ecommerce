@@ -210,6 +210,18 @@ type TokenResponse struct {
 	ExpiresIn    int    `json:"expires_in"`
 }
 
+// TwoFactorSetupResponse represents 2FA setup response
+type TwoFactorSetupResponse struct {
+	Secret    string `json:"secret"`
+	QRCodeURL string `json:"qr_code_url"`
+	BackupCodes []string `json:"backup_codes,omitempty"`
+}
+
+// TwoFactorBackupCodes represents 2FA backup codes
+type TwoFactorBackupCodes struct {
+	Codes []string `json:"codes"`
+}
+
 
 
 // UserFilter represents user listing filters

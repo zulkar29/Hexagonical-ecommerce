@@ -14,13 +14,13 @@ type Module struct {
 func NewModule(db *gorm.DB) *Module {
 	// Initialize repository
 	repo := NewRepository(db)
-	
+
 	// Initialize service
 	service := NewService(repo)
-	
+
 	// Initialize handler
 	handler := NewHandler(service)
-	
+
 	return &Module{
 		handler: handler,
 	}

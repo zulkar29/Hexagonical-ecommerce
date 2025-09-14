@@ -69,25 +69,25 @@ type LedgerFilters struct {
 
 // Report structs
 type TrialBalanceEntry struct {
-	AccountID    uuid.UUID `json:"account_id"`
-	AccountCode  string    `json:"account_code"`
-	AccountName  string    `json:"account_name"`
-	AccountType  AccountType `json:"account_type"`
-	DebitTotal   float64   `json:"debit_total"`
-	CreditTotal  float64   `json:"credit_total"`
-	Balance      float64   `json:"balance"`
+	AccountID   uuid.UUID   `json:"account_id"`
+	AccountCode string      `json:"account_code"`
+	AccountName string      `json:"account_name"`
+	AccountType AccountType `json:"account_type"`
+	DebitTotal  float64     `json:"debit_total"`
+	CreditTotal float64     `json:"credit_total"`
+	Balance     float64     `json:"balance"`
 }
 
 type ProfitAndLossReport struct {
-	PeriodStart    time.Time                    `json:"period_start"`
-	PeriodEnd      time.Time                    `json:"period_end"`
-	Revenue        []*ProfitAndLossEntry        `json:"revenue"`
-	Expenses       []*ProfitAndLossEntry        `json:"expenses"`
-	TotalRevenue   float64                      `json:"total_revenue"`
-	TotalExpenses  float64                      `json:"total_expenses"`
-	NetIncome      float64                      `json:"net_income"`
-	GrossProfit    float64                      `json:"gross_profit"`
-	OperatingIncome float64                     `json:"operating_income"`
+	PeriodStart     time.Time             `json:"period_start"`
+	PeriodEnd       time.Time             `json:"period_end"`
+	Revenue         []*ProfitAndLossEntry `json:"revenue"`
+	Expenses        []*ProfitAndLossEntry `json:"expenses"`
+	TotalRevenue    float64               `json:"total_revenue"`
+	TotalExpenses   float64               `json:"total_expenses"`
+	NetIncome       float64               `json:"net_income"`
+	GrossProfit     float64               `json:"gross_profit"`
+	OperatingIncome float64               `json:"operating_income"`
 }
 
 type ProfitAndLossEntry struct {
@@ -98,13 +98,13 @@ type ProfitAndLossEntry struct {
 }
 
 type BalanceSheetReport struct {
-	AsOfDate           time.Time                `json:"as_of_date"`
-	Assets             []*BalanceSheetEntry     `json:"assets"`
-	Liabilities        []*BalanceSheetEntry     `json:"liabilities"`
-	Equity             []*BalanceSheetEntry     `json:"equity"`
-	TotalAssets        float64                  `json:"total_assets"`
-	TotalLiabilities   float64                  `json:"total_liabilities"`
-	TotalEquity        float64                  `json:"total_equity"`
+	AsOfDate         time.Time            `json:"as_of_date"`
+	Assets           []*BalanceSheetEntry `json:"assets"`
+	Liabilities      []*BalanceSheetEntry `json:"liabilities"`
+	Equity           []*BalanceSheetEntry `json:"equity"`
+	TotalAssets      float64              `json:"total_assets"`
+	TotalLiabilities float64              `json:"total_liabilities"`
+	TotalEquity      float64              `json:"total_equity"`
 }
 
 type BalanceSheetEntry struct {
@@ -115,14 +115,14 @@ type BalanceSheetEntry struct {
 }
 
 type CashFlowReport struct {
-	PeriodStart         time.Time            `json:"period_start"`
-	PeriodEnd           time.Time            `json:"period_end"`
-	OperatingActivities []*CashFlowEntry     `json:"operating_activities"`
-	InvestingActivities []*CashFlowEntry     `json:"investing_activities"`
-	FinancingActivities []*CashFlowEntry     `json:"financing_activities"`
-	NetCashFlow         float64              `json:"net_cash_flow"`
-	BeginningCash       float64              `json:"beginning_cash"`
-	EndingCash          float64              `json:"ending_cash"`
+	PeriodStart         time.Time        `json:"period_start"`
+	PeriodEnd           time.Time        `json:"period_end"`
+	OperatingActivities []*CashFlowEntry `json:"operating_activities"`
+	InvestingActivities []*CashFlowEntry `json:"investing_activities"`
+	FinancingActivities []*CashFlowEntry `json:"financing_activities"`
+	NetCashFlow         float64          `json:"net_cash_flow"`
+	BeginningCash       float64          `json:"beginning_cash"`
+	EndingCash          float64          `json:"ending_cash"`
 }
 
 type CashFlowEntry struct {
@@ -131,12 +131,12 @@ type CashFlowEntry struct {
 }
 
 type RevenueReport struct {
-	Period      ReportPeriod         `json:"period"`
-	StartDate   time.Time            `json:"start_date"`
-	EndDate     time.Time            `json:"end_date"`
-	Entries     []*RevenueEntry      `json:"entries"`
-	TotalRevenue float64             `json:"total_revenue"`
-	GrowthRate   float64             `json:"growth_rate"`
+	Period       ReportPeriod    `json:"period"`
+	StartDate    time.Time       `json:"start_date"`
+	EndDate      time.Time       `json:"end_date"`
+	Entries      []*RevenueEntry `json:"entries"`
+	TotalRevenue float64         `json:"total_revenue"`
+	GrowthRate   float64         `json:"growth_rate"`
 }
 
 type RevenueEntry struct {
@@ -147,17 +147,17 @@ type RevenueEntry struct {
 }
 
 type ExpenseReport struct {
-	Period       ReportPeriod        `json:"period"`
-	StartDate    time.Time           `json:"start_date"`
-	EndDate      time.Time           `json:"end_date"`
-	Categories   []*ExpenseCategory  `json:"categories"`
+	Period        ReportPeriod       `json:"period"`
+	StartDate     time.Time          `json:"start_date"`
+	EndDate       time.Time          `json:"end_date"`
+	Categories    []*ExpenseCategory `json:"categories"`
 	TotalExpenses float64            `json:"total_expenses"`
 }
 
 type ExpenseCategory struct {
-	Category    string            `json:"category"`
-	Entries     []*ExpenseEntry   `json:"entries"`
-	TotalAmount float64           `json:"total_amount"`
+	Category    string          `json:"category"`
+	Entries     []*ExpenseEntry `json:"entries"`
+	TotalAmount float64         `json:"total_amount"`
 }
 
 type ExpenseEntry struct {
@@ -168,20 +168,20 @@ type ExpenseEntry struct {
 }
 
 type TaxReport struct {
-	PeriodStart    time.Time       `json:"period_start"`
-	PeriodEnd      time.Time       `json:"period_end"`
-	TaxableRevenue float64         `json:"taxable_revenue"`
-	TaxCollected   float64         `json:"tax_collected"`
-	TaxPaid        float64         `json:"tax_paid"`
-	TaxOwed        float64         `json:"tax_owed"`
-	TaxEntries     []*TaxEntry     `json:"tax_entries"`
+	PeriodStart    time.Time   `json:"period_start"`
+	PeriodEnd      time.Time   `json:"period_end"`
+	TaxableRevenue float64     `json:"taxable_revenue"`
+	TaxCollected   float64     `json:"tax_collected"`
+	TaxPaid        float64     `json:"tax_paid"`
+	TaxOwed        float64     `json:"tax_owed"`
+	TaxEntries     []*TaxEntry `json:"tax_entries"`
 }
 
 type TaxEntry struct {
-	Date        time.Time `json:"date"`
-	Type        string    `json:"type"` // collected, paid, owed
-	Amount      float64   `json:"amount"`
-	Description string    `json:"description"`
+	Date        time.Time  `json:"date"`
+	Type        string     `json:"type"` // collected, paid, owed
+	Amount      float64    `json:"amount"`
+	Description string     `json:"description"`
 	OrderID     *uuid.UUID `json:"order_id,omitempty"`
 }
 
@@ -231,7 +231,7 @@ func (r *gormRepository) ListAccounts(ctx context.Context, tenantID uuid.UUID, f
 
 	// Apply filters
 	if filters.Search != "" {
-		query = query.Where("name ILIKE ? OR code ILIKE ? OR description ILIKE ?", 
+		query = query.Where("name ILIKE ? OR code ILIKE ? OR description ILIKE ?",
 			"%"+filters.Search+"%", "%"+filters.Search+"%", "%"+filters.Search+"%")
 	}
 	if len(filters.Type) > 0 {
@@ -333,7 +333,7 @@ func (r *gormRepository) ListTransactions(ctx context.Context, tenantID uuid.UUI
 
 	// Apply filters
 	if filters.Search != "" {
-		query = query.Where("description ILIKE ? OR transaction_number ILIKE ? OR reference ILIKE ?", 
+		query = query.Where("description ILIKE ? OR transaction_number ILIKE ? OR reference ILIKE ?",
 			"%"+filters.Search+"%", "%"+filters.Search+"%", "%"+filters.Search+"%")
 	}
 	if len(filters.Type) > 0 {
@@ -474,7 +474,7 @@ func (r *gormRepository) ListPayouts(ctx context.Context, tenantID uuid.UUID, fi
 
 	// Apply filters
 	if filters.Search != "" {
-		query = query.Where("description ILIKE ? OR payout_number ILIKE ?", 
+		query = query.Where("description ILIKE ? OR payout_number ILIKE ?",
 			"%"+filters.Search+"%", "%"+filters.Search+"%")
 	}
 	if len(filters.Status) > 0 {

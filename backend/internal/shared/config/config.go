@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/spf13/viper"
+	"github.com/subosito/gotenv"
 )
 
 // Config holds all application configuration
@@ -94,6 +95,8 @@ type StorageConfig struct {
 type PaymentConfig struct {
 	Stripe PaymentProviderConfig `mapstructure:"stripe"`
 	BKash  PaymentProviderConfig `mapstructure:"bkash"`
+	Nagad  PaymentProviderConfig `mapstructure:"nagad"`
+	SSLCommerz PaymentProviderConfig `mapstructure:"sslcommerz"`
 }
 
 type PaymentProviderConfig struct {
@@ -128,6 +131,11 @@ type RateLimitConfig struct {
 
 // Load loads configuration from environment variables and config files
 func Load() (*Config, error) {
+	// Load .env file if it exists
+	if err := gotenv.Load(); err != nil {
+		log.Printf("Warning: Could not load .env file: %v", err)
+	}
+
 	// Set defaults
 	setDefaults()
 

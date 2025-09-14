@@ -36,7 +36,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 			tickets.GET("/:id/messages", h.getTicketMessages)
 			tickets.POST("/:id/messages", h.addTicketMessage)
 		}
-		
+
 		// FAQ routes
 		faqs := support.Group("/faqs")
 		{
@@ -46,7 +46,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 			faqs.PUT("/:id", h.updateFAQ)
 			faqs.DELETE("/:id", h.deleteFAQ)
 		}
-		
+
 		// Knowledge base routes
 		kb := support.Group("/knowledge-base")
 		{
@@ -56,11 +56,11 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 			kb.PUT("/:id", h.updateArticle)
 			kb.DELETE("/:id", h.deleteArticle)
 		}
-		
+
 		// Settings routes
 		support.GET("/settings", h.getSettings)
 		support.PUT("/settings", h.updateSettings)
-		
+
 		// Analytics routes
 		support.GET("/stats", h.getTicketStats)
 	}
@@ -73,20 +73,20 @@ func (h *Handler) createTicket(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	req.TenantID = tenantID
 	ticket, err := h.service.CreateTicket(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{"data": ticket})
 }
 
@@ -96,28 +96,28 @@ func (h *Handler) getTickets(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	var filter TicketFilter
-	
+
 	// Parse query parameters
 	if status := c.QueryArray("status"); len(status) > 0 {
 		for _, s := range status {
 			filter.Status = append(filter.Status, TicketStatus(s))
 		}
 	}
-	
+
 	if priority := c.QueryArray("priority"); len(priority) > 0 {
 		for _, p := range priority {
 			filter.Priority = append(filter.Priority, TicketPriority(p))
 		}
 	}
-	
+
 	if category := c.QueryArray("category"); len(category) > 0 {
 		for _, cat := range category {
 			filter.Category = append(filter.Category, TicketCategory(cat))
 		}
 	}
-	
+
 	if assignedTo := c.Query("assigned_to"); assignedTo != "" {
 		if assignedTo == "unassigned" {
 			nilUUID := uuid.Nil
@@ -126,23 +126,23 @@ func (h *Handler) getTickets(c *gin.Context) {
 			filter.AssignedToID = &id
 		}
 	}
-	
+
 	filter.Search = c.Query("search")
-	
+
 	if page, err := strconv.Atoi(c.DefaultQuery("page", "1")); err == nil {
 		filter.Page = page
 	}
-	
+
 	if limit, err := strconv.Atoi(c.DefaultQuery("limit", "20")); err == nil {
 		filter.Limit = limit
 	}
-	
+
 	tickets, err := h.service.GetTickets(c.Request.Context(), tenantID, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": tickets})
 }
 
@@ -152,19 +152,19 @@ func (h *Handler) getTicket(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	ticket, err := h.service.GetTicket(c.Request.Context(), tenantID, ticketID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": ticket})
 }
 
@@ -174,25 +174,25 @@ func (h *Handler) updateTicket(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
 		return
 	}
-	
+
 	var req UpdateTicketRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	ticket, err := h.service.UpdateTicket(c.Request.Context(), tenantID, ticketID, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": ticket})
 }
 
@@ -202,19 +202,19 @@ func (h *Handler) deleteTicket(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	err = h.service.DeleteTicket(c.Request.Context(), tenantID, ticketID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Ticket deleted successfully"})
 }
 
@@ -224,28 +224,28 @@ func (h *Handler) assignTicket(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
 		return
 	}
-	
+
 	var req struct {
 		UserID uuid.UUID `json:"user_id" binding:"required"`
 	}
-	
+
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	err = h.service.AssignTicket(c.Request.Context(), tenantID, ticketID, req.UserID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Ticket assigned successfully"})
 }
 
@@ -255,19 +255,19 @@ func (h *Handler) resolveTicket(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	err = h.service.ResolveTicket(c.Request.Context(), tenantID, ticketID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Ticket resolved successfully"})
 }
 
@@ -277,19 +277,19 @@ func (h *Handler) getTicketMessages(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	messages, err := h.service.GetMessages(c.Request.Context(), tenantID, ticketID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": messages})
 }
 
@@ -299,21 +299,21 @@ func (h *Handler) addTicketMessage(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ticket ID"})
 		return
 	}
-	
+
 	var req AddMessageRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
-	
+
 	req.TicketID = ticketID
-	
+
 	message, err := h.service.AddMessage(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{"data": message})
 }
 
@@ -324,13 +324,13 @@ func (h *Handler) createFAQ(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	faq, err := h.service.CreateFAQ(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{"data": faq})
 }
 
@@ -340,11 +340,11 @@ func (h *Handler) getFAQs(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	var filter FAQFilter
 	filter.Category = c.Query("category")
 	filter.Search = c.Query("search")
-	
+
 	if published := c.Query("published"); published != "" {
 		if published == "true" {
 			isPublished := true
@@ -354,21 +354,21 @@ func (h *Handler) getFAQs(c *gin.Context) {
 			filter.IsPublished = &isPublished
 		}
 	}
-	
+
 	if page, err := strconv.Atoi(c.DefaultQuery("page", "1")); err == nil {
 		filter.Page = page
 	}
-	
+
 	if limit, err := strconv.Atoi(c.DefaultQuery("limit", "20")); err == nil {
 		filter.Limit = limit
 	}
-	
+
 	faqs, err := h.service.GetFAQs(c.Request.Context(), tenantID, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": faqs})
 }
 
@@ -378,19 +378,19 @@ func (h *Handler) getFAQ(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid FAQ ID"})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	faq, err := h.service.GetFAQ(c.Request.Context(), tenantID, faqID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": faq})
 }
 
@@ -400,25 +400,25 @@ func (h *Handler) updateFAQ(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid FAQ ID"})
 		return
 	}
-	
+
 	var req UpdateFAQRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	faq, err := h.service.UpdateFAQ(c.Request.Context(), tenantID, faqID, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": faq})
 }
 
@@ -428,19 +428,19 @@ func (h *Handler) deleteFAQ(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid FAQ ID"})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	err = h.service.DeleteFAQ(c.Request.Context(), tenantID, faqID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "FAQ deleted successfully"})
 }
 
@@ -451,13 +451,13 @@ func (h *Handler) createArticle(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	article, err := h.service.CreateArticle(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{"data": article})
 }
 
@@ -467,11 +467,11 @@ func (h *Handler) getArticles(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	var filter ArticleFilter
 	filter.Category = c.Query("category")
 	filter.Search = c.Query("search")
-	
+
 	if published := c.Query("published"); published != "" {
 		if published == "true" {
 			isPublished := true
@@ -481,39 +481,39 @@ func (h *Handler) getArticles(c *gin.Context) {
 			filter.IsPublished = &isPublished
 		}
 	}
-	
+
 	if page, err := strconv.Atoi(c.DefaultQuery("page", "1")); err == nil {
 		filter.Page = page
 	}
-	
+
 	if limit, err := strconv.Atoi(c.DefaultQuery("limit", "20")); err == nil {
 		filter.Limit = limit
 	}
-	
+
 	articles, err := h.service.GetArticles(c.Request.Context(), tenantID, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": articles})
 }
 
 func (h *Handler) getArticle(c *gin.Context) {
 	slug := c.Param("slug")
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	article, err := h.service.GetArticle(c.Request.Context(), tenantID, slug)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": article})
 }
 
@@ -523,25 +523,25 @@ func (h *Handler) updateArticle(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid article ID"})
 		return
 	}
-	
+
 	var req UpdateArticleRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	article, err := h.service.UpdateArticle(c.Request.Context(), tenantID, articleID, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": article})
 }
 
@@ -551,19 +551,19 @@ func (h *Handler) deleteArticle(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid article ID"})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	err = h.service.DeleteArticle(c.Request.Context(), tenantID, articleID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Article deleted successfully"})
 }
 
@@ -574,13 +574,13 @@ func (h *Handler) getSettings(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	settings, err := h.service.GetSettings(c.Request.Context(), tenantID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": settings})
 }
 
@@ -590,19 +590,19 @@ func (h *Handler) updateSettings(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	settings, err := h.service.UpdateSettings(c.Request.Context(), tenantID, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": settings})
 }
 
@@ -613,14 +613,14 @@ func (h *Handler) getTicketStats(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	period := c.DefaultQuery("period", "30d")
-	
+
 	stats, err := h.service.GetTicketStats(c.Request.Context(), tenantID, period)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": stats})
 }

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 )
 
 // Service handles tenant business logic
@@ -158,7 +158,7 @@ func (s *Service) UpdatePlan(id string, req UpdatePlanRequest) (*Tenant, error) 
 	}
 
 	tenant.Plan = req.Plan
-	
+
 	// Update limits based on new plan
 	tenant.ProductLimit = s.getProductLimitForPlan(req.Plan)
 	tenant.StorageLimit = tenant.GetStorageLimit()
@@ -310,7 +310,7 @@ func (s *Service) GetPlanUpgradeOptions(id string) ([]Plan, error) {
 	// Get available upgrade options
 	var options []Plan
 	allPlans := []Plan{PlanStarter, PlanPro, PlanPremium, PlanEnterprise}
-	
+
 	for _, plan := range allPlans {
 		if tenant.CanUpgradeTo(plan) {
 			options = append(options, plan)
@@ -336,7 +336,7 @@ func (s *Service) InitializeTenantDefaults(tenantID uuid.UUID) error {
 // CheckSubdomainAvailability checks if a subdomain is available
 func (s *Service) CheckSubdomainAvailability(subdomain string) (bool, error) {
 	subdomain = strings.ToLower(strings.TrimSpace(subdomain))
-	
+
 	// Validate subdomain format
 	if err := s.validateSubdomain(subdomain); err != nil {
 		return false, err
@@ -414,7 +414,7 @@ func (s *Service) getProductLimitForPlan(plan Plan) int {
 		PlanPremium:    5000,
 		PlanEnterprise: -1, // unlimited
 	}
-	
+
 	if limit, exists := limits[plan]; exists {
 		return limit
 	}

@@ -1,8 +1,8 @@
 package reviews
 
 import (
-	"gorm.io/gorm"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // Module represents the reviews module

@@ -8,44 +8,41 @@ import (
 // Repository defines the product repository interface
 type Repository interface {
 	// Product operations
-	SaveProduct(product *Product) (*Product, error)
-	FindProductByID(tenantID, productID uuid.UUID) (*Product, error)
-	FindProductBySlug(tenantID uuid.UUID, slug string) (*Product, error)
+	CreateProduct(product *Product) (*Product, error)
+	GetProductByID(tenantID, productID uuid.UUID) (*Product, error)
+	GetProductBySlug(tenantID uuid.UUID, slug string) (*Product, error)
 	UpdateProduct(product *Product) (*Product, error)
 	DeleteProduct(tenantID, productID uuid.UUID) error
 	ListProducts(tenantID uuid.UUID, filter ProductListFilter, offset, limit int) ([]*Product, int64, error)
-	SlugExists(tenantID uuid.UUID, slug string) (bool, error)
+	ProductSlugExists(tenantID uuid.UUID, slug string) (bool, error)
 	ProductExists(tenantID, productID uuid.UUID) (bool, error)
-	UpdateInventory(tenantID, productID uuid.UUID, quantity int) error
+	UpdateProductInventory(tenantID, productID uuid.UUID, quantity int) error
 	GetProductsByCategoryID(tenantID, categoryID uuid.UUID, offset, limit int) ([]*Product, int64, error)
 	GetLowStockProducts(tenantID uuid.UUID, threshold int) ([]*Product, error)
 	BulkUpdateProducts(tenantID uuid.UUID, productIDs []uuid.UUID, updates map[string]interface{}) error
 	BulkDeleteProducts(tenantID uuid.UUID, productIDs []uuid.UUID) error
+	SearchProducts(tenantID uuid.UUID, query string, offset, limit int) ([]*Product, int64, error)
 
 	// Category operations
-	SaveCategory(category *Category) (*Category, error)
-	FindCategoryByID(tenantID, categoryID uuid.UUID) (*Category, error)
+	CreateCategory(category *Category) (*Category, error)
+	GetCategoryByID(tenantID, categoryID uuid.UUID) (*Category, error)
 	UpdateCategory(category *Category) (*Category, error)
 	DeleteCategory(tenantID, categoryID uuid.UUID) error
 	ListCategories(tenantID uuid.UUID) ([]*Category, error)
 	CategoryExists(tenantID, categoryID uuid.UUID) (bool, error)
-	
-	// GetCategory retrieves a category by ID
-	GetCategory(tenantID, categoryID uuid.UUID) (*Category, error)
 	CategorySlugExists(tenantID uuid.UUID, slug string) (bool, error)
 	GetRootCategories(tenantID uuid.UUID) ([]*Category, error)
 	GetCategoryChildren(tenantID, parentID uuid.UUID) ([]*Category, error)
 
 	// Product variant operations
-	SaveProductVariant(variant *ProductVariant) (*ProductVariant, error)
-	FindProductVariants(tenantID, productID uuid.UUID) ([]*ProductVariant, error)
+	CreateProductVariant(variant *ProductVariant) (*ProductVariant, error)
+	GetProductVariants(tenantID, productID uuid.UUID) ([]*ProductVariant, error)
 	GetProductVariant(tenantID, variantID uuid.UUID) (*ProductVariant, error)
 	UpdateProductVariant(variant *ProductVariant) (*ProductVariant, error)
 	DeleteProductVariant(tenantID, variantID uuid.UUID) error
 
 	// Statistics and aggregations
 	GetProductStats(tenantID uuid.UUID) (*ProductStats, error)
-	SearchProducts(tenantID uuid.UUID, query string, offset, limit int) ([]*Product, int64, error)
 }
 
 // repository implements the Repository interface
@@ -62,16 +59,16 @@ func NewRepository(db *gorm.DB) Repository {
 
 // Product operations
 
-// SaveProduct creates a new product
-func (r *repository) SaveProduct(product *Product) (*Product, error) {
+// CreateProduct creates a new product
+func (r *repository) CreateProduct(product *Product) (*Product, error) {
 	if err := r.db.Create(product).Error; err != nil {
 		return nil, err
 	}
 	return product, nil
 }
 
-// FindProductByID retrieves a product by ID
-func (r *repository) FindProductByID(tenantID, productID uuid.UUID) (*Product, error) {
+// GetProductByID retrieves a product by ID
+func (r *repository) GetProductByID(tenantID, productID uuid.UUID) (*Product, error) {
 	var product Product
 	err := r.db.Preload("Variants").Preload("Category").
 		First(&product, "id = ? AND tenant_id = ?", productID, tenantID).Error
@@ -81,8 +78,8 @@ func (r *repository) FindProductByID(tenantID, productID uuid.UUID) (*Product, e
 	return &product, nil
 }
 
-// FindProductBySlug retrieves a product by slug
-func (r *repository) FindProductBySlug(tenantID uuid.UUID, slug string) (*Product, error) {
+// GetProductBySlug retrieves a product by slug
+func (r *repository) GetProductBySlug(tenantID uuid.UUID, slug string) (*Product, error) {
 	var product Product
 	err := r.db.Preload("Variants").Preload("Category").
 		First(&product, "slug = ? AND tenant_id = ?", slug, tenantID).Error
@@ -156,8 +153,8 @@ func (r *repository) ListProducts(tenantID uuid.UUID, filter ProductListFilter, 
 	return products, total, nil
 }
 
-// SlugExists checks if a product slug exists for a tenant
-func (r *repository) SlugExists(tenantID uuid.UUID, slug string) (bool, error) {
+// ProductSlugExists checks if a product slug exists for a tenant
+func (r *repository) ProductSlugExists(tenantID uuid.UUID, slug string) (bool, error) {
 	var count int64
 	err := r.db.Model(&Product{}).Where("tenant_id = ? AND slug = ?", tenantID, slug).Count(&count).Error
 	return count > 0, err
@@ -170,8 +167,8 @@ func (r *repository) ProductExists(tenantID, productID uuid.UUID) (bool, error) 
 	return count > 0, err
 }
 
-// UpdateInventory updates product inventory quantity
-func (r *repository) UpdateInventory(tenantID, productID uuid.UUID, quantity int) error {
+// UpdateProductInventory updates product inventory quantity
+func (r *repository) UpdateProductInventory(tenantID, productID uuid.UUID, quantity int) error {
 	return r.db.Model(&Product{}).
 		Where("id = ? AND tenant_id = ?", productID, tenantID).
 		Update("inventory_quantity", quantity).Error
@@ -200,7 +197,7 @@ func (r *repository) GetProductsByCategoryID(tenantID, categoryID uuid.UUID, off
 // GetLowStockProducts returns products with low inventory
 func (r *repository) GetLowStockProducts(tenantID uuid.UUID, threshold int) ([]*Product, error) {
 	var products []*Product
-	err := r.db.Where("tenant_id = ? AND track_quantity = true AND inventory_quantity <= ?", 
+	err := r.db.Where("tenant_id = ? AND track_quantity = true AND inventory_quantity <= ?",
 		tenantID, threshold).Find(&products).Error
 	return products, err
 }
@@ -214,16 +211,16 @@ func (r *repository) BulkUpdateProducts(tenantID uuid.UUID, productIDs []uuid.UU
 
 // Category operations
 
-// SaveCategory creates a new category
-func (r *repository) SaveCategory(category *Category) (*Category, error) {
+// CreateCategory creates a new category
+func (r *repository) CreateCategory(category *Category) (*Category, error) {
 	if err := r.db.Create(category).Error; err != nil {
 		return nil, err
 	}
 	return category, nil
 }
 
-// FindCategoryByID retrieves a category by ID
-func (r *repository) FindCategoryByID(tenantID, categoryID uuid.UUID) (*Category, error) {
+// GetCategoryByID retrieves a category by ID
+func (r *repository) GetCategoryByID(tenantID, categoryID uuid.UUID) (*Category, error) {
 	var category Category
 	err := r.db.Preload("Parent").Preload("Children").
 		First(&category, "id = ? AND tenant_id = ?", categoryID, tenantID).Error
@@ -262,16 +259,7 @@ func (r *repository) CategoryExists(tenantID, categoryID uuid.UUID) (bool, error
 	return count > 0, err
 }
 
-// GetCategory retrieves a category by ID
-func (r *repository) GetCategory(tenantID, categoryID uuid.UUID) (*Category, error) {
-	var category Category
-	err := r.db.Preload("Parent").Preload("Children").
-		First(&category, "id = ? AND tenant_id = ?", categoryID, tenantID).Error
-	if err != nil {
-		return nil, err
-	}
-	return &category, nil
-}
+
 
 // CategorySlugExists checks if a category slug exists for a tenant
 func (r *repository) CategorySlugExists(tenantID uuid.UUID, slug string) (bool, error) {
@@ -300,16 +288,16 @@ func (r *repository) GetCategoryChildren(tenantID, parentID uuid.UUID) ([]*Categ
 
 // Product Variant operations
 
-// SaveProductVariant creates a new product variant
-func (r *repository) SaveProductVariant(variant *ProductVariant) (*ProductVariant, error) {
+// CreateProductVariant creates a new product variant
+func (r *repository) CreateProductVariant(variant *ProductVariant) (*ProductVariant, error) {
 	if err := r.db.Create(variant).Error; err != nil {
 		return nil, err
 	}
 	return variant, nil
 }
 
-// FindProductVariants returns all variants for a product
-func (r *repository) FindProductVariants(tenantID, productID uuid.UUID) ([]*ProductVariant, error) {
+// GetProductVariants returns all variants for a product
+func (r *repository) GetProductVariants(tenantID, productID uuid.UUID) ([]*ProductVariant, error) {
 	var variants []*ProductVariant
 	// Join with products table to filter by tenant_id since variants don't have tenant_id directly
 	err := r.db.Joins("JOIN products ON product_variants.product_id = products.id").
@@ -374,14 +362,14 @@ func (r *repository) GetProductStats(tenantID uuid.UUID) (*ProductStats, error) 
 }
 
 // BulkDeleteProducts deletes multiple products
-	func (r *repository) BulkDeleteProducts(tenantID uuid.UUID, productIDs []uuid.UUID) error {
-		return r.db.Where("tenant_id = ? AND id IN ?", tenantID, productIDs).Delete(&Product{}).Error
-	}
+func (r *repository) BulkDeleteProducts(tenantID uuid.UUID, productIDs []uuid.UUID) error {
+	return r.db.Where("tenant_id = ? AND id IN ?", tenantID, productIDs).Delete(&Product{}).Error
+}
 
-	// Search operations
+// Search operations
 
-	// SearchProducts performs full-text search on products
-	func (r *repository) SearchProducts(tenantID uuid.UUID, query string, offset, limit int) ([]*Product, int64, error) {
+// SearchProducts performs full-text search on products
+func (r *repository) SearchProducts(tenantID uuid.UUID, query string, offset, limit int) ([]*Product, int64, error) {
 	var products []*Product
 	var total int64
 

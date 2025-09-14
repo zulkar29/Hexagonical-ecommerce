@@ -12,7 +12,7 @@ type Service interface {
 	// Dashboard
 	GetDashboardStats(ctx context.Context, tenantID *uuid.UUID, req DashboardRequest) (*DashboardStats, error)
 	GetQuickStats(ctx context.Context, tenantID *uuid.UUID) (*QuickStats, error)
-	
+
 	// Staff management
 	ListStaff(ctx context.Context, tenantID *uuid.UUID, role, status string) ([]*Staff, error)
 	CreateStaff(ctx context.Context, tenantID *uuid.UUID, req StaffRequest) (*Staff, error)
@@ -20,17 +20,17 @@ type Service interface {
 	DeleteStaff(ctx context.Context, tenantID *uuid.UUID, id uuid.UUID) error
 	AssignRoles(ctx context.Context, tenantID *uuid.UUID, staffID uuid.UUID, roles []string) error
 	ChangeStaffStatus(ctx context.Context, tenantID *uuid.UUID, staffID uuid.UUID, status string) error
-	
+
 	// Role management
 	ListRoles(ctx context.Context, tenantID *uuid.UUID, includePermissions bool) ([]*Role, error)
 	CreateRole(ctx context.Context, tenantID *uuid.UUID, req RoleRequest) (*Role, error)
 	UpdateRole(ctx context.Context, tenantID *uuid.UUID, id uuid.UUID, req RoleRequest) (*Role, error)
 	DeleteRole(ctx context.Context, tenantID *uuid.UUID, id uuid.UUID) error
 	AssignPermissions(ctx context.Context, tenantID *uuid.UUID, roleID uuid.UUID, permissions []string) error
-	
+
 	// Activity logs
 	GetActivityLogs(ctx context.Context, tenantID *uuid.UUID, filter ActivityLogFilter) ([]*ActivityLog, error)
-	
+
 	// System health
 	GetSystemHealth(ctx context.Context) (*SystemHealth, error)
 }
@@ -55,16 +55,16 @@ func (s *ServiceImpl) GetDashboardStats(ctx context.Context, tenantID *uuid.UUID
 	// 1. Fetching data from multiple sources (orders, users, products, etc.)
 	// 2. Calculating metrics based on the requested period
 	// 3. Filtering by requested metrics if specified
-	
+
 	stats := &DashboardStats{
-		TotalUsers:    1000, // Placeholder
-		TotalOrders:   500,  // Placeholder
+		TotalUsers:    1000,     // Placeholder
+		TotalOrders:   500,      // Placeholder
 		TotalRevenue:  25000.50, // Placeholder
-		TotalProducts: 150,  // Placeholder
+		TotalProducts: 150,      // Placeholder
 		Period:        req.Period,
 		GeneratedAt:   time.Now(),
 	}
-	
+
 	return stats, nil
 }
 
@@ -72,15 +72,15 @@ func (s *ServiceImpl) GetDashboardStats(ctx context.Context, tenantID *uuid.UUID
 func (s *ServiceImpl) GetQuickStats(ctx context.Context, tenantID *uuid.UUID) (*QuickStats, error) {
 	// TODO: Implement quick stats calculation
 	// This should return key metrics for quick overview
-	
+
 	stats := &QuickStats{
-		ActiveUsers:   850,  // Placeholder
-		PendingOrders: 25,   // Placeholder
-		LowStockItems: 5,    // Placeholder
+		ActiveUsers:   850,     // Placeholder
+		PendingOrders: 25,      // Placeholder
+		LowStockItems: 5,       // Placeholder
 		TodayRevenue:  1250.75, // Placeholder
 		GeneratedAt:   time.Now(),
 	}
-	
+
 	return stats, nil
 }
 
@@ -88,7 +88,7 @@ func (s *ServiceImpl) GetQuickStats(ctx context.Context, tenantID *uuid.UUID) (*
 func (s *ServiceImpl) ListStaff(ctx context.Context, tenantID *uuid.UUID, role, status string) ([]*Staff, error) {
 	// TODO: Implement staff listing with filters
 	// This should query the user table with admin/staff roles
-	
+
 	return s.repo.GetStaff(ctx, tenantID, role, status)
 }
 
@@ -100,7 +100,7 @@ func (s *ServiceImpl) CreateStaff(ctx context.Context, tenantID *uuid.UUID, req 
 	// 2. Create user with staff role
 	// 3. Send invitation email
 	// 4. Log the activity
-	
+
 	staff := &Staff{
 		ID:        uuid.New(),
 		Email:     req.Email,
@@ -112,7 +112,7 @@ func (s *ServiceImpl) CreateStaff(ctx context.Context, tenantID *uuid.UUID, req 
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	
+
 	return s.repo.CreateStaff(ctx, staff)
 }
 
@@ -124,7 +124,7 @@ func (s *ServiceImpl) UpdateStaff(ctx context.Context, tenantID *uuid.UUID, id u
 	// 2. Check if staff exists and belongs to tenant
 	// 3. Update staff information
 	// 4. Log the activity
-	
+
 	return s.repo.UpdateStaff(ctx, tenantID, id, req)
 }
 
@@ -136,7 +136,7 @@ func (s *ServiceImpl) DeleteStaff(ctx context.Context, tenantID *uuid.UUID, id u
 	// 2. Soft delete or deactivate the staff
 	// 3. Revoke all sessions
 	// 4. Log the activity
-	
+
 	return s.repo.DeleteStaff(ctx, tenantID, id)
 }
 
@@ -148,7 +148,7 @@ func (s *ServiceImpl) AssignRoles(ctx context.Context, tenantID *uuid.UUID, staf
 	// 2. Check permissions
 	// 3. Assign roles to staff
 	// 4. Log the activity
-	
+
 	return s.repo.AssignRolesToStaff(ctx, tenantID, staffID, roles)
 }
 
@@ -161,7 +161,7 @@ func (s *ServiceImpl) ChangeStaffStatus(ctx context.Context, tenantID *uuid.UUID
 	// 2. Update staff status
 	// 3. Handle session management based on status
 	// 4. Log the activity
-	
+
 	return s.repo.UpdateStaffStatus(ctx, tenantID, staffID, status)
 }
 
@@ -169,7 +169,7 @@ func (s *ServiceImpl) ChangeStaffStatus(ctx context.Context, tenantID *uuid.UUID
 func (s *ServiceImpl) ListRoles(ctx context.Context, tenantID *uuid.UUID, includePermissions bool) ([]*Role, error) {
 	// TODO: Implement role listing
 	// This should query roles and optionally include permissions
-	
+
 	return s.repo.GetRoles(ctx, tenantID, includePermissions)
 }
 
@@ -181,7 +181,7 @@ func (s *ServiceImpl) CreateRole(ctx context.Context, tenantID *uuid.UUID, req R
 	// 2. Check if role name is unique within tenant
 	// 3. Create role with permissions
 	// 4. Log the activity
-	
+
 	role := &Role{
 		ID:          uuid.New(),
 		Name:        req.Name,
@@ -190,7 +190,7 @@ func (s *ServiceImpl) CreateRole(ctx context.Context, tenantID *uuid.UUID, req R
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
-	
+
 	return s.repo.CreateRole(ctx, role, req.Permissions)
 }
 
@@ -202,7 +202,7 @@ func (s *ServiceImpl) UpdateRole(ctx context.Context, tenantID *uuid.UUID, id uu
 	// 2. Check if role exists and belongs to tenant
 	// 3. Update role information and permissions
 	// 4. Log the activity
-	
+
 	return s.repo.UpdateRole(ctx, tenantID, id, req)
 }
 
@@ -214,7 +214,7 @@ func (s *ServiceImpl) DeleteRole(ctx context.Context, tenantID *uuid.UUID, id uu
 	// 2. Check if role is in use by any staff
 	// 3. Delete role and associated permissions
 	// 4. Log the activity
-	
+
 	return s.repo.DeleteRole(ctx, tenantID, id)
 }
 
@@ -226,7 +226,7 @@ func (s *ServiceImpl) AssignPermissions(ctx context.Context, tenantID *uuid.UUID
 	// 2. Check if role exists and belongs to tenant
 	// 3. Assign permissions to role
 	// 4. Log the activity
-	
+
 	return s.repo.AssignPermissionsToRole(ctx, tenantID, roleID, permissions)
 }
 
@@ -234,7 +234,7 @@ func (s *ServiceImpl) AssignPermissions(ctx context.Context, tenantID *uuid.UUID
 func (s *ServiceImpl) GetActivityLogs(ctx context.Context, tenantID *uuid.UUID, filter ActivityLogFilter) ([]*ActivityLog, error) {
 	// TODO: Implement activity log retrieval
 	// This should query activity logs with proper filtering and pagination
-	
+
 	return s.repo.GetActivityLogs(ctx, tenantID, filter)
 }
 
@@ -247,7 +247,7 @@ func (s *ServiceImpl) GetSystemHealth(ctx context.Context) (*SystemHealth, error
 	// 3. System resources
 	// 4. Cache status
 	// 5. Queue status
-	
+
 	health := &SystemHealth{
 		Status: "healthy",
 		Services: map[string]interface{}{
@@ -260,6 +260,6 @@ func (s *ServiceImpl) GetSystemHealth(ctx context.Context) (*SystemHealth, error
 		},
 		GeneratedAt: time.Now(),
 	}
-	
+
 	return health, nil
 }

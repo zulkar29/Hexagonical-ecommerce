@@ -7,14 +7,14 @@ This guide covers deploying the multi-tenant hexagonal e-commerce SaaS platform 
 ## 🏗️ Hexagonal Architecture Overview
 
 **Architecture Clarification**:
-- **"Hexagonal"** = Hexagonal Architecture pattern (Clean Architecture)
+- **"Hexagonal"** = Hexagonal Architecture pattern (also known as Ports and Adapters pattern)
 - **Multi-tenancy** = Shared database with `tenant_id` isolation strategy
 
 ### System Architecture (Hexagonal Pattern + Multi-tenant Database)
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                  SINGLE VPS DEPLOYMENT                     │
-│              Hexagonal (Clean) Architecture                 │
+│              Hexagonal Architecture                         │
 ├─────────────────────────────────────────────────────────────┤
 │  🌐 PRESENTATION LAYER (Docker Containers)                 │
 │  ┌─────────────────────────────────────────────────────────┐

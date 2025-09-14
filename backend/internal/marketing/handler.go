@@ -40,7 +40,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 			campaigns.GET("/:id/emails", h.getCampaignEmails)
 			campaigns.GET("/:id/stats", h.getCampaignStats)
 		}
-		
+
 		// Template routes
 		templates := marketing.Group("/templates")
 		{
@@ -50,7 +50,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 			templates.PUT("/:id", h.updateTemplate)
 			templates.DELETE("/:id", h.deleteTemplate)
 		}
-		
+
 		// Segment routes
 		segments := marketing.Group("/segments")
 		{
@@ -61,7 +61,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 			segments.DELETE("/:id", h.deleteSegment)
 			segments.POST("/:id/refresh", h.refreshSegment)
 		}
-		
+
 		// Newsletter routes
 		newsletter := marketing.Group("/newsletter")
 		{
@@ -70,7 +70,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 			newsletter.GET("/subscribers", h.getSubscribers)
 			newsletter.GET("/subscribers/:email", h.getSubscriber)
 		}
-		
+
 		// Abandoned cart routes
 		abandonedCarts := marketing.Group("/abandoned-carts")
 		{
@@ -79,14 +79,14 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 			abandonedCarts.POST("/:id/recover", h.markCartRecovered)
 			abandonedCarts.POST("/:id/send-email", h.sendAbandonedCartEmail)
 		}
-		
+
 		// Settings routes
 		marketing.GET("/settings", h.getSettings)
 		marketing.PUT("/settings", h.updateSettings)
-		
+
 		// Analytics routes
 		marketing.GET("/overview", h.getMarketingOverview)
-		
+
 		// Tracking routes (for email opens/clicks)
 		tracking := marketing.Group("/track")
 		{
@@ -103,13 +103,13 @@ func (h *Handler) createCampaign(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
-	
+
 	campaign, err := h.service.CreateCampaign(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{"data": campaign})
 }
 
@@ -119,50 +119,50 @@ func (h *Handler) getCampaigns(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	var filter CampaignFilter
-	
+
 	// Parse query parameters
 	if types := c.QueryArray("type"); len(types) > 0 {
 		for _, t := range types {
 			filter.Type = append(filter.Type, CampaignType(t))
 		}
 	}
-	
+
 	if statuses := c.QueryArray("status"); len(statuses) > 0 {
 		for _, s := range statuses {
 			filter.Status = append(filter.Status, CampaignStatus(s))
 		}
 	}
-	
+
 	filter.Search = c.Query("search")
-	
+
 	if startDate := c.Query("start_date"); startDate != "" {
 		if t, err := time.Parse("2006-01-02", startDate); err == nil {
 			filter.StartDate = &t
 		}
 	}
-	
+
 	if endDate := c.Query("end_date"); endDate != "" {
 		if t, err := time.Parse("2006-01-02", endDate); err == nil {
 			filter.EndDate = &t
 		}
 	}
-	
+
 	if page, err := strconv.Atoi(c.DefaultQuery("page", "1")); err == nil {
 		filter.Page = page
 	}
-	
+
 	if limit, err := strconv.Atoi(c.DefaultQuery("limit", "20")); err == nil {
 		filter.Limit = limit
 	}
-	
+
 	campaigns, err := h.service.GetCampaigns(c.Request.Context(), tenantID, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": campaigns})
 }
 
@@ -172,19 +172,19 @@ func (h *Handler) getCampaign(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid campaign ID"})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	campaign, err := h.service.GetCampaign(c.Request.Context(), tenantID, campaignID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": campaign})
 }
 
@@ -194,25 +194,25 @@ func (h *Handler) updateCampaign(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid campaign ID"})
 		return
 	}
-	
+
 	var req UpdateCampaignRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	campaign, err := h.service.UpdateCampaign(c.Request.Context(), tenantID, campaignID, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": campaign})
 }
 
@@ -222,19 +222,19 @@ func (h *Handler) deleteCampaign(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid campaign ID"})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	err = h.service.DeleteCampaign(c.Request.Context(), tenantID, campaignID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Campaign deleted successfully"})
 }
 
@@ -244,28 +244,28 @@ func (h *Handler) scheduleCampaign(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid campaign ID"})
 		return
 	}
-	
+
 	var req struct {
 		ScheduledAt time.Time `json:"scheduled_at" binding:"required"`
 	}
-	
+
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	err = h.service.ScheduleCampaign(c.Request.Context(), tenantID, campaignID, req.ScheduledAt)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Campaign scheduled successfully"})
 }
 
@@ -275,19 +275,19 @@ func (h *Handler) startCampaign(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid campaign ID"})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	err = h.service.StartCampaign(c.Request.Context(), tenantID, campaignID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Campaign started successfully"})
 }
 
@@ -297,19 +297,19 @@ func (h *Handler) pauseCampaign(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid campaign ID"})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	err = h.service.PauseCampaign(c.Request.Context(), tenantID, campaignID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Campaign paused successfully"})
 }
 
@@ -319,19 +319,19 @@ func (h *Handler) stopCampaign(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid campaign ID"})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	err = h.service.StopCampaign(c.Request.Context(), tenantID, campaignID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Campaign stopped successfully"})
 }
 
@@ -341,50 +341,50 @@ func (h *Handler) getCampaignEmails(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid campaign ID"})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	var filter EmailFilter
-	
+
 	// Parse query parameters
 	if statuses := c.QueryArray("status"); len(statuses) > 0 {
 		for _, s := range statuses {
 			filter.Status = append(filter.Status, EmailStatus(s))
 		}
 	}
-	
+
 	filter.Search = c.Query("search")
-	
+
 	if startDate := c.Query("start_date"); startDate != "" {
 		if t, _ := time.Parse("2006-01-02", startDate); err == nil {
 			filter.StartDate = &t
 		}
 	}
-	
+
 	if endDate := c.Query("end_date"); endDate != "" {
 		if t, _ := time.Parse("2006-01-02", endDate); err == nil {
 			filter.EndDate = &t
 		}
 	}
-	
+
 	if page, _ := strconv.Atoi(c.DefaultQuery("page", "1")); err == nil {
 		filter.Page = page
 	}
-	
+
 	if limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20")); err == nil {
 		filter.Limit = limit
 	}
-	
+
 	emails, err := h.service.GetCampaignEmails(c.Request.Context(), tenantID, campaignID, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": emails})
 }
 
@@ -394,19 +394,19 @@ func (h *Handler) getCampaignStats(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid campaign ID"})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	stats, err := h.service.GetCampaignStats(c.Request.Context(), tenantID, campaignID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": stats})
 }
 
@@ -417,13 +417,13 @@ func (h *Handler) createTemplate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
-	
+
 	template, err := h.service.CreateTemplate(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{"data": template})
 }
 
@@ -433,17 +433,17 @@ func (h *Handler) getTemplates(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	var filter TemplateFilter
 	filter.Category = c.Query("category")
 	filter.Search = c.Query("search")
-	
+
 	if types := c.QueryArray("type"); len(types) > 0 {
 		for _, t := range types {
 			filter.Type = append(filter.Type, CampaignType(t))
 		}
 	}
-	
+
 	if active := c.Query("active"); active != "" {
 		if active == "true" {
 			isActive := true
@@ -453,21 +453,21 @@ func (h *Handler) getTemplates(c *gin.Context) {
 			filter.IsActive = &isActive
 		}
 	}
-	
+
 	if page, err := strconv.Atoi(c.DefaultQuery("page", "1")); err == nil {
 		filter.Page = page
 	}
-	
+
 	if limit, err := strconv.Atoi(c.DefaultQuery("limit", "20")); err == nil {
 		filter.Limit = limit
 	}
-	
+
 	templates, err := h.service.GetTemplates(c.Request.Context(), tenantID, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": templates})
 }
 
@@ -477,19 +477,19 @@ func (h *Handler) getTemplate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template ID"})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	template, err := h.service.GetTemplate(c.Request.Context(), tenantID, templateID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": template})
 }
 
@@ -499,25 +499,25 @@ func (h *Handler) updateTemplate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template ID"})
 		return
 	}
-	
+
 	var req UpdateTemplateRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	template, err := h.service.UpdateTemplate(c.Request.Context(), tenantID, templateID, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": template})
 }
 
@@ -527,19 +527,19 @@ func (h *Handler) deleteTemplate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template ID"})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	err = h.service.DeleteTemplate(c.Request.Context(), tenantID, templateID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Template deleted successfully"})
 }
 
@@ -550,13 +550,13 @@ func (h *Handler) createSegment(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
-	
+
 	segment, err := h.service.CreateSegment(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{"data": segment})
 }
 
@@ -566,13 +566,13 @@ func (h *Handler) getSegments(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	segments, err := h.service.GetSegments(c.Request.Context(), tenantID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": segments})
 }
 
@@ -582,19 +582,19 @@ func (h *Handler) getSegment(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid segment ID"})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	segment, err := h.service.GetSegment(c.Request.Context(), tenantID, segmentID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": segment})
 }
 
@@ -604,25 +604,25 @@ func (h *Handler) updateSegment(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid segment ID"})
 		return
 	}
-	
+
 	var req UpdateSegmentRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	segment, err := h.service.UpdateSegment(c.Request.Context(), tenantID, segmentID, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": segment})
 }
 
@@ -632,19 +632,19 @@ func (h *Handler) deleteSegment(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid segment ID"})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	err = h.service.DeleteSegment(c.Request.Context(), tenantID, segmentID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Segment deleted successfully"})
 }
 
@@ -654,19 +654,19 @@ func (h *Handler) refreshSegment(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid segment ID"})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	err = h.service.RefreshSegment(c.Request.Context(), tenantID, segmentID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Segment refreshed successfully"})
 }
 
@@ -677,13 +677,13 @@ func (h *Handler) subscribe(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
-	
+
 	subscriber, err := h.service.Subscribe(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{"data": subscriber})
 }
 
@@ -691,24 +691,24 @@ func (h *Handler) unsubscribe(c *gin.Context) {
 	var req struct {
 		Email string `json:"email" binding:"required,email"`
 	}
-	
+
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	err = h.service.Unsubscribe(c.Request.Context(), tenantID, req.Email)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Unsubscribed successfully"})
 }
 
@@ -718,56 +718,56 @@ func (h *Handler) getSubscribers(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	var filter SubscriberFilter
 	filter.Status = c.QueryArray("status")
 	filter.Tags = c.QueryArray("tags")
 	filter.Search = c.Query("search")
-	
+
 	if startDate := c.Query("start_date"); startDate != "" {
 		if t, err := time.Parse("2006-01-02", startDate); err == nil {
 			filter.StartDate = &t
 		}
 	}
-	
+
 	if endDate := c.Query("end_date"); endDate != "" {
 		if t, err := time.Parse("2006-01-02", endDate); err == nil {
 			filter.EndDate = &t
 		}
 	}
-	
+
 	if page, err := strconv.Atoi(c.DefaultQuery("page", "1")); err == nil {
 		filter.Page = page
 	}
-	
+
 	if limit, err := strconv.Atoi(c.DefaultQuery("limit", "20")); err == nil {
 		filter.Limit = limit
 	}
-	
+
 	subscribers, err := h.service.GetSubscribers(c.Request.Context(), tenantID, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": subscribers})
 }
 
 func (h *Handler) getSubscriber(c *gin.Context) {
 	email := c.Param("email")
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	subscriber, err := h.service.GetSubscriber(c.Request.Context(), tenantID, email)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": subscriber})
 }
 
@@ -778,13 +778,13 @@ func (h *Handler) createAbandonedCart(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
-	
+
 	cart, err := h.service.CreateAbandonedCart(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{"data": cart})
 }
 
@@ -794,9 +794,9 @@ func (h *Handler) getAbandonedCarts(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	var filter AbandonedCartFilter
-	
+
 	if recovered := c.Query("recovered"); recovered != "" {
 		if recovered == "true" {
 			isRecovered := true
@@ -806,47 +806,47 @@ func (h *Handler) getAbandonedCarts(c *gin.Context) {
 			filter.IsRecovered = &isRecovered
 		}
 	}
-	
+
 	if minValue := c.Query("min_value"); minValue != "" {
 		if val, err := strconv.ParseFloat(minValue, 64); err == nil {
 			filter.MinValue = &val
 		}
 	}
-	
+
 	if maxValue := c.Query("max_value"); maxValue != "" {
 		if val, err := strconv.ParseFloat(maxValue, 64); err == nil {
 			filter.MaxValue = &val
 		}
 	}
-	
+
 	filter.Search = c.Query("search")
-	
+
 	if startDate := c.Query("start_date"); startDate != "" {
 		if t, err := time.Parse("2006-01-02", startDate); err == nil {
 			filter.StartDate = &t
 		}
 	}
-	
+
 	if endDate := c.Query("end_date"); endDate != "" {
 		if t, err := time.Parse("2006-01-02", endDate); err == nil {
 			filter.EndDate = &t
 		}
 	}
-	
+
 	if page, err := strconv.Atoi(c.DefaultQuery("page", "1")); err == nil {
 		filter.Page = page
 	}
-	
+
 	if limit, err := strconv.Atoi(c.DefaultQuery("limit", "20")); err == nil {
 		filter.Limit = limit
 	}
-	
+
 	carts, err := h.service.GetAbandonedCarts(c.Request.Context(), tenantID, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": carts})
 }
 
@@ -856,28 +856,28 @@ func (h *Handler) markCartRecovered(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid cart ID"})
 		return
 	}
-	
+
 	var req struct {
 		RecoveredValue float64 `json:"recovered_value" binding:"required,min=0"`
 	}
-	
+
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	err = h.service.MarkCartRecovered(c.Request.Context(), tenantID, cartID, req.RecoveredValue)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Cart marked as recovered"})
 }
 
@@ -887,19 +887,19 @@ func (h *Handler) sendAbandonedCartEmail(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid cart ID"})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	err = h.service.SendAbandonedCartEmail(c.Request.Context(), tenantID, cartID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Abandoned cart email sent"})
 }
 
@@ -910,13 +910,13 @@ func (h *Handler) getSettings(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	settings, err := h.service.GetSettings(c.Request.Context(), tenantID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": settings})
 }
 
@@ -926,19 +926,19 @@ func (h *Handler) updateSettings(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
-	
+
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	settings, err := h.service.UpdateSettings(c.Request.Context(), tenantID, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": settings})
 }
 
@@ -949,15 +949,15 @@ func (h *Handler) getMarketingOverview(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
 		return
 	}
-	
+
 	period := c.DefaultQuery("period", "30d")
-	
+
 	overview, err := h.service.GetMarketingOverview(c.Request.Context(), tenantID, period)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"data": overview})
 }
 
@@ -968,13 +968,13 @@ func (h *Handler) trackEmailOpen(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email ID"})
 		return
 	}
-	
+
 	err = h.service.TrackEmailOpen(c.Request.Context(), emailID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Return tracking pixel (1x1 transparent PNG)
 	pixel := []byte{
 		0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
@@ -984,7 +984,7 @@ func (h *Handler) trackEmailOpen(c *gin.Context) {
 		0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49,
 		0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
 	}
-	
+
 	c.Header("Content-Type", "image/png")
 	c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
 	c.Data(http.StatusOK, "image/png", pixel)
@@ -996,18 +996,18 @@ func (h *Handler) trackEmailClick(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email ID"})
 		return
 	}
-	
+
 	redirectURL := c.Query("url")
 	if redirectURL == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing redirect URL"})
 		return
 	}
-	
+
 	err = h.service.TrackEmailClick(c.Request.Context(), emailID)
 	if err != nil {
 		// Log error but don't fail the redirect
 		log.Printf("Failed to track email click for email %s: %v", emailID, err)
 	}
-	
+
 	c.Redirect(http.StatusFound, redirectURL)
 }

@@ -187,33 +187,33 @@ func ToAppError(err error) *AppError {
 
 var (
 	// Tenant errors
-	ErrTenantNotFound       = NewNotFoundError("Tenant")
-	ErrSubdomainTaken       = NewConflictError("Subdomain already taken")
-	ErrCustomDomainTaken    = NewConflictError("Custom domain already taken")
-	ErrTenantInactive       = NewForbiddenError("Tenant is inactive")
+	ErrTenantNotFound    = NewNotFoundError("Tenant")
+	ErrSubdomainTaken    = NewConflictError("Subdomain already taken")
+	ErrCustomDomainTaken = NewConflictError("Custom domain already taken")
+	ErrTenantInactive    = NewForbiddenError("Tenant is inactive")
 
 	// Product errors
-	ErrProductNotFound      = NewNotFoundError("Product")
-	ErrCategoryNotFound     = NewNotFoundError("Category")
-	ErrInsufficientStock    = NewBadRequestError("Insufficient stock")
-	ErrProductSlugTaken     = NewConflictError("Product slug already taken")
+	ErrProductNotFound   = NewNotFoundError("Product")
+	ErrCategoryNotFound  = NewNotFoundError("Category")
+	ErrInsufficientStock = NewBadRequestError("Insufficient stock")
+	ErrProductSlugTaken  = NewConflictError("Product slug already taken")
 
 	// Order errors
-	ErrOrderNotFound        = NewNotFoundError("Order")
-	ErrOrderNotEditable     = NewBadRequestError("Order cannot be modified")
-	ErrOrderNotCancellable  = NewBadRequestError("Order cannot be cancelled")
-	ErrOrderAlreadyPaid     = NewConflictError("Order is already paid")
+	ErrOrderNotFound       = NewNotFoundError("Order")
+	ErrOrderNotEditable    = NewBadRequestError("Order cannot be modified")
+	ErrOrderNotCancellable = NewBadRequestError("Order cannot be cancelled")
+	ErrOrderAlreadyPaid    = NewConflictError("Order is already paid")
 
 	// User errors
-	ErrUserNotFound         = NewNotFoundError("User")
-	ErrEmailTaken           = NewConflictError("Email already taken")
-	ErrInvalidCredentials   = NewUnauthorizedError("Invalid email or password")
-	ErrAccountInactive      = NewForbiddenError("Account is inactive")
-	ErrInvalidToken         = NewUnauthorizedError("Invalid or expired token")
+	ErrUserNotFound       = NewNotFoundError("User")
+	ErrEmailTaken         = NewConflictError("Email already taken")
+	ErrInvalidCredentials = NewUnauthorizedError("Invalid email or password")
+	ErrAccountInactive    = NewForbiddenError("Account is inactive")
+	ErrInvalidToken       = NewUnauthorizedError("Invalid or expired token")
 
 	// Permission errors
-	ErrPermissionDenied     = NewForbiddenError("Permission denied")
-	ErrInvalidRole          = NewBadRequestError("Invalid role")
+	ErrPermissionDenied = NewForbiddenError("Permission denied")
+	ErrInvalidRole      = NewBadRequestError("Invalid role")
 
 	// Payment errors
 	ErrPaymentFailed        = NewBadRequestError("Payment processing failed")

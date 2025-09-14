@@ -37,14 +37,14 @@ func (h *Handler) CreateComponent(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid request body", Details: bindErr.Error()})
 		return
 	}
-	
+
 	tenantID := getTenantID(c)
 	component, err := h.service.CreateComponent(c.Request.Context(), tenantID, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to create component", Details: err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, component)
 }
 
@@ -65,7 +65,7 @@ func (h *Handler) GetComponent(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid component ID"})
 		return
 	}
-	
+
 	tenantID := getTenantID(c)
 	component, err := h.service.GetComponent(c.Request.Context(), tenantID, id)
 	if err != nil {
@@ -76,7 +76,7 @@ func (h *Handler) GetComponent(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to get component", Details: err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, component)
 }
 
@@ -92,7 +92,7 @@ func (h *Handler) GetComponent(c *gin.Context) {
 func (h *Handler) GetComponentBySlug(c *gin.Context) {
 	slug := c.Param("slug")
 	tenantID := getTenantID(c)
-	
+
 	component, err := h.service.GetComponentBySlug(c.Request.Context(), tenantID, slug)
 	if err != nil {
 		if err.Error() == "component not found" {
@@ -102,7 +102,7 @@ func (h *Handler) GetComponentBySlug(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to get component", Details: err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, component)
 }
 
@@ -125,13 +125,13 @@ func (h *Handler) UpdateComponent(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid component ID"})
 		return
 	}
-	
+
 	var req UpdateComponentRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid request body", Details: bindErr.Error()})
 		return
 	}
-	
+
 	tenantID := getTenantID(c)
 	component, err := h.service.UpdateComponent(c.Request.Context(), tenantID, id, req)
 	if err != nil {
@@ -142,7 +142,7 @@ func (h *Handler) UpdateComponent(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to update component", Details: err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, component)
 }
 
@@ -162,7 +162,7 @@ func (h *Handler) DeleteComponent(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid component ID"})
 		return
 	}
-	
+
 	tenantID := getTenantID(c)
 	err = h.service.DeleteComponent(c.Request.Context(), tenantID, id)
 	if err != nil {
@@ -173,7 +173,7 @@ func (h *Handler) DeleteComponent(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to delete component", Details: err.Error()})
 		return
 	}
-	
+
 	c.Status(http.StatusNoContent)
 }
 
@@ -202,14 +202,14 @@ func (h *Handler) ListComponents(c *gin.Context) {
 		SortBy:    c.DefaultQuery("sort_by", "created_at"),
 		SortOrder: c.DefaultQuery("sort_order", "DESC"),
 	}
-	
+
 	// Parse featured filter
 	if featuredStr := c.Query("featured"); featuredStr != "" {
 		if featured, err := strconv.ParseBool(featuredStr); err == nil {
 			filters.Featured = &featured
 		}
 	}
-	
+
 	// Parse pagination
 	if pageStr := c.DefaultQuery("page", "1"); pageStr != "" {
 		if page, err := strconv.Atoi(pageStr); err == nil && page > 0 {
@@ -218,7 +218,7 @@ func (h *Handler) ListComponents(c *gin.Context) {
 			filters.Page = 1
 		}
 	}
-	
+
 	if limitStr := c.DefaultQuery("limit", "20"); limitStr != "" {
 		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 {
 			filters.Limit = limit
@@ -226,14 +226,14 @@ func (h *Handler) ListComponents(c *gin.Context) {
 			filters.Limit = 20
 		}
 	}
-	
+
 	tenantID := getTenantID(c)
 	response, err := h.service.ListComponents(c.Request.Context(), tenantID, filters)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to list components", Details: err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, response)
 }
 
@@ -256,13 +256,13 @@ func (h *Handler) DuplicateComponent(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid component ID"})
 		return
 	}
-	
+
 	var req DuplicateRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid request body", Details: bindErr.Error()})
 		return
 	}
-	
+
 	tenantID := getTenantID(c)
 	component, err := h.service.DuplicateComponent(c.Request.Context(), tenantID, id, req)
 	if err != nil {
@@ -273,7 +273,7 @@ func (h *Handler) DuplicateComponent(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to duplicate component", Details: err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, component)
 }
 
@@ -295,14 +295,14 @@ func (h *Handler) CreateInstance(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid request body", Details: bindErr.Error()})
 		return
 	}
-	
+
 	tenantID := getTenantID(c)
 	instance, err := h.service.CreateInstance(c.Request.Context(), tenantID, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to create instance", Details: err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, instance)
 }
 
@@ -323,14 +323,14 @@ func (h *Handler) GetInstance(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid instance ID"})
 		return
 	}
-	
+
 	tenantID := getTenantID(c)
 	instance, err := h.service.GetInstance(c.Request.Context(), tenantID, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to get instance", Details: err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, instance)
 }
 
@@ -349,20 +349,20 @@ func (h *Handler) ListInstances(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "theme_id is required"})
 		return
 	}
-	
+
 	themeID, err := uuid.Parse(themeIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid theme ID"})
 		return
 	}
-	
+
 	tenantID := getTenantID(c)
 	instances, err := h.service.ListInstances(c.Request.Context(), tenantID, themeID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to list instances", Details: err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, instances)
 }
 
@@ -387,14 +387,14 @@ func (h *Handler) ListThemes(c *gin.Context) {
 		SortBy:    c.DefaultQuery("sort_by", "created_at"),
 		SortOrder: c.DefaultQuery("sort_order", "DESC"),
 	}
-	
+
 	// Parse active filter
 	if activeStr := c.Query("active"); activeStr != "" {
 		if active, err := strconv.ParseBool(activeStr); err == nil {
 			filters.Active = &active
 		}
 	}
-	
+
 	// Parse pagination
 	if pageStr := c.DefaultQuery("page", "1"); pageStr != "" {
 		if page, err := strconv.Atoi(pageStr); err == nil && page > 0 {
@@ -403,7 +403,7 @@ func (h *Handler) ListThemes(c *gin.Context) {
 			filters.Page = 1
 		}
 	}
-	
+
 	if limitStr := c.DefaultQuery("limit", "20"); limitStr != "" {
 		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 {
 			filters.Limit = limit
@@ -411,14 +411,14 @@ func (h *Handler) ListThemes(c *gin.Context) {
 			filters.Limit = 20
 		}
 	}
-	
+
 	tenantID := getTenantID(c)
 	response, err := h.service.ListThemes(c.Request.Context(), tenantID, filters)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to list themes", Details: err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, response)
 }
 
@@ -437,7 +437,7 @@ func (h *Handler) GetActiveTheme(c *gin.Context) {
 		c.JSON(http.StatusNotFound, ErrorResponse{Error: "No active theme found"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, theme)
 }
 
@@ -465,20 +465,20 @@ func (h *Handler) ListTemplates(c *gin.Context) {
 		SortBy:    c.DefaultQuery("sort_by", "created_at"),
 		SortOrder: c.DefaultQuery("sort_order", "DESC"),
 	}
-	
+
 	// Parse boolean filters
 	if freeStr := c.Query("free"); freeStr != "" {
 		if free, err := strconv.ParseBool(freeStr); err == nil {
 			filters.Free = &free
 		}
 	}
-	
+
 	if featuredStr := c.Query("featured"); featuredStr != "" {
 		if featured, err := strconv.ParseBool(featuredStr); err == nil {
 			filters.Featured = &featured
 		}
 	}
-	
+
 	// Parse pagination
 	if pageStr := c.DefaultQuery("page", "1"); pageStr != "" {
 		if page, err := strconv.Atoi(pageStr); err == nil && page > 0 {
@@ -487,7 +487,7 @@ func (h *Handler) ListTemplates(c *gin.Context) {
 			filters.Page = 1
 		}
 	}
-	
+
 	if limitStr := c.DefaultQuery("limit", "20"); limitStr != "" {
 		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 {
 			filters.Limit = limit
@@ -495,13 +495,13 @@ func (h *Handler) ListTemplates(c *gin.Context) {
 			filters.Limit = 20
 		}
 	}
-	
+
 	response, err := h.service.ListTemplates(c.Request.Context(), filters)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to list templates", Details: err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, response)
 }
 
@@ -522,13 +522,13 @@ func (h *Handler) GetTemplate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid template ID"})
 		return
 	}
-	
+
 	template, err := h.service.GetTemplate(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, ErrorResponse{Error: "Template not found"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, template)
 }
 
@@ -550,13 +550,13 @@ func (h *Handler) CreateThemeTemplate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid request body", Details: bindErr.Error()})
 		return
 	}
-	
+
 	themeTemplate, err := h.service.CreateThemeTemplate(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to create theme template", Details: err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, themeTemplate)
 }
 
@@ -577,13 +577,13 @@ func (h *Handler) GetThemeTemplate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid theme template ID"})
 		return
 	}
-	
+
 	themeTemplate, err := h.service.GetThemeTemplate(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, ErrorResponse{Error: "Theme template not found"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, themeTemplate)
 }
 
@@ -606,19 +606,19 @@ func (h *Handler) UpdateThemeTemplate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid theme template ID"})
 		return
 	}
-	
+
 	var req UpdateThemeTemplateRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid request body", Details: bindErr.Error()})
 		return
 	}
-	
+
 	themeTemplate, err := h.service.UpdateThemeTemplate(c.Request.Context(), id, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to update theme template", Details: err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, themeTemplate)
 }
 
@@ -638,13 +638,13 @@ func (h *Handler) DeleteThemeTemplate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid theme template ID"})
 		return
 	}
-	
+
 	err = h.service.DeleteThemeTemplate(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to delete theme template", Details: err.Error()})
 		return
 	}
-	
+
 	c.Status(http.StatusNoContent)
 }
 
@@ -663,30 +663,30 @@ func (h *Handler) DeleteThemeTemplate(c *gin.Context) {
 // @Router /theme-templates [get]
 func (h *Handler) ListThemeTemplates(c *gin.Context) {
 	filters := ThemeTemplateFilter{
-		Category:  c.Query("category"),
-		Search:    c.Query("search"),
+		Category: c.Query("category"),
+		Search:   c.Query("search"),
 	}
-	
+
 	// Parse boolean filters
 	if freeStr := c.Query("free"); freeStr != "" {
 		if free, err := strconv.ParseBool(freeStr); err == nil {
 			filters.IsFree = &free
 		}
 	}
-	
+
 	if featuredStr := c.Query("featured"); featuredStr != "" {
 		if featured, err := strconv.ParseBool(featuredStr); err == nil {
 			filters.IsFeatured = &featured
 		}
 	}
-	
+
 	// Parse pagination
 	if pageStr := c.DefaultQuery("page", "1"); pageStr != "" {
 		if page, err := strconv.Atoi(pageStr); err == nil && page > 0 {
 			filters.Offset = (page - 1) * filters.Limit
 		}
 	}
-	
+
 	if limitStr := c.DefaultQuery("limit", "20"); limitStr != "" {
 		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 {
 			filters.Limit = limit
@@ -694,13 +694,13 @@ func (h *Handler) ListThemeTemplates(c *gin.Context) {
 			filters.Limit = 20
 		}
 	}
-	
+
 	response, err := h.service.ListThemeTemplates(c.Request.Context(), filters)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to list theme templates", Details: err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, response)
 }
 
@@ -720,7 +720,7 @@ func (h *Handler) GetStats(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "Failed to get statistics", Details: err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, stats)
 }
 
@@ -741,12 +741,12 @@ func getTenantID(c *gin.Context) uuid.UUID {
 		// Return a default tenant ID for development
 		return uuid.MustParse("00000000-0000-0000-0000-000000000001")
 	}
-	
+
 	tenantID, err := uuid.Parse(tenantIDStr)
 	if err != nil {
 		// Return a default tenant ID if parsing fails
 		return uuid.MustParse("00000000-0000-0000-0000-000000000001")
 	}
-	
+
 	return tenantID
 }

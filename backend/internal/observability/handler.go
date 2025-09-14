@@ -385,8 +385,8 @@ func (h *ObservabilityHandler) GetSystemInfo(c *gin.Context) {
 		"version":     "1.0.0",
 		"environment": "development", // This should come from config
 		"go_version":  "1.21",
-		"uptime":      time.Since(time.Now().Add(-1*time.Hour)).String(), // Mock uptime
-		"build_time":  "2024-01-01T00:00:00Z",                             // This should come from build
+		"uptime":      time.Since(time.Now().Add(-1 * time.Hour)).String(), // Mock uptime
+		"build_time":  "2024-01-01T00:00:00Z",                              // This should come from build
 	}
 
 	c.JSON(http.StatusOK, info)
@@ -397,11 +397,11 @@ func (h *ObservabilityHandler) GetSystemStats(c *gin.Context) {
 	stats := map[string]interface{}{
 		"requests_total":      1000,    // Mock data
 		"requests_per_second": 10.5,    // Mock data
-		"response_time_avg":   "125ms",  // Mock data
-		"error_rate":          "0.5%",   // Mock data
-		"memory_usage":        "256MB",  // Mock data
-		"cpu_usage":           "15%",    // Mock data
-		"goroutines":          25,       // Mock data
+		"response_time_avg":   "125ms", // Mock data
+		"error_rate":          "0.5%",  // Mock data
+		"memory_usage":        "256MB", // Mock data
+		"cpu_usage":           "15%",   // Mock data
+		"goroutines":          25,      // Mock data
 	}
 
 	c.JSON(http.StatusOK, stats)

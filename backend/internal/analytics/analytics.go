@@ -8,19 +8,19 @@ import (
 
 // AnalyticsEvent represents an analytics event
 type AnalyticsEvent struct {
-	ID        uuid.UUID `json:"id" gorm:"primarykey"`
-	TenantID  uuid.UUID `json:"tenant_id" gorm:"not null;index"`
-	
+	ID       uuid.UUID `json:"id" gorm:"primarykey"`
+	TenantID uuid.UUID `json:"tenant_id" gorm:"not null;index"`
+
 	// Event details
-	EventType   string                 `json:"event_type" gorm:"not null;index"` // page_view, product_view, purchase, etc.
-	EventName   string                 `json:"event_name" gorm:"not null"`
-	Properties  map[string]interface{} `json:"properties" gorm:"serializer:json"`
-	
+	EventType  string                 `json:"event_type" gorm:"not null;index"` // page_view, product_view, purchase, etc.
+	EventName  string                 `json:"event_name" gorm:"not null"`
+	Properties map[string]interface{} `json:"properties" gorm:"serializer:json"`
+
 	// User context
 	UserID      *uuid.UUID `json:"user_id,omitempty" gorm:"index"`
 	SessionID   string     `json:"session_id,omitempty" gorm:"index"`
 	AnonymousID string     `json:"anonymous_id,omitempty" gorm:"index"`
-	
+
 	// Request context
 	IPAddress   string `json:"ip_address,omitempty"`
 	UserAgent   string `json:"user_agent,omitempty"`
@@ -28,7 +28,7 @@ type AnalyticsEvent struct {
 	UTMSource   string `json:"utm_source,omitempty"`
 	UTMMedium   string `json:"utm_medium,omitempty"`
 	UTMCampaign string `json:"utm_campaign,omitempty"`
-	
+
 	// Timestamps
 	Timestamp time.Time `json:"timestamp" gorm:"not null;index"`
 	CreatedAt time.Time `json:"created_at"`
@@ -38,25 +38,25 @@ type AnalyticsEvent struct {
 type PageView struct {
 	ID       uuid.UUID `json:"id" gorm:"primarykey"`
 	TenantID uuid.UUID `json:"tenant_id" gorm:"not null;index"`
-	
+
 	// Page details
-	URL      string `json:"url" gorm:"not null"`
-	Path     string `json:"path" gorm:"not null;index"`
-	Title    string `json:"title,omitempty"`
-	
+	URL   string `json:"url" gorm:"not null"`
+	Path  string `json:"path" gorm:"not null;index"`
+	Title string `json:"title,omitempty"`
+
 	// User context
 	UserID      *uuid.UUID `json:"user_id,omitempty" gorm:"index"`
 	SessionID   string     `json:"session_id,omitempty" gorm:"index"`
 	AnonymousID string     `json:"anonymous_id,omitempty" gorm:"index"`
-	
+
 	// Context
 	IPAddress string `json:"ip_address,omitempty"`
 	UserAgent string `json:"user_agent,omitempty"`
 	Referrer  string `json:"referrer,omitempty"`
-	
+
 	// Duration (filled when user leaves page)
 	DurationSeconds *int `json:"duration_seconds,omitempty"`
-	
+
 	Timestamp time.Time `json:"timestamp" gorm:"not null;index"`
 	CreatedAt time.Time `json:"created_at"`
 }
@@ -66,45 +66,45 @@ type ProductView struct {
 	ID        uuid.UUID `json:"id" gorm:"primarykey"`
 	TenantID  uuid.UUID `json:"tenant_id" gorm:"not null;index"`
 	ProductID uuid.UUID `json:"product_id" gorm:"not null;index"`
-	
+
 	// User context
 	UserID      *uuid.UUID `json:"user_id,omitempty" gorm:"index"`
 	SessionID   string     `json:"session_id,omitempty" gorm:"index"`
 	AnonymousID string     `json:"anonymous_id,omitempty" gorm:"index"`
-	
+
 	// Context
 	IPAddress string `json:"ip_address,omitempty"`
 	UserAgent string `json:"user_agent,omitempty"`
 	Referrer  string `json:"referrer,omitempty"`
-	
+
 	// Duration (filled when user leaves product page)
 	DurationSeconds *int `json:"duration_seconds,omitempty"`
-	
+
 	Timestamp time.Time `json:"timestamp" gorm:"not null;index"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
 // Purchase represents a purchase event
 type Purchase struct {
-	ID      uuid.UUID `json:"id" gorm:"primarykey"`
+	ID       uuid.UUID `json:"id" gorm:"primarykey"`
 	TenantID uuid.UUID `json:"tenant_id" gorm:"not null;index"`
 	OrderID  uuid.UUID `json:"order_id" gorm:"not null;index"`
-	
+
 	// User context
 	UserID      *uuid.UUID `json:"user_id,omitempty" gorm:"index"`
 	SessionID   string     `json:"session_id,omitempty" gorm:"index"`
 	AnonymousID string     `json:"anonymous_id,omitempty" gorm:"index"`
-	
+
 	// Purchase details
-	TotalAmount    float64 `json:"total_amount" gorm:"not null"`
-	Currency       string  `json:"currency" gorm:"default:BDT"`
-	ItemCount      int     `json:"item_count" gorm:"not null"`
-	PaymentMethod  string  `json:"payment_method,omitempty"`
-	
+	TotalAmount   float64 `json:"total_amount" gorm:"not null"`
+	Currency      string  `json:"currency" gorm:"default:BDT"`
+	ItemCount     int     `json:"item_count" gorm:"not null"`
+	PaymentMethod string  `json:"payment_method,omitempty"`
+
 	// Context
 	IPAddress string `json:"ip_address,omitempty"`
 	UserAgent string `json:"user_agent,omitempty"`
-	
+
 	Timestamp time.Time `json:"timestamp" gorm:"not null;index"`
 	CreatedAt time.Time `json:"created_at"`
 }
@@ -113,21 +113,21 @@ type Purchase struct {
 type AnalyticsStats struct {
 	TenantID uuid.UUID `json:"tenant_id"`
 	Date     time.Time `json:"date"`
-	
+
 	// Traffic metrics
-	PageViews       int64 `json:"page_views"`
-	UniqueVisitors  int64 `json:"unique_visitors"`
-	Sessions        int64 `json:"sessions"`
-	BounceRate      float64 `json:"bounce_rate"`
-	AvgSessionTime  float64 `json:"avg_session_time"`
-	
+	PageViews      int64   `json:"page_views"`
+	UniqueVisitors int64   `json:"unique_visitors"`
+	Sessions       int64   `json:"sessions"`
+	BounceRate     float64 `json:"bounce_rate"`
+	AvgSessionTime float64 `json:"avg_session_time"`
+
 	// E-commerce metrics
-	ProductViews    int64   `json:"product_views"`
-	Orders          int64   `json:"orders"`
-	Revenue         float64 `json:"revenue"`
-	ConversionRate  float64 `json:"conversion_rate"`
-	AvgOrderValue   float64 `json:"avg_order_value"`
-	
+	ProductViews   int64   `json:"product_views"`
+	Orders         int64   `json:"orders"`
+	Revenue        float64 `json:"revenue"`
+	ConversionRate float64 `json:"conversion_rate"`
+	AvgOrderValue  float64 `json:"avg_order_value"`
+
 	// Top performers
 	TopPages     []string `json:"top_pages"`
 	TopProducts  []string `json:"top_products"`
@@ -243,7 +243,7 @@ func (pv *ProductView) GetEngagementLevel() string {
 	if pv.DurationSeconds == nil {
 		return "unknown"
 	}
-	
+
 	duration := *pv.DurationSeconds
 	switch {
 	case duration < 10:
@@ -314,11 +314,11 @@ func (e *AnalyticsEvent) GetTrafficSource() string {
 	if e.UTMSource != "" {
 		return e.UTMSource
 	}
-	
+
 	if e.Referrer == "" {
 		return "direct"
 	}
-	
+
 	// Simple referrer categorization
 	if contains(e.Referrer, "google") {
 		return "google"
@@ -329,7 +329,7 @@ func (e *AnalyticsEvent) GetTrafficSource() string {
 	if contains(e.Referrer, "twitter") {
 		return "twitter"
 	}
-	
+
 	return "referral"
 }
 
@@ -340,11 +340,11 @@ func (e *AnalyticsEvent) IsFromMobile() bool {
 
 // Helper function for string contains check
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || 
-		(len(s) > len(substr) && 
-			(s[:len(substr)] == substr || 
-			 s[len(s)-len(substr):] == substr || 
-			 indexOfSubstring(s, substr) >= 0)))
+	return len(s) >= len(substr) && (s == substr ||
+		(len(s) > len(substr) &&
+			(s[:len(substr)] == substr ||
+				s[len(s)-len(substr):] == substr ||
+				indexOfSubstring(s, substr) >= 0)))
 }
 
 // Helper function to find substring index

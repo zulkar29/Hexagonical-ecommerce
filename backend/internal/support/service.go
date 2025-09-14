@@ -18,29 +18,29 @@ type Service interface {
 	DeleteTicket(ctx context.Context, tenantID, ticketID uuid.UUID) error
 	AssignTicket(ctx context.Context, tenantID, ticketID, userID uuid.UUID) error
 	ResolveTicket(ctx context.Context, tenantID, ticketID uuid.UUID) error
-	
+
 	// Ticket message operations
 	AddMessage(ctx context.Context, req AddMessageRequest) (*TicketMessage, error)
 	GetMessages(ctx context.Context, tenantID, ticketID uuid.UUID) ([]TicketMessage, error)
-	
+
 	// FAQ operations
 	CreateFAQ(ctx context.Context, req CreateFAQRequest) (*FAQ, error)
 	GetFAQ(ctx context.Context, tenantID, faqID uuid.UUID) (*FAQ, error)
 	GetFAQs(ctx context.Context, tenantID uuid.UUID, filter FAQFilter) ([]FAQ, error)
 	UpdateFAQ(ctx context.Context, tenantID, faqID uuid.UUID, req UpdateFAQRequest) (*FAQ, error)
 	DeleteFAQ(ctx context.Context, tenantID, faqID uuid.UUID) error
-	
+
 	// Knowledge base operations
 	CreateArticle(ctx context.Context, req CreateArticleRequest) (*KnowledgeBase, error)
 	GetArticle(ctx context.Context, tenantID uuid.UUID, slug string) (*KnowledgeBase, error)
 	GetArticles(ctx context.Context, tenantID uuid.UUID, filter ArticleFilter) ([]KnowledgeBase, error)
 	UpdateArticle(ctx context.Context, tenantID, articleID uuid.UUID, req UpdateArticleRequest) (*KnowledgeBase, error)
 	DeleteArticle(ctx context.Context, tenantID, articleID uuid.UUID) error
-	
+
 	// Settings operations
 	GetSettings(ctx context.Context, tenantID uuid.UUID) (*SupportSettings, error)
 	UpdateSettings(ctx context.Context, tenantID uuid.UUID, req UpdateSettingsRequest) (*SupportSettings, error)
-	
+
 	// Analytics
 	GetTicketStats(ctx context.Context, tenantID uuid.UUID, period string) (*TicketStats, error)
 }
@@ -172,13 +172,13 @@ type UpdateSettingsRequest struct {
 }
 
 type TicketStats struct {
-	TotalTickets   int                        `json:"total_tickets"`
-	OpenTickets    int                        `json:"open_tickets"`
-	ResolvedTickets int                       `json:"resolved_tickets"`
-	ClosedTickets  int                        `json:"closed_tickets"`
-	AvgResponseTime string                    `json:"avg_response_time"`
-	TicketsByStatus map[TicketStatus]int      `json:"tickets_by_status"`
-	TicketsByPriority map[TicketPriority]int  `json:"tickets_by_priority"`
+	TotalTickets      int                    `json:"total_tickets"`
+	OpenTickets       int                    `json:"open_tickets"`
+	ResolvedTickets   int                    `json:"resolved_tickets"`
+	ClosedTickets     int                    `json:"closed_tickets"`
+	AvgResponseTime   string                 `json:"avg_response_time"`
+	TicketsByStatus   map[TicketStatus]int   `json:"tickets_by_status"`
+	TicketsByPriority map[TicketPriority]int `json:"tickets_by_priority"`
 }
 
 // Implementation methods - Service layer business logic

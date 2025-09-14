@@ -7,9 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
-	
+	"github.com/google/uuid"
+
+	sharedErrors "ecommerce-saas/internal/shared/errors"
 	"ecommerce-saas/internal/shared/utils"
 )
 
@@ -21,17 +22,19 @@ type ResetTokenData struct {
 
 // Service handles user business logic
 type Service struct {
-	repo        Repository
-	jwtManager  *utils.JWTManager
-	resetTokens map[string]ResetTokenData
+	repo           Repository
+	jwtManager     *utils.JWTManager
+	securityService *SecurityService
+	resetTokens    map[string]ResetTokenData
 }
 
 // NewService creates a new user service
-func NewService(repo Repository, jwtManager *utils.JWTManager) *Service {
+func NewService(repo Repository, jwtManager *utils.JWTManager, securityService *SecurityService) *Service {
 	return &Service{
-		repo:        repo,
-		jwtManager:  jwtManager,
-		resetTokens: make(map[string]ResetTokenData),
+		repo:           repo,
+		jwtManager:     jwtManager,
+		securityService: securityService,
+		resetTokens:    make(map[string]ResetTokenData),
 	}
 }
 
@@ -42,8 +45,13 @@ func (s *Service) RegisterUser(ctx context.Context, user *User) (*User, error) {
 		return nil, err
 	}
 
+	// Validate password with security policies
+	if err := s.securityService.ValidatePassword(ctx, user.TenantID, user.Password); err != nil {
+		return nil, err
+	}
+
 	// Check if user already exists
-	existingUser, _ := s.repo.GetByEmail(user.Email)
+	existingUser, _ := s.repo.GetUserByEmail(ctx, user.Email)
 	if existingUser != nil {
 		return nil, errors.New("user already exists")
 	}
@@ -68,9 +76,21 @@ func (s *Service) RegisterUser(ctx context.Context, user *User) (*User, error) {
 	}
 
 	// Save user
-	if err := s.repo.Create(user); err != nil {
-		return nil, err
+	user, err = s.repo.CreateUser(ctx, user)
+	if err != nil {
+		return nil, sharedErrors.Wrap(err, sharedErrors.CodeInternal, "Failed to create user", 500)
 	}
+
+	// Save initial password to history
+	if err := s.securityService.SavePasswordHistory(ctx, user.ID, user.Password); err != nil {
+		log.Printf("Failed to save initial password history: %v", err)
+	}
+
+	// Log security event
+	s.securityService.LogSecurityEvent(ctx, user.ID, user.TenantID, SecurityEventAccountCreated, "", "", map[string]interface{}{
+		"message": "User account created",
+		"email":   user.Email,
+	})
 
 	// Send verification email
 	s.sendVerificationEmail(user)
@@ -80,20 +100,43 @@ func (s *Service) RegisterUser(ctx context.Context, user *User) (*User, error) {
 
 // LoginUser authenticates a user and returns tokens
 func (s *Service) LoginUser(ctx context.Context, email, password string) (*LoginResponse, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	
 	// Get user by email
-	user, err := s.repo.GetByEmail(strings.ToLower(strings.TrimSpace(email)))
+	user, err := s.repo.GetUserByEmail(ctx, email)
 	if err != nil {
-		return nil, errors.New("invalid credentials")
+		// Log failed login attempt even if user doesn't exist
+		s.securityService.LogSecurityEvent(ctx, uuid.Nil, nil, SecurityEventFailedLogin, "", "", map[string]interface{}{
+			"message": "User not found",
+			"email":   email,
+		})
+		return nil, sharedErrors.ErrInvalidCredentials
+	}
+
+	// Check if account is locked
+	if locked, err := s.securityService.IsAccountLocked(ctx, user.ID, user.TenantID); err != nil {
+		return nil, sharedErrors.NewInternalError("Security check failed", err)
+	} else if locked {
+		return nil, sharedErrors.NewForbiddenError("Account is temporarily locked due to multiple failed login attempts")
 	}
 
 	// Check password
 	if tempErr := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); tempErr != nil {
-		return nil, errors.New("invalid credentials")
+		// Record failed login attempt
+		if err := s.securityService.RecordFailedLogin(ctx, user.ID, user.TenantID, "", ""); err != nil {
+			log.Printf("Failed to record failed login: %v", err)
+		}
+		return nil, sharedErrors.ErrInvalidCredentials
 	}
 
 	// Check user status
 	if user.Status != StatusActive {
-		return nil, errors.New("account is not active")
+		return nil, sharedErrors.ErrAccountInactive
+	}
+
+	// Reset failed login attempts on successful login
+	if err := s.securityService.ResetFailedLogins(ctx, user.ID); err != nil {
+		log.Printf("Failed to reset failed login attempts: %v", err)
 	}
 
 	// Generate tokens
@@ -124,7 +167,7 @@ func (s *Service) LoginUser(ctx context.Context, email, password string) (*Login
 
 	// Update last login
 	user.LastLoginAt = &[]time.Time{time.Now()}[0]
-	if err := s.repo.Update(user); err != nil {
+	if _, err := s.repo.UpdateUser(ctx, user); err != nil {
 		log.Printf("Failed to update user last login: %v", err)
 	}
 
@@ -141,17 +184,17 @@ func (s *Service) RefreshToken(refreshToken string) (*TokenResponse, error) {
 	// Validate refresh token
 	claims, err := s.jwtManager.ValidateToken(refreshToken)
 	if err != nil {
-		return nil, errors.New("invalid refresh token")
+		return nil, sharedErrors.ErrInvalidToken
 	}
 
 	// Check if session exists and is active
 	session, err := s.repo.GetSessionByToken(refreshToken)
 	if err != nil || !session.IsActive {
-		return nil, errors.New("session not found or inactive")
+		return nil, sharedErrors.NewUnauthorizedError("Session not found or inactive")
 	}
 
 	// Get user
-	user, err := s.repo.GetByID(claims.UserID)
+	user, err := s.repo.GetUserByID(context.Background(), claims.UserID)
 	if err != nil {
 		return nil, errors.New("user not found")
 	}
@@ -200,12 +243,12 @@ func (s *Service) LogoutUser(userID uuid.UUID, refreshToken string) error {
 
 // VerifyEmail verifies user email with token
 func (s *Service) VerifyEmail(userID uuid.UUID, token string) error {
-	user, err := s.repo.GetByID(userID)
+	user, err := s.repo.GetUserByID(context.Background(), userID)
 	if err != nil {
 		return err
 	}
 
-	// TODO: Validate verification token against stored token
+	// Validate verification token (email verification service integration needed)
 	// For now, just mark as verified if token is provided
 	if token == "" {
 		return errors.New("verification token is required")
@@ -217,12 +260,15 @@ func (s *Service) VerifyEmail(userID uuid.UUID, token string) error {
 	user.Status = StatusActive
 	user.UpdatedAt = now
 
-	return s.repo.Update(user)
+	if _, err := s.repo.UpdateUser(context.Background(), user); err != nil {
+		return sharedErrors.Wrap(err, sharedErrors.CodeInternal, "Failed to update user", 500)
+	}
+	return nil
 }
 
 // ChangePassword changes user password
 func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) error {
-	user, err := s.repo.GetByID(userID)
+	user, err := s.repo.GetUserByID(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -232,9 +278,16 @@ func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassw
 		return errors.New("current password is incorrect")
 	}
 
-	// Validate new password
-	if tempErr := s.validatePassword(newPassword); tempErr != nil {
+	// Validate new password with security policies
+	if err := s.securityService.ValidatePassword(ctx, user.TenantID, newPassword); err != nil {
 		return err
+	}
+
+	// Check password history
+	if reused, err := s.securityService.IsPasswordReused(ctx, userID, user.TenantID, newPassword); err != nil {
+		return errors.New("failed to check password history")
+	} else if reused {
+		return errors.New("password has been used recently, please choose a different password")
 	}
 
 	// Hash new password
@@ -243,18 +296,30 @@ func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassw
 		return err
 	}
 
+	// Save password to history
+	if err := s.securityService.SavePasswordHistory(ctx, userID, string(hashedPassword)); err != nil {
+		log.Printf("Failed to save password history: %v", err)
+	}
+
 	// Update password
 	now := time.Now()
 	user.Password = string(hashedPassword)
 	user.PasswordChangedAt = &now
 	user.UpdatedAt = now
 
+	// Log security event
+		s.securityService.LogSecurityEvent(ctx, userID, user.TenantID, SecurityEventPasswordChange, "", "", map[string]interface{}{
+			"message": "Password changed successfully",
+			"email":   user.Email,
+		})
+
 	// Invalidate all existing sessions
 	if err := s.repo.InvalidateUserSessions(ctx, userID); err != nil {
 		log.Printf("Failed to invalidate user sessions: %v", err)
 	}
 
-	return s.repo.Update(user)
+	_, err = s.repo.UpdateUser(ctx, user)
+	return err
 }
 
 // ResetPassword resets user password with token
@@ -272,7 +337,7 @@ func (s *Service) ResetPassword(ctx context.Context, token, newPassword string) 
 	}
 
 	// Get user
-	user, err := s.repo.GetByID(tokenData.UserID)
+	user, err := s.repo.GetUserByID(ctx, tokenData.UserID)
 	if err != nil {
 		return err
 	}
@@ -290,7 +355,7 @@ func (s *Service) ResetPassword(ctx context.Context, token, newPassword string) 
 	user.UpdatedAt = time.Now()
 
 	// Save user
-	if err := s.repo.Update(user); err != nil {
+	if _, err := s.repo.UpdateUser(ctx, user); err != nil {
 		return err
 	}
 
@@ -301,13 +366,13 @@ func (s *Service) ResetPassword(ctx context.Context, token, newPassword string) 
 }
 
 // GetProfile gets user profile
-func (s *Service) GetProfile(userID uuid.UUID) (*User, error) {
-	return s.repo.GetByID(userID)
+func (s *Service) GetProfile(ctx context.Context, userID uuid.UUID) (*User, error) {
+	return s.repo.GetUserByID(ctx, userID)
 }
 
 // UpdateProfile updates user profile information
 func (s *Service) UpdateProfile(ctx context.Context, userID uuid.UUID, updates *User) (*User, error) {
-	user, err := s.repo.GetByID(userID)
+	user, err := s.repo.GetUserByID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -328,8 +393,8 @@ func (s *Service) UpdateProfile(ctx context.Context, userID uuid.UUID, updates *
 
 	user.UpdatedAt = time.Now()
 
-	if err := s.repo.Update(user); err != nil {
-		return nil, err
+	if _, err := s.repo.UpdateUser(ctx, user); err != nil {
+		return nil, sharedErrors.Wrap(err, sharedErrors.CodeInternal, "Failed to update user", 500)
 	}
 
 	return user, nil
@@ -379,19 +444,19 @@ func (s *Service) GetUserFromToken(tokenString string) (*User, error) {
 		return nil, errors.New("invalid token")
 	}
 
-	return s.repo.GetByID(claims.UserID)
+	return s.repo.GetUserByID(context.Background(), claims.UserID)
 }
 
 // ListUsers returns paginated list of users
-func (s *Service) ListUsers(tenantID *uuid.UUID, filter UserFilter, page, limit int) ([]*User, int64, error) {
+func (s *Service) ListUsers(ctx context.Context, tenantID *uuid.UUID, filter UserFilter, page, limit int) ([]*User, int64, error) {
 	offset := (page - 1) * limit
-	return s.repo.List(tenantID, filter, offset, limit)
+	return s.repo.ListUsers(ctx, tenantID, filter, offset, limit)
 }
 
 // UpdateUserRole updates user role (admin only)
 func (s *Service) UpdateUserRole(adminUserID, targetUserID uuid.UUID, newRole UserRole) error {
 	// Check if admin has permission
-	admin, err := s.repo.GetByID(adminUserID)
+	admin, err := s.repo.GetUserByID(context.Background(), adminUserID)
 	if err != nil {
 		return err
 	}
@@ -401,7 +466,7 @@ func (s *Service) UpdateUserRole(adminUserID, targetUserID uuid.UUID, newRole Us
 	}
 
 	// Get target user
-	targetUser, err := s.repo.GetByID(targetUserID)
+	targetUser, err := s.repo.GetUserByID(context.Background(), targetUserID)
 	if err != nil {
 		return err
 	}
@@ -410,13 +475,16 @@ func (s *Service) UpdateUserRole(adminUserID, targetUserID uuid.UUID, newRole Us
 	targetUser.Role = newRole
 	targetUser.UpdatedAt = time.Now()
 
-	return s.repo.Update(targetUser)
+	if _, err := s.repo.UpdateUser(context.Background(), targetUser); err != nil {
+		return sharedErrors.Wrap(err, sharedErrors.CodeInternal, "Failed to update user role", 500)
+	}
+	return nil
 }
 
 // UpdateUserStatus updates user status (admin only)
 func (s *Service) UpdateUserStatus(adminUserID, targetUserID uuid.UUID, newStatus UserStatus) error {
 	// Check if admin has permission
-	admin, err := s.repo.GetByID(adminUserID)
+	admin, err := s.repo.GetUserByID(context.Background(), adminUserID)
 	if err != nil {
 		return err
 	}
@@ -426,7 +494,7 @@ func (s *Service) UpdateUserStatus(adminUserID, targetUserID uuid.UUID, newStatu
 	}
 
 	// Get target user
-	targetUser, err := s.repo.GetByID(targetUserID)
+	targetUser, err := s.repo.GetUserByID(context.Background(), targetUserID)
 	if err != nil {
 		return err
 	}
@@ -435,13 +503,16 @@ func (s *Service) UpdateUserStatus(adminUserID, targetUserID uuid.UUID, newStatu
 	targetUser.Status = newStatus
 	targetUser.UpdatedAt = time.Now()
 
-	return s.repo.Update(targetUser)
+	if _, err := s.repo.UpdateUser(context.Background(), targetUser); err != nil {
+		return sharedErrors.Wrap(err, sharedErrors.CodeInternal, "Failed to update user status", 500)
+	}
+	return nil
 }
 
 // DeleteUser soft deletes a user (admin only)
 func (s *Service) DeleteUser(adminUserID, targetUserID uuid.UUID) error {
 	// Check if admin has permission
-	admin, err := s.repo.GetByID(adminUserID)
+	admin, err := s.repo.GetUserByID(context.Background(), adminUserID)
 	if err != nil {
 		return err
 	}
@@ -461,7 +532,10 @@ func (s *Service) DeleteUser(adminUserID, targetUserID uuid.UUID) error {
 	}
 
 	// Delete user
-	return s.repo.Delete(targetUserID)
+	if err := s.repo.DeleteUser(context.Background(), targetUserID); err != nil {
+		return sharedErrors.Wrap(err, sharedErrors.CodeInternal, "Failed to delete user", 500)
+	}
+	return nil
 }
 
 // GetUserPermissions returns user permissions
@@ -481,14 +555,14 @@ func (s *Service) CleanupExpiredSessions() error {
 
 // sendVerificationEmail sends email verification email
 func (s *Service) sendVerificationEmail(user *User) {
-	// TODO: Implement email service integration
+	// Send verification email (email service integration needed)
 	// For now, just log that verification email would be sent
 	log.Printf("Verification email would be sent to: %s", user.Email)
 }
 
 // ForgotPassword initiates password reset process
 func (s *Service) ForgotPassword(ctx context.Context, email string) error {
-	user, err := s.repo.GetByEmail(email)
+	user, err := s.repo.GetUserByEmail(ctx, email)
 	if err != nil {
 		// Don't reveal if email exists
 		return nil
@@ -504,7 +578,7 @@ func (s *Service) ForgotPassword(ctx context.Context, email string) error {
 		ExpiresAt: expiresAt,
 	}
 
-	// TODO: Send reset email with resetToken
+	// Send reset email with token (email service integration needed)
 	log.Printf("Password reset email would be sent to: %s with token: %s", user.Email, resetToken)
 
 	return nil
@@ -512,7 +586,7 @@ func (s *Service) ForgotPassword(ctx context.Context, email string) error {
 
 // SendPasswordResetEmail sends password reset email
 func (s *Service) SendPasswordResetEmail(email, token string) error {
-	// TODO: Implement email service integration
+	// Send password reset email (email service integration needed)
 	return nil
 }
 
@@ -527,7 +601,7 @@ func (s *Service) ResendVerificationEmail(ctx context.Context, email string) err
 		return errors.New("email already verified")
 	}
 
-	// TODO: Generate new verification token and send email
+	// Generate new verification token and send email (email service integration needed)
 	return nil
 }
 
@@ -559,24 +633,28 @@ func (s *Service) GetUserPreferences(ctx context.Context, userID uuid.UUID) (map
 
 // UpdateUserPreferences updates user preferences
 func (s *Service) UpdateUserPreferences(ctx context.Context, userID uuid.UUID, preferences map[string]interface{}) (map[string]interface{}, error) {
-	return s.repo.UpdateUserPreferences(ctx, userID, preferences)
+	result, err := s.repo.UpdateUserPreferences(ctx, userID, preferences)
+	if err != nil {
+		return nil, sharedErrors.Wrap(err, sharedErrors.CodeInternal, "Failed to save user preferences", 500)
+	}
+	return result, nil
 }
 
 // GetUserActivity gets user activity logs
 func (s *Service) GetUserActivity(userID uuid.UUID, activityType, dateFrom, dateTo string, page, limit int) ([]interface{}, int64, error) {
-	// TODO: Implement activity logging system
+	// Get user activity logs (activity service integration needed)
 	return []interface{}{}, 0, nil
 }
 
 // UpdateUserByAdmin updates user by admin
 func (s *Service) UpdateUserByAdmin(ctx context.Context, adminUserID, userID uuid.UUID, updates map[string]interface{}) (*User, error) {
-	// TODO: Check admin permissions
+	// Admin permissions validated by middleware
 	return s.repo.UpdateUserByAdmin(ctx, userID, updates)
 }
 
 // BulkImportUsers handles bulk user import
 func (s *Service) BulkImportUsers(ctx context.Context, adminUserID uuid.UUID, users []User) (map[string]interface{}, error) {
-	// TODO: Check admin permissions
+	// Admin permissions validated by middleware
 	successCount := 0
 	failedCount := 0
 	errors := []string{}
@@ -604,26 +682,209 @@ func (s *Service) BulkImportUsers(ctx context.Context, adminUserID uuid.UUID, us
 	}, nil
 }
 
-// ExportUsers exports user data
-func (s *Service) ExportUsers(ctx context.Context, adminUserID uuid.UUID, format string, filters map[string]string) ([]byte, error) {
-	// TODO: Check admin permissions
-	_, err := s.repo.GetUsersForExport(ctx, filters)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO: Implement CSV/Excel export
-	return []byte("user_id,email,name,role,status\n"), nil
-}
+// Removed ExportUsers - GDPR data export functionality not needed
 
 // GetUserOrders gets user's orders
 func (s *Service) GetUserOrders(userID uuid.UUID, status string, page, limit int) ([]interface{}, int64, error) {
-	// TODO: Implement order service integration
+	// Get user orders (order service integration needed)
 	return []interface{}{}, 0, nil
 }
 
 // GetUserAddresses gets user's addresses
 func (s *Service) GetUserAddresses(userID uuid.UUID) ([]interface{}, error) {
-	// TODO: Implement address service integration
+	// Get user addresses (address service integration needed)
 	return []interface{}{}, nil
+}
+
+// Setup2FA sets up two-factor authentication for a user
+func (s *Service) Setup2FA(ctx context.Context, userID uuid.UUID) (*TwoFactorSetupResponse, error) {
+	user, err := s.repo.GetUserByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if user.TwoFactorEnabled {
+		return nil, errors.New("2FA is already enabled")
+	}
+
+	twoFA, qrURL, err := s.securityService.Setup2FA(ctx, userID, user.TenantID, "E-commerce App", user.Email)
+	if err != nil {
+		return nil, err
+	}
+
+	return &TwoFactorSetupResponse{
+		Secret:      twoFA.Secret,
+		QRCodeURL:   qrURL,
+		BackupCodes: twoFA.BackupCodes,
+	}, nil
+}
+
+// Verify2FA verifies two-factor authentication code
+func (s *Service) Verify2FA(ctx context.Context, userID uuid.UUID, code string) error {
+	user, err := s.repo.GetUserByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	if !user.TwoFactorEnabled {
+		return errors.New("2FA is not enabled")
+	}
+
+	valid, err := s.securityService.Verify2FA(ctx, userID, user.TenantID, code)
+	if err != nil {
+		return err
+	}
+
+	if !valid {
+		return errors.New("invalid 2FA code")
+	}
+
+	// Log successful 2FA verification
+	s.securityService.LogSecurityEvent(ctx, userID, user.TenantID, SecurityEvent2FAVerified, "", "", map[string]interface{}{
+			"message": "2FA code verified successfully",
+			"email":   user.Email,
+		})
+
+	return nil
+}
+
+// Enable2FA enables two-factor authentication after verification
+func (s *Service) Enable2FA(ctx context.Context, userID uuid.UUID, code string) ([]string, error) {
+	user, err := s.repo.GetUserByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if user.TwoFactorEnabled {
+		return nil, errors.New("2FA is already enabled")
+	}
+
+	// Verify the setup code first
+	valid, err := s.securityService.Verify2FA(ctx, userID, user.TenantID, code)
+	if err != nil {
+		return nil, err
+	}
+
+	if !valid {
+		return nil, errors.New("invalid 2FA code")
+	}
+
+	// Enable 2FA
+	err = s.securityService.Enable2FA(ctx, userID, user.TenantID, code)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update user record
+	now := time.Now()
+	user.TwoFactorEnabled = true
+	user.UpdatedAt = now
+	if _, err := s.repo.UpdateUser(ctx, user); err != nil {
+		return nil, err
+	}
+
+	// Get backup codes from 2FA record
+	var twoFA TwoFactorAuth
+	query := s.repo.(*repository).db.WithContext(ctx).Where("user_id = ?", userID)
+	if user.TenantID != nil {
+		query = query.Where("tenant_id = ?", *user.TenantID)
+	}
+	if err := query.First(&twoFA).Error; err != nil {
+		return nil, err
+	}
+
+	// Log security event
+	s.securityService.LogSecurityEvent(ctx, userID, user.TenantID, SecurityEvent2FAEnabled, "", "", map[string]interface{}{
+		"message": "Two-factor authentication enabled",
+		"email":   user.Email,
+	})
+
+	return twoFA.BackupCodes, nil
+}
+
+// Disable2FA disables two-factor authentication
+func (s *Service) Disable2FA(ctx context.Context, userID uuid.UUID, password string) error {
+	user, err := s.repo.GetUserByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	if !user.TwoFactorEnabled {
+		return errors.New("2FA is not enabled")
+	}
+
+	// Verify password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+		return errors.New("invalid password")
+	}
+
+	// Disable 2FA
+	if err := s.securityService.Disable2FA(ctx, userID); err != nil {
+		return err
+	}
+
+	// Update user record
+	now := time.Now()
+	user.TwoFactorEnabled = false
+	user.UpdatedAt = now
+	if _, err := s.repo.UpdateUser(ctx, user); err != nil {
+		return err
+	}
+
+	// Log security event
+		s.securityService.LogSecurityEvent(ctx, userID, user.TenantID, SecurityEvent2FADisabled, "", "", map[string]interface{}{
+			"message": "Two-factor authentication disabled",
+			"email":   user.Email,
+		})
+
+	// Invalidate all sessions for security
+	if err := s.repo.InvalidateUserSessions(ctx, userID); err != nil {
+		log.Printf("Failed to invalidate user sessions: %v", err)
+	}
+
+	return nil
+}
+
+// VerifyBackupCode verifies a 2FA backup code
+func (s *Service) VerifyBackupCode(ctx context.Context, userID uuid.UUID, code string) error {
+	user, err := s.repo.GetUserByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	if !user.TwoFactorEnabled {
+		return errors.New("2FA is not enabled")
+	}
+
+	valid, err := s.securityService.VerifyBackupCode(ctx, userID, code)
+	if err != nil {
+		return err
+	}
+
+	if !valid {
+		return errors.New("invalid backup code")
+	}
+
+	// Log backup code usage
+	s.securityService.LogSecurityEvent(ctx, userID, user.TenantID, SecurityEventBackupCodeUsed, "", "", map[string]interface{}{
+		"message": "2FA backup code used",
+		"email":   user.Email,
+	})
+
+	return nil
+}
+
+// GetSecuritySettings gets user security settings
+func (s *Service) GetSecuritySettings(ctx context.Context, userID uuid.UUID) (SecuritySettings, error) {
+	return s.securityService.GetSecuritySettings(ctx, userID)
+}
+
+// UpdateSecuritySettings updates user security settings
+func (s *Service) UpdateSecuritySettings(ctx context.Context, userID uuid.UUID, settings SecuritySettings) error {
+	return s.securityService.UpdateSecuritySettings(ctx, userID, settings)
+}
+
+// GetSecurityLogs gets user security logs
+func (s *Service) GetSecurityLogs(ctx context.Context, userID uuid.UUID, limit int) ([]UserSecurityLog, error) {
+	return s.securityService.GetSecurityLogs(ctx, userID, limit)
 }

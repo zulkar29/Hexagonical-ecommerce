@@ -33,7 +33,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		wishlists.GET("/share/:shareToken", h.GetWishlistByShareToken)
 		// Merge operation - must come before /:wishlistID to avoid conflicts
 		wishlists.POST("/merge/:sourceID/:targetID", h.MergeWishlists)
-		
+
 		wishlists.GET("/:wishlistID", h.GetWishlist)
 		wishlists.PUT("/:wishlistID", h.UpdateWishlist)
 		wishlists.DELETE("/:wishlistID", h.DeleteWishlist)
@@ -44,7 +44,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		wishlists.POST("/:wishlistID/items/reorder", h.ReorderItems)
 		wishlists.POST("/:wishlistID/clear", h.ClearWishlist)
 	}
-	
+
 	// Customer wishlist routes
 	customers := router.Group("/customers")
 	{
@@ -54,7 +54,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		customers.POST("/:customerID/wishlists/:wishlistID/default", h.SetDefaultWishlist)
 		customers.GET("/:customerID/wishlist-activity", h.GetCustomerActivity)
 	}
-	
+
 	// Wishlist item routes
 	wishlistItems := router.Group("/wishlist-items")
 	{
@@ -68,7 +68,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		wishlistItems.POST("/:itemID/move", h.MoveItem)
 		wishlistItems.POST("/:itemID/copy", h.CopyItem)
 	}
-	
+
 	// Products routes
 	products := router.Group("/products")
 	{
@@ -82,21 +82,21 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 func (h *Handler) CreateWishlist(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	var req CreateWishlistRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
-	
+
 	req.TenantID = tenantID
-	
+
 	response, err := h.service.CreateWishlist(ctx, req)
 	if err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, response)
 }
 
@@ -104,28 +104,28 @@ func (h *Handler) CreateWishlist(c *gin.Context) {
 func (h *Handler) CreateCustomerWishlist(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	customerID, err := h.getUUIDParam(c, "customerID")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid customer ID", "details": err.Error()})
 		return
 	}
-	
+
 	var req CreateWishlistRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
-	
+
 	req.TenantID = tenantID
 	req.CustomerID = customerID
-	
+
 	response, err := h.service.CreateWishlist(ctx, req)
 	if err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, response)
 }
 
@@ -133,38 +133,38 @@ func (h *Handler) CreateCustomerWishlist(c *gin.Context) {
 func (h *Handler) GetWishlist(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	wishlistID, err := h.getUUIDParam(c, "wishlistID")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid wishlist ID", "details": err.Error()})
 		return
 	}
-	
+
 	response, err := h.service.GetWishlist(ctx, tenantID, wishlistID)
 	if err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, response)
 }
 
 // GetWishlistByShareToken retrieves a public wishlist by share token
 func (h *Handler) GetWishlistByShareToken(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	shareToken := c.Param("shareToken")
 	if shareToken == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Share token is required"})
 		return
 	}
-	
+
 	response, err := h.service.GetWishlistByShareToken(ctx, shareToken)
 	if err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, response)
 }
 
@@ -172,25 +172,25 @@ func (h *Handler) GetWishlistByShareToken(c *gin.Context) {
 func (h *Handler) UpdateWishlist(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	wishlistID, err := h.getUUIDParam(c, "wishlistID")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid wishlist ID", "details": err.Error()})
 		return
 	}
-	
+
 	var req UpdateWishlistRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
-	
+
 	response, err := h.service.UpdateWishlist(ctx, tenantID, wishlistID, req)
 	if err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, response)
 }
 
@@ -198,18 +198,18 @@ func (h *Handler) UpdateWishlist(c *gin.Context) {
 func (h *Handler) DeleteWishlist(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	wishlistID, err := h.getUUIDParam(c, "wishlistID")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid wishlist ID", "details": err.Error()})
 		return
 	}
-	
+
 	if err := h.service.DeleteWishlist(ctx, tenantID, wishlistID); err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.Status(http.StatusNoContent)
 }
 
@@ -217,24 +217,24 @@ func (h *Handler) DeleteWishlist(c *gin.Context) {
 func (h *Handler) ListWishlists(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	// Parse query parameters
 	filter := h.parseWishlistFilter(c)
 	limit, offset := h.parsePagination(c)
-	
+
 	wishlists, total, err := h.service.ListWishlists(ctx, tenantID, filter, limit, offset)
 	if err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	response := map[string]interface{}{
 		"wishlists": wishlists,
 		"total":     total,
 		"limit":     limit,
 		"offset":    offset,
 	}
-	
+
 	c.JSON(http.StatusOK, response)
 }
 
@@ -242,13 +242,13 @@ func (h *Handler) ListWishlists(c *gin.Context) {
 func (h *Handler) ShareWishlist(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	wishlistID, err := h.getUUIDParam(c, "wishlistID")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid wishlist ID", "details": err.Error()})
 		return
 	}
-	
+
 	var req struct {
 		IsPublic bool `json:"is_public"`
 	}
@@ -256,18 +256,18 @@ func (h *Handler) ShareWishlist(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
-	
+
 	shareURL, err := h.service.ShareWishlist(ctx, tenantID, wishlistID, req.IsPublic)
 	if err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	response := map[string]interface{}{
 		"is_public": req.IsPublic,
 		"share_url": shareURL,
 	}
-	
+
 	c.JSON(http.StatusOK, response)
 }
 
@@ -277,19 +277,19 @@ func (h *Handler) ShareWishlist(c *gin.Context) {
 func (h *Handler) GetCustomerWishlists(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	customerID, err := h.getUUIDParam(c, "customerID")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid customer ID", "details": err.Error()})
 		return
 	}
-	
+
 	wishlists, err := h.service.GetCustomerWishlists(ctx, tenantID, customerID)
 	if err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, wishlists)
 }
 
@@ -297,19 +297,19 @@ func (h *Handler) GetCustomerWishlists(c *gin.Context) {
 func (h *Handler) GetDefaultWishlist(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	customerID, err := h.getUUIDParam(c, "customerID")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid customer ID", "details": err.Error()})
 		return
 	}
-	
+
 	wishlist, err := h.service.GetDefaultWishlist(ctx, tenantID, customerID)
 	if err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, wishlist)
 }
 
@@ -317,24 +317,24 @@ func (h *Handler) GetDefaultWishlist(c *gin.Context) {
 func (h *Handler) SetDefaultWishlist(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	customerID, err := h.getUUIDParam(c, "customerID")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid customer ID", "details": err.Error()})
 		return
 	}
-	
+
 	wishlistID, err := h.getUUIDParam(c, "wishlistID")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid wishlist ID", "details": err.Error()})
 		return
 	}
-	
+
 	if err := h.service.SetDefaultWishlist(ctx, tenantID, customerID, wishlistID); err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.Status(http.StatusNoContent)
 }
 
@@ -344,27 +344,27 @@ func (h *Handler) SetDefaultWishlist(c *gin.Context) {
 func (h *Handler) AddItem(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	wishlistID, err := h.getUUIDParam(c, "wishlistID")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid wishlist ID", "details": err.Error()})
 		return
 	}
-	
+
 	var req AddItemRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
-	
+
 	req.WishlistID = wishlistID
-	
+
 	response, err := h.service.AddItem(ctx, tenantID, req)
 	if err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, response)
 }
 
@@ -372,19 +372,19 @@ func (h *Handler) AddItem(c *gin.Context) {
 func (h *Handler) GetItem(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	itemID, err := h.getUUIDParam(c, "itemID")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid item ID", "details": err.Error()})
 		return
 	}
-	
+
 	response, err := h.service.GetItem(ctx, tenantID, itemID)
 	if err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, response)
 }
 
@@ -392,25 +392,25 @@ func (h *Handler) GetItem(c *gin.Context) {
 func (h *Handler) UpdateItem(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	itemID, err := h.getUUIDParam(c, "itemID")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid item ID", "details": err.Error()})
 		return
 	}
-	
+
 	var req UpdateItemRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
-	
+
 	response, err := h.service.UpdateItem(ctx, tenantID, itemID, req)
 	if err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, response)
 }
 
@@ -418,18 +418,18 @@ func (h *Handler) UpdateItem(c *gin.Context) {
 func (h *Handler) RemoveItem(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	itemID, err := h.getUUIDParam(c, "itemID")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid item ID", "details": err.Error()})
 		return
 	}
-	
+
 	if err := h.service.RemoveItem(ctx, tenantID, itemID); err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.Status(http.StatusNoContent)
 }
 
@@ -437,24 +437,24 @@ func (h *Handler) RemoveItem(c *gin.Context) {
 func (h *Handler) ListItems(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	// Parse query parameters
 	filter := h.parseWishlistItemFilter(c)
 	limit, offset := h.parsePagination(c)
-	
+
 	items, total, err := h.service.ListItems(ctx, tenantID, filter, limit, offset)
 	if err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	response := map[string]interface{}{
 		"items":  items,
 		"total":  total,
 		"limit":  limit,
 		"offset": offset,
 	}
-	
+
 	c.JSON(http.StatusOK, response)
 }
 
@@ -462,31 +462,31 @@ func (h *Handler) ListItems(c *gin.Context) {
 func (h *Handler) ListWishlistItems(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	wishlistID, err := h.getUUIDParam(c, "wishlistID")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid wishlist ID", "details": err.Error()})
 		return
 	}
-	
+
 	// Parse query parameters
 	filter := h.parseWishlistItemFilter(c)
 	filter.WishlistID = &wishlistID
 	limit, offset := h.parsePagination(c)
-	
+
 	items, total, err := h.service.ListItems(ctx, tenantID, filter, limit, offset)
 	if err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	response := map[string]interface{}{
 		"items":  items,
 		"total":  total,
 		"limit":  limit,
 		"offset": offset,
 	}
-	
+
 	c.JSON(http.StatusOK, response)
 }
 
@@ -494,13 +494,13 @@ func (h *Handler) ListWishlistItems(c *gin.Context) {
 func (h *Handler) MoveItem(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	itemID, err := h.getUUIDParam(c, "itemID")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid item ID", "details": err.Error()})
 		return
 	}
-	
+
 	var req struct {
 		TargetWishlistID uuid.UUID `json:"target_wishlist_id"`
 	}
@@ -508,12 +508,12 @@ func (h *Handler) MoveItem(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
-	
+
 	if err := h.service.MoveItem(ctx, tenantID, itemID, req.TargetWishlistID); err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.Status(http.StatusNoContent)
 }
 
@@ -521,13 +521,13 @@ func (h *Handler) MoveItem(c *gin.Context) {
 func (h *Handler) CopyItem(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	itemID, err := h.getUUIDParam(c, "itemID")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid item ID", "details": err.Error()})
 		return
 	}
-	
+
 	var req struct {
 		TargetWishlistID uuid.UUID `json:"target_wishlist_id"`
 	}
@@ -535,12 +535,12 @@ func (h *Handler) CopyItem(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
-	
+
 	if err := h.service.CopyItem(ctx, tenantID, itemID, req.TargetWishlistID); err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.Status(http.StatusNoContent)
 }
 
@@ -548,18 +548,18 @@ func (h *Handler) CopyItem(c *gin.Context) {
 func (h *Handler) ClearWishlist(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	wishlistID, err := h.getUUIDParam(c, "wishlistID")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid wishlist ID", "details": err.Error()})
 		return
 	}
-	
+
 	if err := h.service.ClearWishlist(ctx, tenantID, wishlistID); err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.Status(http.StatusNoContent)
 }
 
@@ -569,13 +569,13 @@ func (h *Handler) ClearWishlist(c *gin.Context) {
 func (h *Handler) BulkAddItems(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	wishlistID, err := h.getUUIDParam(c, "wishlistID")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid wishlist ID", "details": err.Error()})
 		return
 	}
-	
+
 	var req struct {
 		Items []AddItemRequest `json:"items"`
 	}
@@ -583,18 +583,18 @@ func (h *Handler) BulkAddItems(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
 		return
 	}
-	
+
 	// Set wishlist ID for all items
 	for i := range req.Items {
 		req.Items[i].WishlistID = wishlistID
 	}
-	
+
 	responses, err := h.service.BulkAddItems(ctx, tenantID, req.Items)
 	if err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, responses)
 }
 
@@ -602,7 +602,7 @@ func (h *Handler) BulkAddItems(c *gin.Context) {
 func (h *Handler) BulkRemoveItems(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	var req struct {
 		ItemIDs []uuid.UUID `json:"item_ids"`
 	}
@@ -610,12 +610,12 @@ func (h *Handler) BulkRemoveItems(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
-	
+
 	if err := h.service.BulkRemoveItems(ctx, tenantID, req.ItemIDs); err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.Status(http.StatusNoContent)
 }
 
@@ -623,7 +623,7 @@ func (h *Handler) BulkRemoveItems(c *gin.Context) {
 func (h *Handler) BulkUpdateItemPriority(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	var req struct {
 		Updates map[uuid.UUID]int `json:"updates"`
 	}
@@ -631,12 +631,12 @@ func (h *Handler) BulkUpdateItemPriority(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
-	
+
 	if err := h.service.BulkUpdateItemPriority(ctx, tenantID, req.Updates); err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.Status(http.StatusNoContent)
 }
 
@@ -644,13 +644,13 @@ func (h *Handler) BulkUpdateItemPriority(c *gin.Context) {
 func (h *Handler) ReorderItems(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	wishlistID, err := h.getUUIDParam(c, "wishlistID")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid wishlist ID", "details": err.Error()})
 		return
 	}
-	
+
 	var req struct {
 		ItemOrder []uuid.UUID `json:"item_order"`
 	}
@@ -658,12 +658,12 @@ func (h *Handler) ReorderItems(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
-	
+
 	if err := h.service.ReorderItems(ctx, tenantID, wishlistID, req.ItemOrder); err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.Status(http.StatusNoContent)
 }
 
@@ -673,24 +673,24 @@ func (h *Handler) ReorderItems(c *gin.Context) {
 func (h *Handler) MergeWishlists(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	sourceID, err := h.getUUIDParam(c, "sourceID")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid source wishlist ID", "details": err.Error()})
 		return
 	}
-	
+
 	targetID, err := h.getUUIDParam(c, "targetID")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid target wishlist ID", "details": err.Error()})
 		return
 	}
-	
+
 	if err := h.service.MergeWishlists(ctx, tenantID, sourceID, targetID); err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.Status(http.StatusNoContent)
 }
 
@@ -700,13 +700,13 @@ func (h *Handler) MergeWishlists(c *gin.Context) {
 func (h *Handler) GetWishlistStats(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	stats, err := h.service.GetWishlistStats(ctx, tenantID)
 	if err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, stats)
 }
 
@@ -714,15 +714,15 @@ func (h *Handler) GetWishlistStats(c *gin.Context) {
 func (h *Handler) GetMostWishedProducts(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	limit := h.getIntParam(c, "limit", 10)
-	
+
 	products, err := h.service.GetMostWishedProducts(ctx, tenantID, limit)
 	if err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, products)
 }
 
@@ -730,21 +730,21 @@ func (h *Handler) GetMostWishedProducts(c *gin.Context) {
 func (h *Handler) GetCustomerActivity(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	customerID, err := h.getUUIDParam(c, "customerID")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid customer ID", "details": err.Error()})
 		return
 	}
-	
+
 	days := h.getIntParam(c, "days", 30)
-	
+
 	activity, err := h.service.GetCustomerActivity(ctx, tenantID, customerID, days)
 	if err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, activity)
 }
 
@@ -752,15 +752,15 @@ func (h *Handler) GetCustomerActivity(c *gin.Context) {
 func (h *Handler) GetPopularWishlists(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	limit := h.getIntParam(c, "limit", 10)
-	
+
 	wishlists, err := h.service.GetPopularWishlists(ctx, tenantID, limit)
 	if err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, wishlists)
 }
 
@@ -770,19 +770,19 @@ func (h *Handler) GetPopularWishlists(c *gin.Context) {
 func (h *Handler) CleanupEmptyWishlists(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	days := h.getIntParam(c, "days", 30)
-	
+
 	count, err := h.service.CleanupEmptyWishlists(ctx, tenantID, days)
 	if err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	response := map[string]interface{}{
 		"deleted_count": count,
 	}
-	
+
 	c.JSON(http.StatusOK, response)
 }
 
@@ -790,17 +790,17 @@ func (h *Handler) CleanupEmptyWishlists(c *gin.Context) {
 func (h *Handler) CleanupOrphanedItems(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenantID := h.getTenantID(c)
-	
+
 	count, err := h.service.CleanupOrphanedItems(ctx, tenantID)
 	if err != nil {
 		h.handleServiceError(c, err)
 		return
 	}
-	
+
 	response := map[string]interface{}{
 		"deleted_count": count,
 	}
-	
+
 	c.JSON(http.StatusOK, response)
 }
 
@@ -825,11 +825,11 @@ func (h *Handler) getIntParam(c *gin.Context, param string, defaultValue int) in
 	if value == "" {
 		return defaultValue
 	}
-	
+
 	if intValue, err := strconv.Atoi(value); err == nil {
 		return intValue
 	}
-	
+
 	return defaultValue
 }
 
@@ -837,90 +837,88 @@ func (h *Handler) getIntParam(c *gin.Context, param string, defaultValue int) in
 func (h *Handler) parsePagination(c *gin.Context) (limit, offset int) {
 	limit = h.getIntParam(c, "limit", 20)
 	offset = h.getIntParam(c, "offset", 0)
-	
+
 	if limit <= 0 || limit > 100 {
 		limit = 20
 	}
 	if offset < 0 {
 		offset = 0
 	}
-	
+
 	return limit, offset
 }
 
 // parseWishlistFilter extracts wishlist filter parameters
 func (h *Handler) parseWishlistFilter(c *gin.Context) WishlistFilter {
 	filter := WishlistFilter{}
-	
+
 	if customerIDStr := c.Query("customer_id"); customerIDStr != "" {
 		if customerID, err := uuid.Parse(customerIDStr); err == nil {
 			filter.CustomerID = &customerID
 		}
 	}
-	
+
 	if name := c.Query("name"); name != "" {
 		filter.Name = name
 	}
-	
+
 	if isDefaultStr := c.Query("is_default"); isDefaultStr != "" {
 		if isDefault, err := strconv.ParseBool(isDefaultStr); err == nil {
 			filter.IsDefault = &isDefault
 		}
 	}
-	
+
 	if isPublicStr := c.Query("is_public"); isPublicStr != "" {
 		if isPublic, err := strconv.ParseBool(isPublicStr); err == nil {
 			filter.IsPublic = &isPublic
 		}
 	}
-	
+
 	if isEmptyStr := c.Query("is_empty"); isEmptyStr != "" {
 		if isEmpty, err := strconv.ParseBool(isEmptyStr); err == nil {
 			filter.IsEmpty = &isEmpty
 		}
 	}
-	
+
 	return filter
 }
 
 // parseWishlistItemFilter extracts wishlist item filter parameters
 func (h *Handler) parseWishlistItemFilter(c *gin.Context) WishlistItemFilter {
 	filter := WishlistItemFilter{}
-	
+
 	if wishlistIDStr := c.Query("wishlist_id"); wishlistIDStr != "" {
 		if wishlistID, err := uuid.Parse(wishlistIDStr); err == nil {
 			filter.WishlistID = &wishlistID
 		}
 	}
-	
+
 	if productIDStr := c.Query("product_id"); productIDStr != "" {
 		if productID, err := uuid.Parse(productIDStr); err == nil {
 			filter.ProductID = &productID
 		}
 	}
-	
+
 	if variantIDStr := c.Query("variant_id"); variantIDStr != "" {
 		if variantID, err := uuid.Parse(variantIDStr); err == nil {
 			filter.VariantID = &variantID
 		}
 	}
-	
+
 	if minPriorityStr := c.Query("min_priority"); minPriorityStr != "" {
 		if minPriority, err := strconv.Atoi(minPriorityStr); err == nil {
 			filter.MinPriority = &minPriority
 		}
 	}
-	
+
 	if maxPriorityStr := c.Query("max_priority"); maxPriorityStr != "" {
 		if maxPriority, err := strconv.Atoi(maxPriorityStr); err == nil {
 			filter.MaxPriority = &maxPriority
 		}
 	}
-	
+
 	return filter
 }
-
-
 
 // handleServiceError handles service layer errors
 func (h *Handler) handleServiceError(c *gin.Context, err error) {

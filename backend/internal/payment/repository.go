@@ -9,7 +9,7 @@ type Repository interface {
 	Create(payment *Payment) error
 	GetByID(tenantID, paymentID uuid.UUID) (*Payment, error)
 	GetByOrderID(tenantID, orderID uuid.UUID) ([]*Payment, error)
-	GetByTransactionID(transactionID string) (*Payment, error)
+	GetByTransactionID(tenantID uuid.UUID, transactionID string) (*Payment, error)
 	Update(payment *Payment) error
 	Delete(tenantID, paymentID uuid.UUID) error
 	List(tenantID uuid.UUID, orderID *uuid.UUID, offset, limit int) ([]*Payment, int64, error)
@@ -51,9 +51,9 @@ func (r *repository) GetByOrderID(tenantID, orderID uuid.UUID) ([]*Payment, erro
 	return payments, err
 }
 
-func (r *repository) GetByTransactionID(transactionID string) (*Payment, error) {
+func (r *repository) GetByTransactionID(tenantID uuid.UUID, transactionID string) (*Payment, error) {
 	var payment Payment
-	err := r.db.Where("payment_intent_id = ?", transactionID).First(&payment).Error
+	err := r.db.Where("tenant_id = ? AND payment_intent_id = ?", tenantID, transactionID).First(&payment).Error
 	return &payment, err
 }
 

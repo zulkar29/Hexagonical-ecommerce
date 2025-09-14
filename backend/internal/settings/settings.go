@@ -76,20 +76,20 @@ var DefaultSettings = map[string]map[string]interface{}{
 		"language":          "en",
 	},
 	"seo": {
-		"meta_title":       "My Store",
-		"meta_description": "Welcome to our store",
-		"meta_keywords":    "",
-		"google_analytics": "",
-		"facebook_pixel":   "",
+		"meta_title":         "My Store",
+		"meta_description":   "Welcome to our store",
+		"meta_keywords":      "",
+		"google_analytics":   "",
+		"facebook_pixel":     "",
 		"google_tag_manager": "",
 	},
 	"appearance": {
-		"logo":              "",
-		"favicon":           "",
-		"primary_color":     "#007bff",
-		"secondary_color":   "#6c757d",
-		"font_family":       "Inter",
-		"theme_mode":        "light",
+		"logo":            "",
+		"favicon":         "",
+		"primary_color":   "#007bff",
+		"secondary_color": "#6c757d",
+		"font_family":     "Inter",
+		"theme_mode":      "light",
 	},
 	"integrations": {
 		"stripe_publishable_key": "",
@@ -102,7 +102,7 @@ var DefaultSettings = map[string]map[string]interface{}{
 
 // PublicSettingKeys defines which settings are publicly accessible
 var PublicSettingKeys = map[string][]string{
-	"general": {"store_name", "store_description", "store_email", "store_phone", "store_address", "currency", "language"},
-	"seo":     {"meta_title", "meta_description", "meta_keywords"},
+	"general":    {"store_name", "store_description", "store_email", "store_phone", "store_address", "currency", "language"},
+	"seo":        {"meta_title", "meta_description", "meta_keywords"},
 	"appearance": {"logo", "favicon", "primary_color", "secondary_color", "font_family", "theme_mode"},
 }

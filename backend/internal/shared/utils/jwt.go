@@ -12,11 +12,11 @@ import (
 
 // JWT claims structure
 type Claims struct {
-	UserID   uuid.UUID `json:"user_id"`
+	UserID   uuid.UUID  `json:"user_id"`
 	TenantID *uuid.UUID `json:"tenant_id,omitempty"`
-	Email    string    `json:"email"`
-	Role     string    `json:"role"`
-	TokenID  string    `json:"token_id"` // For token revocation
+	Email    string     `json:"email"`
+	Role     string     `json:"role"`
+	TokenID  string     `json:"token_id"` // For token revocation
 	jwt.RegisteredClaims
 }
 
@@ -37,7 +37,7 @@ func NewJWTManager(secretKey, issuer string) *JWTManager {
 // GenerateTokens generates access and refresh tokens
 func (j *JWTManager) GenerateTokens(userID uuid.UUID, tenantID *uuid.UUID, email, role string) (string, string, error) {
 	tokenID := uuid.New().String()
-	
+
 	// Access token (15 minutes)
 	accessClaims := &Claims{
 		UserID:   userID,
@@ -54,13 +54,13 @@ func (j *JWTManager) GenerateTokens(userID uuid.UUID, tenantID *uuid.UUID, email
 			ID:        tokenID,
 		},
 	}
-	
+
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
 	accessTokenString, err := accessToken.SignedString(j.secretKey)
 	if err != nil {
 		return "", "", err
 	}
-	
+
 	// Refresh token (7 days)
 	refreshClaims := &Claims{
 		UserID:   userID,
@@ -77,13 +77,13 @@ func (j *JWTManager) GenerateTokens(userID uuid.UUID, tenantID *uuid.UUID, email
 			ID:        tokenID,
 		},
 	}
-	
+
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
 	refreshTokenString, err := refreshToken.SignedString(j.secretKey)
 	if err != nil {
 		return "", "", err
 	}
-	
+
 	return accessTokenString, refreshTokenString, nil
 }
 
@@ -95,15 +95,15 @@ func (j *JWTManager) ValidateToken(tokenString string) (*Claims, error) {
 		}
 		return j.secretKey, nil
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
 		return claims, nil
 	}
-	
+
 	return nil, errors.New("invalid token")
 }
 
@@ -113,12 +113,12 @@ func (j *JWTManager) RefreshToken(refreshTokenString string) (string, string, er
 	if err != nil {
 		return "", "", err
 	}
-	
+
 	// Check if it's actually a refresh token (longer expiry)
 	if time.Until(claims.ExpiresAt.Time) < 6*24*time.Hour {
 		return "", "", errors.New("invalid refresh token")
 	}
-	
+
 	return j.GenerateTokens(claims.UserID, claims.TenantID, claims.Email, claims.Role)
 }
 

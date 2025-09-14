@@ -9,25 +9,24 @@ import (
 	"ecommerce-saas/internal/analytics"
 	"ecommerce-saas/internal/billing"
 	"ecommerce-saas/internal/cart"
+
 	"ecommerce-saas/internal/components"
 	"ecommerce-saas/internal/contact"
 	"ecommerce-saas/internal/content"
 	"ecommerce-saas/internal/discount"
 	"ecommerce-saas/internal/finance"
-	"ecommerce-saas/internal/loyalty"
 	"ecommerce-saas/internal/marketing"
 	"ecommerce-saas/internal/notification"
-	"ecommerce-saas/internal/observability"
 	"ecommerce-saas/internal/order"
 	"ecommerce-saas/internal/payment"
 	"ecommerce-saas/internal/product"
 	"ecommerce-saas/internal/returns"
 	"ecommerce-saas/internal/reviews"
 	"ecommerce-saas/internal/search"
+
 	"ecommerce-saas/internal/settings"
 	"ecommerce-saas/internal/shipping"
 	"ecommerce-saas/internal/support"
-	"ecommerce-saas/internal/tax"
 	"ecommerce-saas/internal/tenant"
 	"ecommerce-saas/internal/user"
 	"ecommerce-saas/internal/webhook"
@@ -80,7 +79,11 @@ func SetupRoutes(r *gin.Engine, cfg *RouteConfig) {
 	// Protected routes (authentication required)
 	protected := v1.Group("")
 	protected.Use(middleware.AuthMiddleware(cfg.JWTManager))
-	protected.Use(middleware.TenantMiddleware(cfg.DB)) // Add tenant resolution middleware
+	
+	// Create tenant isolation middleware
+	tenantIsolation := middleware.NewTenantIsolationMiddleware(cfg.DB, "esass.com") // TODO: Make configurable
+	protected.Use(tenantIsolation.ResolveTenantWithIsolation())
+	protected.Use(tenantIsolation.ValidateTenantAccess())
 	{
 		// Setup tenant routes
 		setupTenantRoutes(protected, cfg)
@@ -113,7 +116,6 @@ func SetupRoutes(r *gin.Engine, cfg *RouteConfig) {
 		setupContactRoutes(protected, cfg)
 		setupContentRoutes(protected, cfg)
 		setupDiscountRoutes(protected, cfg)
-		setupLoyaltyRoutes(protected, cfg)
 		setupMarketingRoutes(protected, cfg)
 		setupObservabilityRoutes(protected, cfg)
 		setupReviewsRoutes(protected, cfg)
@@ -128,6 +130,9 @@ func SetupRoutes(r *gin.Engine, cfg *RouteConfig) {
 
 	// Public routes (for storefront)
 	storefront := v1.Group("/public")
+	// Create tenant isolation middleware for public routes
+	publicTenantIsolation := middleware.NewTenantIsolationMiddleware(cfg.DB, "esass.com") // TODO: Make configurable
+	storefront.Use(publicTenantIsolation.ResolveTenantWithIsolation())
 	{
 		// Public product routes (no auth needed for browsing)
 		setupPublicProductRoutes(storefront, cfg)
@@ -159,8 +164,8 @@ func setupPublicProductRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 	// TODO: Initialize order module for public tracking - requires service dependencies
 	
 	// Public product routes (read-only, no auth required)
+	// Note: Tenant isolation is already applied at the storefront group level
 	public := v1.Group("")
-	public.Use(middleware.TenantMiddleware(cfg.DB)) // Still need tenant resolution
 	{
 		// Public product browsing endpoints
 		public.GET("/products", productModule.Handler.GetPublicProducts)
@@ -332,20 +337,14 @@ func setupSupportRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 
 
 func setupTaxRoutes(protected *gin.RouterGroup, cfg *RouteConfig) {
-	taxRepo := tax.NewGormRepository(cfg.DB)
-	taxService := tax.NewService(taxRepo)
-	taxHandler := tax.NewHandler(taxService)
-	taxHandler.RegisterRoutes(protected)
+	// TODO: Implement tax module
+	// taxRepo := tax.NewGormRepository(cfg.DB)
+	// taxService := tax.NewService(taxRepo)
+	// taxHandler := tax.NewHandler(taxService)
+	// taxHandler.RegisterRoutes(protected)
 }
 
-// Setup loyalty routes
-func setupLoyaltyRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	// Initialize loyalty module
-	loyaltyModule := loyalty.NewModule(cfg.DB)
-	
-	// Register loyalty routes
-	loyaltyModule.RegisterRoutes(v1)
-}
+
 
 // Setup admin routes
 func setupAdminRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
@@ -384,14 +383,15 @@ func setupCartRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 	discountRepo := discount.NewRepository(cfg.DB)
 	discountService := discount.NewService(discountRepo)
 	
-	taxRepo := tax.NewGormRepository(cfg.DB)
-	taxService := tax.NewService(taxRepo)
+	// TODO: Implement tax module
+	// taxRepo := tax.NewGormRepository(cfg.DB)
+	// taxService := tax.NewService(taxRepo)
 	
 	shippingRepo := shipping.NewRepository(cfg.DB)
 	shippingService := shipping.NewService(shippingRepo)
 	
-	// Initialize cart module with services directly
-	cartModule := cart.NewModule(cfg.DB, productService, discountService, taxService, shippingService)
+	// Initialize cart module with services directly (tax service commented out until tax module is implemented)
+	cartModule := cart.NewModule(cfg.DB, productService, discountService, nil, shippingService)
 	
 	// Register cart routes
 	cartModule.RegisterRoutes(v1)
@@ -399,11 +399,9 @@ func setupCartRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 
 // Setup observability routes
 func setupObservabilityRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	// Initialize observability module
-	observabilityModule := observability.NewModule(cfg.DB)
-	
-	// Register observability routes
-	observabilityModule.RegisterRoutes(v1)
+	// TODO: Implement observability module
+	// observabilityModule := observability.NewModule(cfg.DB)
+	// observabilityModule.RegisterRoutes(v1)
 }
 
 // Setup search routes

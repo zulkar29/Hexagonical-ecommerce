@@ -27,14 +27,14 @@ func TrimAndLower(s string) string {
 func ToSlug(s string) string {
 	// Convert to lowercase
 	s = strings.ToLower(s)
-	
+
 	// Replace spaces and special characters with hyphens
 	reg := regexp.MustCompile(`[^a-z0-9]+`)
 	s = reg.ReplaceAllString(s, "-")
-	
+
 	// Remove leading/trailing hyphens
 	s = strings.Trim(s, "-")
-	
+
 	return s
 }
 
@@ -98,12 +98,12 @@ func ValidatePassword(password string) error {
 	if len(password) < 8 {
 		return fmt.Errorf("password must be at least 8 characters long")
 	}
-	
+
 	hasUpper := false
 	hasLower := false
 	hasNumber := false
 	hasSpecial := false
-	
+
 	for _, char := range password {
 		switch {
 		case unicode.IsUpper(char):
@@ -116,7 +116,7 @@ func ValidatePassword(password string) error {
 			hasSpecial = true
 		}
 	}
-	
+
 	if !hasUpper {
 		return fmt.Errorf("password must contain at least one uppercase letter")
 	}
@@ -129,7 +129,7 @@ func ValidatePassword(password string) error {
 	if !hasSpecial {
 		return fmt.Errorf("password must contain at least one special character")
 	}
-	
+
 	return nil
 }
 
@@ -145,7 +145,7 @@ func IsValidEmail(email string) bool {
 func IsValidPhone(phone string) bool {
 	// Remove spaces and special characters
 	phone = regexp.MustCompile(`[^\d]`).ReplaceAllString(phone, "")
-	
+
 	// Check Bangladesh phone number patterns
 	if strings.HasPrefix(phone, "880") {
 		return len(phone) == 13 // 880xxxxxxxxxx
@@ -153,7 +153,7 @@ func IsValidPhone(phone string) bool {
 	if strings.HasPrefix(phone, "01") {
 		return len(phone) == 11 // 01xxxxxxxxx
 	}
-	
+
 	return false
 }
 
@@ -170,15 +170,15 @@ func FormatCurrency(amount float64, currency string) string {
 	if currency == "" {
 		currency = "BDT"
 	}
-	
+
 	// Format with 2 decimal places
 	formatted := fmt.Sprintf("%.2f", amount)
-	
+
 	// Add thousand separators
 	parts := strings.Split(formatted, ".")
 	intPart := parts[0]
 	decPart := parts[1]
-	
+
 	// Add commas for thousands
 	if len(intPart) > 3 {
 		var result []string
@@ -190,7 +190,7 @@ func FormatCurrency(amount float64, currency string) string {
 		}
 		intPart = strings.Join(result, "")
 	}
-	
+
 	return fmt.Sprintf("%s %s.%s", currency, intPart, decPart)
 }
 
@@ -198,7 +198,7 @@ func FormatCurrency(amount float64, currency string) string {
 func FormatPhone(phone string) string {
 	// Remove all non-digits
 	phone = regexp.MustCompile(`[^\d]`).ReplaceAllString(phone, "")
-	
+
 	if len(phone) == 11 && strings.HasPrefix(phone, "01") {
 		// Format as: 01XXX-XXXXXX
 		return fmt.Sprintf("%s-%s", phone[:5], phone[5:])
@@ -207,7 +207,7 @@ func FormatPhone(phone string) string {
 		// Format as: +880-1XXX-XXXXXX
 		return fmt.Sprintf("+%s-%s-%s", phone[:3], phone[3:7], phone[7:])
 	}
-	
+
 	return phone
 }
 
@@ -232,7 +232,7 @@ func FormatDateTime(t time.Time) string {
 func TimeAgo(t time.Time) string {
 	now := time.Now()
 	diff := now.Sub(t)
-	
+
 	switch {
 	case diff < time.Minute:
 		return "Just now"
@@ -305,14 +305,14 @@ func Contains[T comparable](slice []T, item T) bool {
 func Unique[T comparable](slice []T) []T {
 	keys := make(map[T]bool)
 	var result []T
-	
+
 	for _, item := range slice {
 		if !keys[item] {
 			keys[item] = true
 			result = append(result, item)
 		}
 	}
-	
+
 	return result
 }
 
@@ -324,12 +324,12 @@ func GetTenantIDFromContext(c *gin.Context) (uuid.UUID, error) {
 	if !exists {
 		return uuid.Nil, fmt.Errorf("tenant ID not found in context")
 	}
-	
+
 	id, ok := tenantID.(uuid.UUID)
 	if !ok {
 		return uuid.Nil, fmt.Errorf("invalid tenant ID format in context")
 	}
-	
+
 	return id, nil
 }
 
@@ -339,12 +339,12 @@ func GetUserIDFromContext(c *gin.Context) (uuid.UUID, error) {
 	if !exists {
 		return uuid.Nil, fmt.Errorf("user ID not found in context")
 	}
-	
+
 	id, ok := userID.(uuid.UUID)
 	if !ok {
 		return uuid.Nil, fmt.Errorf("invalid user ID format in context")
 	}
-	
+
 	return id, nil
 }
 
@@ -354,12 +354,12 @@ func GetUserRoleFromContext(c *gin.Context) (string, error) {
 	if !exists {
 		return "", fmt.Errorf("user role not found in context")
 	}
-	
+
 	role, ok := userRole.(string)
 	if !ok {
 		return "", fmt.Errorf("invalid user role format in context")
 	}
-	
+
 	return role, nil
 }
 

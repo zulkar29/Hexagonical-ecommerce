@@ -1,6 +1,6 @@
 # Hexagonal E-commerce SaaS Development Roadmap & Implementation Plan
 
-📋 **Documentation Navigation**: [📖 Project Home](../README.md) | [🏗️ Architecture](./ARCHITECTURE.md) | [🚀 Features](./FEATURES.md) | [💰 Business Analysis](./PROFIT_ANALYSIS.md)
+📋 **Documentation Navigation**: [📖 Project Home](../README.md) | [🏗️ Architecture](./ARCHITECTURE.md) | [🚀 Features](./FEATURES.md) | [💰 Business Analysis](./PROFIT_ANALYSIS.md) | [🚢 Deployment](./DEPLOYMENT.md)
 
 ## Project Timeline Overview
 **MVP Timeline**: 12 months for complete e-commerce platform, advanced features through 30 months

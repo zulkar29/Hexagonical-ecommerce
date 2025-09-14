@@ -241,7 +241,7 @@ func (h *Handler) ListOrders(c *gin.Context) {
 		log.Printf("Invalid limit parameter, using default: %v", err)
 		limit = 20
 	}
-	
+
 	if page < 1 {
 		page = 1
 	}
@@ -445,15 +445,15 @@ func (h *Handler) HandleOrderOperations(c *gin.Context) {
 		// Parse bulk update request
 		var req struct {
 			OrderIDs []string               `json:"order_ids" validate:"required,min=1"`
-			Action   string                  `json:"action" validate:"required,oneof=update_status cancel refund"`
-			Data     map[string]interface{}  `json:"data,omitempty"`
+			Action   string                 `json:"action" validate:"required,oneof=update_status cancel refund"`
+			Data     map[string]interface{} `json:"data,omitempty"`
 		}
-		
+
 		if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid bulk update request data"})
 			return
 		}
-		
+
 		// Convert string IDs to UUIDs
 		orderIDs := make([]uuid.UUID, len(req.OrderIDs))
 		for i, idStr := range req.OrderIDs {
@@ -464,14 +464,14 @@ func (h *Handler) HandleOrderOperations(c *gin.Context) {
 			}
 			orderIDs[i] = id
 		}
-		
+
 		// Perform bulk update
 		successful, failed, errors, bulkErr := h.service.BulkUpdateOrders(c.Request.Context(), tenantID.(uuid.UUID), orderIDs, req.Action, req.Data)
 		if bulkErr != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to perform bulk update"})
 			return
 		}
-		
+
 		c.JSON(http.StatusOK, gin.H{
 			"successful": successful,
 			"failed":     failed,
@@ -510,13 +510,13 @@ func (h *Handler) HandleOrderOperations(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "File is required"})
 			return
 		}
-		
+
 		format := c.DefaultPostForm("format", "csv")
 		if format != "csv" && format != "excel" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid format. Supported: csv, excel"})
 			return
 		}
-		
+
 		// Open uploaded file
 		src, openErr := file.Open()
 		if openErr != nil {
@@ -524,14 +524,14 @@ func (h *Handler) HandleOrderOperations(c *gin.Context) {
 			return
 		}
 		defer src.Close()
-		
+
 		// Import orders
 		totalRecords, successfulImports, failedImports, errors, importErr := h.service.ImportOrders(c.Request.Context(), tenantID.(uuid.UUID), src)
 		if importErr != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": importErr.Error()})
 			return
 		}
-		
+
 		c.JSON(http.StatusOK, gin.H{
 			"total_records":      totalRecords,
 			"successful_imports": successfulImports,
@@ -544,8 +544,6 @@ func (h *Handler) HandleOrderOperations(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid operation type"})
 	}
 }
-
-
 
 // GetOrderInvoice generates an invoice for an order
 // @Summary Get order invoice
@@ -573,23 +571,23 @@ func (h *Handler) GetOrderInvoice(c *gin.Context) {
 
 	// Generate invoice data
 	invoice := map[string]interface{}{
-		"order":           order,
-		"invoice_number":  "INV-" + order.OrderNumber,
-		"invoice_date":    order.CreatedAt,
-		"due_date":        order.CreatedAt.AddDate(0, 0, 30), // 30 days from order
+		"order":          order,
+		"invoice_number": "INV-" + order.OrderNumber,
+		"invoice_date":   order.CreatedAt,
+		"due_date":       order.CreatedAt.AddDate(0, 0, 30), // 30 days from order
 		"company_info": map[string]string{
 			"name":    "Your Company Name",
 			"address": "Company Address",
 			"phone":   "Company Phone",
 			"email":   "company@example.com",
 		},
-		"items":      order.Items,
-		"subtotal":   order.SubtotalAmount,
-		"tax":        order.TaxAmount,
-		"shipping":   order.ShippingAmount,
-		"discount":   order.DiscountAmount,
-		"total":      order.TotalAmount,
-		"currency":   order.Currency,
+		"items":    order.Items,
+		"subtotal": order.SubtotalAmount,
+		"tax":      order.TaxAmount,
+		"shipping": order.ShippingAmount,
+		"discount": order.DiscountAmount,
+		"total":    order.TotalAmount,
+		"currency": order.Currency,
 	}
 
 	c.JSON(http.StatusOK, invoice)
@@ -661,23 +659,21 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		// GET /orders?type=stats|my-orders|track&number=xxx
 		orders.POST("", h.CreateOrder)
 		orders.GET("", h.ListOrders) // Supports type=stats,my-orders,track via query params
-		
+
 		// Data operations with operation type parameter
 		// POST /orders/operations?type=import|bulk&action=xxx
 		orders.POST("/operations", h.HandleOrderOperations) // Handles import, bulk operations
-		
+
 		// Individual order operations
-		orders.GET("/:id", h.GetOrder) // Supports include=invoice,timeline via query params
-		orders.PATCH("/:id", h.UpdateOrder) // Changed from PUT to PATCH to match API spec
+		orders.GET("/:id", h.GetOrder)       // Supports include=invoice,timeline via query params
+		orders.PATCH("/:id", h.UpdateOrder)  // Changed from PUT to PATCH to match API spec
 		orders.DELETE("/:id", h.DeleteOrder) // Added missing DELETE endpoint
-		
+
 		// Order lookup and tracking
 		orders.GET("/lookup/:number", h.GetOrderByNumber) // Changed from /number/ to /lookup/ to match API spec
-		orders.GET("/:id/tracking", h.TrackOrder) // Added missing tracking endpoint
+		orders.GET("/:id/tracking", h.TrackOrder)         // Added missing tracking endpoint
 	}
 }
-
-
 
 // TODO: Add more handlers
 // - GetOrderTimeline(c *gin.Context) - Get order status history

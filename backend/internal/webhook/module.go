@@ -9,8 +9,8 @@ import (
 
 // Module represents the webhook module
 type Module struct {
-	handler *Handler
-	service *Service
+	handler    *Handler
+	service    *Service
 	repository *Repository
 }
 
@@ -18,17 +18,17 @@ type Module struct {
 func NewModule(db *gorm.DB) *Module {
 	// Initialize repository
 	repo := NewRepository(db)
-	
+
 	// Initialize service with signing key from environment or default
 	signingKey := getSigningKeyFromConfig()
 	service := NewService(repo, signingKey)
-	
+
 	// Initialize handler
 	handler := NewHandler(service)
-	
+
 	return &Module{
-		handler: handler,
-		service: service,
+		handler:    handler,
+		service:    service,
 		repository: repo,
 	}
 }
@@ -60,16 +60,16 @@ func getSigningKeyFromConfig() []byte {
 	if key := os.Getenv("WEBHOOK_SIGNING_KEY"); key != "" {
 		return []byte(key)
 	}
-	
+
 	// Try alternative environment variable names
 	if key := os.Getenv("WEBHOOK_SECRET"); key != "" {
 		return []byte(key)
 	}
-	
+
 	if key := os.Getenv("WEBHOOK_SECRET_KEY"); key != "" {
 		return []byte(key)
 	}
-	
+
 	// Default fallback (should be changed in production)
 	return []byte("webhook-signing-key-change-in-production")
 }

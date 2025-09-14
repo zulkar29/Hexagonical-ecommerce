@@ -26,50 +26,50 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	// Account management endpoints
 	accounts := router.Group("/accounts")
 	{
-		accounts.POST("", h.CreateAccount)                    // POST /api/v1/accounts
-		accounts.GET("", h.ListAccounts)                     // GET /api/v1/accounts (supports filtering via query params)
-		accounts.GET("/:id", h.GetAccount)                   // GET /api/v1/accounts/:id
-		accounts.PUT("/:id", h.UpdateAccount)                // PUT /api/v1/accounts/:id
-		accounts.DELETE("/:id", h.DeleteAccount)             // DELETE /api/v1/accounts/:id
+		accounts.POST("", h.CreateAccount)       // POST /api/v1/accounts
+		accounts.GET("", h.ListAccounts)         // GET /api/v1/accounts (supports filtering via query params)
+		accounts.GET("/:id", h.GetAccount)       // GET /api/v1/accounts/:id
+		accounts.PUT("/:id", h.UpdateAccount)    // PUT /api/v1/accounts/:id
+		accounts.DELETE("/:id", h.DeleteAccount) // DELETE /api/v1/accounts/:id
 	}
 
 	// Transaction management endpoints
 	transactions := router.Group("/transactions")
 	{
-		transactions.POST("", h.CreateTransaction)                    // POST /api/v1/transactions
-		transactions.GET("", h.ListTransactions)                     // GET /api/v1/transactions (supports filtering via query params)
-		transactions.GET("/:id", h.GetTransaction)                   // GET /api/v1/transactions/:id
-		transactions.PUT("/:id", h.UpdateTransaction)                // PUT /api/v1/transactions/:id
-		transactions.DELETE("/:id", h.DeleteTransaction)             // DELETE /api/v1/transactions/:id
+		transactions.POST("", h.CreateTransaction)       // POST /api/v1/transactions
+		transactions.GET("", h.ListTransactions)         // GET /api/v1/transactions (supports filtering via query params)
+		transactions.GET("/:id", h.GetTransaction)       // GET /api/v1/transactions/:id
+		transactions.PUT("/:id", h.UpdateTransaction)    // PUT /api/v1/transactions/:id
+		transactions.DELETE("/:id", h.DeleteTransaction) // DELETE /api/v1/transactions/:id
 	}
 
 	// Payout management endpoints
 	payouts := router.Group("/payouts")
 	{
-		payouts.POST("", h.CreatePayout)                    // POST /api/v1/payouts
-		payouts.GET("", h.ListPayouts)                     // GET /api/v1/payouts
-		payouts.GET("/:id", h.GetPayout)                   // GET /api/v1/payouts/:id
-		payouts.POST("/:id/process", h.ProcessPayout)      // POST /api/v1/payouts/:id/process
+		payouts.POST("", h.CreatePayout)              // POST /api/v1/payouts
+		payouts.GET("", h.ListPayouts)                // GET /api/v1/payouts
+		payouts.GET("/:id", h.GetPayout)              // GET /api/v1/payouts/:id
+		payouts.POST("/:id/process", h.ProcessPayout) // POST /api/v1/payouts/:id/process
 	}
 
 	// Reconciliation management endpoints
 	reconciliations := router.Group("/reconciliations")
 	{
-		reconciliations.POST("", h.CreateReconciliation)                    // POST /api/v1/reconciliations
-		reconciliations.GET("", h.ListReconciliations)                     // GET /api/v1/reconciliations
-		reconciliations.GET("/:id", h.GetReconciliation)                   // GET /api/v1/reconciliations/:id
+		reconciliations.POST("", h.CreateReconciliation) // POST /api/v1/reconciliations
+		reconciliations.GET("", h.ListReconciliations)   // GET /api/v1/reconciliations
+		reconciliations.GET("/:id", h.GetReconciliation) // GET /api/v1/reconciliations/:id
 	}
 
 	// Financial reports endpoints
 	reports := router.Group("/reports")
 	{
-		reports.GET("/trial-balance", h.GetTrialBalance)           // GET /api/v1/reports/trial-balance
-		reports.GET("/profit-loss", h.GetProfitAndLoss)           // GET /api/v1/reports/profit-loss
-		reports.GET("/balance-sheet", h.GetBalanceSheet)          // GET /api/v1/reports/balance-sheet
-		reports.GET("/cash-flow", h.GetCashFlow)                  // GET /api/v1/reports/cash-flow
-		reports.GET("/revenue", h.GetRevenueReport)               // GET /api/v1/reports/revenue
-		reports.GET("/expense", h.GetExpenseReport)               // GET /api/v1/reports/expense
-		reports.GET("/tax", h.GetTaxReport)                       // GET /api/v1/reports/tax
+		reports.GET("/trial-balance", h.GetTrialBalance) // GET /api/v1/reports/trial-balance
+		reports.GET("/profit-loss", h.GetProfitAndLoss)  // GET /api/v1/reports/profit-loss
+		reports.GET("/balance-sheet", h.GetBalanceSheet) // GET /api/v1/reports/balance-sheet
+		reports.GET("/cash-flow", h.GetCashFlow)         // GET /api/v1/reports/cash-flow
+		reports.GET("/revenue", h.GetRevenueReport)      // GET /api/v1/reports/revenue
+		reports.GET("/expense", h.GetExpenseReport)      // GET /api/v1/reports/expense
+		reports.GET("/tax", h.GetTaxReport)              // GET /api/v1/reports/tax
 	}
 }
 

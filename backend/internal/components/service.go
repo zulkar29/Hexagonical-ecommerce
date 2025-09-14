@@ -75,28 +75,28 @@ type CreateComponentRequest struct {
 	Customizable bool                   `json:"customizable"`
 	Options      map[string]interface{} `json:"options,omitempty"`
 	Thumbnail    string                 `json:"thumbnail,omitempty"`
-	Tags         []string          `json:"tags,omitempty"`
-	Category     ComponentCategory `json:"category,omitempty"`
-	IsFeatured   bool              `json:"is_featured"`
+	Tags         []string               `json:"tags,omitempty"`
+	Category     ComponentCategory      `json:"category,omitempty"`
+	IsFeatured   bool                   `json:"is_featured"`
 	IsDefault    bool                   `json:"is_default"`
 }
 
 type UpdateComponentRequest struct {
-	Name         *string                 `json:"name,omitempty"`
-	Slug         *string                 `json:"slug,omitempty"`
-	Status       *ComponentStatus        `json:"status,omitempty"`
-	Description  *string                 `json:"description,omitempty"`
-	HTML         *string                 `json:"html,omitempty"`
-	CSS          *string                 `json:"css,omitempty"`
-	JavaScript   *string                 `json:"javascript,omitempty"`
-	Config       map[string]interface{}  `json:"config,omitempty"`
-	Customizable *bool                   `json:"customizable,omitempty"`
-	Options      map[string]interface{}  `json:"options,omitempty"`
-	Thumbnail    *string                 `json:"thumbnail,omitempty"`
-	Tags         []string           `json:"tags,omitempty"`
-	Category     *ComponentCategory `json:"category,omitempty"`
-	IsFeatured   *bool              `json:"is_featured,omitempty"`
-	IsDefault    *bool                   `json:"is_default,omitempty"`
+	Name         *string                `json:"name,omitempty"`
+	Slug         *string                `json:"slug,omitempty"`
+	Status       *ComponentStatus       `json:"status,omitempty"`
+	Description  *string                `json:"description,omitempty"`
+	HTML         *string                `json:"html,omitempty"`
+	CSS          *string                `json:"css,omitempty"`
+	JavaScript   *string                `json:"javascript,omitempty"`
+	Config       map[string]interface{} `json:"config,omitempty"`
+	Customizable *bool                  `json:"customizable,omitempty"`
+	Options      map[string]interface{} `json:"options,omitempty"`
+	Thumbnail    *string                `json:"thumbnail,omitempty"`
+	Tags         []string               `json:"tags,omitempty"`
+	Category     *ComponentCategory     `json:"category,omitempty"`
+	IsFeatured   *bool                  `json:"is_featured,omitempty"`
+	IsDefault    *bool                  `json:"is_default,omitempty"`
 }
 
 type CreateInstanceRequest struct {
@@ -113,14 +113,14 @@ type CreateInstanceRequest struct {
 }
 
 type UpdateInstanceRequest struct {
-	CustomHTML  *string                 `json:"custom_html,omitempty"`
-	CustomCSS   *string                 `json:"custom_css,omitempty"`
-	CustomJS    *string                 `json:"custom_js,omitempty"`
-	Settings    map[string]interface{}  `json:"settings,omitempty"`
-	Position    *int                    `json:"position,omitempty"`
-	Zone        *string                 `json:"zone,omitempty"`
-	IsVisible   *bool                   `json:"is_visible,omitempty"`
-	Breakpoints map[string]interface{}  `json:"breakpoints,omitempty"`
+	CustomHTML  *string                `json:"custom_html,omitempty"`
+	CustomCSS   *string                `json:"custom_css,omitempty"`
+	CustomJS    *string                `json:"custom_js,omitempty"`
+	Settings    map[string]interface{} `json:"settings,omitempty"`
+	Position    *int                   `json:"position,omitempty"`
+	Zone        *string                `json:"zone,omitempty"`
+	IsVisible   *bool                  `json:"is_visible,omitempty"`
+	Breakpoints map[string]interface{} `json:"breakpoints,omitempty"`
 }
 
 type DuplicateRequest struct {
@@ -140,16 +140,16 @@ type CreateThemeRequest struct {
 }
 
 type UpdateThemeRequest struct {
-	Name        *string                 `json:"name,omitempty"`
-	Slug        *string                 `json:"slug,omitempty"`
-	Description *string                 `json:"description,omitempty"`
-	Status      *ComponentStatus        `json:"status,omitempty"`
-	GlobalCSS   *string                 `json:"global_css,omitempty"`
-	GlobalJS    *string                 `json:"global_js,omitempty"`
-	Settings    map[string]interface{}  `json:"settings,omitempty"`
-	Thumbnail   *string                 `json:"thumbnail,omitempty"`
-	Tags        []string                `json:"tags,omitempty"`
-	IsDefault   *bool                   `json:"is_default,omitempty"`
+	Name        *string                `json:"name,omitempty"`
+	Slug        *string                `json:"slug,omitempty"`
+	Description *string                `json:"description,omitempty"`
+	Status      *ComponentStatus       `json:"status,omitempty"`
+	GlobalCSS   *string                `json:"global_css,omitempty"`
+	GlobalJS    *string                `json:"global_js,omitempty"`
+	Settings    map[string]interface{} `json:"settings,omitempty"`
+	Thumbnail   *string                `json:"thumbnail,omitempty"`
+	Tags        []string               `json:"tags,omitempty"`
+	IsDefault   *bool                  `json:"is_default,omitempty"`
 }
 
 type CreateComponentTemplateRequest struct {
@@ -169,19 +169,19 @@ type CreateComponentTemplateRequest struct {
 }
 
 type UpdateComponentTemplateRequest struct {
-	Name        *string                 `json:"name,omitempty"`
-	Slug        *string                 `json:"slug,omitempty"`
-	Type        *ComponentType          `json:"type,omitempty"`
-	Description *string                 `json:"description,omitempty"`
-	HTML        *string                 `json:"html,omitempty"`
-	CSS         *string                 `json:"css,omitempty"`
-	JavaScript  *string                 `json:"javascript,omitempty"`
-	Config      map[string]interface{}  `json:"config,omitempty"`
-	Thumbnail   *string                 `json:"thumbnail,omitempty"`
-	Tags        []string                `json:"tags,omitempty"`
-	Category    *ComponentCategory      `json:"category,omitempty"`
-	IsFree      *bool                   `json:"is_free,omitempty"`
-	IsFeatured  *bool                   `json:"is_featured,omitempty"`
+	Name        *string                `json:"name,omitempty"`
+	Slug        *string                `json:"slug,omitempty"`
+	Type        *ComponentType         `json:"type,omitempty"`
+	Description *string                `json:"description,omitempty"`
+	HTML        *string                `json:"html,omitempty"`
+	CSS         *string                `json:"css,omitempty"`
+	JavaScript  *string                `json:"javascript,omitempty"`
+	Config      map[string]interface{} `json:"config,omitempty"`
+	Thumbnail   *string                `json:"thumbnail,omitempty"`
+	Tags        []string               `json:"tags,omitempty"`
+	Category    *ComponentCategory     `json:"category,omitempty"`
+	IsFree      *bool                  `json:"is_free,omitempty"`
+	IsFeatured  *bool                  `json:"is_featured,omitempty"`
 }
 
 type CreateThemeTemplateRequest struct {
@@ -201,19 +201,19 @@ type CreateThemeTemplateRequest struct {
 }
 
 type UpdateThemeTemplateRequest struct {
-	Name        *string                 `json:"name,omitempty"`
-	Slug        *string                 `json:"slug,omitempty"`
-	Description *string                 `json:"description,omitempty"`
-	GlobalCSS   *string                 `json:"global_css,omitempty"`
-	GlobalJS    *string                 `json:"global_js,omitempty"`
-	Settings    map[string]interface{}  `json:"settings,omitempty"`
-	Thumbnail   *string                 `json:"thumbnail,omitempty"`
-	PreviewURL  *string                 `json:"preview_url,omitempty"`
-	Tags        []string                `json:"tags,omitempty"`
-	Category    *string                 `json:"category,omitempty"`
-	IsFree      *bool                   `json:"is_free,omitempty"`
-	IsFeatured  *bool                   `json:"is_featured,omitempty"`
-	IsDefault   *bool                   `json:"is_default,omitempty"`
+	Name        *string                `json:"name,omitempty"`
+	Slug        *string                `json:"slug,omitempty"`
+	Description *string                `json:"description,omitempty"`
+	GlobalCSS   *string                `json:"global_css,omitempty"`
+	GlobalJS    *string                `json:"global_js,omitempty"`
+	Settings    map[string]interface{} `json:"settings,omitempty"`
+	Thumbnail   *string                `json:"thumbnail,omitempty"`
+	PreviewURL  *string                `json:"preview_url,omitempty"`
+	Tags        []string               `json:"tags,omitempty"`
+	Category    *string                `json:"category,omitempty"`
+	IsFree      *bool                  `json:"is_free,omitempty"`
+	IsFeatured  *bool                  `json:"is_featured,omitempty"`
+	IsDefault   *bool                  `json:"is_default,omitempty"`
 }
 
 type CreateFromTemplateRequest struct {
@@ -221,8 +221,6 @@ type CreateFromTemplateRequest struct {
 	Name       string                 `json:"name" validate:"required,min=1,max=255"`
 	Config     map[string]interface{} `json:"config"`
 }
-
-
 
 type ComponentListResponse struct {
 	Components []Component `json:"components"`
@@ -302,13 +300,13 @@ func calculateTotalPages(total int64, limit int) int {
 // Component operations
 
 func (s *service) CreateComponent(ctx context.Context, tenantID uuid.UUID, req CreateComponentRequest) (*Component, error) {
-	
+
 	// Generate slug if not provided
 	slug := req.Slug
 	if slug == "" {
 		slug = generateSlug(req.Name)
 	}
-	
+
 	// Check if slug already exists
 	existing, err := s.repo.GetComponentBySlug(ctx, tenantID, slug)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -317,7 +315,7 @@ func (s *service) CreateComponent(ctx context.Context, tenantID uuid.UUID, req C
 	if existing != nil {
 		return nil, errors.New("component with this slug already exists")
 	}
-	
+
 	component := &Component{
 		ID:           uuid.New(),
 		TenantID:     tenantID,
@@ -340,11 +338,11 @@ func (s *service) CreateComponent(ctx context.Context, tenantID uuid.UUID, req C
 		Version:      "1.0.0",
 		UsageCount:   0,
 	}
-	
+
 	if err := s.repo.CreateComponent(ctx, tenantID, component); err != nil {
 		return nil, fmt.Errorf("failed to create component: %w", err)
 	}
-	
+
 	return component, nil
 }
 
@@ -378,7 +376,7 @@ func (s *service) UpdateComponent(ctx context.Context, tenantID, id uuid.UUID, r
 		}
 		return nil, fmt.Errorf("failed to get component: %w", err)
 	}
-	
+
 	// Update fields if provided
 	if req.Name != nil {
 		component.Name = *req.Name
@@ -435,11 +433,11 @@ func (s *service) UpdateComponent(ctx context.Context, tenantID, id uuid.UUID, r
 	if req.IsDefault != nil {
 		component.IsDefault = *req.IsDefault
 	}
-	
+
 	if err := s.repo.UpdateComponent(ctx, tenantID, component); err != nil {
 		return nil, fmt.Errorf("failed to update component: %w", err)
 	}
-	
+
 	return component, nil
 }
 
@@ -452,11 +450,11 @@ func (s *service) DeleteComponent(ctx context.Context, tenantID, id uuid.UUID) e
 		}
 		return fmt.Errorf("failed to get component: %w", err)
 	}
-	
+
 	if err := s.repo.DeleteComponent(ctx, tenantID, id); err != nil {
 		return fmt.Errorf("failed to delete component: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -465,7 +463,7 @@ func (s *service) ListComponents(ctx context.Context, tenantID uuid.UUID, filter
 	if err != nil {
 		return nil, fmt.Errorf("failed to list components: %w", err)
 	}
-	
+
 	return &ComponentListResponse{
 		Components: components,
 		Total:      total,
@@ -483,7 +481,7 @@ func (s *service) DuplicateComponent(ctx context.Context, tenantID, id uuid.UUID
 		}
 		return nil, fmt.Errorf("failed to get component: %w", err)
 	}
-	
+
 	// Create duplicate with new name and slug
 	duplicate := &Component{
 		ID:           uuid.New(),
@@ -507,7 +505,7 @@ func (s *service) DuplicateComponent(ctx context.Context, tenantID, id uuid.UUID
 		IsFeatured:   false,
 		IsDefault:    false,
 	}
-	
+
 	// Check slug uniqueness
 	existing, err := s.repo.GetComponentBySlug(ctx, tenantID, duplicate.Slug)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -517,11 +515,11 @@ func (s *service) DuplicateComponent(ctx context.Context, tenantID, id uuid.UUID
 		// Append timestamp to make it unique
 		duplicate.Slug = fmt.Sprintf("%s-%d", duplicate.Slug, time.Now().Unix())
 	}
-	
+
 	if err := s.repo.CreateComponent(ctx, tenantID, duplicate); err != nil {
 		return nil, fmt.Errorf("failed to create duplicate component: %w", err)
 	}
-	
+
 	return duplicate, nil
 }
 
@@ -529,18 +527,18 @@ func (s *service) DuplicateComponent(ctx context.Context, tenantID, id uuid.UUID
 // For brevity, I'll implement the key methods. The pattern is similar for all operations.
 
 func (s *service) CreateInstance(ctx context.Context, tenantID uuid.UUID, req CreateInstanceRequest) (*ComponentInstance, error) {
-	
+
 	// Verify component and theme exist
 	_, err := s.repo.GetComponent(ctx, tenantID, req.ComponentID)
 	if err != nil {
 		return nil, errors.New("component not found")
 	}
-	
+
 	_, err = s.repo.GetTheme(ctx, tenantID, req.ThemeID)
 	if err != nil {
 		return nil, errors.New("theme not found")
 	}
-	
+
 	instance := &ComponentInstance{
 		ID:          uuid.New(),
 		TenantID:    tenantID,
@@ -555,11 +553,11 @@ func (s *service) CreateInstance(ctx context.Context, tenantID uuid.UUID, req Cr
 		IsVisible:   req.IsVisible,
 		Breakpoints: req.Breakpoints,
 	}
-	
+
 	if err := s.repo.CreateInstance(ctx, tenantID, instance); err != nil {
 		return nil, fmt.Errorf("failed to create instance: %w", err)
 	}
-	
+
 	return instance, nil
 }
 
@@ -591,18 +589,18 @@ func (s *service) ListInstances(ctx context.Context, tenantID, themeID uuid.UUID
 	filter := ComponentInstanceFilter{
 		ThemeID: &themeID,
 	}
-	
+
 	instances, err := s.repo.ListInstances(ctx, tenantID, filter)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list instances: %w", err)
 	}
-	
+
 	// Convert from pointer slice to value slice
 	result := make([]ComponentInstance, len(instances))
 	for i, instance := range instances {
 		result[i] = *instance
 	}
-	
+
 	return result, nil
 }
 
@@ -810,7 +808,7 @@ func (s *service) ListThemeTemplates(ctx context.Context, filters ThemeTemplateF
 	for i, template := range themeTemplates {
 		result[i] = *template
 	}
-	
+
 	return &ThemeTemplateListResponse{
 		ThemeTemplates: result,
 		Total:          int64(len(themeTemplates)),
@@ -946,7 +944,7 @@ func (s *service) ListComponentTemplates(ctx context.Context, filters ComponentT
 	for i, template := range componentTemplates {
 		result[i] = *template
 	}
-	
+
 	return &ComponentTemplateListResponse{
 		ComponentTemplates: result,
 		Total:              int64(len(componentTemplates)),

@@ -121,13 +121,13 @@ type SubscriptionFilter struct {
 }
 
 type UsageFilter struct {
-	TenantID    *uuid.UUID `json:"tenant_id,omitempty"`
-	UsageType   *UsageType `json:"usage_type,omitempty"`
-	StartDate   *time.Time `json:"start_date,omitempty"`
-	EndDate     *time.Time `json:"end_date,omitempty"`
-	ResourceID  *string    `json:"resource_id,omitempty"`
-	Limit       int        `json:"limit"`
-	Offset      int        `json:"offset"`
+	TenantID   *uuid.UUID `json:"tenant_id,omitempty"`
+	UsageType  *UsageType `json:"usage_type,omitempty"`
+	StartDate  *time.Time `json:"start_date,omitempty"`
+	EndDate    *time.Time `json:"end_date,omitempty"`
+	ResourceID *string    `json:"resource_id,omitempty"`
+	Limit      int        `json:"limit"`
+	Offset     int        `json:"offset"`
 }
 
 // Analytics metric types
@@ -146,27 +146,27 @@ type RevenueSummary struct {
 }
 
 type SubscriptionMetrics struct {
-	TotalSubscriptions    int64              `json:"total_subscriptions"`
-	ActiveSubscriptions   int64              `json:"active_subscriptions"`
-	TrialSubscriptions    int64              `json:"trial_subscriptions"`
-	CanceledSubscriptions int64              `json:"canceled_subscriptions"`
-	NewSubscriptions      int64              `json:"new_subscriptions"`
-	SubscriptionsByPlan   map[string]int64   `json:"subscriptions_by_plan"`
-	SubscriptionsByStatus map[string]int64   `json:"subscriptions_by_status"`
+	TotalSubscriptions    int64            `json:"total_subscriptions"`
+	ActiveSubscriptions   int64            `json:"active_subscriptions"`
+	TrialSubscriptions    int64            `json:"trial_subscriptions"`
+	CanceledSubscriptions int64            `json:"canceled_subscriptions"`
+	NewSubscriptions      int64            `json:"new_subscriptions"`
+	SubscriptionsByPlan   map[string]int64 `json:"subscriptions_by_plan"`
+	SubscriptionsByStatus map[string]int64 `json:"subscriptions_by_status"`
 }
 
 type UsageMetrics struct {
-	TotalUsageByType     map[UsageType]int64    `json:"total_usage_by_type"`
-	AverageUsageByType   map[UsageType]float64  `json:"average_usage_by_type"`
-	TopUsageTenants      []TenantUsage          `json:"top_usage_tenants"`
-	UsageGrowthRate      map[UsageType]float64  `json:"usage_growth_rate"`
-	UsageOverageRevenue  float64                `json:"usage_overage_revenue"`
+	TotalUsageByType    map[UsageType]int64   `json:"total_usage_by_type"`
+	AverageUsageByType  map[UsageType]float64 `json:"average_usage_by_type"`
+	TopUsageTenants     []TenantUsage         `json:"top_usage_tenants"`
+	UsageGrowthRate     map[UsageType]float64 `json:"usage_growth_rate"`
+	UsageOverageRevenue float64               `json:"usage_overage_revenue"`
 }
 
 type TenantUsage struct {
-	TenantID    uuid.UUID           `json:"tenant_id"`
-	TotalUsage  map[UsageType]int64 `json:"total_usage"`
-	UsageRevenue float64            `json:"usage_revenue"`
+	TenantID     uuid.UUID           `json:"tenant_id"`
+	TotalUsage   map[UsageType]int64 `json:"total_usage"`
+	UsageRevenue float64             `json:"usage_revenue"`
 }
 
 type ChurnMetrics struct {
@@ -181,17 +181,17 @@ type ChurnMetrics struct {
 }
 
 type PaymentMetrics struct {
-	TotalPayments        int64   `json:"total_payments"`
-	SuccessfulPayments   int64   `json:"successful_payments"`
-	FailedPayments       int64   `json:"failed_payments"`
-	PaymentSuccessRate   float64 `json:"payment_success_rate"`
-	AveragePaymentAmount float64 `json:"average_payment_amount"`
-	TotalPaymentVolume   float64 `json:"total_payment_volume"`
+	TotalPayments        int64            `json:"total_payments"`
+	SuccessfulPayments   int64            `json:"successful_payments"`
+	FailedPayments       int64            `json:"failed_payments"`
+	PaymentSuccessRate   float64          `json:"payment_success_rate"`
+	AveragePaymentAmount float64          `json:"average_payment_amount"`
+	TotalPaymentVolume   float64          `json:"total_payment_volume"`
 	PaymentMethodStats   map[string]int64 `json:"payment_method_stats"`
-	RefundCount          int64   `json:"refund_count"`
-	RefundAmount         float64 `json:"refund_amount"`
-	RefundRate           float64 `json:"refund_rate"`
-	DunningRecoveryRate  float64 `json:"dunning_recovery_rate"`
+	RefundCount          int64            `json:"refund_count"`
+	RefundAmount         float64          `json:"refund_amount"`
+	RefundRate           float64          `json:"refund_rate"`
+	DunningRecoveryRate  float64          `json:"dunning_recovery_rate"`
 }
 
 // gormBillingRepository implements BillingRepository using GORM
@@ -398,23 +398,23 @@ func (r *gormBillingRepository) GetUsageSummary(ctx context.Context, tenantID uu
 		UsageType UsageType `gorm:"column:usage_type"`
 		Total     int64     `gorm:"column:total"`
 	}
-	
+
 	var results []UsageSummaryResult
 	err := r.db.WithContext(ctx).Model(&UsageRecord{}).
 		Select("usage_type, SUM(quantity) as total").
 		Where("tenant_id = ? AND created_at BETWEEN ? AND ?", tenantID, startDate, endDate).
 		Group("usage_type").
 		Scan(&results).Error
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	usageSummary := make(map[UsageType]int64)
 	for _, result := range results {
 		usageSummary[result.UsageType] = result.Total
 	}
-	
+
 	return usageSummary, nil
 }
 
@@ -447,12 +447,12 @@ func (r *gormBillingRepository) GetInvoices(ctx context.Context, filter InvoiceF
 	var invoices []*Invoice
 	var total int64
 	query := r.db.WithContext(ctx).Model(&Invoice{})
-	
+
 	err := query.Count(&total).Error
 	if err != nil {
 		return nil, 0, err
 	}
-	
+
 	err = query.Find(&invoices).Error
 	return invoices, total, err
 }
@@ -461,12 +461,12 @@ func (r *gormBillingRepository) GetInvoicesByTenant(ctx context.Context, tenantI
 	var invoices []*Invoice
 	var total int64
 	query := r.db.WithContext(ctx).Model(&Invoice{}).Where("tenant_id = ?", tenantID)
-	
+
 	err := query.Count(&total).Error
 	if err != nil {
 		return nil, 0, err
 	}
-	
+
 	err = query.Find(&invoices).Error
 	return invoices, total, err
 }
@@ -592,7 +592,7 @@ func (r *gormBillingRepository) GetDunningActionsDueForExecution(ctx context.Con
 func (r *gormBillingRepository) GetRevenueSummary(ctx context.Context, filter AnalyticsFilter) (*RevenueSummary, error) {
 	var totalRevenue, recurringRevenue, oneTimeRevenue float64
 	var newCustomerRevenue, existingCustomerRevenue float64
-	
+
 	// Calculate total revenue from paid invoices
 	err := r.db.WithContext(ctx).Model(&Invoice{}).
 		Where("status = 'paid' AND created_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
@@ -600,7 +600,7 @@ func (r *gormBillingRepository) GetRevenueSummary(ctx context.Context, filter An
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Calculate recurring revenue from subscription invoices
 	err = r.db.WithContext(ctx).Model(&Invoice{}).
 		Where("status = 'paid' AND invoice_type = 'subscription' AND created_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
@@ -608,7 +608,7 @@ func (r *gormBillingRepository) GetRevenueSummary(ctx context.Context, filter An
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Calculate one-time revenue
 	err = r.db.WithContext(ctx).Model(&Invoice{}).
 		Where("status = 'paid' AND invoice_type = 'one_time' AND created_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
@@ -616,12 +616,12 @@ func (r *gormBillingRepository) GetRevenueSummary(ctx context.Context, filter An
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &RevenueSummary{
-		TotalRevenue:           totalRevenue,
-		RecurringRevenue:       recurringRevenue,
-		OneTimeRevenue:         oneTimeRevenue,
-		NewCustomerRevenue:     newCustomerRevenue,
+		TotalRevenue:            totalRevenue,
+		RecurringRevenue:        recurringRevenue,
+		OneTimeRevenue:          oneTimeRevenue,
+		NewCustomerRevenue:      newCustomerRevenue,
 		ExistingCustomerRevenue: existingCustomerRevenue,
 	}, nil
 }
@@ -629,7 +629,7 @@ func (r *gormBillingRepository) GetRevenueSummary(ctx context.Context, filter An
 func (r *gormBillingRepository) GetSubscriptionMetrics(ctx context.Context, filter AnalyticsFilter) (*SubscriptionMetrics, error) {
 	var totalSubscriptions, activeSubscriptions, canceledSubscriptions int64
 	var newSubscriptions int64
-	
+
 	// Count total subscriptions
 	err := r.db.WithContext(ctx).Model(&TenantSubscription{}).
 		Where("created_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
@@ -637,7 +637,7 @@ func (r *gormBillingRepository) GetSubscriptionMetrics(ctx context.Context, filt
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Count active subscriptions
 	err = r.db.WithContext(ctx).Model(&TenantSubscription{}).
 		Where("status = 'active' AND created_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
@@ -645,7 +645,7 @@ func (r *gormBillingRepository) GetSubscriptionMetrics(ctx context.Context, filt
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Count canceled subscriptions
 	err = r.db.WithContext(ctx).Model(&TenantSubscription{}).
 		Where("status = 'canceled' AND canceled_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
@@ -653,7 +653,7 @@ func (r *gormBillingRepository) GetSubscriptionMetrics(ctx context.Context, filt
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Count new subscriptions
 	err = r.db.WithContext(ctx).Model(&TenantSubscription{}).
 		Where("created_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
@@ -661,7 +661,7 @@ func (r *gormBillingRepository) GetSubscriptionMetrics(ctx context.Context, filt
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &SubscriptionMetrics{
 		TotalSubscriptions:    totalSubscriptions,
 		ActiveSubscriptions:   activeSubscriptions,
@@ -674,7 +674,7 @@ func (r *gormBillingRepository) GetSubscriptionMetrics(ctx context.Context, filt
 
 func (r *gormBillingRepository) GetUsageMetrics(ctx context.Context, filter AnalyticsFilter) (*UsageMetrics, error) {
 	var totalUsage, averageUsage int64
-	
+
 	// Calculate total usage
 	err := r.db.WithContext(ctx).Model(&UsageRecord{}).
 		Where("created_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
@@ -682,7 +682,7 @@ func (r *gormBillingRepository) GetUsageMetrics(ctx context.Context, filter Anal
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Calculate average usage
 	err = r.db.WithContext(ctx).Model(&UsageRecord{}).
 		Where("created_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
@@ -690,7 +690,7 @@ func (r *gormBillingRepository) GetUsageMetrics(ctx context.Context, filter Anal
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &UsageMetrics{
 		TotalUsageByType: map[UsageType]int64{
 			// This would need to be populated with actual usage data
@@ -705,7 +705,7 @@ func (r *gormBillingRepository) GetUsageMetrics(ctx context.Context, filter Anal
 func (r *gormBillingRepository) GetChurnMetrics(ctx context.Context, filter AnalyticsFilter) (*ChurnMetrics, error) {
 	var churnedCustomers, totalCustomers int64
 	var churnRate float64
-	
+
 	// Count churned customers (canceled subscriptions)
 	err := r.db.WithContext(ctx).Model(&TenantSubscription{}).
 		Where("status = 'canceled' AND canceled_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
@@ -713,7 +713,7 @@ func (r *gormBillingRepository) GetChurnMetrics(ctx context.Context, filter Anal
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Count total customers with subscriptions
 	err = r.db.WithContext(ctx).Model(&TenantSubscription{}).
 		Where("created_at <= ?", filter.EndDate).
@@ -721,22 +721,22 @@ func (r *gormBillingRepository) GetChurnMetrics(ctx context.Context, filter Anal
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Calculate churn rate
 	if totalCustomers > 0 {
 		churnRate = float64(churnedCustomers) / float64(totalCustomers) * 100
 	}
-	
+
 	return &ChurnMetrics{
 		ChurnedSubscriptions: churnedCustomers,
-		ChurnRate:           churnRate,
+		ChurnRate:            churnRate,
 	}, nil
 }
 
 func (r *gormBillingRepository) GetPaymentMetrics(ctx context.Context, filter AnalyticsFilter) (*PaymentMetrics, error) {
 	var successfulPayments, failedPayments, totalPayments int64
 	var successRate float64
-	
+
 	// Count successful payments
 	err := r.db.WithContext(ctx).Model(&PaymentAttempt{}).
 		Where("status = 'succeeded' AND created_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
@@ -744,7 +744,7 @@ func (r *gormBillingRepository) GetPaymentMetrics(ctx context.Context, filter An
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Count failed payments
 	err = r.db.WithContext(ctx).Model(&PaymentAttempt{}).
 		Where("status = 'failed' AND created_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
@@ -752,25 +752,25 @@ func (r *gormBillingRepository) GetPaymentMetrics(ctx context.Context, filter An
 	if err != nil {
 		return nil, err
 	}
-	
+
 	totalPayments = successfulPayments + failedPayments
-	
+
 	// Calculate success rate
 	if totalPayments > 0 {
 		successRate = float64(successfulPayments) / float64(totalPayments) * 100
 	}
-	
+
 	return &PaymentMetrics{
-		SuccessfulPayments:   successfulPayments,
-		FailedPayments:       failedPayments,
-		TotalPayments:        totalPayments,
-		PaymentSuccessRate:   successRate,
+		SuccessfulPayments: successfulPayments,
+		FailedPayments:     failedPayments,
+		TotalPayments:      totalPayments,
+		PaymentSuccessRate: successRate,
 	}, nil
 }
 
 func (r *gormBillingRepository) GetMonthlyRevenueBreakdown(ctx context.Context, filter AnalyticsFilter) ([]MonthlyRevenue, error) {
 	var monthlyRevenue []MonthlyRevenue
-	
+
 	// This is a simplified implementation - in production you'd want more sophisticated grouping
 	rows, err := r.db.WithContext(ctx).Model(&Invoice{}).
 		Select("DATE_TRUNC('month', created_at) as month, SUM(total_amount) as revenue").
@@ -778,12 +778,12 @@ func (r *gormBillingRepository) GetMonthlyRevenueBreakdown(ctx context.Context, 
 		Group("DATE_TRUNC('month', created_at)").
 		Order("month").
 		Rows()
-	
+
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
 		var month time.Time
 		var revenue float64
@@ -795,11 +795,11 @@ func (r *gormBillingRepository) GetMonthlyRevenueBreakdown(ctx context.Context, 
 			Revenue: revenue,
 		})
 	}
-	
+
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	
+
 	return monthlyRevenue, nil
 }
 

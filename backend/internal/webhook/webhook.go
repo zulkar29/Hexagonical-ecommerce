@@ -23,30 +23,30 @@ type WebhookProvider string
 
 const (
 	// E-commerce Events
-	EventOrderCreated    WebhookEvent = "order.created"
-	EventOrderUpdated    WebhookEvent = "order.updated" 
-	EventOrderCancelled  WebhookEvent = "order.cancelled"
-	EventOrderFulfilled  WebhookEvent = "order.fulfilled"
-	
+	EventOrderCreated   WebhookEvent = "order.created"
+	EventOrderUpdated   WebhookEvent = "order.updated"
+	EventOrderCancelled WebhookEvent = "order.cancelled"
+	EventOrderFulfilled WebhookEvent = "order.fulfilled"
+
 	// Payment Events
 	EventPaymentCreated   WebhookEvent = "payment.created"
 	EventPaymentSucceeded WebhookEvent = "payment.succeeded"
 	EventPaymentFailed    WebhookEvent = "payment.failed"
 	EventPaymentRefunded  WebhookEvent = "payment.refunded"
-	
+
 	// Product Events
-	EventProductCreated  WebhookEvent = "product.created"
-	EventProductUpdated  WebhookEvent = "product.updated"
-	EventProductDeleted  WebhookEvent = "product.deleted"
-	EventInventoryLow    WebhookEvent = "inventory.low"
-	
+	EventProductCreated WebhookEvent = "product.created"
+	EventProductUpdated WebhookEvent = "product.updated"
+	EventProductDeleted WebhookEvent = "product.deleted"
+	EventInventoryLow   WebhookEvent = "inventory.low"
+
 	// Customer Events
 	EventCustomerCreated WebhookEvent = "customer.created"
 	EventCustomerUpdated WebhookEvent = "customer.updated"
-	
+
 	// Shipping Events
-	EventShipmentCreated WebhookEvent = "shipment.created"
-	EventShipmentShipped WebhookEvent = "shipment.shipped"
+	EventShipmentCreated   WebhookEvent = "shipment.created"
+	EventShipmentShipped   WebhookEvent = "shipment.shipped"
 	EventShipmentDelivered WebhookEvent = "shipment.delivered"
 )
 
@@ -60,19 +60,19 @@ const (
 
 const (
 	// Payment Providers
-	ProviderStripe   WebhookProvider = "stripe"
-	ProviderPayPal   WebhookProvider = "paypal"
-	ProviderBkash    WebhookProvider = "bkash"
-	ProviderNagad    WebhookProvider = "nagad"
-	ProviderRocket   WebhookProvider = "rocket"
-	
+	ProviderStripe WebhookProvider = "stripe"
+	ProviderPayPal WebhookProvider = "paypal"
+	ProviderBkash  WebhookProvider = "bkash"
+	ProviderNagad  WebhookProvider = "nagad"
+	ProviderRocket WebhookProvider = "rocket"
+
 	// Shipping Providers
 	ProviderPathao   WebhookProvider = "pathao"
 	ProviderRedX     WebhookProvider = "redx"
 	ProviderPaperfly WebhookProvider = "paperfly"
 	ProviderDHL      WebhookProvider = "dhl"
 	ProviderFedEx    WebhookProvider = "fedex"
-	
+
 	// Integration Providers
 	ProviderShopify     WebhookProvider = "shopify"
 	ProviderWooCommerce WebhookProvider = "woocommerce"
@@ -82,80 +82,80 @@ const (
 )
 
 type WebhookEndpoint struct {
-	ID              uuid.UUID       `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
-	TenantID        uuid.UUID       `json:"tenant_id" gorm:"type:uuid;not null;index"`
-	Name            string          `json:"name" gorm:"size:100;not null"`
-	URL             string          `json:"url" gorm:"size:500;not null"`
-	Description     string          `json:"description" gorm:"type:text"`
-	Events          []WebhookEvent  `json:"events" gorm:"serializer:json"`
-	IsActive        bool            `json:"is_active" gorm:"default:true"`
-	Secret          string          `json:"secret" gorm:"size:255"` // For signature verification
-	RetryPolicy     string          `json:"retry_policy" gorm:"size:50;default:'exponential'"` // exponential, linear, none
-	MaxRetries      int             `json:"max_retries" gorm:"default:3"`
-	TimeoutSeconds  int             `json:"timeout_seconds" gorm:"default:30"`
-	Headers         map[string]string `json:"headers" gorm:"serializer:json"`
-	LastDeliveryAt  *time.Time      `json:"last_delivery_at"`
-	LastStatus      WebhookStatus   `json:"last_status" gorm:"default:'pending'"`
-	FailureCount    int             `json:"failure_count" gorm:"default:0"`
-	CreatedAt       time.Time       `json:"created_at"`
-	UpdatedAt       time.Time       `json:"updated_at"`
-	DeletedAt       gorm.DeletedAt  `json:"deleted_at" gorm:"index"`
+	ID             uuid.UUID         `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
+	TenantID       uuid.UUID         `json:"tenant_id" gorm:"type:uuid;not null;index"`
+	Name           string            `json:"name" gorm:"size:100;not null"`
+	URL            string            `json:"url" gorm:"size:500;not null"`
+	Description    string            `json:"description" gorm:"type:text"`
+	Events         []WebhookEvent    `json:"events" gorm:"serializer:json"`
+	IsActive       bool              `json:"is_active" gorm:"default:true"`
+	Secret         string            `json:"secret" gorm:"size:255"`                            // For signature verification
+	RetryPolicy    string            `json:"retry_policy" gorm:"size:50;default:'exponential'"` // exponential, linear, none
+	MaxRetries     int               `json:"max_retries" gorm:"default:3"`
+	TimeoutSeconds int               `json:"timeout_seconds" gorm:"default:30"`
+	Headers        map[string]string `json:"headers" gorm:"serializer:json"`
+	LastDeliveryAt *time.Time        `json:"last_delivery_at"`
+	LastStatus     WebhookStatus     `json:"last_status" gorm:"default:'pending'"`
+	FailureCount   int               `json:"failure_count" gorm:"default:0"`
+	CreatedAt      time.Time         `json:"created_at"`
+	UpdatedAt      time.Time         `json:"updated_at"`
+	DeletedAt      gorm.DeletedAt    `json:"deleted_at" gorm:"index"`
 }
 
 type WebhookDelivery struct {
-	ID             uuid.UUID       `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
-	TenantID       uuid.UUID       `json:"tenant_id" gorm:"type:uuid;not null;index"`
-	EndpointID     uuid.UUID       `json:"endpoint_id" gorm:"type:uuid;not null;index"`
-	Event          WebhookEvent    `json:"event" gorm:"size:50;not null"`
-	EventID        uuid.UUID       `json:"event_id" gorm:"type:uuid;not null"` // Reference to source event
-	Status         WebhookStatus   `json:"status" gorm:"default:'pending'"`
-	AttemptCount   int             `json:"attempt_count" gorm:"default:0"`
-	MaxAttempts    int             `json:"max_attempts" gorm:"default:3"`
-	
+	ID           uuid.UUID     `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
+	TenantID     uuid.UUID     `json:"tenant_id" gorm:"type:uuid;not null;index"`
+	EndpointID   uuid.UUID     `json:"endpoint_id" gorm:"type:uuid;not null;index"`
+	Event        WebhookEvent  `json:"event" gorm:"size:50;not null"`
+	EventID      uuid.UUID     `json:"event_id" gorm:"type:uuid;not null"` // Reference to source event
+	Status       WebhookStatus `json:"status" gorm:"default:'pending'"`
+	AttemptCount int           `json:"attempt_count" gorm:"default:0"`
+	MaxAttempts  int           `json:"max_attempts" gorm:"default:3"`
+
 	// Request details
-	RequestURL     string          `json:"request_url" gorm:"size:500;not null"`
+	RequestURL     string            `json:"request_url" gorm:"size:500;not null"`
 	RequestHeaders map[string]string `json:"request_headers" gorm:"serializer:json"`
-	RequestBody    string          `json:"request_body" gorm:"type:text"`
-	
+	RequestBody    string            `json:"request_body" gorm:"type:text"`
+
 	// Response details
-	ResponseStatus   int            `json:"response_status"`
-	ResponseHeaders  map[string]string `json:"response_headers" gorm:"serializer:json"`
-	ResponseBody     string         `json:"response_body" gorm:"type:text"`
-	ResponseTime     int            `json:"response_time"` // milliseconds
-	
+	ResponseStatus  int               `json:"response_status"`
+	ResponseHeaders map[string]string `json:"response_headers" gorm:"serializer:json"`
+	ResponseBody    string            `json:"response_body" gorm:"type:text"`
+	ResponseTime    int               `json:"response_time"` // milliseconds
+
 	// Delivery tracking
-	LastAttemptAt  *time.Time      `json:"last_attempt_at"`
-	NextRetryAt    *time.Time      `json:"next_retry_at"`
-	DeliveredAt    *time.Time      `json:"delivered_at"`
-	FailedAt       *time.Time      `json:"failed_at"`
-	ErrorMessage   string          `json:"error_message" gorm:"type:text"` 
-	
-	CreatedAt      time.Time       `json:"created_at"`
-	UpdatedAt      time.Time       `json:"updated_at"`
+	LastAttemptAt *time.Time `json:"last_attempt_at"`
+	NextRetryAt   *time.Time `json:"next_retry_at"`
+	DeliveredAt   *time.Time `json:"delivered_at"`
+	FailedAt      *time.Time `json:"failed_at"`
+	ErrorMessage  string     `json:"error_message" gorm:"type:text"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type WebhookIncoming struct {
-	ID             uuid.UUID       `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
-	TenantID       uuid.UUID       `json:"tenant_id" gorm:"type:uuid;not null;index"`
-	Provider       WebhookProvider `json:"provider" gorm:"size:50;not null"`
-	Event          string          `json:"event" gorm:"size:100;not null"`
-	EventID        string          `json:"event_id" gorm:"size:255"` // External event ID
-	Signature      string          `json:"signature" gorm:"size:500"` // Webhook signature
-	IsVerified     bool            `json:"is_verified" gorm:"default:false"`
-	IsProcessed    bool            `json:"is_processed" gorm:"default:false"`
-	
+	ID          uuid.UUID       `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
+	TenantID    uuid.UUID       `json:"tenant_id" gorm:"type:uuid;not null;index"`
+	Provider    WebhookProvider `json:"provider" gorm:"size:50;not null"`
+	Event       string          `json:"event" gorm:"size:100;not null"`
+	EventID     string          `json:"event_id" gorm:"size:255"`  // External event ID
+	Signature   string          `json:"signature" gorm:"size:500"` // Webhook signature
+	IsVerified  bool            `json:"is_verified" gorm:"default:false"`
+	IsProcessed bool            `json:"is_processed" gorm:"default:false"`
+
 	// Request data
-	Headers        map[string]string `json:"headers" gorm:"serializer:json"`
-	Body           string          `json:"body" gorm:"type:text"`
-	IPAddress      string          `json:"ip_address" gorm:"size:45"`
-	UserAgent      string          `json:"user_agent" gorm:"size:500"`
-	
+	Headers   map[string]string `json:"headers" gorm:"serializer:json"`
+	Body      string            `json:"body" gorm:"type:text"`
+	IPAddress string            `json:"ip_address" gorm:"size:45"`
+	UserAgent string            `json:"user_agent" gorm:"size:500"`
+
 	// Processing results
-	ProcessedAt    *time.Time      `json:"processed_at"`
-	ProcessingError string         `json:"processing_error" gorm:"type:text"`
-	
-	CreatedAt      time.Time       `json:"created_at"`
-	UpdatedAt      time.Time       `json:"updated_at"`
+	ProcessedAt     *time.Time `json:"processed_at"`
+	ProcessingError string     `json:"processing_error" gorm:"type:text"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type WebhookRateLimit struct {
@@ -184,10 +184,10 @@ func (wd *WebhookDelivery) IsFailed() bool {
 
 // ShouldRetry checks if webhook should be retried
 func (wd *WebhookDelivery) ShouldRetry() bool {
-	return wd.Status == StatusFailed && 
-		   wd.AttemptCount < wd.MaxAttempts && 
-		   wd.NextRetryAt != nil && 
-		   wd.NextRetryAt.Before(time.Now())
+	return wd.Status == StatusFailed &&
+		wd.AttemptCount < wd.MaxAttempts &&
+		wd.NextRetryAt != nil &&
+		wd.NextRetryAt.Before(time.Now())
 }
 
 // GetNextRetryDelay calculates next retry delay using exponential backoff
@@ -196,8 +196,6 @@ func (wd *WebhookDelivery) GetNextRetryDelay() time.Duration {
 	multiplier := time.Duration(wd.AttemptCount * wd.AttemptCount) // Exponential backoff
 	return baseDelay * multiplier
 }
-
-
 
 // SupportsEvent checks if endpoint supports a specific event
 func (we *WebhookEndpoint) SupportsEvent(event WebhookEvent) bool {
@@ -260,7 +258,7 @@ func (we *WebhookEndpoint) UpdateLastDelivery(status WebhookStatus) {
 	we.LastStatus = status
 	now := time.Now()
 	we.LastDeliveryAt = &now
-	
+
 	if status == StatusFailed {
 		we.FailureCount++
 	} else if status == StatusDelivered {
@@ -309,7 +307,7 @@ func (wd *WebhookDelivery) MarkAsFailed(errorMessage string, responseStatus int,
 	wd.ResponseHeaders = responseHeaders
 	wd.ResponseBody = responseBody
 	wd.ResponseTime = responseTime
-	
+
 	if wd.AttemptCount >= wd.MaxAttempts {
 		wd.Status = StatusFailed
 		wd.FailedAt = &now

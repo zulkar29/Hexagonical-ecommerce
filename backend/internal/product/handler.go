@@ -78,7 +78,7 @@ func (h *Handler) GetProductBySlug(c *gin.Context) {
 	}
 
 	slug := c.Param("slug")
-	
+
 	product, err := h.service.GetProductBySlug(tenantID.(uuid.UUID), slug)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
@@ -150,7 +150,7 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Regular product update
 	var product Product
 	if bindErr := c.ShouldBindJSON(&product); bindErr != nil {
@@ -202,9 +202,9 @@ func (h *Handler) ListProducts(c *gin.Context) {
 		}
 		c.JSON(http.StatusOK, gin.H{
 			"data": gin.H{
-				"products": products,
+				"products":  products,
 				"threshold": threshold,
-				"count":    len(products),
+				"count":     len(products),
 			},
 		})
 		return
@@ -252,7 +252,7 @@ func (h *Handler) ListProducts(c *gin.Context) {
 
 	// Regular product listing with filters
 	var filter ProductListFilter
-	
+
 	if status := c.Query("status"); status != "" {
 		filter.Status = ProductStatus(status)
 	}
@@ -284,19 +284,19 @@ func (h *Handler) ListProducts(c *gin.Context) {
 	// Parse pagination
 	offsetStr := c.DefaultQuery("offset", "0")
 	limitStr := c.DefaultQuery("limit", "20")
-	
+
 	offset, offsetErr := strconv.Atoi(offsetStr)
 	if offsetErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset parameter"})
 		return
 	}
-	
+
 	limit, limitErr := strconv.Atoi(limitStr)
 	if limitErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
 		return
 	}
-	
+
 	// Validate limit
 	if limit > 100 {
 		limit = 100
@@ -336,7 +336,7 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
 		return
 	}
-	
+
 	err = h.service.DeleteProduct(tenantID.(uuid.UUID), productID.String())
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -347,8 +347,6 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 		"message": "Product deleted successfully",
 	})
 }
-
-
 
 // Category Handlers
 
@@ -392,7 +390,7 @@ func (h *Handler) GetCategory(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
 		return
 	}
-	
+
 	category, err := h.service.GetCategory(tenantID.(uuid.UUID), categoryID.String())
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
@@ -457,12 +455,6 @@ func (h *Handler) ListCategories(c *gin.Context) {
 	})
 }
 
-
-
-
-
-
-
 // Product Variant Handlers
 
 // CreateProductVariant handles POST /api/products/:id/variants
@@ -479,7 +471,7 @@ func (h *Handler) CreateProductVariant(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
 		return
 	}
-	
+
 	var variant ProductVariant
 	if bindErr := c.ShouldBindJSON(&variant); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
@@ -512,7 +504,7 @@ func (h *Handler) GetProductVariants(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
 		return
 	}
-	
+
 	variants, err := h.service.GetProductVariants(tenantID.(uuid.UUID), productID.String())
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -545,7 +537,7 @@ func (h *Handler) UpdateProductVariant(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid variant ID"})
 		return
 	}
-	
+
 	var variant ProductVariant
 	if bindErr := c.ShouldBindJSON(&variant); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
@@ -585,7 +577,7 @@ func (h *Handler) DeleteProductVariant(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid variant ID"})
 		return
 	}
-	
+
 	deleteErr := h.service.DeleteProductVariant(tenantID.(uuid.UUID), productID.String(), variantID.String())
 	if deleteErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": deleteErr.Error()})
@@ -613,7 +605,7 @@ func (h *Handler) UpdateCategory(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
 		return
 	}
-	
+
 	var category Category
 	if bindErr := c.ShouldBindJSON(&category); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
@@ -646,7 +638,7 @@ func (h *Handler) DeleteCategory(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
 		return
 	}
-	
+
 	err = h.service.DeleteCategory(tenantID.(uuid.UUID), categoryID.String())
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -750,8 +742,6 @@ func (h *Handler) GetCategoryChildren(c *gin.Context) {
 	})
 }
 
-
-
 // HandleProductOperations handles POST /api/products/operations for bulk operations
 func (h *Handler) HandleProductOperations(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
@@ -764,7 +754,7 @@ func (h *Handler) HandleProductOperations(c *gin.Context) {
 	switch operation {
 	case "bulk_update":
 		var req struct {
-			ProductIDs []string `json:"product_ids" binding:"required"`
+			ProductIDs []string               `json:"product_ids" binding:"required"`
 			Updates    map[string]interface{} `json:"updates" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -797,20 +787,20 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	products := router.Group("/products")
 	{
 		products.POST("", h.CreateProduct)
-		products.GET("", h.ListProducts) // Supports ?type=stats|low-stock|search, ?q=query
+		products.GET("", h.ListProducts)                        // Supports ?type=stats|low-stock|search, ?q=query
 		products.POST("/operations", h.HandleProductOperations) // Supports ?operation=bulk_update|import|export
 		products.GET("/:id", h.GetProduct)
 		products.PUT("/:id", h.UpdateProduct) // Supports ?action=update_inventory|update_status|duplicate
 		products.DELETE("/:id", h.DeleteProduct)
 		products.GET("/slug/:slug", h.GetProductBySlug)
-		
+
 		// Bulk operations
 		products.POST("/bulk", h.HandleProductBulk)
-		
+
 		// Product images
 		products.POST("/:id/images", h.UploadProductImages)
 		products.DELETE("/:id/images/:image-id", h.DeleteProductImage)
-		
+
 		// Product analytics
 		products.GET("/:id/analytics", h.GetProductAnalytics)
 
@@ -855,7 +845,7 @@ func (h *Handler) HandleProductBulk(c *gin.Context) {
 		c.JSON(http.StatusNotImplemented, gin.H{"error": "Export functionality not implemented"})
 	case "update":
 		var req struct {
-			ProductIDs []string `json:"product_ids" binding:"required"`
+			ProductIDs []string               `json:"product_ids" binding:"required"`
 			Updates    map[string]interface{} `json:"updates" binding:"required"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -972,7 +962,7 @@ func (h *Handler) GetPublicProducts(c *gin.Context) {
 	// Parse filters for public access
 	var filter ProductListFilter
 	filter.Status = "active" // Only show active products publicly
-	
+
 	if categoryID := c.Query("category"); categoryID != "" {
 		if id, err := uuid.Parse(categoryID); err == nil {
 			filter.CategoryID = &id
@@ -983,19 +973,19 @@ func (h *Handler) GetPublicProducts(c *gin.Context) {
 	// Parse pagination
 	offsetStr := c.DefaultQuery("offset", "0")
 	limitStr := c.DefaultQuery("limit", "20")
-	
+
 	offset, err := strconv.Atoi(offsetStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset parameter"})
 		return
 	}
-	
+
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
 		return
 	}
-	
+
 	if limit > 100 {
 		limit = 100
 	}
@@ -1042,7 +1032,7 @@ func (h *Handler) GetPublicProduct(c *gin.Context) {
 
 	include := c.Query("include")
 	responseData := gin.H{"product": product}
-	
+
 	if strings.Contains(include, "variants") {
 		variants, variantErr := h.service.GetProductVariants(tenantID.(uuid.UUID), productIDStr)
 		if variantErr == nil {
@@ -1051,12 +1041,12 @@ func (h *Handler) GetPublicProduct(c *gin.Context) {
 			responseData["variants"] = []interface{}{} // Empty array if error occurs
 		}
 	}
-	
+
 	// TODO: Add reviews and related products when those modules are implemented
 	if strings.Contains(include, "reviews") {
 		responseData["reviews"] = []interface{}{} // Placeholder
 	}
-	
+
 	if strings.Contains(include, "related") {
 		responseData["related"] = []interface{}{} // Placeholder
 	}

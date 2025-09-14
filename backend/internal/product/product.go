@@ -16,16 +16,16 @@ type ProductStatus string
 type ProductType string
 
 const (
-	StatusDraft     ProductStatus = "draft"
-	StatusActive    ProductStatus = "active"
-	StatusInactive  ProductStatus = "inactive"
-	StatusArchived  ProductStatus = "archived"
-	
+	StatusDraft    ProductStatus = "draft"
+	StatusActive   ProductStatus = "active"
+	StatusInactive ProductStatus = "inactive"
+	StatusArchived ProductStatus = "archived"
+
 	// Aliases for backward compatibility
-	ProductStatusDraft     = StatusDraft
-	ProductStatusActive    = StatusActive
-	ProductStatusInactive  = StatusInactive
-	ProductStatusArchived  = StatusArchived
+	ProductStatusDraft    = StatusDraft
+	ProductStatusActive   = StatusActive
+	ProductStatusInactive = StatusInactive
+	ProductStatusArchived = StatusArchived
 )
 
 const (
@@ -43,42 +43,42 @@ type Product struct {
 	Description string        `json:"description"`
 	Type        ProductType   `json:"type" gorm:"default:physical"`
 	Status      ProductStatus `json:"status" gorm:"default:draft"`
-	
+
 	// Pricing
-	Price         float64 `json:"price" gorm:"not null"`
-	ComparePrice  float64 `json:"compare_price,omitempty"` // Original price for discount display
-	CostPrice     float64 `json:"cost_price,omitempty"`    // For profit calculations
-	
+	Price        float64 `json:"price" gorm:"not null"`
+	ComparePrice float64 `json:"compare_price,omitempty"` // Original price for discount display
+	CostPrice    float64 `json:"cost_price,omitempty"`    // For profit calculations
+
 	// Inventory
 	SKU               string `json:"sku,omitempty" gorm:"index"`
 	Barcode           string `json:"barcode,omitempty"`
 	InventoryQuantity int    `json:"inventory_quantity" gorm:"default:0"`
 	TrackQuantity     bool   `json:"track_quantity" gorm:"default:true"`
 	AllowBackorder    bool   `json:"allow_backorder" gorm:"default:false"`
-	
+
 	// Physical properties
 	Weight float64 `json:"weight,omitempty"` // in grams
 	Length float64 `json:"length,omitempty"` // in cm
 	Width  float64 `json:"width,omitempty"`  // in cm
 	Height float64 `json:"height,omitempty"` // in cm
-	
+
 	// SEO
 	MetaTitle       string `json:"meta_title,omitempty"`
 	MetaDescription string `json:"meta_description,omitempty"`
 	MetaKeywords    string `json:"meta_keywords,omitempty"`
-	
+
 	// Images
 	FeaturedImage string   `json:"featured_image,omitempty"`
 	Images        []string `json:"images,omitempty" gorm:"serializer:json"`
-	
+
 	// Categories and tags
 	CategoryID uuid.UUID `json:"category_id,omitempty" gorm:"index"`
 	Tags       []string  `json:"tags,omitempty" gorm:"serializer:json"`
-	
+
 	// Timestamps
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-	
+
 	// Relations (will be loaded separately)
 	Variants []ProductVariant `json:"variants,omitempty" gorm:"foreignKey:ProductID"`
 	Category *Category        `json:"category,omitempty" gorm:"foreignKey:CategoryID"`
@@ -91,65 +91,65 @@ type ProductVariant struct {
 	Name         string    `json:"name" gorm:"not null"` // e.g., "Size: Large, Color: Red"
 	SKU          string    `json:"sku,omitempty" gorm:"index"`
 	Barcode      string    `json:"barcode,omitempty"`
-	Price        float64   `json:"price"` // Override product price if different
+	Price        float64   `json:"price"`                   // Override product price if different
 	ComparePrice float64   `json:"compare_price,omitempty"` // Original price for discount display
-	CostPrice    float64   `json:"cost_price,omitempty"` // For profit calculations
-	
+	CostPrice    float64   `json:"cost_price,omitempty"`    // For profit calculations
+
 	// Variant-specific inventory
 	InventoryQuantity int  `json:"inventory_quantity" gorm:"default:0"`
 	TrackQuantity     bool `json:"track_quantity" gorm:"default:true"`
 	AllowBackorder    bool `json:"allow_backorder" gorm:"default:false"`
-	
+
 	// Physical properties
 	Weight float64 `json:"weight,omitempty"` // in grams
 	Length float64 `json:"length,omitempty"` // in cm
 	Width  float64 `json:"width,omitempty"`  // in cm
 	Height float64 `json:"height,omitempty"` // in cm
-	
+
 	// Variant options (e.g., size: "Large", color: "Red")
 	Options map[string]string `json:"options" gorm:"serializer:json"`
-	
+
 	// Images specific to this variant
 	Images []string `json:"images,omitempty" gorm:"serializer:json"`
 	Image  string   `json:"image,omitempty"` // Primary variant image
-	
+
 	// Default variant flag
 	IsDefault bool `json:"is_default" gorm:"default:false"`
-	
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // ProductStats represents product statistics
 type ProductStats struct {
-	TotalProducts    int64   `json:"total_products"`
-	ActiveProducts   int64   `json:"active_products"`
-	DraftProducts    int64   `json:"draft_products"`
-	OutOfStock       int64   `json:"out_of_stock"`
-	LowStock         int64   `json:"low_stock"`
-	TotalCategories  int64   `json:"total_categories"`
-	TotalValue       float64 `json:"total_value"`
+	TotalProducts   int64   `json:"total_products"`
+	ActiveProducts  int64   `json:"active_products"`
+	DraftProducts   int64   `json:"draft_products"`
+	OutOfStock      int64   `json:"out_of_stock"`
+	LowStock        int64   `json:"low_stock"`
+	TotalCategories int64   `json:"total_categories"`
+	TotalValue      float64 `json:"total_value"`
 }
 
 // Category represents product categories
 type Category struct {
-	ID          uuid.UUID `json:"id" gorm:"primarykey"`
-	TenantID    uuid.UUID `json:"tenant_id" gorm:"not null;index"`
-	Name        string    `json:"name" gorm:"not null"`
-	Slug        string    `json:"slug" gorm:"not null"`
-	Description string    `json:"description,omitempty"`
-	Image       string    `json:"image,omitempty"`
+	ID          uuid.UUID  `json:"id" gorm:"primarykey"`
+	TenantID    uuid.UUID  `json:"tenant_id" gorm:"not null;index"`
+	Name        string     `json:"name" gorm:"not null"`
+	Slug        string     `json:"slug" gorm:"not null"`
+	Description string     `json:"description,omitempty"`
+	Image       string     `json:"image,omitempty"`
 	ParentID    *uuid.UUID `json:"parent_id,omitempty" gorm:"index"`
-	SortOrder   int       `json:"sort_order" gorm:"default:0"`
-	IsActive    bool      `json:"is_active" gorm:"default:true"`
-	
+	SortOrder   int        `json:"sort_order" gorm:"default:0"`
+	IsActive    bool       `json:"is_active" gorm:"default:true"`
+
 	// SEO
 	MetaTitle       string `json:"meta_title,omitempty"`
 	MetaDescription string `json:"meta_description,omitempty"`
-	
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-	
+
 	// Relations
 	Parent   *Category  `json:"parent,omitempty" gorm:"foreignKey:ParentID"`
 	Children []Category `json:"children,omitempty" gorm:"foreignKey:ParentID"`
@@ -163,11 +163,11 @@ func (p *Product) IsAvailable() bool {
 	if p.Status != ProductStatusActive {
 		return false
 	}
-	
+
 	if p.TrackQuantity && p.InventoryQuantity <= 0 && !p.AllowBackorder {
 		return false
 	}
-	
+
 	return true
 }
 
@@ -200,11 +200,11 @@ func (p *Product) CanDecrementInventory(quantity int) bool {
 	if !p.TrackQuantity {
 		return true
 	}
-	
+
 	if p.InventoryQuantity >= quantity {
 		return true
 	}
-	
+
 	return p.AllowBackorder
 }
 
@@ -213,11 +213,11 @@ func (p *Product) DecrementInventory(quantity int) error {
 	if !p.CanDecrementInventory(quantity) {
 		return ErrInsufficientInventory
 	}
-	
+
 	if p.TrackQuantity {
 		p.InventoryQuantity -= quantity
 	}
-	
+
 	return nil
 }
 
@@ -233,11 +233,11 @@ func (p *Product) GetMainImage() string {
 	if p.FeaturedImage != "" {
 		return p.FeaturedImage
 	}
-	
+
 	if len(p.Images) > 0 {
 		return p.Images[0]
 	}
-	
+
 	return ""
 }
 
@@ -249,26 +249,26 @@ func (p *Product) HasVariants() bool {
 // GetMinPrice returns the minimum price (considering variants)
 func (p *Product) GetMinPrice() float64 {
 	minPrice := p.Price
-	
+
 	for _, variant := range p.Variants {
 		if variant.Price > 0 && variant.Price < minPrice {
 			minPrice = variant.Price
 		}
 	}
-	
+
 	return minPrice
 }
 
 // GetMaxPrice returns the maximum price (considering variants)
 func (p *Product) GetMaxPrice() float64 {
 	maxPrice := p.Price
-	
+
 	for _, variant := range p.Variants {
 		if variant.Price > maxPrice {
 			maxPrice = variant.Price
 		}
 	}
-	
+
 	return maxPrice
 }
 
@@ -321,23 +321,23 @@ func (p *Product) ValidateProductData() error {
 	if p.Name == "" {
 		return errors.New("product name is required")
 	}
-	
+
 	if p.Price < 0 {
 		return errors.New("product price cannot be negative")
 	}
-	
+
 	if p.ComparePrice > 0 && p.Price >= p.ComparePrice {
 		return errors.New("compare price must be higher than selling price")
 	}
-	
+
 	if p.CostPrice > 0 && p.CostPrice > p.Price {
 		return errors.New("cost price should not exceed selling price")
 	}
-	
+
 	if p.TrackQuantity && p.InventoryQuantity < 0 {
 		return errors.New("inventory quantity cannot be negative")
 	}
-	
+
 	return nil
 }
 
@@ -367,7 +367,7 @@ func (p *Product) GetSEODescription() string {
 	if p.MetaDescription != "" {
 		return p.MetaDescription
 	}
-	
+
 	// Generate from description if available
 	if p.Description != "" {
 		desc := p.Description
@@ -376,7 +376,7 @@ func (p *Product) GetSEODescription() string {
 		}
 		return desc
 	}
-	
+
 	return "Buy " + p.Name + " at the best price"
 }
 
@@ -408,18 +408,18 @@ func (p *Product) GetInventoryStatus() string {
 	if !p.TrackQuantity {
 		return "unlimited"
 	}
-	
+
 	if p.InventoryQuantity <= 0 {
 		if p.AllowBackorder {
 			return "backorder"
 		}
 		return "out_of_stock"
 	}
-	
+
 	if p.InventoryQuantity < 10 {
 		return "low_stock"
 	}
-	
+
 	return "in_stock"
 }
 
@@ -428,15 +428,15 @@ func (p *Product) CanPurchase(quantity int) bool {
 	if p.Status != ProductStatusActive {
 		return false
 	}
-	
+
 	if !p.TrackQuantity {
 		return true
 	}
-	
+
 	if p.InventoryQuantity >= quantity {
 		return true
 	}
-	
+
 	return p.AllowBackorder
 }
 
@@ -460,7 +460,7 @@ func (p *Product) GetVariantByOptions(options map[string]string) *ProductVariant
 // GetAvailableOptions returns all available option combinations
 func (p *Product) GetAvailableOptions() map[string][]string {
 	options := make(map[string][]string)
-	
+
 	for _, variant := range p.Variants {
 		for key, value := range variant.Options {
 			if !contains(options[key], value) {
@@ -468,7 +468,7 @@ func (p *Product) GetAvailableOptions() map[string][]string {
 			}
 		}
 	}
-	
+
 	return options
 }
 
@@ -479,17 +479,17 @@ func (v *ProductVariant) GetDisplayName() string {
 	if v.Name != "" {
 		return v.Name
 	}
-	
+
 	// Generate from options
 	var parts []string
 	for key, value := range v.Options {
 		parts = append(parts, fmt.Sprintf("%s: %s", key, value))
 	}
-	
+
 	if len(parts) > 0 {
 		return strings.Join(parts, ", ")
 	}
-	
+
 	return "Default"
 }
 

@@ -9,17 +9,13 @@ import (
 // Repository defines user repository interface
 type Repository interface {
 	// User CRUD operations
-	Create(user *User) error
 	CreateUser(ctx context.Context, user *User) (*User, error)
-	GetByID(id uuid.UUID) (*User, error)
-	GetByEmail(email string) (*User, error)
+	GetUserByID(ctx context.Context, userID uuid.UUID) (*User, error)
 	GetUserByEmail(ctx context.Context, email string) (*User, error)
-	Update(user *User) error
-	Delete(id uuid.UUID) error
+	UpdateUser(ctx context.Context, user *User) (*User, error)
 	DeleteUser(ctx context.Context, userID uuid.UUID) error
-	List(tenantID *uuid.UUID, filter UserFilter, offset, limit int) ([]*User, int64, error)
+	ListUsers(ctx context.Context, tenantID *uuid.UUID, filter UserFilter, offset, limit int) ([]*User, int64, error)
 	UpdateUserByAdmin(ctx context.Context, userID uuid.UUID, updates map[string]interface{}) (*User, error)
-	GetUsersForExport(ctx context.Context, filters map[string]string) ([]*User, error)
 
 	// Session operations
 	CreateSession(session *UserSession) error
@@ -49,41 +45,27 @@ func NewRepository(db *gorm.DB) Repository {
 
 // User CRUD operations
 
-func (r *repository) Create(user *User) error {
-	return r.db.Create(user).Error
-}
-
-func (r *repository) GetByID(id uuid.UUID) (*User, error) {
+func (r *repository) GetUserByID(ctx context.Context, userID uuid.UUID) (*User, error) {
 	var user User
-	err := r.db.Where("id = ?", id).First(&user).Error
+	err := r.db.WithContext(ctx).Where("id = ?", userID).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
 	return &user, nil
 }
 
-func (r *repository) GetByEmail(email string) (*User, error) {
-	var user User
-	err := r.db.Where("email = ?", email).First(&user).Error
-	if err != nil {
+func (r *repository) UpdateUser(ctx context.Context, user *User) (*User, error) {
+	if err := r.db.WithContext(ctx).Save(user).Error; err != nil {
 		return nil, err
 	}
-	return &user, nil
+	return user, nil
 }
 
-func (r *repository) Update(user *User) error {
-	return r.db.Save(user).Error
-}
-
-func (r *repository) Delete(id uuid.UUID) error {
-	return r.db.Delete(&User{}, id).Error
-}
-
-func (r *repository) List(tenantID *uuid.UUID, filter UserFilter, offset, limit int) ([]*User, int64, error) {
+func (r *repository) ListUsers(ctx context.Context, tenantID *uuid.UUID, filter UserFilter, offset, limit int) ([]*User, int64, error) {
 	var users []*User
 	var total int64
 
-	query := r.db.Model(&User{})
+	query := r.db.WithContext(ctx).Model(&User{})
 
 	// Apply filters
 	if tenantID != nil {
@@ -112,7 +94,7 @@ func (r *repository) List(tenantID *uuid.UUID, filter UserFilter, offset, limit 
 	}
 
 	// Get paginated results
-	err := query.Offset(offset).Limit(limit).Find(&users).Error
+	err := query.Order("created_at DESC").Offset(offset).Limit(limit).Find(&users).Error
 	return users, total, err
 }
 
@@ -181,8 +163,7 @@ func (r *repository) CheckUserPermission(userID uuid.UUID, resource, action stri
 	return count > 0, err
 }
 
-// Additional context-aware methods
-
+// CreateUser creates a new user
 func (r *repository) CreateUser(ctx context.Context, user *User) (*User, error) {
 	if err := r.db.WithContext(ctx).Create(user).Error; err != nil {
 		return nil, err
@@ -190,6 +171,7 @@ func (r *repository) CreateUser(ctx context.Context, user *User) (*User, error) 
 	return user, nil
 }
 
+// GetUserByEmail retrieves a user by email
 func (r *repository) GetUserByEmail(ctx context.Context, email string) (*User, error) {
 	var user User
 	err := r.db.WithContext(ctx).Where("email = ?", email).First(&user).Error
@@ -216,27 +198,7 @@ func (r *repository) UpdateUserByAdmin(ctx context.Context, userID uuid.UUID, up
 	return &user, nil
 }
 
-func (r *repository) GetUsersForExport(ctx context.Context, filters map[string]string) ([]*User, error) {
-	var users []*User
-	query := r.db.WithContext(ctx).Model(&User{})
-	
-	if role := filters["role"]; role != "" {
-		query = query.Where("role = ?", role)
-	}
-	if status := filters["status"]; status != "" {
-		query = query.Where("status = ?", status)
-	}
-	if search := filters["search"]; search != "" {
-		searchPattern := "%" + search + "%"
-		query = query.Where(
-			"first_name ILIKE ? OR last_name ILIKE ? OR email ILIKE ?",
-			searchPattern, searchPattern, searchPattern,
-		)
-	}
-	
-	err := query.Find(&users).Error
-	return users, err
-}
+// Removed GetUsersForExport - GDPR data export functionality not needed
 
 // Context-aware session invalidation
 func (r *repository) InvalidateUserSessions(ctx context.Context, userID uuid.UUID) error {

@@ -22,14 +22,14 @@ type Repository interface {
 	GetExpiredCarts(tenantID uuid.UUID) ([]*Cart, error)
 	CleanupExpiredCarts(tenantID uuid.UUID) error
 	MergeGuestCartToCustomer(tenantID uuid.UUID, sessionID string, customerID uuid.UUID) error
-	
+
 	// Cart item operations
 	AddCartItem(item *CartItem) (*CartItem, error)
 	UpdateCartItem(item *CartItem) (*CartItem, error)
 	RemoveCartItem(tenantID, cartID, itemID uuid.UUID) error
 	FindCartItem(tenantID, cartID, itemID uuid.UUID) (*CartItem, error)
 	ClearCartItems(tenantID, cartID uuid.UUID) error
-	
+
 	// Statistics and analytics
 	GetCartStats(tenantID uuid.UUID) (*CartStats, error)
 	GetAbandonmentRate(tenantID uuid.UUID, days int) (float64, error)
@@ -39,10 +39,10 @@ type Repository interface {
 
 // CartListFilter represents filters for listing carts
 type CartListFilter struct {
-	Status     CartStatus `json:"status,omitempty"`
-	CustomerID *uuid.UUID `json:"customer_id,omitempty"`
-	MinTotal   *float64   `json:"min_total,omitempty"`
-	MaxTotal   *float64   `json:"max_total,omitempty"`
+	Status        CartStatus `json:"status,omitempty"`
+	CustomerID    *uuid.UUID `json:"customer_id,omitempty"`
+	MinTotal      *float64   `json:"min_total,omitempty"`
+	MaxTotal      *float64   `json:"max_total,omitempty"`
 	CreatedAfter  *time.Time `json:"created_after,omitempty"`
 	CreatedBefore *time.Time `json:"created_before,omitempty"`
 	HasCoupon     *bool      `json:"has_coupon,omitempty"`
@@ -201,7 +201,7 @@ func (r *repository) GetAbandonedCarts(tenantID uuid.UUID, since time.Time) ([]*
 func (r *repository) GetExpiredCarts(tenantID uuid.UUID) ([]*Cart, error) {
 	var carts []*Cart
 	now := time.Now()
-	err := r.db.Where("tenant_id = ? AND expires_at IS NOT NULL AND expires_at <= ? AND status = ?", 
+	err := r.db.Where("tenant_id = ? AND expires_at IS NOT NULL AND expires_at <= ? AND status = ?",
 		tenantID, now, StatusActive).Find(&carts).Error
 	return carts, err
 }
@@ -210,7 +210,7 @@ func (r *repository) GetExpiredCarts(tenantID uuid.UUID) ([]*Cart, error) {
 func (r *repository) CleanupExpiredCarts(tenantID uuid.UUID) error {
 	now := time.Now()
 	return r.db.Model(&Cart{}).
-		Where("tenant_id = ? AND expires_at IS NOT NULL AND expires_at <= ? AND status = ?", 
+		Where("tenant_id = ? AND expires_at IS NOT NULL AND expires_at <= ? AND status = ?",
 			tenantID, now, StatusActive).
 		Update("status", StatusExpired).Error
 }
@@ -220,7 +220,7 @@ func (r *repository) MergeGuestCartToCustomer(tenantID uuid.UUID, sessionID stri
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		// Find guest cart
 		var guestCart Cart
-		if err := tx.Where("tenant_id = ? AND session_id = ? AND status = ?", 
+		if err := tx.Where("tenant_id = ? AND session_id = ? AND status = ?",
 			tenantID, sessionID, StatusActive).First(&guestCart).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				return nil // No guest cart to merge
@@ -230,9 +230,9 @@ func (r *repository) MergeGuestCartToCustomer(tenantID uuid.UUID, sessionID stri
 
 		// Find or create customer cart
 		var customerCart Cart
-		err := tx.Where("tenant_id = ? AND customer_id = ? AND status = ?", 
+		err := tx.Where("tenant_id = ? AND customer_id = ? AND status = ?",
 			tenantID, customerID, StatusActive).First(&customerCart).Error
-		
+
 		if err == gorm.ErrRecordNotFound {
 			// No existing customer cart, convert guest cart
 			guestCart.CustomerID = &customerID
@@ -251,9 +251,9 @@ func (r *repository) MergeGuestCartToCustomer(tenantID uuid.UUID, sessionID stri
 		for _, item := range guestItems {
 			// Check if item already exists in customer cart
 			var existingItem CartItem
-			findErr := tx.Where("cart_id = ? AND product_id = ?", 
+			findErr := tx.Where("cart_id = ? AND product_id = ?",
 				customerCart.ID, item.ProductID).First(&existingItem).Error
-			
+
 			if findErr == gorm.ErrRecordNotFound {
 				// Item doesn't exist, move it to customer cart
 				item.CartID = customerCart.ID
@@ -301,14 +301,14 @@ func (r *repository) UpdateCartItem(item *CartItem) (*CartItem, error) {
 
 // RemoveCartItem removes an item from cart
 func (r *repository) RemoveCartItem(tenantID, cartID, itemID uuid.UUID) error {
-	return r.db.Where("id = ? AND cart_id IN (SELECT id FROM carts WHERE id = ? AND tenant_id = ?)", 
+	return r.db.Where("id = ? AND cart_id IN (SELECT id FROM carts WHERE id = ? AND tenant_id = ?)",
 		itemID, cartID, tenantID).Delete(&CartItem{}).Error
 }
 
 // FindCartItem finds a specific cart item
 func (r *repository) FindCartItem(tenantID, cartID, itemID uuid.UUID) (*CartItem, error) {
 	var item CartItem
-	err := r.db.Where("id = ? AND cart_id IN (SELECT id FROM carts WHERE id = ? AND tenant_id = ?)", 
+	err := r.db.Where("id = ? AND cart_id IN (SELECT id FROM carts WHERE id = ? AND tenant_id = ?)",
 		itemID, cartID, tenantID).First(&item).Error
 	if err != nil {
 		return nil, err
@@ -318,7 +318,7 @@ func (r *repository) FindCartItem(tenantID, cartID, itemID uuid.UUID) (*CartItem
 
 // ClearCartItems removes all items from a cart
 func (r *repository) ClearCartItems(tenantID, cartID uuid.UUID) error {
-	return r.db.Where("cart_id IN (SELECT id FROM carts WHERE id = ? AND tenant_id = ?)", 
+	return r.db.Where("cart_id IN (SELECT id FROM carts WHERE id = ? AND tenant_id = ?)",
 		cartID, tenantID).Delete(&CartItem{}).Error
 }
 
@@ -327,19 +327,19 @@ func (r *repository) ClearCartItems(tenantID, cartID uuid.UUID) error {
 // GetCartStats returns cart statistics
 func (r *repository) GetCartStats(tenantID uuid.UUID) (*CartStats, error) {
 	stats := &CartStats{}
-	
+
 	// Total carts
 	r.db.Model(&Cart{}).Where("tenant_id = ?", tenantID).Count(&stats.TotalCarts)
-	
+
 	// Active carts
 	r.db.Model(&Cart{}).Where("tenant_id = ? AND status = ?", tenantID, StatusActive).Count(&stats.ActiveCarts)
-	
+
 	// Abandoned carts
 	r.db.Model(&Cart{}).Where("tenant_id = ? AND status = ?", tenantID, StatusAbandoned).Count(&stats.AbandonedCarts)
-	
+
 	// Converted carts
 	r.db.Model(&Cart{}).Where("tenant_id = ? AND status = ?", tenantID, StatusConverted).Count(&stats.ConvertedCarts)
-	
+
 	// Average cart value
 	var avgValue sql.NullFloat64
 	r.db.Model(&Cart{}).Where("tenant_id = ? AND status = ?", tenantID, StatusActive).
@@ -347,12 +347,12 @@ func (r *repository) GetCartStats(tenantID uuid.UUID) (*CartStats, error) {
 	if avgValue.Valid {
 		stats.AverageCartValue = avgValue.Float64
 	}
-	
+
 	// Abandonment rate
 	if stats.TotalCarts > 0 {
 		stats.AbandonmentRate = float64(stats.AbandonedCarts) / float64(stats.TotalCarts) * 100
 	}
-	
+
 	// Total revenue from converted carts
 	var totalRevenue sql.NullFloat64
 	r.db.Model(&Cart{}).Where("tenant_id = ? AND status = ?", tenantID, StatusConverted).
@@ -360,35 +360,35 @@ func (r *repository) GetCartStats(tenantID uuid.UUID) (*CartStats, error) {
 	if totalRevenue.Valid {
 		stats.TotalRevenue = totalRevenue.Float64
 	}
-	
+
 	return stats, nil
 }
 
 // GetAbandonmentRate calculates abandonment rate for the last N days
 func (r *repository) GetAbandonmentRate(tenantID uuid.UUID, days int) (float64, error) {
 	since := time.Now().AddDate(0, 0, -days)
-	
+
 	var totalCarts, abandonedCarts int64
-	
+
 	r.db.Model(&Cart{}).Where("tenant_id = ? AND created_at >= ?", tenantID, since).Count(&totalCarts)
-	r.db.Model(&Cart{}).Where("tenant_id = ? AND status = ? AND created_at >= ?", 
+	r.db.Model(&Cart{}).Where("tenant_id = ? AND status = ? AND created_at >= ?",
 		tenantID, StatusAbandoned, since).Count(&abandonedCarts)
-	
+
 	if totalCarts == 0 {
 		return 0, nil
 	}
-	
+
 	return float64(abandonedCarts) / float64(totalCarts) * 100, nil
 }
 
 // GetAverageCartValue calculates average cart value for the last N days
 func (r *repository) GetAverageCartValue(tenantID uuid.UUID, days int) (float64, error) {
 	since := time.Now().AddDate(0, 0, -days)
-	
+
 	var avgValue sql.NullFloat64
 	r.db.Model(&Cart{}).Where("tenant_id = ? AND created_at >= ?", tenantID, since).
 		Select("AVG(total)").Scan(&avgValue)
-	
+
 	if avgValue.Valid {
 		return avgValue.Float64, nil
 	}
@@ -398,7 +398,7 @@ func (r *repository) GetAverageCartValue(tenantID uuid.UUID, days int) (float64,
 // GetTopAbandonedProducts returns most abandoned products
 func (r *repository) GetTopAbandonedProducts(tenantID uuid.UUID, limit int) ([]*AbandonedProductStats, error) {
 	var stats []*AbandonedProductStats
-	
+
 	err := r.db.Table("cart_items ci").
 		Select("ci.product_id, ci.product_name, ci.product_slug, COUNT(*) as abandon_count, SUM(ci.line_total) as total_value").
 		Joins("JOIN carts c ON ci.cart_id = c.id").
@@ -407,6 +407,6 @@ func (r *repository) GetTopAbandonedProducts(tenantID uuid.UUID, limit int) ([]*
 		Order("abandon_count DESC").
 		Limit(limit).
 		Scan(&stats).Error
-	
+
 	return stats, err
 }

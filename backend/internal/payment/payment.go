@@ -20,8 +20,7 @@ const (
 // Payment gateways
 const (
 	GatewaySSLCommerz = "sslcommerz"
-	GatewayBKash      = "bkash"
-	GatewayNagad      = "nagad"
+
 	GatewayStripe     = "stripe"
 	GatewayPayPal     = "paypal"
 )
@@ -52,7 +51,7 @@ type PaymentMethod struct {
 	TenantID     uuid.UUID `json:"tenant_id" gorm:"type:uuid;not null;index"`
 	UserID       uuid.UUID `json:"user_id" gorm:"type:uuid;not null;index"`
 	Type         string    `json:"type" gorm:"size:50;not null"`         // card, bank_account, digital_wallet
-	Provider     string    `json:"provider" gorm:"size:50;not null"`     // sslcommerz, bkash, nagad, stripe, paypal
+	Provider     string    `json:"provider" gorm:"size:50;not null"`     // sslcommerz, stripe, paypal
 	ProviderID   string    `json:"provider_id" gorm:"size:255;not null"` // External provider's payment method ID
 	Last4        string    `json:"last4" gorm:"size:4"`                  // Last 4 digits for cards
 	Brand        string    `json:"brand" gorm:"size:50"`                 // visa, mastercard, amex, etc.
@@ -153,6 +152,8 @@ type SSLCommerzIPNResponse struct {
 	RiskTitle        string  `json:"risk_title"`
 }
 
+
+
 // Request/Response Structures
 type CreatePaymentRequest struct {
 	OrderID         string  `json:"order_id" validate:"required"`
@@ -188,7 +189,7 @@ type RefundPaymentRequest struct {
 // Payment Methods Request/Response Types
 type CreatePaymentMethodRequest struct {
 	Type         string `json:"type" validate:"required"`         // card, bank_account, digital_wallet
-	Provider     string `json:"provider" validate:"required"`     // sslcommerz, bkash, nagad, stripe, paypal
+	Provider     string `json:"provider" validate:"required"`     // sslcommerz, stripe, paypal
 	ProviderID   string `json:"provider_id" validate:"required"` // External provider's payment method ID
 	Last4        string `json:"last4,omitempty"`                  // Last 4 digits for cards
 	Brand        string `json:"brand,omitempty"`                 // visa, mastercard, amex, etc.
@@ -197,6 +198,8 @@ type CreatePaymentMethodRequest struct {
 	IsDefault    bool   `json:"is_default,omitempty"`
 }
 
+
+
 type UpdatePaymentMethodRequest struct {
 	IsDefault bool `json:"is_default,omitempty"`
 	IsActive  bool `json:"is_active,omitempty"`
@@ -204,7 +207,7 @@ type UpdatePaymentMethodRequest struct {
 
 type ListPaymentsRequest struct {
 	Status string `json:"status,omitempty"` // pending, completed, failed
-	Method string `json:"method,omitempty"` // card, bkash, nagad
+	Method string `json:"method,omitempty"` // card, digital_wallet
 	View   string `json:"view,omitempty"`   // stats
 	Offset int    `json:"offset,omitempty"`
 	Limit  int    `json:"limit,omitempty"`

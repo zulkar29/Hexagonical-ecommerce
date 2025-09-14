@@ -68,16 +68,16 @@ func (s *service) CreateAccount(ctx context.Context, account *Account) (*Account
 	if err := s.validateAccount(account); err != nil {
 		return nil, err
 	}
-	
+
 	// Set tenant ID from context
 	// account.TenantID = getTenantIDFromContext(ctx) // TODO: Pass tenant ID as parameter or extract from context
 	account.ID = uuid.New()
-	
+
 	// Create account
 	if err := s.repo.CreateAccount(ctx, account); err != nil {
 		return nil, fmt.Errorf("failed to create account: %w", err)
 	}
-	
+
 	return account, nil
 }
 
@@ -97,12 +97,12 @@ func (s *service) UpdateAccount(ctx context.Context, account *Account) (*Account
 	if err := s.validateAccount(account); err != nil {
 		return nil, err
 	}
-	
+
 	// Update account
 	if err := s.repo.UpdateAccount(ctx, account); err != nil {
 		return nil, fmt.Errorf("failed to update account: %w", err)
 	}
-	
+
 	return account, nil
 }
 
@@ -117,19 +117,19 @@ func (s *service) CreateTransaction(ctx context.Context, transaction *Transactio
 	if err := s.validateTransaction(transaction); err != nil {
 		return nil, err
 	}
-	
+
 	// Set tenant ID - this should be passed as parameter or extracted from context
 	// For now, we'll assume it's already set in the transaction object
 	transaction.ID = uuid.New()
-	
+
 	// Generate transaction number
 	transaction.GenerateTransactionNumber()
-	
+
 	// Create transaction
 	if err := s.repo.CreateTransaction(ctx, transaction); err != nil {
 		return nil, fmt.Errorf("failed to create transaction: %w", err)
 	}
-	
+
 	return transaction, nil
 }
 
@@ -149,12 +149,12 @@ func (s *service) UpdateTransaction(ctx context.Context, transaction *Transactio
 	if err := s.validateTransaction(transaction); err != nil {
 		return nil, err
 	}
-	
+
 	// Update transaction
 	if err := s.repo.UpdateTransaction(ctx, transaction); err != nil {
 		return nil, fmt.Errorf("failed to update transaction: %w", err)
 	}
-	
+
 	return transaction, nil
 }
 
@@ -169,17 +169,17 @@ func (s *service) CreatePayout(ctx context.Context, payout *Payout) (*Payout, er
 	if err := s.validatePayout(payout); err != nil {
 		return nil, err
 	}
-	
+
 	// Set tenant ID - this should be passed as parameter or extracted from context
 	// For now, we'll assume it's already set in the payout object
 	payout.ID = uuid.New()
 	payout.Status = PayoutStatusPending
-	
+
 	// Create payout
 	if err := s.repo.CreatePayout(ctx, payout); err != nil {
 		return nil, fmt.Errorf("failed to create payout: %w", err)
 	}
-	
+
 	return payout, nil
 }
 
@@ -200,22 +200,22 @@ func (s *service) ProcessPayout(ctx context.Context, tenantID, payoutID uuid.UUI
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Check if payout can be processed
 	if !payout.CanProcess() {
 		return nil, errors.New("payout cannot be processed")
 	}
-	
+
 	// Update payout status
 	payout.Status = PayoutStatusProcessed
 	payout.ProcessedDate = &time.Time{}
 	*payout.ProcessedDate = time.Now()
-	
+
 	// Update payout
 	if err := s.repo.UpdatePayout(ctx, payout); err != nil {
 		return nil, fmt.Errorf("failed to process payout: %w", err)
 	}
-	
+
 	return payout, nil
 }
 
@@ -224,15 +224,15 @@ func (s *service) CreateReconciliation(ctx context.Context, reconciliation *Reco
 	// Set tenant ID - this should be passed as parameter or extracted from context
 	// For now, we'll assume it's already set in the reconciliation object
 	reconciliation.ID = uuid.New()
-	
+
 	// Calculate difference
 	reconciliation.CalculateDifference()
-	
+
 	// Create reconciliation
 	if err := s.repo.CreateReconciliation(ctx, reconciliation); err != nil {
 		return nil, fmt.Errorf("failed to create reconciliation: %w", err)
 	}
-	
+
 	return reconciliation, nil
 }
 

@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -11,7 +10,6 @@ import (
 	"gorm.io/gorm"
 
 	"ecommerce-saas/internal/shared/utils"
-	"ecommerce-saas/internal/tenant"
 )
 
 // AuthMiddleware validates JWT tokens and sets user context
@@ -44,7 +42,7 @@ func AuthMiddleware(jwtManager *utils.JWTManager) gin.HandlerFunc {
 
 		// Set user context
 		c.Set("user_id", claims.UserID)
-		c.Set("tenant_id", claims.TenantID)
+		c.Set("user_tenant_id", claims.TenantID) // For tenant access validation
 		c.Set("user_email", claims.Email)
 		c.Set("user_role", claims.Role)
 		c.Set("token_id", claims.TokenID)
@@ -66,7 +64,7 @@ func OptionalAuthMiddleware(jwtManager *utils.JWTManager) gin.HandlerFunc {
 			token := strings.TrimPrefix(authHeader, "Bearer ")
 			if claims, err := jwtManager.ValidateToken(token); err == nil {
 				c.Set("user_id", claims.UserID)
-				c.Set("tenant_id", claims.TenantID)
+				c.Set("user_tenant_id", claims.TenantID) // For tenant access validation
 				c.Set("user_email", claims.Email)
 				c.Set("user_role", claims.Role)
 				c.Set("token_id", claims.TokenID)
@@ -79,66 +77,12 @@ func OptionalAuthMiddleware(jwtManager *utils.JWTManager) gin.HandlerFunc {
 
 
 
-// TenantMiddleware ensures the request has valid tenant context
+// TenantMiddleware is deprecated - use TenantIsolationMiddleware instead
+// This function is kept for backward compatibility but should be replaced
 func TenantMiddleware(db *gorm.DB) gin.HandlerFunc {
-	// Initialize tenant service
-	tenantRepo := tenant.NewRepository(db)
-	tenantService := tenant.NewService(tenantRepo)
-	
-	return func(c *gin.Context) {
-		// Get host from request (more reliable than header)
-		host := c.Request.Host
-		fmt.Printf("[DEBUG] TenantMiddleware - Host: '%s'\n", host)
-		if host == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Host header required"})
-			c.Abort()
-			return
-		}
-
-		// Remove port if present
-		if colonIndex := strings.Index(host, ":"); colonIndex != -1 {
-			host = host[:colonIndex]
-		}
-
-		var tenantEntity *tenant.Tenant
-		var err error
-
-		// First, try to resolve by custom domain
-		tenantEntity, err = tenantService.GetTenantByCustomDomain(host)
-		if err == nil {
-			// Found tenant by custom domain
-			c.Set("tenant_domain", host)
-			c.Set("tenant_id", tenantEntity.ID)
-			c.Set("tenant", tenantEntity)
-			c.Set("domain_type", "custom")
-			c.Next()
-			return
-		}
-
-		// If not found by custom domain, try subdomain resolution
-		parts := strings.Split(host, ".")
-		if len(parts) >= 2 {
-			subdomain := parts[0]
-			
-			// Skip reserved subdomains
-			if subdomain != "" && subdomain != "www" && subdomain != "api" && subdomain != "admin" {
-				tenantEntity, err = tenantService.GetTenantBySubdomain(subdomain)
-				if err == nil {
-					// Found tenant by subdomain
-					c.Set("tenant_subdomain", subdomain)
-					c.Set("tenant_id", tenantEntity.ID)
-					c.Set("tenant", tenantEntity)
-					c.Set("domain_type", "subdomain")
-					c.Next()
-					return
-				}
-			}
-		}
-
-		// If no tenant found by either method
-		c.JSON(http.StatusNotFound, gin.H{"error": "Tenant not found for domain: " + host})
-		c.Abort()
-	}
+	// Create new tenant isolation middleware
+	tim := NewTenantIsolationMiddleware(db, "esass.com") // TODO: Make base domain configurable
+	return tim.ResolveTenantWithIsolation()
 }
 
 // RoleMiddleware checks if user has required role

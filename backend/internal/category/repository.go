@@ -16,35 +16,35 @@ type Repository interface {
 	FindBySlug(ctx context.Context, tenantID uuid.UUID, slug string) (*Category, error)
 	Update(ctx context.Context, category *Category) error
 	Delete(ctx context.Context, tenantID, categoryID uuid.UUID) error
-	
+
 	// Category listing and filtering
 	List(ctx context.Context, tenantID uuid.UUID, filter CategoryFilter, limit, offset int) ([]Category, error)
 	Count(ctx context.Context, tenantID uuid.UUID, filter CategoryFilter) (int64, error)
-	
+
 	// Hierarchical operations
 	FindChildren(ctx context.Context, tenantID, parentID uuid.UUID) ([]Category, error)
 	FindByParent(ctx context.Context, tenantID uuid.UUID, parentID *uuid.UUID) ([]Category, error)
 	FindRootCategories(ctx context.Context, tenantID uuid.UUID) ([]Category, error)
 	GetCategoryTree(ctx context.Context, tenantID uuid.UUID, parentID *uuid.UUID) ([]Category, error)
 	GetCategoryPath(ctx context.Context, tenantID, categoryID uuid.UUID) ([]Category, error)
-	
+
 	// Category validation
 	ExistsBySlug(ctx context.Context, tenantID uuid.UUID, slug string, excludeID *uuid.UUID) (bool, error)
 	HasChildren(ctx context.Context, tenantID, categoryID uuid.UUID) (bool, error)
 	HasProducts(ctx context.Context, tenantID, categoryID uuid.UUID) (bool, error)
 	ValidateParent(ctx context.Context, tenantID, categoryID, parentID uuid.UUID) error
-	
+
 	// Product associations
 	AddProduct(ctx context.Context, tenantID, categoryID, productID uuid.UUID) error
 	RemoveProduct(ctx context.Context, tenantID, categoryID, productID uuid.UUID) error
 	GetCategoryProducts(ctx context.Context, tenantID, categoryID uuid.UUID, limit, offset int) ([]Product, error)
 	UpdateProductCount(ctx context.Context, tenantID, categoryID uuid.UUID) error
-	
+
 	// Bulk operations
 	UpdateChildrenPath(ctx context.Context, tenantID, parentID uuid.UUID, newPath string) error
 	BulkUpdateStatus(ctx context.Context, tenantID uuid.UUID, categoryIDs []uuid.UUID, status CategoryStatus) error
 	ReorderCategories(ctx context.Context, tenantID uuid.UUID, categoryOrders map[uuid.UUID]int) error
-	
+
 	// Statistics and analytics
 	GetStats(ctx context.Context, tenantID uuid.UUID) (*CategoryStats, error)
 	GetFeaturedCategories(ctx context.Context, tenantID uuid.UUID, limit int) ([]Category, error)
@@ -75,14 +75,14 @@ func (r *GormRepository) FindByID(ctx context.Context, tenantID, categoryID uuid
 		Preload("Children").
 		Where("tenant_id = ? AND id = ?", tenantID, categoryID).
 		First(&category).Error
-	
+
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrCategoryNotFound
 		}
 		return nil, err
 	}
-	
+
 	return &category, nil
 }
 
@@ -94,14 +94,14 @@ func (r *GormRepository) FindBySlug(ctx context.Context, tenantID uuid.UUID, slu
 		Preload("Children").
 		Where("tenant_id = ? AND slug = ?", tenantID, slug).
 		First(&category).Error
-	
+
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrCategoryNotFound
 		}
 		return nil, err
 	}
-	
+
 	return &category, nil
 }
 
@@ -120,34 +120,34 @@ func (r *GormRepository) Delete(ctx context.Context, tenantID, categoryID uuid.U
 // List returns categories with filtering and pagination
 func (r *GormRepository) List(ctx context.Context, tenantID uuid.UUID, filter CategoryFilter, limit, offset int) ([]Category, error) {
 	var categories []Category
-	
+
 	query := r.db.WithContext(ctx).
 		Preload("Parent").
 		Where("tenant_id = ?", tenantID)
-	
+
 	// Apply filters
 	query = r.applyFilters(query, filter)
-	
+
 	err := query.
 		Order("sort_order ASC, name ASC").
 		Limit(limit).
 		Offset(offset).
 		Find(&categories).Error
-	
+
 	return categories, err
 }
 
 // Count returns the total count of categories matching the filter
 func (r *GormRepository) Count(ctx context.Context, tenantID uuid.UUID, filter CategoryFilter) (int64, error) {
 	var count int64
-	
+
 	query := r.db.WithContext(ctx).
 		Model(&Category{}).
 		Where("tenant_id = ?", tenantID)
-	
+
 	// Apply filters
 	query = r.applyFilters(query, filter)
-	
+
 	err := query.Count(&count).Error
 	return count, err
 }
@@ -159,7 +159,7 @@ func (r *GormRepository) FindChildren(ctx context.Context, tenantID, parentID uu
 		Where("tenant_id = ? AND parent_id = ?", tenantID, parentID).
 		Order("sort_order ASC, name ASC").
 		Find(&categories).Error
-	
+
 	return categories, err
 }
 
@@ -167,17 +167,17 @@ func (r *GormRepository) FindChildren(ctx context.Context, tenantID, parentID uu
 func (r *GormRepository) FindByParent(ctx context.Context, tenantID uuid.UUID, parentID *uuid.UUID) ([]Category, error) {
 	var categories []Category
 	query := r.db.WithContext(ctx).Where("tenant_id = ?", tenantID)
-	
+
 	if parentID == nil {
 		query = query.Where("parent_id IS NULL")
 	} else {
 		query = query.Where("parent_id = ?", *parentID)
 	}
-	
+
 	err := query.
 		Order("sort_order ASC, name ASC").
 		Find(&categories).Error
-	
+
 	return categories, err
 }
 
@@ -194,17 +194,17 @@ func (r *GormRepository) GetCategoryTree(ctx context.Context, tenantID uuid.UUID
 			return db.Order("sort_order ASC, name ASC")
 		}).
 		Where("tenant_id = ?", tenantID)
-	
+
 	if parentID == nil {
 		query = query.Where("parent_id IS NULL")
 	} else {
 		query = query.Where("parent_id = ?", *parentID)
 	}
-	
+
 	err := query.
 		Order("sort_order ASC, name ASC").
 		Find(&categories).Error
-	
+
 	return categories, err
 }
 
@@ -214,18 +214,18 @@ func (r *GormRepository) GetCategoryPath(ctx context.Context, tenantID, category
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var path []Category
 	current := category
-	
+
 	// Build path from current to root
 	for current != nil {
 		path = append([]Category{*current}, path...) // Prepend to maintain order
-		
+
 		if current.ParentID == nil {
 			break
 		}
-		
+
 		// Get parent
 		parent, err := r.FindByID(ctx, tenantID, *current.ParentID)
 		if err != nil {
@@ -233,7 +233,7 @@ func (r *GormRepository) GetCategoryPath(ctx context.Context, tenantID, category
 		}
 		current = parent
 	}
-	
+
 	return path, nil
 }
 
@@ -243,11 +243,11 @@ func (r *GormRepository) ExistsBySlug(ctx context.Context, tenantID uuid.UUID, s
 	query := r.db.WithContext(ctx).
 		Model(&Category{}).
 		Where("tenant_id = ? AND slug = ?", tenantID, slug)
-	
+
 	if excludeID != nil {
 		query = query.Where("id != ?", *excludeID)
 	}
-	
+
 	err := query.Count(&count).Error
 	return count > 0, err
 }
@@ -259,7 +259,7 @@ func (r *GormRepository) HasChildren(ctx context.Context, tenantID, categoryID u
 		Model(&Category{}).
 		Where("tenant_id = ? AND parent_id = ?", tenantID, categoryID).
 		Count(&count).Error
-	
+
 	return count > 0, err
 }
 
@@ -271,7 +271,7 @@ func (r *GormRepository) HasProducts(ctx context.Context, tenantID, categoryID u
 		Joins("JOIN categories ON categories.id = product_categories.category_id").
 		Where("categories.tenant_id = ? AND product_categories.category_id = ?", tenantID, categoryID).
 		Count(&count).Error
-	
+
 	return count > 0, err
 }
 
@@ -282,18 +282,18 @@ func (r *GormRepository) ValidateParent(ctx context.Context, tenantID, categoryI
 	if err != nil {
 		return ErrInvalidParent
 	}
-	
+
 	// Check for circular reference by traversing up the parent chain
 	current := parent
 	for current != nil {
 		if current.ID == categoryID {
 			return ErrCircularReference
 		}
-		
+
 		if current.ParentID == nil {
 			break
 		}
-		
+
 		// Get next parent
 		nextParent, err := r.FindByID(ctx, tenantID, *current.ParentID)
 		if err != nil {
@@ -301,7 +301,7 @@ func (r *GormRepository) ValidateParent(ctx context.Context, tenantID, categoryI
 		}
 		current = nextParent
 	}
-	
+
 	return nil
 }
 
@@ -330,7 +330,7 @@ func (r *GormRepository) GetCategoryProducts(ctx context.Context, tenantID, cate
 		Limit(limit).
 		Offset(offset).
 		Find(&products).Error
-	
+
 	return products, err
 }
 
@@ -342,11 +342,11 @@ func (r *GormRepository) UpdateProductCount(ctx context.Context, tenantID, categ
 		Joins("JOIN products ON products.id = product_categories.product_id").
 		Where("products.tenant_id = ? AND product_categories.category_id = ?", tenantID, categoryID).
 		Count(&count).Error
-	
+
 	if err != nil {
 		return err
 	}
-	
+
 	return r.db.WithContext(ctx).
 		Model(&Category{}).
 		Where("tenant_id = ? AND id = ?", tenantID, categoryID).
@@ -387,7 +387,7 @@ func (r *GormRepository) ReorderCategories(ctx context.Context, tenantID uuid.UU
 // GetStats returns category statistics
 func (r *GormRepository) GetStats(ctx context.Context, tenantID uuid.UUID) (*CategoryStats, error) {
 	stats := &CategoryStats{}
-	
+
 	// Total categories
 	err := r.db.WithContext(ctx).
 		Model(&Category{}).
@@ -396,7 +396,7 @@ func (r *GormRepository) GetStats(ctx context.Context, tenantID uuid.UUID) (*Cat
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Active categories
 	err = r.db.WithContext(ctx).
 		Model(&Category{}).
@@ -405,7 +405,7 @@ func (r *GormRepository) GetStats(ctx context.Context, tenantID uuid.UUID) (*Cat
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Root categories
 	err = r.db.WithContext(ctx).
 		Model(&Category{}).
@@ -414,7 +414,7 @@ func (r *GormRepository) GetStats(ctx context.Context, tenantID uuid.UUID) (*Cat
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Featured categories
 	err = r.db.WithContext(ctx).
 		Model(&Category{}).
@@ -423,7 +423,7 @@ func (r *GormRepository) GetStats(ctx context.Context, tenantID uuid.UUID) (*Cat
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Max depth
 	var maxLevel int
 	err = r.db.WithContext(ctx).
@@ -435,7 +435,7 @@ func (r *GormRepository) GetStats(ctx context.Context, tenantID uuid.UUID) (*Cat
 		return nil, err
 	}
 	stats.MaxDepth = maxLevel + 1 // Convert level to depth
-	
+
 	// Average products per category
 	var avgProducts float64
 	err = r.db.WithContext(ctx).
@@ -447,7 +447,7 @@ func (r *GormRepository) GetStats(ctx context.Context, tenantID uuid.UUID) (*Cat
 		return nil, err
 	}
 	stats.AvgProductsPerCategory = avgProducts
-	
+
 	return stats, nil
 }
 
@@ -459,7 +459,7 @@ func (r *GormRepository) GetFeaturedCategories(ctx context.Context, tenantID uui
 		Order("sort_order ASC, name ASC").
 		Limit(limit).
 		Find(&categories).Error
-	
+
 	return categories, err
 }
 
@@ -471,7 +471,7 @@ func (r *GormRepository) GetPopularCategories(ctx context.Context, tenantID uuid
 		Order("product_count DESC, name ASC").
 		Limit(limit).
 		Find(&categories).Error
-	
+
 	return categories, err
 }
 
@@ -482,7 +482,7 @@ func (r *GormRepository) GetCategoriesByLevel(ctx context.Context, tenantID uuid
 		Where("tenant_id = ? AND level = ?", tenantID, level).
 		Order("sort_order ASC, name ASC").
 		Find(&categories).Error
-	
+
 	return categories, err
 }
 
@@ -491,28 +491,28 @@ func (r *GormRepository) applyFilters(query *gorm.DB, filter CategoryFilter) *go
 	if filter.ParentID != nil {
 		query = query.Where("parent_id = ?", *filter.ParentID)
 	}
-	
+
 	if filter.Status != "" {
 		query = query.Where("status = ?", filter.Status)
 	}
-	
+
 	if filter.Level != nil {
 		query = query.Where("level = ?", *filter.Level)
 	}
-	
+
 	if filter.IsFeatured != nil {
 		query = query.Where("is_featured = ?", *filter.IsFeatured)
 	}
-	
+
 	if filter.ShowInMenu != nil {
 		query = query.Where("show_in_menu = ?", *filter.ShowInMenu)
 	}
-	
+
 	if filter.Search != "" {
-		query = query.Where("name ILIKE ? OR description ILIKE ?", 
+		query = query.Where("name ILIKE ? OR description ILIKE ?",
 			fmt.Sprintf("%%%s%%", filter.Search),
 			fmt.Sprintf("%%%s%%", filter.Search))
 	}
-	
+
 	return query
 }

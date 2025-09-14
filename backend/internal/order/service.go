@@ -14,6 +14,7 @@ import (
 
 	"ecommerce-saas/internal/notification"
 	"ecommerce-saas/internal/payment"
+	sharedErrors "ecommerce-saas/internal/shared/errors"
 	"github.com/google/uuid"
 	"github.com/xuri/excelize/v2"
 	"gorm.io/gorm"
@@ -90,7 +91,7 @@ func (s *Service) CreateOrder(ctx context.Context, tenantID uuid.UUID, order *Or
 	// Create order in database
 	if createErr := tx.Create(order).Error; createErr != nil {
 		tx.Rollback()
-		return nil, fmt.Errorf("failed to create order: %w", createErr)
+		return nil, sharedErrors.Wrap(createErr, sharedErrors.CodeInternal, "Failed to create order", 500)
 	}
 
 	// Process order items
@@ -113,7 +114,7 @@ func (s *Service) CreateOrder(ctx context.Context, tenantID uuid.UUID, order *Or
 		// Check inventory availability
 		if product.InventoryQuantity < item.Quantity {
 			tx.Rollback()
-			return nil, fmt.Errorf("insufficient inventory for product %s. Available: %d, Requested: %d", product.Name, product.InventoryQuantity, item.Quantity)
+			return nil, sharedErrors.ErrInsufficientStock
 		}
 
 		// Reserve inventory for this item
@@ -209,7 +210,7 @@ func (s *Service) UpdateOrderStatus(ctx context.Context, tenantID, orderID uuid.
 
 	// Check if status change is valid
 	if !s.isValidStatusTransition(order.Status, status) {
-		return nil, fmt.Errorf("invalid status transition from %s to %s", order.Status, status)
+		return nil, sharedErrors.NewBadRequestError("Invalid status transition")
 	}
 
 	// Update order status
@@ -239,7 +240,7 @@ func (s *Service) UpdateOrderStatus(ctx context.Context, tenantID, orderID uuid.
 
 	// Save updated order
 	if _, err := s.repository.UpdateOrder(order); err != nil {
-		return nil, fmt.Errorf("failed to update order: %w", err)
+		return nil, sharedErrors.Wrap(err, sharedErrors.CodeInternal, "Failed to update order status", 500)
 	}
 
 	// Create order history entry
@@ -302,7 +303,29 @@ func (s *Service) CancelOrder(tenantID uuid.UUID, orderID string, reason string)
 		}
 	}
 
-	// TODO: Handle refund if payment was processed
+	// Handle refund if payment was processed
+	if order.PaymentStatus == PaymentPaid {
+		// Find the payment for this order
+		if order.PaymentID != nil {
+			// Process automatic refund
+			refundReq := &payment.RefundPaymentRequest{
+				PaymentID: order.PaymentID.String(),
+				Amount:    order.TotalAmount,
+				Reason:    fmt.Sprintf("Order cancellation: %s", reason),
+			}
+			
+			ctx := context.Background()
+			if _, err := s.paymentService.RefundPayment(ctx, refundReq); err != nil {
+				// Log error but don't fail the cancellation
+				fmt.Printf("Warning: failed to process automatic refund for order %s: %v\n", order.OrderNumber, err)
+				// Mark payment as refund pending
+				order.PaymentStatus = PaymentRefundPending
+			} else {
+				// Refund successful
+				order.PaymentStatus = PaymentRefunded
+			}
+		}
+	}
 
 	// Send order cancellation notification
 	go func() {
@@ -534,7 +557,7 @@ func (s *Service) ValidateOrder(order *Order) error {
 	}
 
 	if len(order.Items) == 0 {
-		return fmt.Errorf("order must have at least one item")
+		return sharedErrors.NewBadRequestError("Order must have at least one item")
 	}
 
 	if order.TotalAmount <= 0 {

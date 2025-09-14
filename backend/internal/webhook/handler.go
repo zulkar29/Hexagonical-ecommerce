@@ -27,7 +27,7 @@ func (h *Handler) getTenantID(c *gin.Context) (uuid.UUID, error) {
 	if !exists {
 		return uuid.Nil, fmt.Errorf("tenant ID not found in context")
 	}
-	
+
 	tenantID, ok := tenantIDStr.(uuid.UUID)
 	if !ok {
 		// Try to parse as string
@@ -36,7 +36,7 @@ func (h *Handler) getTenantID(c *gin.Context) (uuid.UUID, error) {
 		}
 		return uuid.Nil, fmt.Errorf("invalid tenant ID format")
 	}
-	
+
 	return tenantID, nil
 }
 
@@ -62,19 +62,19 @@ func (h *Handler) CreateEndpoint(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	var req CreateEndpointRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
-	
+
 	// Convert string events to WebhookEvent type
 	events := make([]WebhookEvent, len(req.Events))
 	for i, event := range req.Events {
 		events[i] = WebhookEvent(event)
 	}
-	
+
 	endpoint := &WebhookEndpoint{
 		TenantID:    tenantID,
 		URL:         req.URL,
@@ -82,13 +82,13 @@ func (h *Handler) CreateEndpoint(c *gin.Context) {
 		Description: req.Description,
 		IsActive:    req.IsActive,
 	}
-	
+
 	createdEndpoint, err := h.service.CreateEndpoint(tenantID, endpoint)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, createdEndpoint)
 }
 
@@ -98,26 +98,26 @@ func (h *Handler) UpdateEndpoint(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	endpointID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid endpoint ID"})
 		return
 	}
-	
+
 	var req UpdateEndpointRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
-	
+
 	// Get existing endpoint
 	endpoint, err := h.service.GetEndpoint(tenantID, endpointID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Endpoint not found"})
 		return
 	}
-	
+
 	// Update fields
 	if req.URL != "" {
 		endpoint.URL = req.URL
@@ -136,13 +136,13 @@ func (h *Handler) UpdateEndpoint(c *gin.Context) {
 	if req.IsActive != nil {
 		endpoint.IsActive = *req.IsActive
 	}
-	
+
 	updatedEndpoint, err := h.service.UpdateEndpoint(tenantID, endpointID, endpoint)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, updatedEndpoint)
 }
 
@@ -152,18 +152,18 @@ func (h *Handler) DeleteEndpoint(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	endpointID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid endpoint ID"})
 		return
 	}
-	
+
 	if err := h.service.DeleteEndpoint(tenantID, endpointID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusNoContent, nil)
 }
 
@@ -173,13 +173,13 @@ func (h *Handler) GetEndpoints(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	endpoints, err := h.service.GetEndpoints(tenantID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"endpoints": endpoints})
 }
 
@@ -189,19 +189,19 @@ func (h *Handler) GetEndpoint(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	endpointID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid endpoint ID"})
 		return
 	}
-	
+
 	endpoint, err := h.service.GetEndpoint(tenantID, endpointID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Endpoint not found"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, endpoint)
 }
 
@@ -211,19 +211,19 @@ func (h *Handler) TestEndpoint(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	endpointID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid endpoint ID"})
 		return
 	}
-	
+
 	result, err := h.service.TestEndpoint(tenantID, endpointID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, result)
 }
 
@@ -233,7 +233,7 @@ func (h *Handler) GetDeliveries(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Parse query parameters
 	endpointIDStr := c.Query("endpoint_id")
 	var endpointID uuid.UUID
@@ -244,13 +244,13 @@ func (h *Handler) GetDeliveries(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	deliveries, err := h.service.GetDeliveries(tenantID, endpointID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"deliveries": deliveries})
 }
 
@@ -260,19 +260,19 @@ func (h *Handler) GetDelivery(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	deliveryID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid delivery ID"})
 		return
 	}
-	
+
 	delivery, err := h.service.GetDelivery(tenantID, deliveryID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Delivery not found"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, delivery)
 }
 
@@ -282,24 +282,24 @@ func (h *Handler) RetryDelivery(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	deliveryID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid delivery ID"})
 		return
 	}
-	
+
 	delivery, err := h.service.GetDelivery(tenantID, deliveryID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Delivery not found"})
 		return
 	}
-	
+
 	if err := h.service.ScheduleRetry(delivery); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Delivery retry scheduled"})
 }
 
@@ -309,20 +309,20 @@ func (h *Handler) GetEndpointStats(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	// Parse date range
 	startDateStr := c.DefaultQuery("start_date", time.Now().AddDate(0, 0, -7).Format("2006-01-02"))
 	endDateStr := c.DefaultQuery("end_date", time.Now().Format("2006-01-02"))
-	
+
 	startDate, _ := time.Parse("2006-01-02", startDateStr)
 	endDate, _ := time.Parse("2006-01-02", endDateStr)
-	
+
 	stats, err := h.service.GetDeliveryStats(tenantID, startDate, endDate)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, stats)
 }
 
@@ -332,16 +332,16 @@ func (h *Handler) GetWebhookLogs(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	limitStr := c.DefaultQuery("limit", "100")
 	limit, _ := strconv.Atoi(limitStr)
-	
+
 	failedDeliveries, err := h.service.GetFailedDeliveries(tenantID, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"logs": failedDeliveries})
 }
 
@@ -353,33 +353,33 @@ func (h *Handler) StripeWebhook(c *gin.Context) {
 	if tenantIDStr == "" {
 		tenantIDStr = c.Param("tenant_id")
 	}
-	
+
 	tenantID, err := uuid.Parse(tenantIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	// Get signature from header
 	signature := c.GetHeader("Stripe-Signature")
 	if signature == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing signature"})
 		return
 	}
-	
+
 	// Read body
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read body"})
 		return
 	}
-	
+
 	// Process webhook
 	if err := h.service.ProcessStripeWebhook(tenantID, signature, body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"received": true})
 }
 
@@ -388,25 +388,25 @@ func (h *Handler) PayPalWebhook(c *gin.Context) {
 	if tenantIDStr == "" {
 		tenantIDStr = c.Param("tenant_id")
 	}
-	
+
 	tenantID, err := uuid.Parse(tenantIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	signature := c.GetHeader("PAYPAL-TRANSMISSION-SIG")
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read body"})
 		return
 	}
-	
+
 	if err := h.service.ProcessPayPalWebhook(tenantID, signature, body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"received": true})
 }
 
@@ -415,25 +415,25 @@ func (h *Handler) BkashWebhook(c *gin.Context) {
 	if tenantIDStr == "" {
 		tenantIDStr = c.Param("tenant_id")
 	}
-	
+
 	tenantID, err := uuid.Parse(tenantIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	signature := c.GetHeader("X-Bkash-Signature")
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read body"})
 		return
 	}
-	
+
 	if err := h.service.ProcessBkashWebhook(tenantID, signature, body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"received": true})
 }
 
@@ -442,25 +442,25 @@ func (h *Handler) NagadWebhook(c *gin.Context) {
 	if tenantIDStr == "" {
 		tenantIDStr = c.Param("tenant_id")
 	}
-	
+
 	tenantID, err := uuid.Parse(tenantIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	signature := c.GetHeader("X-Nagad-Signature")
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read body"})
 		return
 	}
-	
+
 	if err := h.service.ProcessNagadWebhook(tenantID, signature, body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"received": true})
 }
 
@@ -469,25 +469,25 @@ func (h *Handler) PathaoWebhook(c *gin.Context) {
 	if tenantIDStr == "" {
 		tenantIDStr = c.Param("tenant_id")
 	}
-	
+
 	tenantID, err := uuid.Parse(tenantIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	signature := c.GetHeader("X-Pathao-Signature")
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read body"})
 		return
 	}
-	
+
 	if err := h.service.ProcessPathaoWebhook(tenantID, signature, body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"received": true})
 }
 
@@ -496,25 +496,25 @@ func (h *Handler) RedXWebhook(c *gin.Context) {
 	if tenantIDStr == "" {
 		tenantIDStr = c.Param("tenant_id")
 	}
-	
+
 	tenantID, err := uuid.Parse(tenantIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	signature := c.GetHeader("X-RedX-Signature")
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read body"})
 		return
 	}
-	
+
 	if err := h.service.ProcessRedXWebhook(tenantID, signature, body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"received": true})
 }
 
@@ -523,25 +523,25 @@ func (h *Handler) PaperflyWebhook(c *gin.Context) {
 	if tenantIDStr == "" {
 		tenantIDStr = c.Param("tenant_id")
 	}
-	
+
 	tenantID, err := uuid.Parse(tenantIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
 		return
 	}
-	
+
 	signature := c.GetHeader("X-Paperfly-Signature")
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read body"})
 		return
 	}
-	
+
 	if err := h.service.ProcessPaperflyWebhook(tenantID, signature, body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"received": true})
 }
 
@@ -558,17 +558,17 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		webhooks.GET("/endpoints", h.GetEndpoints)
 		webhooks.GET("/endpoints/:id", h.GetEndpoint)
 		webhooks.POST("/endpoints/:id/test", h.TestEndpoint)
-		
+
 		// Delivery management
 		webhooks.GET("/deliveries", h.GetDeliveries)
 		webhooks.GET("/deliveries/:id", h.GetDelivery)
 		webhooks.POST("/deliveries/:id/retry", h.RetryDelivery)
-		
+
 		// Analytics and monitoring
 		webhooks.GET("/stats", h.GetEndpointStats)
 		webhooks.GET("/logs", h.GetWebhookLogs)
 	}
-	
+
 	// Incoming webhooks (public endpoints)
 	incoming := router.Group("/webhooks/incoming")
 	{
@@ -577,13 +577,13 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		incoming.POST("/paypal", h.PayPalWebhook)
 		incoming.POST("/bkash", h.BkashWebhook)
 		incoming.POST("/nagad", h.NagadWebhook)
-		
+
 		// Shipping providers
 		incoming.POST("/pathao", h.PathaoWebhook)
 		incoming.POST("/redx", h.RedXWebhook)
 		incoming.POST("/paperfly", h.PaperflyWebhook)
 	}
-	
+
 	// Tenant-specific incoming webhooks - use webhooks prefix to avoid conflicts
 	webhooks.POST("/tenant/:tenant_id/stripe", h.StripeWebhook)
 	webhooks.POST("/tenant/:tenant_id/paypal", h.PayPalWebhook)

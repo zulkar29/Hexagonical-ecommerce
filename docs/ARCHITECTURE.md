@@ -3,10 +3,10 @@
 📋 **Documentation Navigation**: [📖 Project Home](../README.md) | [🚀 Features](./FEATURES.md) | [📋 Roadmap](./ROADMAP.md) | [🚢 Deployment](./DEPLOYMENT.md)
 
 ## Overview
-Technical architecture for a single vendor multi-tenant e-commerce SaaS platform using hexagonal (clean) architecture principles with modular monolith design for optimal performance and maintainability.
+Technical architecture for a single vendor multi-tenant e-commerce SaaS platform using Hexagonal Architecture principles with modular monolith design for optimal performance and maintainability.
 
 **Important Clarification**:
-- **"Hexagonal"** refers to the **Hexagonal Architecture pattern** (Clean Architecture by Robert Martin)
+- **"Hexagonal"** refers to the **Hexagonal Architecture pattern** (also known as Ports and Adapters pattern)
 - **Multi-tenancy** is achieved through **shared database with tenant_id isolation**
 - These are separate architectural concerns that work together
 
@@ -15,7 +15,7 @@ Technical architecture for a single vendor multi-tenant e-commerce SaaS platform
 ## System Architecture
 
 ### Hexagonal Architecture with Modular Monolith Implementation
-**Design**: Hexagonal (clean) architecture implemented as modular monolith for solo developer efficiency, testability, and local market requirements
+**Design**: Hexagonal Architecture implemented as modular monolith for solo developer efficiency, testability, and local market requirements
 
 ```
 ┌─────────────────────────────────────────────────────────────┐

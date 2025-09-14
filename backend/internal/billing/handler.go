@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"time"
 
+	"ecommerce-saas/internal/shared/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"ecommerce-saas/internal/shared/utils"
 )
 
 // BillingHandler handles billing HTTP requests
@@ -112,16 +112,16 @@ type RefundPaymentRequest struct {
 }
 
 type CreateBillingPlanRequest struct {
-	Name            string                 `json:"name" binding:"required"`
-	Description     string                 `json:"description"`
-	BasePrice       float64                `json:"base_price" binding:"required"`
-	Currency        string                 `json:"currency"`
-	BillingCycle    BillingCycle           `json:"billing_cycle"`
-	Limits          map[string]interface{} `json:"limits"`
-	Features        []string               `json:"features"`
-	TrialPeriodDays int                    `json:"trial_period_days"`
-	IsActive        bool                   `json:"is_active"`
-	IsPublic        bool                   `json:"is_public"`
+	Name            string                   `json:"name" binding:"required"`
+	Description     string                   `json:"description"`
+	BasePrice       float64                  `json:"base_price" binding:"required"`
+	Currency        string                   `json:"currency"`
+	BillingCycle    BillingCycle             `json:"billing_cycle"`
+	Limits          map[string]interface{}   `json:"limits"`
+	Features        []string                 `json:"features"`
+	TrialPeriodDays int                      `json:"trial_period_days"`
+	IsActive        bool                     `json:"is_active"`
+	IsPublic        bool                     `json:"is_public"`
 	UsageTiers      []CreateUsageTierRequest `json:"usage_tiers"`
 }
 
@@ -542,9 +542,9 @@ func (h *BillingHandler) GetInvoices(c *gin.Context) {
 	}
 
 	filter := InvoiceFilter{
-		Limit:  50,
-		Offset: 0,
-		SortBy: "created_at",
+		Limit:    50,
+		Offset:   0,
+		SortBy:   "created_at",
 		SortDesc: true,
 	}
 

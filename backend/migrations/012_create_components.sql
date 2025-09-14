@@ -224,8 +224,9 @@ CREATE TRIGGER ensure_single_active_theme_trigger
     EXECUTE FUNCTION ensure_single_active_theme();
 
 -- Insert some default component templates
-INSERT INTO component_templates (name, slug, description, type, category, html_template, css_template, config_schema, default_config, is_featured, tags) VALUES
+INSERT INTO component_templates (tenant_id, name, slug, description, type, category, html_template, css_template, config_schema, default_config, is_featured, tags) VALUES
 (
+    '00000000-0000-0000-0000-000000000001',
     'Simple Header',
     'simple-header',
     'A clean and simple header with logo and navigation',
@@ -239,6 +240,7 @@ INSERT INTO component_templates (name, slug, description, type, category, html_t
     '["header", "simple", "navigation", "logo"]'
 ),
 (
+    '00000000-0000-0000-0000-000000000001',
     'Simple Footer',
     'simple-footer',
     'A basic footer with copyright and links',
@@ -252,6 +254,7 @@ INSERT INTO component_templates (name, slug, description, type, category, html_t
     '["footer", "simple", "copyright", "links"]'
 ),
 (
+    '00000000-0000-0000-0000-000000000001',
     'Hero Banner',
     'hero-banner',
     'A prominent hero section with title, subtitle and call-to-action',

@@ -150,8 +150,7 @@ type Service interface {
 	GetScheduledReports(ctx context.Context, tenantID uuid.UUID) ([]*ScheduledReport, error)
 	DeleteScheduledReport(ctx context.Context, tenantID uuid.UUID, reportID uuid.UUID) error
 
-	// Data export
-	ExportData(ctx context.Context, tenantID uuid.UUID, request ExportRequest) ([]byte, string, error)
+	// Removed ExportData - GDPR data export functionality not needed
 }
 
 type RealTimeStats struct {
@@ -195,13 +194,7 @@ type ScheduledReport struct {
 	UpdatedAt   time.Time    `json:"updated_at"`
 }
 
-type ExportRequest struct {
-	DataType   string       `json:"data_type"` // events, pageviews, purchases
-	DateRange  DateRange    `json:"date_range"`
-	Format     ReportFormat `json:"format"`
-	Filters    map[string]interface{} `json:"filters,omitempty"`
-	Limit      int          `json:"limit,omitempty"`
-}
+// Removed ExportRequest struct - GDPR data export functionality not needed
 
 type service struct {
 	repo Repository
@@ -524,12 +517,4 @@ func (s *service) DeleteScheduledReport(ctx context.Context, tenantID uuid.UUID,
 	return s.repo.DeleteScheduledReport(ctx, tenantID, reportID)
 }
 
-// Data export
-func (s *service) ExportData(ctx context.Context, tenantID uuid.UUID, request ExportRequest) ([]byte, string, error) {
-	// TODO: Implement raw data export
-	// - Validate request
-	// - Query data based on type and filters
-	// - Format data according to requested format
-	// - Return data with content type
-	return s.repo.ExportData(ctx, tenantID, request)
-}
+// Removed ExportData - GDPR data export functionality not needed

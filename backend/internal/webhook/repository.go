@@ -211,126 +211,126 @@ func (r *Repository) CleanupExpiredRateLimits() error {
 
 // Analytics Types
 type WebhookStats struct {
-	TotalDeliveries    int64   `json:"total_deliveries"`
-	SuccessfulDeliveries int64 `json:"successful_deliveries"`
-	FailedDeliveries   int64   `json:"failed_deliveries"`
-	SuccessRate        float64 `json:"success_rate"`
-	AverageResponseTime int    `json:"average_response_time"`
+	TotalDeliveries      int64   `json:"total_deliveries"`
+	SuccessfulDeliveries int64   `json:"successful_deliveries"`
+	FailedDeliveries     int64   `json:"failed_deliveries"`
+	SuccessRate          float64 `json:"success_rate"`
+	AverageResponseTime  int     `json:"average_response_time"`
 }
 
 type EndpointHealth struct {
-	EndpointID         uuid.UUID `json:"endpoint_id"`
-	TotalDeliveries    int64     `json:"total_deliveries"`
-	SuccessfulDeliveries int64   `json:"successful_deliveries"`
-	FailedDeliveries   int64     `json:"failed_deliveries"`
-	SuccessRate        float64   `json:"success_rate"`
-	AverageResponseTime int      `json:"average_response_time"`
-	LastDeliveryAt     *time.Time `json:"last_delivery_at"`
-	IsHealthy          bool      `json:"is_healthy"`
+	EndpointID           uuid.UUID  `json:"endpoint_id"`
+	TotalDeliveries      int64      `json:"total_deliveries"`
+	SuccessfulDeliveries int64      `json:"successful_deliveries"`
+	FailedDeliveries     int64      `json:"failed_deliveries"`
+	SuccessRate          float64    `json:"success_rate"`
+	AverageResponseTime  int        `json:"average_response_time"`
+	LastDeliveryAt       *time.Time `json:"last_delivery_at"`
+	IsHealthy            bool       `json:"is_healthy"`
 }
 
 type FailureAnalysis struct {
-	TotalFailures      int64                  `json:"total_failures"`
-	FailuresByStatus   map[int]int           `json:"failures_by_status"`
-	FailuresByEndpoint map[uuid.UUID]int     `json:"failures_by_endpoint"`
-	CommonErrors       []string              `json:"common_errors"`
+	TotalFailures      int64             `json:"total_failures"`
+	FailuresByStatus   map[int]int       `json:"failures_by_status"`
+	FailuresByEndpoint map[uuid.UUID]int `json:"failures_by_endpoint"`
+	CommonErrors       []string          `json:"common_errors"`
 }
 
 // Analytics and Monitoring Repository Methods
 
 func (r *Repository) GetDeliveryStats(tenantID uuid.UUID, startDate, endDate time.Time) (*WebhookStats, error) {
 	var stats WebhookStats
-	
+
 	// Get total deliveries
 	if err := r.db.Model(&WebhookDelivery{}).Where("tenant_id = ? AND created_at BETWEEN ? AND ?", tenantID, startDate, endDate).Count(&stats.TotalDeliveries).Error; err != nil {
 		return nil, err
 	}
-	
+
 	// Get successful deliveries
 	if err := r.db.Model(&WebhookDelivery{}).Where("tenant_id = ? AND status = ? AND created_at BETWEEN ? AND ?", tenantID, StatusDelivered, startDate, endDate).Count(&stats.SuccessfulDeliveries).Error; err != nil {
 		return nil, err
 	}
-	
+
 	// Get failed deliveries
 	if err := r.db.Model(&WebhookDelivery{}).Where("tenant_id = ? AND status = ? AND created_at BETWEEN ? AND ?", tenantID, StatusFailed, startDate, endDate).Count(&stats.FailedDeliveries).Error; err != nil {
 		return nil, err
 	}
-	
+
 	// Calculate success rate
 	if stats.TotalDeliveries > 0 {
 		stats.SuccessRate = float64(stats.SuccessfulDeliveries) / float64(stats.TotalDeliveries) * 100
 	}
-	
+
 	// Get average response time
 	var avgResponseTime float64
 	if err := r.db.Model(&WebhookDelivery{}).Where("tenant_id = ? AND status = ? AND created_at BETWEEN ? AND ?", tenantID, StatusDelivered, startDate, endDate).Select("AVG(response_time)").Scan(&avgResponseTime).Error; err != nil {
 		return nil, err
 	}
 	stats.AverageResponseTime = int(avgResponseTime)
-	
+
 	return &stats, nil
 }
 
 func (r *Repository) GetEndpointHealth(tenantID uuid.UUID, endpointID uuid.UUID, days int) (*EndpointHealth, error) {
 	startDate := time.Now().AddDate(0, 0, -days)
 	endDate := time.Now()
-	
+
 	health := &EndpointHealth{
 		EndpointID: endpointID,
 	}
-	
+
 	// Get total deliveries for endpoint
 	if err := r.db.Model(&WebhookDelivery{}).Where("tenant_id = ? AND endpoint_id = ? AND created_at BETWEEN ? AND ?", tenantID, endpointID, startDate, endDate).Count(&health.TotalDeliveries).Error; err != nil {
 		return nil, err
 	}
-	
+
 	// Get successful deliveries
 	if err := r.db.Model(&WebhookDelivery{}).Where("tenant_id = ? AND endpoint_id = ? AND status = ? AND created_at BETWEEN ? AND ?", tenantID, endpointID, StatusDelivered, startDate, endDate).Count(&health.SuccessfulDeliveries).Error; err != nil {
 		return nil, err
 	}
-	
+
 	// Get failed deliveries
 	if err := r.db.Model(&WebhookDelivery{}).Where("tenant_id = ? AND endpoint_id = ? AND status = ? AND created_at BETWEEN ? AND ?", tenantID, endpointID, StatusFailed, startDate, endDate).Count(&health.FailedDeliveries).Error; err != nil {
 		return nil, err
 	}
-	
+
 	// Calculate success rate
 	if health.TotalDeliveries > 0 {
 		health.SuccessRate = float64(health.SuccessfulDeliveries) / float64(health.TotalDeliveries) * 100
 		health.IsHealthy = health.SuccessRate >= 95.0 // Consider healthy if 95%+ success rate
 	}
-	
+
 	// Get average response time
 	var avgResponseTime float64
 	if err := r.db.Model(&WebhookDelivery{}).Where("tenant_id = ? AND endpoint_id = ? AND status = ? AND created_at BETWEEN ? AND ?", tenantID, endpointID, StatusDelivered, startDate, endDate).Select("AVG(response_time)").Scan(&avgResponseTime).Error; err != nil {
 		return nil, err
 	}
 	health.AverageResponseTime = int(avgResponseTime)
-	
+
 	// Get last delivery time
 	var lastDelivery WebhookDelivery
 	if err := r.db.Where("tenant_id = ? AND endpoint_id = ?", tenantID, endpointID).Order("created_at DESC").First(&lastDelivery).Error; err == nil {
 		health.LastDeliveryAt = &lastDelivery.CreatedAt
 	}
-	
+
 	return health, nil
 }
 
 func (r *Repository) GetEventDistribution(tenantID uuid.UUID, startDate, endDate time.Time) (map[WebhookEvent]int, error) {
 	var results []struct {
 		Event WebhookEvent `json:"event"`
-		Count int         `json:"count"`
+		Count int          `json:"count"`
 	}
-	
+
 	if err := r.db.Model(&WebhookDelivery{}).Select("event, COUNT(*) as count").Where("tenant_id = ? AND created_at BETWEEN ? AND ?", tenantID, startDate, endDate).Group("event").Scan(&results).Error; err != nil {
 		return nil, err
 	}
-	
+
 	distribution := make(map[WebhookEvent]int)
 	for _, result := range results {
 		distribution[result.Event] = result.Count
 	}
-	
+
 	return distribution, nil
 }
 
@@ -339,16 +339,16 @@ func (r *Repository) GetProviderStats(tenantID uuid.UUID, startDate, endDate tim
 		Provider WebhookProvider `json:"provider"`
 		Count    int             `json:"count"`
 	}
-	
+
 	if err := r.db.Model(&WebhookIncoming{}).Select("provider, COUNT(*) as count").Where("tenant_id = ? AND created_at BETWEEN ? AND ?", tenantID, startDate, endDate).Group("provider").Scan(&results).Error; err != nil {
 		return nil, err
 	}
-	
+
 	stats := make(map[WebhookProvider]int)
 	for _, result := range results {
 		stats[result.Provider] = result.Count
 	}
-	
+
 	return stats, nil
 }
 
@@ -358,17 +358,17 @@ func (r *Repository) DeleteOldDeliveries(cutoffTime time.Time) error {
 
 func (r *Repository) GetFailingEndpoints(failureRate float64, minAttempts int) ([]*WebhookEndpoint, error) {
 	var endpoints []*WebhookEndpoint
-	
+
 	// Query to find endpoints with high failure rates
 	subquery := r.db.Model(&WebhookDelivery{}).
 		Select("endpoint_id, COUNT(*) as total_deliveries, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as failed_deliveries", StatusFailed).
 		Group("endpoint_id").
 		Having("COUNT(*) >= ? AND (SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) * 1.0 / COUNT(*)) >= ?", minAttempts, StatusFailed, failureRate)
-	
+
 	if err := r.db.Where("id IN (?)", subquery.Select("endpoint_id")).Find(&endpoints).Error; err != nil {
 		return nil, err
 	}
-	
+
 	return endpoints, nil
 }
 
@@ -377,16 +377,16 @@ func (r *Repository) GetFailureAnalysis(tenantID uuid.UUID, startDate, endDate t
 		FailuresByStatus:   make(map[int]int),
 		FailuresByEndpoint: make(map[uuid.UUID]int),
 	}
-	
+
 	// Get total failures
 	if err := r.db.Model(&WebhookDelivery{}).Where("tenant_id = ? AND status = ? AND created_at BETWEEN ? AND ?", tenantID, StatusFailed, startDate, endDate).Count(&analysis.TotalFailures).Error; err != nil {
 		return nil, err
 	}
-	
+
 	// Get failures by status code
 	var statusResults []struct {
 		ResponseStatus int `json:"response_status"`
-		Count         int `json:"count"`
+		Count          int `json:"count"`
 	}
 	if err := r.db.Model(&WebhookDelivery{}).Select("response_status, COUNT(*) as count").Where("tenant_id = ? AND status = ? AND created_at BETWEEN ? AND ?", tenantID, StatusFailed, startDate, endDate).Group("response_status").Scan(&statusResults).Error; err != nil {
 		return nil, err
@@ -394,7 +394,7 @@ func (r *Repository) GetFailureAnalysis(tenantID uuid.UUID, startDate, endDate t
 	for _, result := range statusResults {
 		analysis.FailuresByStatus[result.ResponseStatus] = result.Count
 	}
-	
+
 	// Get failures by endpoint
 	var endpointResults []struct {
 		EndpointID uuid.UUID `json:"endpoint_id"`
@@ -406,14 +406,14 @@ func (r *Repository) GetFailureAnalysis(tenantID uuid.UUID, startDate, endDate t
 	for _, result := range endpointResults {
 		analysis.FailuresByEndpoint[result.EndpointID] = result.Count
 	}
-	
+
 	// Get common error messages
 	var errorMessages []string
 	if err := r.db.Model(&WebhookDelivery{}).Select("DISTINCT error_message").Where("tenant_id = ? AND status = ? AND error_message != '' AND created_at BETWEEN ? AND ?", tenantID, StatusFailed, startDate, endDate).Limit(10).Pluck("error_message", &errorMessages).Error; err != nil {
 		return nil, err
 	}
 	analysis.CommonErrors = errorMessages
-	
+
 	return analysis, nil
 }
 
@@ -422,8 +422,8 @@ func (r *Repository) GetFailureAnalysis(tenantID uuid.UUID, startDate, endDate t
 type DiskUsage struct {
 	DeliveriesSize       int64 `json:"deliveries_size"`
 	IncomingWebhooksSize int64 `json:"incoming_webhooks_size"`
-	TotalSize           int64 `json:"total_size"`
-	RecordCount         int64 `json:"record_count"`
+	TotalSize            int64 `json:"total_size"`
+	RecordCount          int64 `json:"record_count"`
 }
 
 func (r *Repository) CleanupOldDeliveries(tenantID uuid.UUID, olderThan time.Time) error {
@@ -443,7 +443,7 @@ func (r *Repository) ArchiveDeliveries(tenantID uuid.UUID, olderThan time.Time) 
 	`).Error; err != nil {
 		return err
 	}
-	
+
 	// Move old records to archive
 	if err := r.db.Exec(`
 		INSERT INTO webhook_deliveries_archive 
@@ -452,33 +452,33 @@ func (r *Repository) ArchiveDeliveries(tenantID uuid.UUID, olderThan time.Time) 
 	`, tenantID, olderThan).Error; err != nil {
 		return err
 	}
-	
+
 	// Delete from main table
 	return r.CleanupOldDeliveries(tenantID, olderThan)
 }
 
 func (r *Repository) GetDiskUsage(tenantID uuid.UUID) (*DiskUsage, error) {
 	usage := &DiskUsage{}
-	
+
 	// Count webhook deliveries
 	var deliveryCount int64
 	if err := r.db.Model(&WebhookDelivery{}).Where("tenant_id = ?", tenantID).Count(&deliveryCount).Error; err != nil {
 		return nil, err
 	}
-	
+
 	// Count incoming webhooks
 	var incomingCount int64
 	if err := r.db.Model(&WebhookIncoming{}).Where("tenant_id = ?", tenantID).Count(&incomingCount).Error; err != nil {
 		return nil, err
 	}
-	
+
 	usage.RecordCount = deliveryCount + incomingCount
-	
+
 	// Estimate sizes (rough calculation based on average record size)
-	usage.DeliveriesSize = deliveryCount * 1024 // Assume 1KB per delivery record
+	usage.DeliveriesSize = deliveryCount * 1024      // Assume 1KB per delivery record
 	usage.IncomingWebhooksSize = incomingCount * 512 // Assume 512B per incoming webhook
 	usage.TotalSize = usage.DeliveriesSize + usage.IncomingWebhooksSize
-	
+
 	return usage, nil
 }
 
@@ -487,11 +487,11 @@ func (r *Repository) OptimizeDatabase() error {
 	if err := r.db.Exec("ANALYZE webhook_endpoints, webhook_deliveries, webhook_incoming, webhook_rate_limits").Error; err != nil {
 		return err
 	}
-	
+
 	// Vacuum tables to reclaim space (PostgreSQL specific)
 	if err := r.db.Exec("VACUUM ANALYZE webhook_endpoints, webhook_deliveries, webhook_incoming, webhook_rate_limits").Error; err != nil {
 		return err
 	}
-	
+
 	return nil
 }

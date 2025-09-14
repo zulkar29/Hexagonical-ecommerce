@@ -8,10 +8,10 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"ecommerce-saas/internal/product"
 	"ecommerce-saas/internal/discount"
-	"ecommerce-saas/internal/payment"
 	"ecommerce-saas/internal/notification"
+	"ecommerce-saas/internal/payment"
+	"ecommerce-saas/internal/product"
 )
 
 // ProductService interface for product operations
@@ -35,8 +35,6 @@ type PaymentService interface {
 	ProcessPayment(ctx context.Context, req *payment.ProcessPaymentRequest) (*payment.Payment, error)
 	RefundPayment(ctx context.Context, req *payment.RefundPaymentRequest) (*payment.Payment, error)
 }
-
-
 
 // NotificationService interface for notification operations
 type NotificationService interface {
@@ -112,55 +110,55 @@ type RefundPaymentRequest struct {
 }
 
 type Payment struct {
-	ID                uuid.UUID  `json:"id"`
-	TenantID          uuid.UUID  `json:"tenant_id"`
-	OrderID           uuid.UUID  `json:"order_id"`
-	UserID            uuid.UUID  `json:"user_id"`
-	PaymentIntentID   string     `json:"payment_intent_id"`
-	PaymentMethodID   string     `json:"payment_method_id"`
-	Amount            float64    `json:"amount"`
-	Currency          string     `json:"currency"`
-	Status            string     `json:"status"`
-	Gateway           string     `json:"gateway"`
-	GatewayResponse   string     `json:"gateway_response"`
-	FailureReason     string     `json:"failure_reason"`
-	RefundedAmount    float64    `json:"refunded_amount"`
-	RefundedAt        *time.Time `json:"refunded_at"`
-	ProcessedAt       *time.Time `json:"processed_at"`
-	CreatedAt         time.Time  `json:"created_at"`
-	UpdatedAt         time.Time  `json:"updated_at"`
+	ID              uuid.UUID  `json:"id"`
+	TenantID        uuid.UUID  `json:"tenant_id"`
+	OrderID         uuid.UUID  `json:"order_id"`
+	UserID          uuid.UUID  `json:"user_id"`
+	PaymentIntentID string     `json:"payment_intent_id"`
+	PaymentMethodID string     `json:"payment_method_id"`
+	Amount          float64    `json:"amount"`
+	Currency        string     `json:"currency"`
+	Status          string     `json:"status"`
+	Gateway         string     `json:"gateway"`
+	GatewayResponse string     `json:"gateway_response"`
+	FailureReason   string     `json:"failure_reason"`
+	RefundedAmount  float64    `json:"refunded_amount"`
+	RefundedAt      *time.Time `json:"refunded_at"`
+	ProcessedAt     *time.Time `json:"processed_at"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
 // Discount-related structs for order integration
 type ValidateDiscountRequest struct {
-	Code           string     `json:"code"`
-	CustomerID     *uuid.UUID `json:"customer_id"`
-	CustomerEmail  string     `json:"customer_email"`
-	OrderAmount    float64    `json:"order_amount"`
-	ItemQuantity   int        `json:"item_quantity"`
-	ProductIDs     []string   `json:"product_ids"`
-	CategoryIDs    []string   `json:"category_ids"`
+	Code          string     `json:"code"`
+	CustomerID    *uuid.UUID `json:"customer_id"`
+	CustomerEmail string     `json:"customer_email"`
+	OrderAmount   float64    `json:"order_amount"`
+	ItemQuantity  int        `json:"item_quantity"`
+	ProductIDs    []string   `json:"product_ids"`
+	CategoryIDs   []string   `json:"category_ids"`
 }
 
 type DiscountValidation struct {
-	Valid           bool    `json:"valid"`
-	DiscountAmount  float64 `json:"discount_amount"`
-	Message         string  `json:"message"`
-	CanStack        bool    `json:"can_stack"`
+	Valid          bool    `json:"valid"`
+	DiscountAmount float64 `json:"discount_amount"`
+	Message        string  `json:"message"`
+	CanStack       bool    `json:"can_stack"`
 }
 
 type ApplyDiscountRequest struct {
-	TenantID       uuid.UUID  `json:"tenant_id"`
-	Code           string     `json:"code"`
-	OrderID        uuid.UUID  `json:"order_id"`
-	CustomerID     *uuid.UUID `json:"customer_id"`
-	CustomerEmail  string     `json:"customer_email"`
-	OrderAmount    float64    `json:"order_amount"`
-	ItemQuantity   int        `json:"item_quantity"`
-	ProductIDs     []string   `json:"product_ids"`
-	CategoryIDs    []string   `json:"category_ids"`
-	IPAddress      string     `json:"ip_address"`
-	UserAgent      string     `json:"user_agent"`
+	TenantID      uuid.UUID  `json:"tenant_id"`
+	Code          string     `json:"code"`
+	OrderID       uuid.UUID  `json:"order_id"`
+	CustomerID    *uuid.UUID `json:"customer_id"`
+	CustomerEmail string     `json:"customer_email"`
+	OrderAmount   float64    `json:"order_amount"`
+	ItemQuantity  int        `json:"item_quantity"`
+	ProductIDs    []string   `json:"product_ids"`
+	CategoryIDs   []string   `json:"category_ids"`
+	IPAddress     string     `json:"ip_address"`
+	UserAgent     string     `json:"user_agent"`
 }
 
 type DiscountApplication struct {

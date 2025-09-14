@@ -18,7 +18,7 @@ func NewModule(db *gorm.DB) *Module {
 	repo := NewRepository(db)
 	service := NewService(repo)
 	handler := NewHandler(service)
-	
+
 	return &Module{
 		db:      db,
 		handler: handler,
@@ -40,7 +40,7 @@ func (m *Module) RegisterRoutes(router *gin.RouterGroup) {
 		components.DELETE("/:id", m.handler.DeleteComponent)
 		components.POST("/:id/duplicate", m.handler.DuplicateComponent)
 	}
-	
+
 	// Component instance routes
 	instances := router.Group("/instances")
 	{
@@ -48,21 +48,21 @@ func (m *Module) RegisterRoutes(router *gin.RouterGroup) {
 		instances.GET("", m.handler.ListInstances)
 		instances.GET("/:id", m.handler.GetInstance)
 	}
-	
+
 	// Theme routes
 	themes := router.Group("/themes")
 	{
 		themes.GET("", m.handler.ListThemes)
 		themes.GET("/active", m.handler.GetActiveTheme)
 	}
-	
+
 	// Template routes
 	templates := router.Group("/templates")
 	{
 		templates.GET("", m.handler.ListTemplates)
 		templates.GET("/:id", m.handler.GetTemplate)
 	}
-	
+
 	// Statistics routes
 	stats := router.Group("/stats")
 	{

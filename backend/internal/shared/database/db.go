@@ -71,7 +71,7 @@ func AutoMigrate(db *gorm.DB) error {
 	if err := RunMigrations(db); err != nil {
 		return fmt.Errorf("failed to run SQL migrations: %w", err)
 	}
-	
+
 	log.Println("Database migrations completed successfully")
 	return nil
 }
@@ -138,7 +138,7 @@ func TearDownTestDB(db *gorm.DB) error {
 	tables := []string{
 		"tenants",
 		"products",
-		"product_variants", 
+		"product_variants",
 		"categories",
 		// Add more tables as needed
 	}

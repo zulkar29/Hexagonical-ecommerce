@@ -120,9 +120,9 @@ func (h *Handler) ListContacts(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"data":  contacts,
-		"total": total,
-		"limit": filter.Limit,
+		"data":   contacts,
+		"total":  total,
+		"limit":  filter.Limit,
 		"offset": filter.Offset,
 	})
 }
@@ -207,8 +207,8 @@ func (h *Handler) BulkUpdateContacts(c *gin.Context) {
 	}
 
 	var req BulkUpdateContactsRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
@@ -229,8 +229,8 @@ func (h *Handler) ExportContacts(c *gin.Context) {
 	}
 
 	var req ExportContactsRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
@@ -472,8 +472,8 @@ func (h *Handler) CreateContactForm(c *gin.Context) {
 	}
 
 	var req CreateContactFormRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
@@ -590,7 +590,7 @@ func (h *Handler) GetPublicContactForm(c *gin.Context) {
 
 func (h *Handler) SubmitPublicContactForm(c *gin.Context) {
 	formType := c.Param("form_type")
-	
+
 	var req SubmitContactFormRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -615,8 +615,8 @@ func (h *Handler) CreateContactTemplate(c *gin.Context) {
 	}
 
 	var req CreateContactTemplateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if contactError := c.ShouldBindJSON(&req); contactError != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": contactError.Error()})
 		return
 	}
 
@@ -710,8 +710,8 @@ func (h *Handler) UpdateContactSettings(c *gin.Context) {
 	}
 
 	var req UpdateContactSettingsRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if contactError := c.ShouldBindJSON(&req); contactError != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": contactError.Error()})
 		return
 	}
 
@@ -959,8 +959,8 @@ func (h *Handler) GetAgentPerformance(c *gin.Context) {
 	agentIDStr := c.Query("agent_id")
 	var agentID *uuid.UUID
 	if agentIDStr != "" {
-		parsedID, err := uuid.Parse(agentIDStr)
-		if err != nil {
+		parsedID, parseErr := uuid.Parse(agentIDStr)
+		if parseErr != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid agent ID"})
 			return
 		}
@@ -1031,7 +1031,6 @@ func (h *Handler) GetResponseTimeAnalytics(c *gin.Context) {
 }
 
 // Helper methods removed - using utils.GetTenantIDFromContext instead
-
 
 // handleServiceError handles service layer errors
 func (h *Handler) handleServiceError(c *gin.Context, err error) {

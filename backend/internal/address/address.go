@@ -13,30 +13,30 @@ import (
 
 // Address represents a customer address
 type Address struct {
-	ID          uuid.UUID  `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
-	TenantID    uuid.UUID  `json:"tenant_id" gorm:"type:uuid;not null;index"`
-	CustomerID  uuid.UUID  `json:"customer_id" gorm:"type:uuid;not null;index"`
-	Type        string     `json:"type" gorm:"type:varchar(20);not null;default:'shipping'"` // shipping, billing, both
-	Label       string     `json:"label" gorm:"type:varchar(100)"` // Home, Work, etc.
-	FirstName   string     `json:"first_name" gorm:"type:varchar(100);not null"`
-	LastName    string     `json:"last_name" gorm:"type:varchar(100);not null"`
-	Company     string     `json:"company" gorm:"type:varchar(200)"`
-	Address1    string     `json:"address1" gorm:"type:varchar(255);not null"`
-	Address2    string     `json:"address2" gorm:"type:varchar(255)"`
-	City        string     `json:"city" gorm:"type:varchar(100);not null"`
-	State       string     `json:"state" gorm:"type:varchar(100);not null"`
-	PostalCode  string     `json:"postal_code" gorm:"type:varchar(20);not null"`
-	Country     string     `json:"country" gorm:"type:varchar(2);not null"` // ISO 3166-1 alpha-2
-	Phone       string     `json:"phone" gorm:"type:varchar(20)"`
-	IsDefault   bool       `json:"is_default" gorm:"default:false;index"`
-	IsValidated bool       `json:"is_validated" gorm:"default:false"`
-	Latitude    *float64   `json:"latitude" gorm:"type:decimal(10,8)"`
-	Longitude   *float64   `json:"longitude" gorm:"type:decimal(11,8)"`
-	Instructions string    `json:"instructions" gorm:"type:text"`
-	Metadata    string     `json:"metadata" gorm:"type:jsonb"`
-	CreatedAt   time.Time  `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt   time.Time  `json:"updated_at" gorm:"autoUpdateTime"`
-	DeletedAt   *time.Time `json:"deleted_at" gorm:"index"`
+	ID           uuid.UUID  `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
+	TenantID     uuid.UUID  `json:"tenant_id" gorm:"type:uuid;not null;index"`
+	CustomerID   uuid.UUID  `json:"customer_id" gorm:"type:uuid;not null;index"`
+	Type         string     `json:"type" gorm:"type:varchar(20);not null;default:'shipping'"` // shipping, billing, both
+	Label        string     `json:"label" gorm:"type:varchar(100)"`                           // Home, Work, etc.
+	FirstName    string     `json:"first_name" gorm:"type:varchar(100);not null"`
+	LastName     string     `json:"last_name" gorm:"type:varchar(100);not null"`
+	Company      string     `json:"company" gorm:"type:varchar(200)"`
+	Address1     string     `json:"address1" gorm:"type:varchar(255);not null"`
+	Address2     string     `json:"address2" gorm:"type:varchar(255)"`
+	City         string     `json:"city" gorm:"type:varchar(100);not null"`
+	State        string     `json:"state" gorm:"type:varchar(100);not null"`
+	PostalCode   string     `json:"postal_code" gorm:"type:varchar(20);not null"`
+	Country      string     `json:"country" gorm:"type:varchar(2);not null"` // ISO 3166-1 alpha-2
+	Phone        string     `json:"phone" gorm:"type:varchar(20)"`
+	IsDefault    bool       `json:"is_default" gorm:"default:false;index"`
+	IsValidated  bool       `json:"is_validated" gorm:"default:false"`
+	Latitude     *float64   `json:"latitude" gorm:"type:decimal(10,8)"`
+	Longitude    *float64   `json:"longitude" gorm:"type:decimal(11,8)"`
+	Instructions string     `json:"instructions" gorm:"type:text"`
+	Metadata     string     `json:"metadata" gorm:"type:jsonb"`
+	CreatedAt    time.Time  `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt    time.Time  `json:"updated_at" gorm:"autoUpdateTime"`
+	DeletedAt    *time.Time `json:"deleted_at" gorm:"index"`
 }
 
 // AddressValidation represents address validation result
@@ -72,21 +72,21 @@ func (a *Address) GetFullName() string {
 // GetFormattedAddress returns a formatted address string
 func (a *Address) GetFormattedAddress() string {
 	var parts []string
-	
+
 	if a.Company != "" {
 		parts = append(parts, a.Company)
 	}
-	
+
 	parts = append(parts, a.GetFullName())
 	parts = append(parts, a.Address1)
-	
+
 	if a.Address2 != "" {
 		parts = append(parts, a.Address2)
 	}
-	
+
 	parts = append(parts, fmt.Sprintf("%s, %s %s", a.City, a.State, a.PostalCode))
 	parts = append(parts, a.GetCountryName())
-	
+
 	return strings.Join(parts, "\n")
 }
 
@@ -128,91 +128,91 @@ func (a *Address) Validate() error {
 	if a.TenantID == uuid.Nil {
 		return ErrInvalidTenantID
 	}
-	
+
 	if a.CustomerID == uuid.Nil {
 		return ErrInvalidCustomerID
 	}
-	
+
 	if !a.IsValidAddressType() {
 		return ErrInvalidAddressType
 	}
-	
+
 	if strings.TrimSpace(a.FirstName) == "" {
 		return ErrFirstNameRequired
 	}
-	
+
 	if strings.TrimSpace(a.LastName) == "" {
 		return ErrLastNameRequired
 	}
-	
+
 	if strings.TrimSpace(a.Address1) == "" {
 		return ErrAddress1Required
 	}
-	
+
 	if strings.TrimSpace(a.City) == "" {
 		return ErrCityRequired
 	}
-	
+
 	if strings.TrimSpace(a.State) == "" {
 		return ErrStateRequired
 	}
-	
+
 	if strings.TrimSpace(a.PostalCode) == "" {
 		return ErrPostalCodeRequired
 	}
-	
+
 	if !a.IsValidCountryCode() {
 		return ErrInvalidCountryCode
 	}
-	
+
 	if a.Phone != "" && !a.IsValidPhoneNumber() {
 		return ErrInvalidPhoneNumber
 	}
-	
+
 	if len(a.FirstName) > 100 {
 		return ErrFirstNameTooLong
 	}
-	
+
 	if len(a.LastName) > 100 {
 		return ErrLastNameTooLong
 	}
-	
+
 	if len(a.Company) > 200 {
 		return ErrCompanyTooLong
 	}
-	
+
 	if len(a.Address1) > 255 {
 		return ErrAddress1TooLong
 	}
-	
+
 	if len(a.Address2) > 255 {
 		return ErrAddress2TooLong
 	}
-	
+
 	if len(a.City) > 100 {
 		return ErrCityTooLong
 	}
-	
+
 	if len(a.State) > 100 {
 		return ErrStateTooLong
 	}
-	
+
 	if len(a.PostalCode) > 20 {
 		return ErrPostalCodeTooLong
 	}
-	
+
 	if len(a.Phone) > 20 {
 		return ErrPhoneTooLong
 	}
-	
+
 	if len(a.Label) > 100 {
 		return ErrLabelTooLong
 	}
-	
+
 	if len(a.Instructions) > 1000 {
 		return ErrInstructionsTooLong
 	}
-	
+
 	return nil
 }
 
@@ -226,7 +226,7 @@ func (a *Address) IsValidCountryCode() bool {
 	if len(a.Country) != 2 {
 		return false
 	}
-	
+
 	// Basic regex for ISO 3166-1 alpha-2 codes
 	regex := regexp.MustCompile(`^[A-Z]{2}$`)
 	return regex.MatchString(strings.ToUpper(a.Country))
@@ -237,14 +237,14 @@ func (a *Address) IsValidPhoneNumber() bool {
 	if a.Phone == "" {
 		return true
 	}
-	
+
 	// Remove common phone number characters
 	phone := strings.ReplaceAll(a.Phone, " ", "")
 	phone = strings.ReplaceAll(phone, "-", "")
 	phone = strings.ReplaceAll(phone, "(", "")
 	phone = strings.ReplaceAll(phone, ")", "")
 	phone = strings.ReplaceAll(phone, "+", "")
-	
+
 	// Check if remaining characters are digits
 	regex := regexp.MustCompile(`^[0-9]{7,15}$`)
 	return regex.MatchString(phone)
@@ -264,7 +264,7 @@ func (a *Address) NormalizeData() {
 	a.Phone = strings.TrimSpace(a.Phone)
 	a.Label = strings.TrimSpace(a.Label)
 	a.Instructions = strings.TrimSpace(a.Instructions)
-	
+
 	// Set default type if empty
 	if a.Type == "" {
 		a.Type = AddressTypeShipping
@@ -278,7 +278,7 @@ func (a *Address) BeforeCreate(tx *gorm.DB) error {
 	if a.ID == uuid.Nil {
 		a.ID = uuid.New()
 	}
-	
+
 	a.NormalizeData()
 	return a.Validate()
 }
@@ -327,22 +327,22 @@ type CreateAddressRequest struct {
 
 // UpdateAddressRequest represents a request to update an address
 type UpdateAddressRequest struct {
-	Type         *string   `json:"type,omitempty" validate:"omitempty,oneof=shipping billing both"`
-	Label        *string   `json:"label,omitempty"`
-	FirstName    *string   `json:"first_name,omitempty" validate:"omitempty,max=100"`
-	LastName     *string   `json:"last_name,omitempty" validate:"omitempty,max=100"`
-	Company      *string   `json:"company,omitempty" validate:"omitempty,max=200"`
-	Address1     *string   `json:"address1,omitempty" validate:"omitempty,max=255"`
-	Address2     *string   `json:"address2,omitempty" validate:"omitempty,max=255"`
-	City         *string   `json:"city,omitempty" validate:"omitempty,max=100"`
-	State        *string   `json:"state,omitempty" validate:"omitempty,max=100"`
-	PostalCode   *string   `json:"postal_code,omitempty" validate:"omitempty,max=20"`
-	Country      *string   `json:"country,omitempty" validate:"omitempty,len=2"`
-	Phone        *string   `json:"phone,omitempty" validate:"omitempty,max=20"`
-	IsDefault    *bool     `json:"is_default,omitempty"`
-	Latitude     *float64  `json:"latitude,omitempty"`
-	Longitude    *float64  `json:"longitude,omitempty"`
-	Instructions *string   `json:"instructions,omitempty" validate:"omitempty,max=1000"`
+	Type         *string  `json:"type,omitempty" validate:"omitempty,oneof=shipping billing both"`
+	Label        *string  `json:"label,omitempty"`
+	FirstName    *string  `json:"first_name,omitempty" validate:"omitempty,max=100"`
+	LastName     *string  `json:"last_name,omitempty" validate:"omitempty,max=100"`
+	Company      *string  `json:"company,omitempty" validate:"omitempty,max=200"`
+	Address1     *string  `json:"address1,omitempty" validate:"omitempty,max=255"`
+	Address2     *string  `json:"address2,omitempty" validate:"omitempty,max=255"`
+	City         *string  `json:"city,omitempty" validate:"omitempty,max=100"`
+	State        *string  `json:"state,omitempty" validate:"omitempty,max=100"`
+	PostalCode   *string  `json:"postal_code,omitempty" validate:"omitempty,max=20"`
+	Country      *string  `json:"country,omitempty" validate:"omitempty,len=2"`
+	Phone        *string  `json:"phone,omitempty" validate:"omitempty,max=20"`
+	IsDefault    *bool    `json:"is_default,omitempty"`
+	Latitude     *float64 `json:"latitude,omitempty"`
+	Longitude    *float64 `json:"longitude,omitempty"`
+	Instructions *string  `json:"instructions,omitempty" validate:"omitempty,max=1000"`
 }
 
 // AddressResponse represents an address response
@@ -420,9 +420,9 @@ type AddressStats struct {
 
 // BulkUpdateAddressRequest represents a bulk update request
 type BulkUpdateAddressRequest struct {
-	ID       uuid.UUID `json:"id" validate:"required"`
-	Label    *string   `json:"label,omitempty"`
-	IsDefault *bool    `json:"is_default,omitempty"`
+	ID        uuid.UUID `json:"id" validate:"required"`
+	Label     *string   `json:"label,omitempty"`
+	IsDefault *bool     `json:"is_default,omitempty"`
 }
 
 // NormalizeAddressRequest represents a request to normalize address data
@@ -447,9 +447,9 @@ type NormalizeAddressResponse struct {
 
 // AddressSuggestionRequest represents a request for address suggestions
 type AddressSuggestionRequest struct {
-	Query     string `json:"query" validate:"required"`
-	Country   string `json:"country,omitempty"`
-	MaxResults int   `json:"max_results,omitempty"`
+	Query      string `json:"query" validate:"required"`
+	Country    string `json:"country,omitempty"`
+	MaxResults int    `json:"max_results,omitempty"`
 }
 
 // AddressSuggestion represents a single address suggestion
@@ -489,45 +489,45 @@ type AddressValidationListResponse struct {
 
 // Business logic errors
 var (
-	ErrAddressNotFound         = errors.New("address not found")
-	ErrValidationNotFound      = errors.New("address validation not found")
-	ErrInvalidTenantID         = errors.New("invalid tenant ID")
-	ErrInvalidCustomerID       = errors.New("invalid customer ID")
-	ErrInvalidAddressID        = errors.New("invalid address ID")
-	ErrInvalidAddressType      = errors.New("invalid address type")
-	ErrInvalidCountryCode      = errors.New("invalid country code")
-	ErrInvalidPhoneNumber      = errors.New("invalid phone number")
-	ErrFirstNameRequired       = errors.New("first name is required")
-	ErrLastNameRequired        = errors.New("last name is required")
-	ErrAddress1Required        = errors.New("address line 1 is required")
-	ErrCityRequired            = errors.New("city is required")
-	ErrStateRequired           = errors.New("state is required")
-	ErrPostalCodeRequired      = errors.New("postal code is required")
-	ErrCountryRequired         = errors.New("country is required")
-	ErrFirstNameTooLong        = errors.New("first name is too long")
-	ErrLastNameTooLong         = errors.New("last name is too long")
-	ErrCompanyTooLong          = errors.New("company name is too long")
-	ErrAddress1TooLong         = errors.New("address line 1 is too long")
-	ErrAddress2TooLong         = errors.New("address line 2 is too long")
-	ErrCityTooLong             = errors.New("city name is too long")
-	ErrStateTooLong            = errors.New("state name is too long")
-	ErrPostalCodeTooLong       = errors.New("postal code is too long")
-	ErrPhoneTooLong            = errors.New("phone number is too long")
-	ErrLabelTooLong            = errors.New("label is too long")
-	ErrInstructionsTooLong     = errors.New("instructions are too long")
-	ErrCannotDeleteDefaultAddress = errors.New("cannot delete default address")
-	ErrAddressLimitExceeded    = errors.New("address limit exceeded")
+	ErrAddressNotFound                = errors.New("address not found")
+	ErrValidationNotFound             = errors.New("address validation not found")
+	ErrInvalidTenantID                = errors.New("invalid tenant ID")
+	ErrInvalidCustomerID              = errors.New("invalid customer ID")
+	ErrInvalidAddressID               = errors.New("invalid address ID")
+	ErrInvalidAddressType             = errors.New("invalid address type")
+	ErrInvalidCountryCode             = errors.New("invalid country code")
+	ErrInvalidPhoneNumber             = errors.New("invalid phone number")
+	ErrFirstNameRequired              = errors.New("first name is required")
+	ErrLastNameRequired               = errors.New("last name is required")
+	ErrAddress1Required               = errors.New("address line 1 is required")
+	ErrCityRequired                   = errors.New("city is required")
+	ErrStateRequired                  = errors.New("state is required")
+	ErrPostalCodeRequired             = errors.New("postal code is required")
+	ErrCountryRequired                = errors.New("country is required")
+	ErrFirstNameTooLong               = errors.New("first name is too long")
+	ErrLastNameTooLong                = errors.New("last name is too long")
+	ErrCompanyTooLong                 = errors.New("company name is too long")
+	ErrAddress1TooLong                = errors.New("address line 1 is too long")
+	ErrAddress2TooLong                = errors.New("address line 2 is too long")
+	ErrCityTooLong                    = errors.New("city name is too long")
+	ErrStateTooLong                   = errors.New("state name is too long")
+	ErrPostalCodeTooLong              = errors.New("postal code is too long")
+	ErrPhoneTooLong                   = errors.New("phone number is too long")
+	ErrLabelTooLong                   = errors.New("label is too long")
+	ErrInstructionsTooLong            = errors.New("instructions are too long")
+	ErrCannotDeleteDefaultAddress     = errors.New("cannot delete default address")
+	ErrAddressLimitExceeded           = errors.New("address limit exceeded")
 	ErrValidationProviderNotSupported = errors.New("validation provider not supported")
-	ErrAddressValidationFailed = errors.New("address validation failed")
-	
+	ErrAddressValidationFailed        = errors.New("address validation failed")
+
 	// Additional errors used in handlers
-	ErrTooManyAddresses        = errors.New("too many addresses for customer")
-	ErrBulkSizeExceeded        = errors.New("bulk operation size exceeded")
-	ErrInvalidFirstName        = errors.New("invalid first name")
-	ErrInvalidLastName         = errors.New("invalid last name")
-	ErrInvalidAddress          = errors.New("invalid address")
-	ErrInvalidCity             = errors.New("invalid city")
-	ErrInvalidState            = errors.New("invalid state")
-	ErrInvalidPostalCode       = errors.New("invalid postal code")
-	ErrInvalidCountry          = errors.New("invalid country")
+	ErrTooManyAddresses  = errors.New("too many addresses for customer")
+	ErrBulkSizeExceeded  = errors.New("bulk operation size exceeded")
+	ErrInvalidFirstName  = errors.New("invalid first name")
+	ErrInvalidLastName   = errors.New("invalid last name")
+	ErrInvalidAddress    = errors.New("invalid address")
+	ErrInvalidCity       = errors.New("invalid city")
+	ErrInvalidState      = errors.New("invalid state")
+	ErrInvalidPostalCode = errors.New("invalid postal code")
+	ErrInvalidCountry    = errors.New("invalid country")
 )

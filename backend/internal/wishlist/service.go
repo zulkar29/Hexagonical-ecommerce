@@ -20,14 +20,14 @@ type Service interface {
 	ListWishlists(ctx context.Context, tenantID uuid.UUID, filter WishlistFilter, limit, offset int) ([]WishlistResponse, int64, error)
 	GetCustomerWishlists(ctx context.Context, tenantID, customerID uuid.UUID) ([]WishlistResponse, error)
 	GetDefaultWishlist(ctx context.Context, tenantID, customerID uuid.UUID) (*WishlistResponse, error)
-	
+
 	// Wishlist item operations
 	AddItem(ctx context.Context, tenantID uuid.UUID, req AddItemRequest) (*WishlistItemResponse, error)
 	UpdateItem(ctx context.Context, tenantID, itemID uuid.UUID, req UpdateItemRequest) (*WishlistItemResponse, error)
 	RemoveItem(ctx context.Context, tenantID, itemID uuid.UUID) error
 	ListItems(ctx context.Context, tenantID uuid.UUID, filter WishlistItemFilter, limit, offset int) ([]WishlistItemResponse, int64, error)
 	GetItem(ctx context.Context, tenantID, itemID uuid.UUID) (*WishlistItemResponse, error)
-	
+
 	// Wishlist management
 	SetDefaultWishlist(ctx context.Context, tenantID, customerID, wishlistID uuid.UUID) error
 	ClearWishlist(ctx context.Context, tenantID, wishlistID uuid.UUID) error
@@ -35,19 +35,19 @@ type Service interface {
 	CopyItem(ctx context.Context, tenantID, itemID, targetWishlistID uuid.UUID) error
 	MergeWishlists(ctx context.Context, tenantID, sourceWishlistID, targetWishlistID uuid.UUID) error
 	ShareWishlist(ctx context.Context, tenantID, wishlistID uuid.UUID, isPublic bool) (string, error)
-	
+
 	// Bulk operations
 	BulkAddItems(ctx context.Context, tenantID uuid.UUID, items []AddItemRequest) ([]WishlistItemResponse, error)
 	BulkRemoveItems(ctx context.Context, tenantID uuid.UUID, itemIDs []uuid.UUID) error
 	BulkUpdateItemPriority(ctx context.Context, tenantID uuid.UUID, updates map[uuid.UUID]int) error
 	ReorderItems(ctx context.Context, tenantID, wishlistID uuid.UUID, itemOrder []uuid.UUID) error
-	
+
 	// Analytics and statistics
 	GetWishlistStats(ctx context.Context, tenantID uuid.UUID) (*WishlistStats, error)
 	GetMostWishedProducts(ctx context.Context, tenantID uuid.UUID, limit int) ([]ProductWishCount, error)
 	GetCustomerActivity(ctx context.Context, tenantID, customerID uuid.UUID, days int) ([]WishlistActivity, error)
 	GetPopularWishlists(ctx context.Context, tenantID uuid.UUID, limit int) ([]WishlistResponse, error)
-	
+
 	// Maintenance operations
 	CleanupEmptyWishlists(ctx context.Context, tenantID uuid.UUID, olderThanDays int) (int64, error)
 	CleanupOrphanedItems(ctx context.Context, tenantID uuid.UUID) (int64, error)
@@ -76,7 +76,7 @@ func (s *ServiceImpl) CreateWishlist(ctx context.Context, req CreateWishlistRequ
 	if err := s.validateCreateWishlistRequest(req); err != nil {
 		return nil, err
 	}
-	
+
 	// Check if name already exists for customer
 	exists, existsErr := s.repo.ExistsByName(ctx, req.TenantID, req.CustomerID, req.Name, nil)
 	if existsErr != nil {
@@ -85,7 +85,7 @@ func (s *ServiceImpl) CreateWishlist(ctx context.Context, req CreateWishlistRequ
 	if exists {
 		return nil, ErrWishlistNameExists
 	}
-	
+
 	// Check wishlist limit for customer
 	count, countErr := s.repo.CountWishlistsByCustomer(ctx, req.TenantID, req.CustomerID)
 	if countErr != nil {
@@ -94,7 +94,7 @@ func (s *ServiceImpl) CreateWishlist(ctx context.Context, req CreateWishlistRequ
 	if count >= MaxWishlistsPerCustomer {
 		return nil, ErrWishlistLimitExceeded
 	}
-	
+
 	// Create wishlist
 	wishlist := &Wishlist{
 		ID:          uuid.New(),
@@ -108,24 +108,24 @@ func (s *ServiceImpl) CreateWishlist(ctx context.Context, req CreateWishlistRequ
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
-	
+
 	// If this is set as default, ensure no other default exists
 	if req.IsDefault {
 		if setDefaultErr := s.repo.SetDefaultWishlist(ctx, req.TenantID, req.CustomerID, wishlist.ID); setDefaultErr != nil {
 			return nil, fmt.Errorf("failed to set default wishlist: %w", setDefaultErr)
 		}
 	}
-	
+
 	// Generate share token if public
 	if req.IsPublic {
 		wishlist.GenerateShareToken()
 	}
-	
+
 	// Save wishlist
 	if saveErr := s.repo.Save(ctx, wishlist); saveErr != nil {
 		return nil, fmt.Errorf("failed to save wishlist: %w", saveErr)
 	}
-	
+
 	return s.buildWishlistResponse(wishlist), nil
 }
 
@@ -135,7 +135,7 @@ func (s *ServiceImpl) GetWishlist(ctx context.Context, tenantID, wishlistID uuid
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return s.buildWishlistResponse(wishlist), nil
 }
 
@@ -145,7 +145,7 @@ func (s *ServiceImpl) GetWishlistByShareToken(ctx context.Context, shareToken st
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return s.buildWishlistResponse(wishlist), nil
 }
 
@@ -155,13 +155,13 @@ func (s *ServiceImpl) UpdateWishlist(ctx context.Context, tenantID, wishlistID u
 	if err := s.validateUpdateWishlistRequest(req); err != nil {
 		return nil, err
 	}
-	
+
 	// Get existing wishlist
 	wishlist, err := s.repo.FindByID(ctx, tenantID, wishlistID)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Check if name already exists for customer (excluding current wishlist)
 	if req.Name != nil && *req.Name != wishlist.Name {
 		exists, existsErr := s.repo.ExistsByName(ctx, tenantID, wishlist.CustomerID, *req.Name, &wishlistID)
@@ -173,12 +173,12 @@ func (s *ServiceImpl) UpdateWishlist(ctx context.Context, tenantID, wishlistID u
 		}
 		wishlist.Name = *req.Name
 	}
-	
+
 	// Update fields
 	if req.Description != nil {
 		wishlist.Description = *req.Description
 	}
-	
+
 	if req.IsDefault != nil && *req.IsDefault != wishlist.IsDefault {
 		if *req.IsDefault {
 			if setDefaultErr := s.repo.SetDefaultWishlist(ctx, tenantID, wishlist.CustomerID, wishlistID); setDefaultErr != nil {
@@ -187,7 +187,7 @@ func (s *ServiceImpl) UpdateWishlist(ctx context.Context, tenantID, wishlistID u
 		}
 		wishlist.IsDefault = *req.IsDefault
 	}
-	
+
 	if req.IsPublic != nil {
 		if *req.IsPublic && !wishlist.IsPublic {
 			// Making public - generate share token
@@ -197,14 +197,14 @@ func (s *ServiceImpl) UpdateWishlist(ctx context.Context, tenantID, wishlistID u
 			wishlist.MakePrivate()
 		}
 	}
-	
+
 	wishlist.UpdatedAt = time.Now()
-	
+
 	// Save changes
 	if updateErr := s.repo.Update(ctx, wishlist); updateErr != nil {
 		return nil, fmt.Errorf("failed to update wishlist: %w", updateErr)
 	}
-	
+
 	return s.buildWishlistResponse(wishlist), nil
 }
 
@@ -215,17 +215,17 @@ func (s *ServiceImpl) DeleteWishlist(ctx context.Context, tenantID, wishlistID u
 	if err != nil {
 		return err
 	}
-	
+
 	// Check if wishlist can be deleted
 	if !wishlist.CanDelete() {
 		return ErrCannotDeleteDefaultWishlist
 	}
-	
+
 	// Delete wishlist (items will be deleted by cascade)
 	if deleteErr := s.repo.Delete(ctx, tenantID, wishlistID); deleteErr != nil {
 		return fmt.Errorf("failed to delete wishlist: %w", deleteErr)
 	}
-	
+
 	return nil
 }
 
@@ -238,25 +238,25 @@ func (s *ServiceImpl) ListWishlists(ctx context.Context, tenantID uuid.UUID, fil
 	if offset < 0 {
 		offset = 0
 	}
-	
+
 	// Get wishlists
 	wishlists, listErr := s.repo.List(ctx, tenantID, filter, limit, offset)
 	if listErr != nil {
 		return nil, 0, fmt.Errorf("failed to list wishlists: %w", listErr)
 	}
-	
+
 	// Get total count
 	total, countErr := s.repo.Count(ctx, tenantID, filter)
 	if countErr != nil {
 		return nil, 0, fmt.Errorf("failed to count wishlists: %w", countErr)
 	}
-	
+
 	// Build responses
 	responses := make([]WishlistResponse, len(wishlists))
 	for i, wishlist := range wishlists {
 		responses[i] = *s.buildWishlistResponse(&wishlist)
 	}
-	
+
 	return responses, total, nil
 }
 
@@ -266,12 +266,12 @@ func (s *ServiceImpl) GetCustomerWishlists(ctx context.Context, tenantID, custom
 	if err != nil {
 		return nil, fmt.Errorf("failed to get customer wishlists: %w", err)
 	}
-	
+
 	responses := make([]WishlistResponse, len(wishlists))
 	for i, wishlist := range wishlists {
 		responses[i] = *s.buildWishlistResponse(&wishlist)
 	}
-	
+
 	return responses, nil
 }
 
@@ -281,7 +281,7 @@ func (s *ServiceImpl) GetDefaultWishlist(ctx context.Context, tenantID, customer
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return s.buildWishlistResponse(wishlist), nil
 }
 
@@ -293,24 +293,24 @@ func (s *ServiceImpl) AddItem(ctx context.Context, tenantID uuid.UUID, req AddIt
 	if err := s.validateAddItemRequest(req); err != nil {
 		return nil, err
 	}
-	
+
 	// Get wishlist to validate
 	wishlist, err := s.repo.FindByID(ctx, tenantID, req.WishlistID)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Check if wishlist can accept more items
 	if !wishlist.CanAddItem() {
 		return nil, ErrWishlistFull
 	}
-	
+
 	// Check if item already exists
 	existingItem, findErr := s.repo.FindItemByProductAndWishlist(ctx, tenantID, req.WishlistID, req.ProductID, req.VariantID)
 	if findErr != nil && findErr != ErrWishlistItemNotFound {
 		return nil, fmt.Errorf("failed to check existing item: %w", findErr)
 	}
-	
+
 	if existingItem != nil {
 		// Update existing item quantity
 		existingItem.Quantity += req.Quantity
@@ -321,14 +321,14 @@ func (s *ServiceImpl) AddItem(ctx context.Context, tenantID uuid.UUID, req AddIt
 			existingItem.Priority = req.Priority
 		}
 		existingItem.UpdatedAt = time.Now()
-		
+
 		if updateErr := s.repo.UpdateItem(ctx, existingItem); updateErr != nil {
 			return nil, fmt.Errorf("failed to update existing item: %w", updateErr)
 		}
-		
+
 		return s.buildWishlistItemResponse(existingItem), nil
 	}
-	
+
 	// Create new item
 	item := &WishlistItem{
 		ID:         uuid.New(),
@@ -342,12 +342,12 @@ func (s *ServiceImpl) AddItem(ctx context.Context, tenantID uuid.UUID, req AddIt
 		AddedAt:    time.Now(),
 		UpdatedAt:  time.Now(),
 	}
-	
+
 	// Save item
 	if saveErr := s.repo.SaveItem(ctx, item); saveErr != nil {
 		return nil, fmt.Errorf("failed to save wishlist item: %w", saveErr)
 	}
-	
+
 	return s.buildWishlistItemResponse(item), nil
 }
 
@@ -357,35 +357,35 @@ func (s *ServiceImpl) UpdateItem(ctx context.Context, tenantID, itemID uuid.UUID
 	if err := s.validateUpdateItemRequest(req); err != nil {
 		return nil, err
 	}
-	
+
 	// Get existing item
 	item, err := s.repo.FindItemByID(ctx, tenantID, itemID)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Update fields
 	if req.Quantity != nil {
 		if err := item.UpdateQuantity(*req.Quantity); err != nil {
 			return nil, fmt.Errorf("failed to update quantity: %w", err)
 		}
 	}
-	
+
 	if req.Notes != nil {
 		item.Notes = *req.Notes
 	}
-	
+
 	if req.Priority != nil {
 		item.Priority = *req.Priority
 	}
-	
+
 	item.UpdatedAt = time.Now()
-	
+
 	// Save changes
 	if updateErr := s.repo.UpdateItem(ctx, item); updateErr != nil {
 		return nil, fmt.Errorf("failed to update wishlist item: %w", updateErr)
 	}
-	
+
 	return s.buildWishlistItemResponse(item), nil
 }
 
@@ -396,12 +396,12 @@ func (s *ServiceImpl) RemoveItem(ctx context.Context, tenantID, itemID uuid.UUID
 	if err != nil {
 		return err
 	}
-	
+
 	// Delete item
 	if deleteErr := s.repo.DeleteItem(ctx, tenantID, itemID); deleteErr != nil {
 		return fmt.Errorf("failed to delete wishlist item: %w", deleteErr)
 	}
-	
+
 	return nil
 }
 
@@ -414,25 +414,25 @@ func (s *ServiceImpl) ListItems(ctx context.Context, tenantID uuid.UUID, filter 
 	if offset < 0 {
 		offset = 0
 	}
-	
+
 	// Get items
 	items, listErr := s.repo.ListItems(ctx, tenantID, filter, limit, offset)
 	if listErr != nil {
 		return nil, 0, fmt.Errorf("failed to list wishlist items: %w", listErr)
 	}
-	
+
 	// Get total count
 	total, countErr := s.repo.CountItems(ctx, tenantID, filter)
 	if countErr != nil {
 		return nil, 0, fmt.Errorf("failed to count wishlist items: %w", countErr)
 	}
-	
+
 	// Build responses
 	responses := make([]WishlistItemResponse, len(items))
 	for i, item := range items {
 		responses[i] = *s.buildWishlistItemResponse(&item)
 	}
-	
+
 	return responses, total, nil
 }
 
@@ -442,7 +442,7 @@ func (s *ServiceImpl) GetItem(ctx context.Context, tenantID, itemID uuid.UUID) (
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return s.buildWishlistItemResponse(item), nil
 }
 
@@ -455,16 +455,16 @@ func (s *ServiceImpl) SetDefaultWishlist(ctx context.Context, tenantID, customer
 	if err != nil {
 		return err
 	}
-	
+
 	if wishlist.CustomerID != customerID {
 		return ErrWishlistNotFound
 	}
-	
+
 	// Set as default
 	if setErr := s.repo.SetDefaultWishlist(ctx, tenantID, customerID, wishlistID); setErr != nil {
 		return fmt.Errorf("failed to set default wishlist: %w", setErr)
 	}
-	
+
 	return nil
 }
 
@@ -475,12 +475,12 @@ func (s *ServiceImpl) ClearWishlist(ctx context.Context, tenantID, wishlistID uu
 	if err != nil {
 		return err
 	}
-	
+
 	// Clear items
 	if clearErr := s.repo.ClearItems(ctx, tenantID, wishlistID); clearErr != nil {
 		return fmt.Errorf("failed to clear wishlist items: %w", clearErr)
 	}
-	
+
 	return nil
 }
 
@@ -491,45 +491,45 @@ func (s *ServiceImpl) MoveItem(ctx context.Context, tenantID, itemID, targetWish
 	if err != nil {
 		return err
 	}
-	
+
 	// Verify target wishlist exists
 	targetWishlist, findErr := s.repo.FindByID(ctx, tenantID, targetWishlistID)
 	if findErr != nil {
 		return findErr
 	}
-	
+
 	// Check if target wishlist can accept more items
 	if !targetWishlist.CanAddItem() {
 		return ErrWishlistFull
 	}
-	
+
 	// Check if item already exists in target wishlist
 	existingItem, checkErr := s.repo.FindItemByProductAndWishlist(ctx, tenantID, targetWishlistID, item.ProductID, item.VariantID)
 	if checkErr != nil && checkErr != ErrWishlistItemNotFound {
 		return fmt.Errorf("failed to check existing item: %w", checkErr)
 	}
-	
+
 	if existingItem != nil {
 		// Merge quantities and delete original
 		existingItem.Quantity += item.Quantity
 		existingItem.UpdatedAt = time.Now()
-		
+
 		if updateErr := s.repo.UpdateItem(ctx, existingItem); updateErr != nil {
 			return fmt.Errorf("failed to update existing item: %w", updateErr)
 		}
-		
+
 		if deleteErr := s.repo.DeleteItem(ctx, tenantID, itemID); deleteErr != nil {
 			return fmt.Errorf("failed to delete original item: %w", deleteErr)
 		}
-		
+
 		return nil
 	}
-	
+
 	// Move item
 	if moveErr := s.repo.MoveItem(ctx, tenantID, itemID, targetWishlistID); moveErr != nil {
 		return fmt.Errorf("failed to move item: %w", moveErr)
 	}
-	
+
 	return nil
 }
 
@@ -540,41 +540,41 @@ func (s *ServiceImpl) CopyItem(ctx context.Context, tenantID, itemID, targetWish
 	if err != nil {
 		return err
 	}
-	
+
 	// Verify target wishlist exists
 	targetWishlist, findErr := s.repo.FindByID(ctx, tenantID, targetWishlistID)
 	if findErr != nil {
 		return findErr
 	}
-	
+
 	// Check if target wishlist can accept more items
 	if !targetWishlist.CanAddItem() {
 		return ErrWishlistFull
 	}
-	
+
 	// Check if item already exists in target wishlist
 	existingItem, checkErr := s.repo.FindItemByProductAndWishlist(ctx, tenantID, targetWishlistID, item.ProductID, item.VariantID)
 	if checkErr != nil && checkErr != ErrWishlistItemNotFound {
 		return fmt.Errorf("failed to check existing item: %w", checkErr)
 	}
-	
+
 	if existingItem != nil {
 		// Update existing item quantity
 		existingItem.Quantity += item.Quantity
 		existingItem.UpdatedAt = time.Now()
-		
+
 		if updateErr := s.repo.UpdateItem(ctx, existingItem); updateErr != nil {
 			return fmt.Errorf("failed to update existing item: %w", updateErr)
 		}
-		
+
 		return nil
 	}
-	
+
 	// Copy item
 	if copyErr := s.repo.CopyItem(ctx, tenantID, itemID, targetWishlistID); copyErr != nil {
 		return fmt.Errorf("failed to copy item: %w", copyErr)
 	}
-	
+
 	return nil
 }
 
@@ -585,27 +585,27 @@ func (s *ServiceImpl) MergeWishlists(ctx context.Context, tenantID, sourceWishli
 	if err != nil {
 		return err
 	}
-	
+
 	targetWishlist, findErr := s.repo.FindByID(ctx, tenantID, targetWishlistID)
 	if findErr != nil {
 		return findErr
 	}
-	
+
 	// Check if source can be deleted
 	if !sourceWishlist.CanDelete() {
 		return ErrCannotDeleteDefaultWishlist
 	}
-	
+
 	// Check if wishlists belong to same customer
 	if sourceWishlist.CustomerID != targetWishlist.CustomerID {
 		return ErrWishlistNotFound
 	}
-	
+
 	// Merge wishlists
 	if mergeErr := s.repo.MergeWishlists(ctx, tenantID, sourceWishlistID, targetWishlistID); mergeErr != nil {
 		return fmt.Errorf("failed to merge wishlists: %w", mergeErr)
 	}
-	
+
 	return nil
 }
 
@@ -616,7 +616,7 @@ func (s *ServiceImpl) ShareWishlist(ctx context.Context, tenantID, wishlistID uu
 	if err != nil {
 		return "", err
 	}
-	
+
 	if isPublic {
 		// Make public and generate share token
 		wishlist.MakePublic()
@@ -624,12 +624,12 @@ func (s *ServiceImpl) ShareWishlist(ctx context.Context, tenantID, wishlistID uu
 		// Make private and clear share token
 		wishlist.MakePrivate()
 	}
-	
+
 	// Save changes
 	if updateErr := s.repo.Update(ctx, wishlist); updateErr != nil {
 		return "", fmt.Errorf("failed to update wishlist: %w", updateErr)
 	}
-	
+
 	return wishlist.GetShareURL("https://example.com"), nil
 }
 
@@ -643,7 +643,7 @@ func (s *ServiceImpl) BulkAddItems(ctx context.Context, tenantID uuid.UUID, requ
 			return nil, err
 		}
 	}
-	
+
 	// Create items
 	items := make([]WishlistItem, 0, len(requests))
 	for _, req := range requests {
@@ -661,18 +661,18 @@ func (s *ServiceImpl) BulkAddItems(ctx context.Context, tenantID uuid.UUID, requ
 		}
 		items = append(items, item)
 	}
-	
+
 	// Save all items
 	if bulkErr := s.repo.BulkAddItems(ctx, items); bulkErr != nil {
 		return nil, fmt.Errorf("failed to bulk add items: %w", bulkErr)
 	}
-	
+
 	// Build responses
 	responses := make([]WishlistItemResponse, len(items))
 	for i, item := range items {
 		responses[i] = *s.buildWishlistItemResponse(&item)
 	}
-	
+
 	return responses, nil
 }
 
@@ -681,12 +681,12 @@ func (s *ServiceImpl) BulkRemoveItems(ctx context.Context, tenantID uuid.UUID, i
 	if len(itemIDs) == 0 {
 		return nil
 	}
-	
+
 	// Delete items
 	if bulkErr := s.repo.BulkDeleteItems(ctx, tenantID, itemIDs); bulkErr != nil {
 		return fmt.Errorf("failed to bulk delete items: %w", bulkErr)
 	}
-	
+
 	return nil
 }
 
@@ -695,12 +695,12 @@ func (s *ServiceImpl) BulkUpdateItemPriority(ctx context.Context, tenantID uuid.
 	if len(updates) == 0 {
 		return nil
 	}
-	
+
 	// Update priorities
 	if bulkErr := s.repo.BulkUpdateItemPriority(ctx, tenantID, updates); bulkErr != nil {
 		return fmt.Errorf("failed to bulk update item priorities: %w", bulkErr)
 	}
-	
+
 	return nil
 }
 
@@ -711,18 +711,18 @@ func (s *ServiceImpl) ReorderItems(ctx context.Context, tenantID, wishlistID uui
 	if err != nil {
 		return err
 	}
-	
+
 	// Create priority updates based on order
 	updates := make(map[uuid.UUID]int)
 	for i, itemID := range itemOrder {
 		updates[itemID] = len(itemOrder) - i // Higher index = higher priority
 	}
-	
+
 	// Update priorities
 	if updateErr := s.repo.BulkUpdateItemPriority(ctx, tenantID, updates); updateErr != nil {
 		return fmt.Errorf("failed to reorder items: %w", updateErr)
 	}
-	
+
 	return nil
 }
 
@@ -734,7 +734,7 @@ func (s *ServiceImpl) GetWishlistStats(ctx context.Context, tenantID uuid.UUID) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get wishlist stats: %w", err)
 	}
-	
+
 	return stats, nil
 }
 
@@ -743,12 +743,12 @@ func (s *ServiceImpl) GetMostWishedProducts(ctx context.Context, tenantID uuid.U
 	if limit <= 0 || limit > 100 {
 		limit = 10
 	}
-	
+
 	products, err := s.repo.GetMostWishedProducts(ctx, tenantID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get most wished products: %w", err)
 	}
-	
+
 	return products, nil
 }
 
@@ -757,12 +757,12 @@ func (s *ServiceImpl) GetCustomerActivity(ctx context.Context, tenantID, custome
 	if days <= 0 || days > 365 {
 		days = 30
 	}
-	
+
 	activity, err := s.repo.GetCustomerWishlistActivity(ctx, tenantID, customerID, days)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get customer activity: %w", err)
 	}
-	
+
 	return activity, nil
 }
 
@@ -771,17 +771,17 @@ func (s *ServiceImpl) GetPopularWishlists(ctx context.Context, tenantID uuid.UUI
 	if limit <= 0 || limit > 100 {
 		limit = 10
 	}
-	
+
 	wishlists, err := s.repo.GetPopularWishlists(ctx, tenantID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get popular wishlists: %w", err)
 	}
-	
+
 	responses := make([]WishlistResponse, len(wishlists))
 	for i, wishlist := range wishlists {
 		responses[i] = *s.buildWishlistResponse(&wishlist)
 	}
-	
+
 	return responses, nil
 }
 
@@ -792,12 +792,12 @@ func (s *ServiceImpl) CleanupEmptyWishlists(ctx context.Context, tenantID uuid.U
 	if olderThanDays <= 0 {
 		olderThanDays = 30
 	}
-	
+
 	count, err := s.repo.CleanupEmptyWishlists(ctx, tenantID, olderThanDays)
 	if err != nil {
 		return 0, fmt.Errorf("failed to cleanup empty wishlists: %w", err)
 	}
-	
+
 	return count, nil
 }
 
@@ -807,7 +807,7 @@ func (s *ServiceImpl) CleanupOrphanedItems(ctx context.Context, tenantID uuid.UU
 	if err != nil {
 		return 0, fmt.Errorf("failed to cleanup orphaned items: %w", err)
 	}
-	
+
 	return count, nil
 }
 
@@ -818,23 +818,23 @@ func (s *ServiceImpl) validateCreateWishlistRequest(req CreateWishlistRequest) e
 	if req.TenantID == uuid.Nil {
 		return ErrInvalidTenantID
 	}
-	
+
 	if req.CustomerID == uuid.Nil {
 		return ErrInvalidCustomerID
 	}
-	
+
 	if strings.TrimSpace(req.Name) == "" {
 		return ErrInvalidWishlistName
 	}
-	
+
 	if len(req.Name) > MaxWishlistNameLength {
 		return ErrWishlistNameTooLong
 	}
-	
+
 	if len(req.Description) > MaxWishlistDescriptionLength {
 		return ErrWishlistDescriptionTooLong
 	}
-	
+
 	return nil
 }
 
@@ -844,16 +844,16 @@ func (s *ServiceImpl) validateUpdateWishlistRequest(req UpdateWishlistRequest) e
 		if strings.TrimSpace(*req.Name) == "" {
 			return ErrInvalidWishlistName
 		}
-		
+
 		if len(*req.Name) > MaxWishlistNameLength {
 			return ErrWishlistNameTooLong
 		}
 	}
-	
+
 	if req.Description != nil && len(*req.Description) > MaxWishlistDescriptionLength {
 		return ErrWishlistDescriptionTooLong
 	}
-	
+
 	return nil
 }
 
@@ -862,23 +862,23 @@ func (s *ServiceImpl) validateAddItemRequest(req AddItemRequest) error {
 	if req.WishlistID == uuid.Nil {
 		return ErrInvalidWishlistID
 	}
-	
+
 	if req.ProductID == uuid.Nil {
 		return ErrInvalidProductID
 	}
-	
+
 	if req.Quantity <= 0 || req.Quantity > MaxItemQuantity {
 		return ErrInvalidQuantity
 	}
-	
+
 	if len(req.Notes) > MaxItemNotesLength {
 		return ErrItemNotesTooLong
 	}
-	
+
 	if req.Priority < 0 || req.Priority > MaxItemPriority {
 		return ErrInvalidPriority
 	}
-	
+
 	return nil
 }
 
@@ -887,15 +887,15 @@ func (s *ServiceImpl) validateUpdateItemRequest(req UpdateItemRequest) error {
 	if req.Quantity != nil && (*req.Quantity <= 0 || *req.Quantity > MaxItemQuantity) {
 		return ErrInvalidQuantity
 	}
-	
+
 	if req.Notes != nil && len(*req.Notes) > MaxItemNotesLength {
 		return ErrItemNotesTooLong
 	}
-	
+
 	if req.Priority != nil && (*req.Priority < 0 || *req.Priority > MaxItemPriority) {
 		return ErrInvalidPriority
 	}
-	
+
 	return nil
 }
 
@@ -910,11 +910,11 @@ func (s *ServiceImpl) buildWishlistResponse(wishlist *Wishlist) *WishlistRespons
 // buildWishlistItemResponse builds a wishlist item response
 func (s *ServiceImpl) buildWishlistItemResponse(item *WishlistItem) *WishlistItemResponse {
 	return &WishlistItemResponse{
-		WishlistItem: item,
-		DisplayName: item.GetDisplayName(),
-		CurrentPrice: item.GetPrice(),
-		ComparePrice: item.GetComparePrice(),
+		WishlistItem:       item,
+		DisplayName:        item.GetDisplayName(),
+		CurrentPrice:       item.GetPrice(),
+		ComparePrice:       item.GetComparePrice(),
 		DiscountPercentage: item.GetDiscountPercentage(),
-		IsAvailable: item.IsAvailable(),
+		IsAvailable:        item.IsAvailable(),
 	}
 }

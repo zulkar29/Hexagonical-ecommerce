@@ -64,8 +64,7 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 		reports.DELETE("/scheduled/:id", h.DeleteScheduledReport)
 	}
 
-	// Data export routes
-	r.POST("/export", h.ExportData)
+	// Removed data export routes - GDPR functionality not needed
 }
 
 // Event tracking handlers
@@ -466,31 +465,7 @@ func (h *Handler) DeleteScheduledReport(c *gin.Context) {
 	c.JSON(http.StatusNoContent, nil)
 }
 
-// Data export handler
-func (h *Handler) ExportData(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
-		return
-	}
-
-	var request ExportRequest
-	if bindErr := c.ShouldBindJSON(&request); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
-		return
-	}
-
-	data, contentType, err := h.service.ExportData(c.Request.Context(), tenantID, request)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Set appropriate headers for file download
-	filename := fmt.Sprintf("%s_export_%d.%s", request.DataType, time.Now().Unix(), h.getFileExtension(request.Format))
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
-	c.Data(http.StatusOK, contentType, data)
-}
+// Removed ExportData handler - GDPR data export functionality not needed
 
 // Helper methods
 func (h *Handler) parseDateRange(c *gin.Context) DateRange {

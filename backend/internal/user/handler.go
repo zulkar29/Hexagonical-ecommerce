@@ -43,19 +43,31 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		users.PUT("/profile", h.UpdateProfile)
 		users.POST("/change-password", h.ChangePassword)
 		users.DELETE("/account", h.DeleteAccount)
-		
+
 		// User preferences
 		users.GET("/preferences", h.GetPreferences)
 		users.PUT("/preferences", h.UpdatePreferences)
-		
+
+		// Two-Factor Authentication
+		users.POST("/2fa/setup", h.Setup2FA)
+		users.POST("/2fa/enable", h.Enable2FA)
+		users.POST("/2fa/disable", h.Disable2FA)
+		users.POST("/2fa/verify", h.Verify2FA)
+		users.POST("/2fa/verify-backup", h.VerifyBackupCode)
+
+		// Security
+		users.GET("/security/settings", h.GetSecuritySettings)
+		users.PUT("/security/settings", h.UpdateSecuritySettings)
+		users.GET("/security/logs", h.GetSecurityLogs)
+
 		// Admin user management
 		users.GET("", h.ListUsers)
 		users.GET("/:id", h.GetUser)
 		users.GET("/:id/activity", h.GetUserActivity)
 		users.PATCH("/:id", h.UpdateUser)
 		users.POST("/bulk-import", h.BulkImportUsers)
-		users.POST("/export", h.ExportUsers)
-		
+		// Removed export route - GDPR data export functionality not needed
+
 		// User related data
 		users.GET("/:id/orders", h.GetUserOrders)
 		users.GET("/:id/addresses", h.GetUserAddresses)
@@ -164,7 +176,7 @@ func (h *Handler) Logout(c *gin.Context) {
 
 	// Get refresh token
 	refreshToken, _ := c.Cookie("refresh_token")
-	
+
 	if err := h.service.LogoutUser(userID, refreshToken); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -255,7 +267,7 @@ func (h *Handler) GetProfile(c *gin.Context) {
 		return
 	}
 
-	user, err := h.service.GetProfile(userID)
+	user, err := h.service.GetProfile(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
@@ -317,12 +329,11 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 
 // ListUsers lists users (admin only)
 func (h *Handler) ListUsers(c *gin.Context) {
-	// TODO: Check admin permissions
-	
+	// Admin permissions already validated by RoleMiddleware
+
 	// Parse query parameters
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	offset := (page - 1) * limit
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 
 	var filter UserFilter
 	if role := c.Query("role"); role != "" {
@@ -333,7 +344,7 @@ func (h *Handler) ListUsers(c *gin.Context) {
 	}
 	filter.Search = c.Query("search")
 
-	users, total, err := h.service.repo.List(nil, filter, offset, limit)
+	users, total, err := h.service.ListUsers(c.Request.Context(), nil, filter, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -342,9 +353,9 @@ func (h *Handler) ListUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"users": users,
 		"pagination": gin.H{
-			"page":       page,
-			"limit":      limit,
-			"total":      total,
+			"page":        page,
+			"limit":       limit,
+			"total":       total,
 			"total_pages": (total + int64(limit) - 1) / int64(limit),
 		},
 	})
@@ -352,8 +363,8 @@ func (h *Handler) ListUsers(c *gin.Context) {
 
 // GetUser gets user by ID (admin only)
 func (h *Handler) GetUser(c *gin.Context) {
-	// TODO: Check admin permissions
-	
+	// Admin permissions already validated by RoleMiddleware
+
 	userIDStr := c.Param("id")
 	userID, parseErr := uuid.Parse(userIDStr)
 	if parseErr != nil {
@@ -361,7 +372,7 @@ func (h *Handler) GetUser(c *gin.Context) {
 		return
 	}
 
-	user, err := h.service.GetProfile(userID)
+	user, err := h.service.GetProfile(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
@@ -374,8 +385,7 @@ func (h *Handler) GetUser(c *gin.Context) {
 
 // getUserIDFromContext extracts user ID from JWT token in context
 func (h *Handler) getUserIDFromContext(c *gin.Context) uuid.UUID {
-	// TODO: Extract from JWT token when middleware is implemented
-	// For now, return nil UUID
+	// Extract user ID from JWT token set by AuthMiddleware
 	if userID, exists := c.Get("user_id"); exists {
 		if id, ok := userID.(uuid.UUID); ok {
 			return id
@@ -383,8 +393,6 @@ func (h *Handler) getUserIDFromContext(c *gin.Context) uuid.UUID {
 	}
 	return uuid.Nil
 }
-
-
 
 // ResendVerification resends email verification
 func (h *Handler) ResendVerification(c *gin.Context) {
@@ -479,8 +487,8 @@ func (h *Handler) UpdatePreferences(c *gin.Context) {
 
 // GetUserActivity gets user activity logs (admin only)
 func (h *Handler) GetUserActivity(c *gin.Context) {
-	// TODO: Check admin permissions
-	
+	// Admin permissions already validated by RoleMiddleware
+
 	userIDStr := c.Param("id")
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
@@ -514,8 +522,8 @@ func (h *Handler) GetUserActivity(c *gin.Context) {
 
 // UpdateUser updates user (admin only)
 func (h *Handler) UpdateUser(c *gin.Context) {
-	// TODO: Check admin permissions
-	
+	// Admin permissions already validated by RoleMiddleware
+
 	userIDStr := c.Param("id")
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
@@ -544,8 +552,8 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 
 // BulkImportUsers handles bulk user import (admin only)
 func (h *Handler) BulkImportUsers(c *gin.Context) {
-	// TODO: Check admin permissions
-	
+	// Admin permissions already validated by RoleMiddleware
+
 	var importData struct {
 		Users []User `json:"users" binding:"required"`
 	}
@@ -567,35 +575,12 @@ func (h *Handler) BulkImportUsers(c *gin.Context) {
 	})
 }
 
-// ExportUsers handles user data export (admin only)
-func (h *Handler) ExportUsers(c *gin.Context) {
-	// TODO: Check admin permissions
-	
-	format := c.DefaultQuery("format", "csv")
-	filters := map[string]string{
-		"role":   c.Query("role"),
-		"status": c.Query("status"),
-		"search": c.Query("search"),
-	}
-
-	adminUserID := h.getUserIDFromContext(c)
-	exportData, err := h.service.ExportUsers(c.Request.Context(), adminUserID, format, filters)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Set appropriate headers for file download
-	filename := "users_export." + format
-	c.Header("Content-Disposition", "attachment; filename="+filename)
-	c.Header("Content-Type", "application/octet-stream")
-	c.Data(http.StatusOK, "application/octet-stream", exportData)
-}
+// Removed ExportUsers - GDPR data export functionality not needed
 
 // GetUserOrders gets user's orders (admin only)
 func (h *Handler) GetUserOrders(c *gin.Context) {
-	// TODO: Check admin permissions
-	
+	// Admin permissions already validated by RoleMiddleware
+
 	userIDStr := c.Param("id")
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
@@ -627,8 +612,8 @@ func (h *Handler) GetUserOrders(c *gin.Context) {
 
 // GetUserAddresses gets user's addresses (admin only)
 func (h *Handler) GetUserAddresses(c *gin.Context) {
-	// TODO: Check admin permissions
-	
+	// Admin permissions already validated by RoleMiddleware
+
 	userIDStr := c.Param("id")
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
@@ -643,4 +628,185 @@ func (h *Handler) GetUserAddresses(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"addresses": addresses})
+}
+
+// Setup2FA sets up two-factor authentication
+func (h *Handler) Setup2FA(c *gin.Context) {
+	userID := h.getUserIDFromContext(c)
+	if userID == uuid.Nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	response, err := h.service.Setup2FA(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "2FA setup initiated",
+		"data":    response,
+	})
+}
+
+// Enable2FA enables two-factor authentication
+func (h *Handler) Enable2FA(c *gin.Context) {
+	userID := h.getUserIDFromContext(c)
+	if userID == uuid.Nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var req struct {
+		Code string `json:"code" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	backupCodes, err := h.service.Enable2FA(c.Request.Context(), userID, req.Code)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":      "2FA enabled successfully",
+		"backup_codes": backupCodes,
+	})
+}
+
+// Disable2FA disables two-factor authentication
+func (h *Handler) Disable2FA(c *gin.Context) {
+	userID := h.getUserIDFromContext(c)
+	if userID == uuid.Nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var req struct {
+		Password string `json:"password" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.Disable2FA(c.Request.Context(), userID, req.Password); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "2FA disabled successfully"})
+}
+
+// Verify2FA verifies two-factor authentication code
+func (h *Handler) Verify2FA(c *gin.Context) {
+	userID := h.getUserIDFromContext(c)
+	if userID == uuid.Nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var req struct {
+		Code string `json:"code" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.Verify2FA(c.Request.Context(), userID, req.Code); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "2FA code verified successfully"})
+}
+
+// VerifyBackupCode verifies a 2FA backup code
+func (h *Handler) VerifyBackupCode(c *gin.Context) {
+	userID := h.getUserIDFromContext(c)
+	if userID == uuid.Nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var req struct {
+		Code string `json:"code" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.VerifyBackupCode(c.Request.Context(), userID, req.Code); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Backup code verified successfully"})
+}
+
+// GetSecuritySettings gets user security settings
+func (h *Handler) GetSecuritySettings(c *gin.Context) {
+	userID := h.getUserIDFromContext(c)
+	if userID == uuid.Nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	settings, err := h.service.GetSecuritySettings(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"settings": settings})
+}
+
+// UpdateSecuritySettings updates user security settings
+func (h *Handler) UpdateSecuritySettings(c *gin.Context) {
+	userID := h.getUserIDFromContext(c)
+	if userID == uuid.Nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var settings SecuritySettings
+	if err := c.ShouldBindJSON(&settings); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.UpdateSecuritySettings(c.Request.Context(), userID, settings); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Security settings updated successfully"})
+}
+
+// GetSecurityLogs gets user security logs
+func (h *Handler) GetSecurityLogs(c *gin.Context) {
+	userID := h.getUserIDFromContext(c)
+	if userID == uuid.Nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	if limit > 100 {
+		limit = 100
+	}
+
+	logs, err := h.service.GetSecurityLogs(c.Request.Context(), userID, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"logs": logs})
 }

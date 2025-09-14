@@ -101,30 +101,30 @@ func SecurityMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Prevent MIME type sniffing
 		c.Header("X-Content-Type-Options", "nosniff")
-		
+
 		// Prevent clickjacking
 		c.Header("X-Frame-Options", "DENY")
-		
+
 		// XSS protection
 		c.Header("X-XSS-Protection", "1; mode=block")
-		
+
 		// Referrer policy
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
-		
+
 		// Content Security Policy
 		c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' https:")
-		
+
 		// Strict Transport Security (HTTPS only)
 		if c.Request.TLS != nil {
 			c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
 		}
-		
+
 		// Permissions Policy
 		c.Header("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
-		
+
 		// Remove server information
 		c.Header("Server", "")
-		
+
 		c.Next()
 	}
 }
@@ -134,12 +134,12 @@ func ErrorMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Process request
 		c.Next()
-		
+
 		// Handle any errors that occurred during request processing
 		if len(c.Errors) > 0 {
 			err := c.Errors.Last()
 			requestID, _ := c.Get("request_id")
-			
+
 			// Log the error
 			log.Printf(
 				"[ERROR] RequestID=%v | Path=%s | Error=%v | Type=%v",
@@ -148,7 +148,7 @@ func ErrorMiddleware() gin.HandlerFunc {
 				err.Error(),
 				err.Type,
 			)
-			
+
 			// Return appropriate error response based on error type
 			switch err.Type {
 			case gin.ErrorTypeBind:
@@ -170,7 +170,7 @@ func ErrorMiddleware() gin.HandlerFunc {
 					"request_id": requestID,
 				})
 			}
-			
+
 			// Abort to prevent further processing
 			c.Abort()
 		}
@@ -181,7 +181,7 @@ func ErrorMiddleware() gin.HandlerFunc {
 func RecoveryMiddleware() gin.HandlerFunc {
 	return gin.CustomRecovery(func(c *gin.Context, recovered interface{}) {
 		requestID, _ := c.Get("request_id")
-		
+
 		// Log the panic
 		log.Printf(
 			"[PANIC] RequestID=%v | Path=%s | Panic=%v",
@@ -189,7 +189,7 @@ func RecoveryMiddleware() gin.HandlerFunc {
 			c.Request.URL.Path,
 			recovered,
 		)
-		
+
 		// Return 500 error
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":      "Internal server error",

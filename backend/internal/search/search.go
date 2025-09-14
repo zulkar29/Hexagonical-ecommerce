@@ -24,13 +24,13 @@ type SearchResult struct {
 // SearchQuery represents search parameters
 type SearchQuery struct {
 	Query      string   `json:"query" validate:"required"`
-	Type       string   `json:"type,omitempty"`       // product, category, page, all
+	Type       string   `json:"type,omitempty"` // product, category, page, all
 	Categories []string `json:"categories,omitempty"`
 	Tags       []string `json:"tags,omitempty"`
 	MinPrice   *float64 `json:"min_price,omitempty"`
 	MaxPrice   *float64 `json:"max_price,omitempty"`
 	InStock    *bool    `json:"in_stock,omitempty"`
-	SortBy     string   `json:"sort_by,omitempty"`    // relevance, price_asc, price_desc, newest
+	SortBy     string   `json:"sort_by,omitempty"` // relevance, price_asc, price_desc, newest
 	Offset     int      `json:"offset,omitempty"`
 	Limit      int      `json:"limit,omitempty"`
 }
@@ -49,19 +49,19 @@ type SearchResponse struct {
 
 // ProductSearchRequest represents product-specific search
 type ProductSearchRequest struct {
-	Query       string   `json:"query" validate:"required"`
-	CategoryID  string   `json:"category_id,omitempty"`
-	BrandID     string   `json:"brand_id,omitempty"`
-	Tags        []string `json:"tags,omitempty"`
-	MinPrice    *float64 `json:"min_price,omitempty"`
-	MaxPrice    *float64 `json:"max_price,omitempty"`
-	InStock     *bool    `json:"in_stock,omitempty"`
-	OnSale      *bool    `json:"on_sale,omitempty"`
-	Rating      *float64 `json:"min_rating,omitempty"`
-	SortBy      string   `json:"sort_by,omitempty"`
-	Offset      int      `json:"offset,omitempty"`
-	Limit       int      `json:"limit,omitempty"`
-	IncludeFacets bool   `json:"include_facets,omitempty"`
+	Query         string   `json:"query" validate:"required"`
+	CategoryID    string   `json:"category_id,omitempty"`
+	BrandID       string   `json:"brand_id,omitempty"`
+	Tags          []string `json:"tags,omitempty"`
+	MinPrice      *float64 `json:"min_price,omitempty"`
+	MaxPrice      *float64 `json:"max_price,omitempty"`
+	InStock       *bool    `json:"in_stock,omitempty"`
+	OnSale        *bool    `json:"on_sale,omitempty"`
+	Rating        *float64 `json:"min_rating,omitempty"`
+	SortBy        string   `json:"sort_by,omitempty"`
+	Offset        int      `json:"offset,omitempty"`
+	Limit         int      `json:"limit,omitempty"`
+	IncludeFacets bool     `json:"include_facets,omitempty"`
 }
 
 // SuggestionRequest represents search suggestion parameters
@@ -87,7 +87,7 @@ type Suggestion struct {
 
 // SearchAnalyticsRequest represents analytics parameters
 type SearchAnalyticsRequest struct {
-	Type      string     `json:"type,omitempty"`       // queries, results, trends
+	Type      string     `json:"type,omitempty"` // queries, results, trends
 	StartDate *time.Time `json:"start_date,omitempty"`
 	EndDate   *time.Time `json:"end_date,omitempty"`
 	Limit     int        `json:"limit,omitempty"`
@@ -95,12 +95,12 @@ type SearchAnalyticsRequest struct {
 
 // SearchAnalyticsResponse represents search analytics
 type SearchAnalyticsResponse struct {
-	TopQueries    []QueryStat    `json:"top_queries,omitempty"`
-	NoResults     []QueryStat    `json:"no_results,omitempty"`
-	Trends        []TrendData    `json:"trends,omitempty"`
-	TotalSearches int64          `json:"total_searches"`
-	Period        string         `json:"period"`
-	Metrics       SearchMetrics  `json:"metrics"`
+	TopQueries    []QueryStat   `json:"top_queries,omitempty"`
+	NoResults     []QueryStat   `json:"no_results,omitempty"`
+	Trends        []TrendData   `json:"trends,omitempty"`
+	TotalSearches int64         `json:"total_searches"`
+	Period        string        `json:"period"`
+	Metrics       SearchMetrics `json:"metrics"`
 }
 
 // QueryStat represents query statistics
@@ -121,22 +121,22 @@ type TrendData struct {
 
 // SearchMetrics represents overall search metrics
 type SearchMetrics struct {
-	TotalSearches     int64   `json:"total_searches"`
-	UniqueQueries     int64   `json:"unique_queries"`
-	AverageResults    float64 `json:"average_results"`
-	NoResultsRate     float64 `json:"no_results_rate"`
-	ClickThroughRate  float64 `json:"click_through_rate"`
-	AveragePosition   float64 `json:"average_position"`
+	TotalSearches    int64   `json:"total_searches"`
+	UniqueQueries    int64   `json:"unique_queries"`
+	AverageResults   float64 `json:"average_results"`
+	NoResultsRate    float64 `json:"no_results_rate"`
+	ClickThroughRate float64 `json:"click_through_rate"`
+	AveragePosition  float64 `json:"average_position"`
 }
 
 // FilterRequest represents filter management
 type FilterRequest struct {
-	Type       string                 `json:"type" validate:"required"` // category, brand, price, rating
-	Operation  string                 `json:"operation,omitempty"`      // create, update, delete
-	Name       string                 `json:"name,omitempty"`
-	Values     []string               `json:"values,omitempty"`
-	Config     map[string]interface{} `json:"config,omitempty"`
-	IsActive   *bool                  `json:"is_active,omitempty"`
+	Type      string                 `json:"type" validate:"required"` // category, brand, price, rating
+	Operation string                 `json:"operation,omitempty"`      // create, update, delete
+	Name      string                 `json:"name,omitempty"`
+	Values    []string               `json:"values,omitempty"`
+	Config    map[string]interface{} `json:"config,omitempty"`
+	IsActive  *bool                  `json:"is_active,omitempty"`
 }
 
 // FilterResponse represents available filters
@@ -146,11 +146,11 @@ type FilterResponse struct {
 
 // Filter represents a search filter
 type Filter struct {
-	ID       string      `json:"id"`
-	Type     string      `json:"type"`
-	Name     string      `json:"name"`
+	ID       string        `json:"id"`
+	Type     string        `json:"type"`
+	Name     string        `json:"name"`
 	Values   []FilterValue `json:"values"`
-	IsActive bool        `json:"is_active"`
+	IsActive bool          `json:"is_active"`
 }
 
 // FilterValue represents a filter option

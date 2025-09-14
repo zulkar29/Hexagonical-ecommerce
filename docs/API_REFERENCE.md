@@ -2,7 +2,7 @@
 
 📋 **Documentation Navigation**: [📖 Project Home](../README.md) | [🏗️ Architecture](./ARCHITECTURE.md) | [🚀 Features](./FEATURES.md) | [🔄 User Flows](./USER_FLOWS.md)
 
-Comprehensive REST API specification for the hexagonal e-commerce SaaS platform with **252 endpoints** covering all business operations across 27 active modules with multi-tenant architecture, authentication, and WebSocket real-time capabilities.
+Comprehensive REST API specification for the hexagonal e-commerce SaaS platform with **271 documented endpoints** covering all business operations across 27 active modules with multi-tenant architecture, authentication, and WebSocket real-time capabilities.
 
 ## Base URL
 ```
@@ -57,8 +57,33 @@ Authorization: Bearer <jwt_token>
 ## Multi-tenant Context
 Tenant context is resolved from:
 1. Custom domain (e.g., store.example.com)
-2. Subdomain (e.g., store.platform.com)  
+2. Subdomain (e.g., store.platform.com)
 3. X-Tenant-ID header
+
+## Error Handling
+All API endpoints return standard HTTP status codes and JSON error responses:
+
+### Standard Status Codes
+- **200 OK**: Successful request
+- **201 Created**: Resource successfully created
+- **400 Bad Request**: Invalid request parameters
+- **401 Unauthorized**: Invalid or missing authentication
+- **403 Forbidden**: Insufficient permissions
+- **404 Not Found**: Resource not found
+- **422 Unprocessable Entity**: Validation errors
+- **429 Too Many Requests**: Rate limit exceeded
+- **500 Internal Server Error**: Server error
+
+### Error Response Format
+```json
+{
+  "error": "error_code",
+  "message": "Human readable error message",
+  "details": {
+    "field": "validation error details"
+  }
+}
+```
 
 ## Core Endpoints
 
@@ -67,7 +92,7 @@ Tenant context is resolved from:
 |--------|-----|-------------|------|--------|
 | GET | `/health` | Basic health check | ❌ | ❌ |
 
-## User Module (19 endpoints)
+## User Module (23 endpoints)
 
 ### Authentication (Token-based)
 | Method | URL | Description | Auth | Tenant |
@@ -89,7 +114,7 @@ Tenant context is resolved from:
 | GET | `/users/profile` | Get user profile | ✅ | ❌ |
 | PUT | `/users/profile` | Update user profile | ✅ | ❌ |
 | POST | `/users/change-password` | Change user password | ✅ | ❌ |
-| DELETE | `/users/account` | Delete user account | ✅ | ❌ |
+| PATCH | `/users/account` | Manage account (?action=deactivate\|anonymize\|delete\|export_data) | ✅ | ❌ |
 | GET | `/users/preferences` | Get user preferences | ✅ | ❌ |
 | PUT | `/users/preferences` | Update user preferences | ✅ | ❌ |
 | GET | `/users` | List users (admin) | ✅ | ❌ |
@@ -115,7 +140,7 @@ Tenant context is resolved from:
 | GET | `/admin/activity-logs` | Get tenant admin activity logs (?user_id=id, ?action=login\|update\|delete, ?date_from=date, ?date_to=date) | ✅ | ✅ |
 | GET | `/admin/system-health` | Get tenant system health & performance metrics | ✅ | ✅ |
 
-## Platform Admin Module (10 endpoints)
+## Platform Admin Module (15 endpoints)
 
 ### Super Admin Operations (Platform Management)
 | Method | URL | Description | Auth | Tenant |
@@ -139,7 +164,16 @@ Tenant context is resolved from:
 | GET | `/platform/settings` | Get platform settings (?category=billing\|notifications\|security\|features) | ✅ | ❌ |
 | PATCH | `/platform/settings` | Update platform settings | ✅ | ❌ |
 
-## Security Module (14 endpoints)
+### Platform Tenant Management
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/platform/tenants` | Create new tenant (platform onboarding) | ✅ | ❌ |
+| GET | `/platform/tenants` | List all tenants (super admin) (?view=stats, ?status=active\|pending\|suspended, ?include=users\|revenue\|usage) | ✅ | ❌ |
+| GET | `/platform/tenants/:id` | Get tenant details (super admin view) (?include=subscription\|usage\|settings\|analytics) | ✅ | ❌ |
+| PATCH | `/platform/tenants/:id` | Update tenant (super admin) (?action=activate\|suspend\|deactivate\|update_plan\|force_billing) | ✅ | ❌ |
+| DELETE | `/platform/tenants/:id` | Delete tenant (with data retention policy) | ✅ | ❌ |
+
+## Security Module (16 endpoints)
 
 ### Security & Audit Management
 | Method | URL | Description | Auth | Tenant |
@@ -151,7 +185,7 @@ Tenant context is resolved from:
 | PATCH | `/security/fraud-alerts/:id` | Manage fraud alert (?action=investigate\|resolve\|escalate) | ✅ | ✅ |
 | GET | `/security/tenant-boundaries` | Validate tenant data isolation (?tenant_id=id, ?check_type=data\|access\|query) | ✅ | ❌ |
 | POST | `/security/vulnerability-scan` | Run security vulnerability scan | ✅ | ✅ |
-| GET | `/security/permissions/:user-id` | Get user permissions matrix | ✅ | ✅ |
+| GET | `/security/permissions/:user_id` | Get user permissions matrix | ✅ | ✅ |
 | POST | `/security/2fa/setup` | Setup two-factor authentication | ✅ | ✅ |
 | POST | `/security/2fa/verify` | Verify 2FA code | ✅ | ✅ |
 
@@ -163,7 +197,13 @@ Tenant context is resolved from:
 | PATCH | `/security/api-keys/:id` | Manage API key (?action=regenerate\|revoke\|activate\|deactivate) | ✅ | ✅ |
 | GET | `/security/api-keys/:id/usage` | Get API key usage statistics | ✅ | ✅ |
 
-## Product Module (26 endpoints)
+### Rate Limiting
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/security/rate-limits` | Get current rate limits for tenant | ✅ | ✅ |
+| PATCH | `/security/rate-limits` | Update rate limits (?endpoint=specific\|global, ?action=adjust\|reset) | ✅ | ✅ |
+
+## Product Module (31 endpoints)
 
 *Note: Stock management is handled within product endpoints for this single-vendor platform*
 
@@ -178,7 +218,7 @@ Tenant context is resolved from:
 | POST | `/products/bulk` | Bulk operations (?operation=import\|export\|update\|delete) | ✅ | ✅ |
 | GET | `/products/slug/:slug` | Get product by slug (storefront) | ❌ | ✅ |
 | POST | `/products/:id/images` | Upload product images | ✅ | ✅ |
-| DELETE | `/products/:id/images/:image-id` | Delete product image | ✅ | ✅ |
+| DELETE | `/products/:id/images/:image_id` | Delete product image | ✅ | ✅ |
 | GET | `/products/:id/analytics` | Get product analytics (?type=related\|history\|performance) | ✅ | ✅ |
 
 ### Product Tags
@@ -188,21 +228,27 @@ Tenant context is resolved from:
 | POST | `/products/tags` | Create product tag | ✅ | ✅ |
 | PATCH | `/products/tags/:id` | Update tag (?action=update\|delete) | ✅ | ✅ |
 | POST | `/products/:id/tags` | Assign tags to product | ✅ | ✅ |
-| DELETE | `/products/:id/tags/:tag-id` | Remove tag from product | ✅ | ✅ |
+| DELETE | `/products/:id/tags/:tag_id` | Remove tag from product | ✅ | ✅ |
 
 ### Stock Reservation
 | Method | URL | Description | Auth | Tenant |
 |--------|-----|-------------|------|--------|
 | POST | `/products/reserve` | Reserve stock for cart items | ✅ | ✅ |
-| DELETE | `/products/reserve/:reservation-id` | Release stock reservation | ✅ | ✅ |
+| DELETE | `/products/reserve/:reservation_id` | Release stock reservation | ✅ | ✅ |
 | GET | `/products/reservations` | List active reservations | ✅ | ✅ |
+
+### Stock Management
+| Method | Endpoint | Description | Auth | Public |
+|--------|-----|-------------|------|--------|
+| GET | `/products/low-stock` | Get low stock alerts (?threshold=10, ?category=id, ?urgent_only=true) | ✅ | ✅ |
+| POST | `/products/stock/audit` | Generate stock audit report (?format=csv\|json) | ✅ | ✅ |
 
 ### Product Variants
 | Method | URL | Description | Auth | Tenant |
 |--------|-----|-------------|------|--------|
 | POST | `/products/:id/variants` | Create product variant | ✅ | ✅ |
 | GET | `/products/:id/variants` | Get product variants | ✅ | ✅ |
-| PATCH | `/products/:id/variants/:variant-id` | Update variant (?action=update\|delete\|upload_image) | ✅ | ✅ |
+| PATCH | `/products/:id/variants/:variant_id` | Update variant (?action=update\|delete\|upload_image) | ✅ | ✅ |
 
 ### Categories
 | Method | URL | Description | Auth | Tenant |
@@ -229,7 +275,7 @@ Tenant context is resolved from:
 | GET | `/orders` | List orders (?customer=current\|id, ?status=pending\|processing\|shipped, ?view=stats\|analytics, ?search=number, pagination) | ✅ | ✅ |
 | GET | `/orders/:id` | Get order details (?include=items\|notes\|history\|invoice\|documents) | ✅ | ✅ |
 | PATCH | `/orders/:id` | Update order (?action=cancel\|fulfill\|refund\|add_item\|remove_item\|add_note\|update_status) | ✅ | ✅ |
-| DELETE | `/orders/:id` | Delete order | ✅ | ✅ |
+| POST | `/orders/bulk` | Bulk operations (?operation=export\|update_status\|cancel\|assign_fulfillment) | ✅ | ✅ |
 | GET | `/orders/lookup/:number` | Get order by number (?public=true for customer access) | ❌/✅ | ✅ |
 | GET | `/orders/:id/tracking` | Track order (?public=true for customer access) | ❌/✅ | ✅ |
 
@@ -270,7 +316,7 @@ Tenant context is resolved from:
 | POST | `/shipping/calculate` | Calculate shipping cost | ✅ | ✅ |
 | GET | `/shipping/labels` | List shipping labels (?order_id=id) | ✅ | ✅ |
 | PATCH | `/shipping/labels/:id` | Manage shipping label (?action=create\|update\|delete) | ✅ | ✅ |
-| GET | `/shipping/track/:tracking-number` | Track shipment | ✅ | ✅ |
+| GET | `/shipping/track/:tracking_number` | Track shipment | ✅ | ✅ |
 | GET | `/shipping/providers` | List shipping providers (?active=true) | ✅ | ✅ |
 | PATCH | `/shipping/providers/:id` | Manage provider (?action=create\|update\|delete\|enable\|disable) | ✅ | ✅ |
 
@@ -294,7 +340,7 @@ Tenant context is resolved from:
 | PATCH | `/notifications/preferences` | Update notification preferences | ✅ | ✅ |
 
 
-## Analytics Module (5 endpoints)
+## Analytics Module (10 endpoints)
 
 ### Analytics
 | Method | URL | Description | Auth | Tenant |
@@ -304,6 +350,15 @@ Tenant context is resolved from:
 | GET | `/analytics/insights` | Get insights (?type=top_products\|top_pages\|referrers\|cohorts\|funnel\|retention\|clv) | ✅ | ✅ |
 | GET | `/analytics/reports` | List reports (?status=scheduled\|completed) | ✅ | ✅ |
 | PATCH | `/analytics/reports/:id` | Manage reports (?action=generate\|schedule\|export\|delete) | ✅ | ✅ |
+
+### Customer Segmentation
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/analytics/segments` | Create customer segment (?criteria=purchase_amount\|frequency\|category\|geography) | ✅ | ✅ |
+| GET | `/analytics/segments` | List customer segments | ✅ | ✅ |
+| GET | `/analytics/segments/:id` | Get segment details (?include=customers\|stats) | ✅ | ✅ |
+| GET | `/analytics/segments/:id/customers` | Get customers in segment (?export=csv, pagination) | ✅ | ✅ |
+| PATCH | `/analytics/segments/:id` | Update segment (?action=update\|refresh\|delete) | ✅ | ✅ |
 
 ## Marketing Module (10 endpoints)
 
@@ -337,8 +392,8 @@ Tenant context is resolved from:
 |--------|-----|-------------|------|--------|
 | GET | `/gift-cards` | List gift cards (?customer_id=id) | ✅ | ✅ |
 | PATCH | `/gift-cards/:id` | Manage gift card (?action=create\|update\|delete\|validate\|use) | ✅/❌ | ✅ |
-| GET | `/store-credit/:customer-id` | Get customer store credit | ✅ | ✅ |
-| PATCH | `/store-credit/:customer-id` | Update store credit (?action=add\|use\|refund) | ✅ | ✅ |
+| GET | `/store-credit/:customer_id` | Get customer store credit | ✅ | ✅ |
+| PATCH | `/store-credit/:customer_id` | Update store credit (?action=add\|use\|refund) | ✅ | ✅ |
 
 ## Search Module (6 endpoints)
 
@@ -437,7 +492,7 @@ Tenant context is resolved from:
 ### Public Reviews
 | Method | URL | Description | Auth | Tenant |
 |--------|-----|-------------|------|--------|
-| GET | `/public/reviews/:product-id` | Get product reviews (public) | ❌ | ✅ |
+| GET | `/public/reviews/:product_id` | Get product reviews (public) | ❌ | ✅ |
 | POST | `/public/reviews` | Submit product review (customer) | ✅ | ✅ |
 
 ## Support & Contact Module (14 endpoints)
@@ -491,38 +546,30 @@ Tenant context is resolved from:
 | GET | `/webhooks/events` | List webhook events | ✅ | ✅ |
 | PATCH | `/webhooks/events/:id` | Manage event (?action=create\|update\|delete) | ✅ | ✅ |
 
-## Billing Module (13 endpoints)
+## Billing Module (12 endpoints)
 
 ### Billing Management
 | Method | URL | Description | Auth | Tenant |
 |--------|-----|-------------|------|--------|
 | GET | `/billing/plans` | List billing plans | ✅ | ❌ |
-| PATCH | `/billing/plans/:plan-id` | Manage plan (?action=create\|update\|delete) | ✅ | ❌ |
+| PATCH | `/billing/plans/:plan_id` | Manage plan (?action=create\|update\|delete) | ✅ | ❌ |
 | GET | `/billing/subscriptions` | Get subscription details | ✅ | ✅ |
 | PATCH | `/billing/subscriptions` | Manage subscription (?action=create\|update\|cancel\|upgrade\|downgrade) | ✅ | ✅ |
 | GET | `/billing/usage` | Get usage summary (?include=limits) | ✅ | ✅ |
 | POST | `/billing/usage` | Record usage | ✅ | ✅ |
 | GET | `/billing/invoices` | List invoices (?view=analytics) | ✅ | ✅ |
-| GET | `/billing/invoices/:invoice-id` | Get invoice details | ✅ | ✅ |
-| PATCH | `/billing/invoices/:invoice-id` | Process invoice (?action=payment\|refund) | ✅ | ✅ |
+| GET | `/billing/invoices/:invoice_id` | Get invoice details | ✅ | ✅ |
+| PATCH | `/billing/invoices/:invoice_id` | Process invoice (?action=payment\|refund) | ✅ | ✅ |
 | GET | `/billing/reports` | Get billing reports (?type=revenue\|churn) | ✅ | ❌ |
 
 ### Admin Operations
 | Method | URL | Description | Auth | Tenant |
 |--------|-----|-------------|------|--------|
 | POST | `/billing/admin/process` | Process billing (?operation=billing\|retry_payments\|dunning) | ✅ | ❌ |
-| PATCH | `/billing/admin/tenants/:tenant-id` | Update tenant service status | ✅ | ❌ |
+| PATCH | `/billing/admin/tenants/:tenant_id` | Update tenant service status | ✅ | ❌ |
 
-## Tenant Module (12 endpoints)
+## Tenant Module (7 endpoints)
 
-### Platform Admin - Tenant Management (Super Admin APIs)
-| Method | URL | Description | Auth | Tenant |
-|--------|-----|-------------|------|--------|
-| POST | `/platform/tenants` | Create new tenant (platform onboarding) | ✅ | ❌ |
-| GET | `/platform/tenants` | List all tenants (super admin) (?view=stats, ?status=active\|pending\|suspended, ?include=users\|revenue\|usage) | ✅ | ❌ |
-| GET | `/platform/tenants/:id` | Get tenant details (super admin view) (?include=subscription\|usage\|settings\|analytics) | ✅ | ❌ |
-| PATCH | `/platform/tenants/:id` | Update tenant (super admin) (?action=activate\|suspend\|deactivate\|update_plan\|force_billing) | ✅ | ❌ |
-| DELETE | `/platform/tenants/:id` | Delete tenant (with data retention policy) | ✅ | ❌ |
 
 ### Tenant Operations (Tenant Admin APIs)
 | Method | URL | Description | Auth | Tenant |
@@ -607,12 +654,13 @@ wss://api.yourplatform.com/ws
 
 ## Summary
 
-The e-commerce platform implements **252 API endpoints** across **27 optimized modules** with token-based REST design:
+The e-commerce platform implements **271 documented API endpoints** across **27 optimized modules** with token-based REST design:
 
-- ✅ **User Module** - 19 endpoints (authentication, phone verification, profile management, admin operations, bulk operations)
+- ✅ **User Module** - 23 endpoints (authentication, phone verification, profile management, admin operations, bulk operations)
 - ✅ **Admin Dashboard Module** - 8 endpoints (admin dashboard, staff management, roles, activity logs)
-- ✅ **Security Module** - 14 endpoints (audit logs, fraud detection, tenant boundaries, 2FA, vulnerability scanning, API key management)
-- ✅ **Product Module** - 26 endpoints (products, variants, categories, tags, stock reservation, inventory, public access, analytics) 
+- ✅ **Platform Admin Module** - 15 endpoints (platform management, tenant management, system configuration)
+- ✅ **Security Module** - 16 endpoints (audit logs, fraud detection, tenant boundaries, 2FA, vulnerability scanning, API key management, rate limiting)
+- ✅ **Product Module** - 31 endpoints (products, variants, categories, tags, stock reservation, inventory, stock management, public access, analytics) 
 - ✅ **Order Module** - 11 endpoints (order management, disputes, tracking, flexible operations)
 - ✅ **Cart Module** - 8 endpoints (cart management, guest cart, checkout)
 - ✅ **Wishlist Module** - 6 endpoints (wishlist management with bulk operations)
@@ -620,7 +668,7 @@ The e-commerce platform implements **252 API endpoints** across **27 optimized m
 - ✅ **Payment Module** - 6 endpoints (payment processing, methods, webhooks)
 - ✅ **Shipping Module** - 11 endpoints (zones, rates, labels, tracking, webhooks)
 - ✅ **Notification Module** - 8 endpoints (notifications, templates, preferences)
-- ✅ **Analytics Module** - 5 endpoints (tracking, dashboard, insights, reports)
+- ✅ **Analytics Module** - 10 endpoints (tracking, dashboard, insights, reports, customer segmentation)
 - ✅ **Marketing Module** - 10 endpoints (campaigns, templates, segments, automation)
 - ✅ **Discount Module** - 9 endpoints (discounts, gift cards, store credit)
 - ✅ **Search Module** - 6 endpoints (global search, product search, suggestions, analytics, filters)
@@ -629,9 +677,9 @@ The e-commerce platform implements **252 API endpoints** across **27 optimized m
 - ✅ **Reviews Module** - 10 endpoints (reviews, moderation, invitations, public reviews)
 - ✅ **Support & Contact Module** - 14 endpoints (tickets, FAQ, knowledge base, contact management)
 - ✅ **Content Management Module** - 8 endpoints (pages, posts, media, menus)
-- ✅ **Webhook Module** - 9 endpoints (endpoint management, deliveries, events)
-- ✅ **Billing Module** - 13 endpoints (plans, subscriptions, usage, invoices, admin)
-- ✅ **Tenant Module** - 12 endpoints (enhanced multi-tenancy management, onboarding, limits)
+- ✅ **Webhook Module** - 7 endpoints (endpoint management, deliveries, events)
+- ✅ **Billing Module** - 12 endpoints (plans, subscriptions, usage, invoices, admin)
+- ✅ **Tenant Module** - 7 endpoints (tenant operations, onboarding, configuration)
 - ✅ **Observability Module** - 8 endpoints (health, metrics, logs, alerts)
 - ✅ **Returns Module** - 6 endpoints (return management, reasons, processing)
 - ✅ **Finance Module** - 6 endpoints (ledger, transactions, reports, payouts)
@@ -655,12 +703,12 @@ The e-commerce platform implements **252 API endpoints** across **27 optimized m
 - WebSocket support for real-time updates
 
 ### Technology Stack
-- **Backend Framework**: Gin (Go HTTP router)
+- **Backend Framework**: Gin (Go HTTP framework)
 - **Database**: PostgreSQL with GORM
 - **Authentication**: JWT tokens
 - **Real-time**: WebSocket connections
 - **Caching**: Redis integration
-- **Architecture**: Hexagonal (Clean) Architecture pattern
+- **Architecture**: Hexagonal Architecture pattern
 
 ---
 

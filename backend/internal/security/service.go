@@ -22,42 +22,42 @@ type SecurityService interface {
 	IsPasswordCompromised(password string) (bool, error)
 	EnforcePasswordExpiry(ctx context.Context, userID uuid.UUID) (*PasswordPolicy, error)
 	StorePasswordHistory(ctx context.Context, userID uuid.UUID, hashedPassword string) error
-	
+
 	// Login Security
 	RecordLoginAttempt(ctx context.Context, request *LoginAttemptRequest) (*LoginAttempt, error)
 	ValidateLoginAttempt(ctx context.Context, userID uuid.UUID, email, ipAddress string) (*LoginValidationResult, error)
 	ProcessSuccessfulLogin(ctx context.Context, userID uuid.UUID, ipAddress, userAgent string) error
 	ProcessFailedLogin(ctx context.Context, email, ipAddress, userAgent, reason string) error
-	
+
 	// Account Lockout Management
 	CheckAccountLockout(ctx context.Context, userID uuid.UUID) (*AccountLockoutStatus, error)
 	LockAccount(ctx context.Context, userID uuid.UUID, reason string, duration *time.Duration) error
 	UnlockAccount(ctx context.Context, userID uuid.UUID, adminID *uuid.UUID) error
 	ProcessAutomaticUnlocks(ctx context.Context) error
-	
+
 	// Device Management
 	RegisterTrustedDevice(ctx context.Context, request *TrustedDeviceRequest) (*TrustedDevice, error)
 	ValidateDevice(ctx context.Context, userID uuid.UUID, fingerprint string) (*DeviceValidationResult, error)
 	UpdateDeviceActivity(ctx context.Context, userID uuid.UUID, fingerprint, ipAddress string) error
 	RevokeTrustedDevice(ctx context.Context, deviceID uuid.UUID, reason string) error
 	GetUserDevices(ctx context.Context, userID uuid.UUID) ([]*TrustedDevice, error)
-	
+
 	// Security Event Handling
 	LogSecurityEvent(ctx context.Context, event *SecurityEventRequest) error
 	ProcessSecurityEvents(ctx context.Context, threatLevel ThreatLevel) ([]*SecurityEvent, error)
 	ResolveSecurityEvent(ctx context.Context, eventID uuid.UUID, resolution string, adminID *uuid.UUID) error
-	
+
 	// Threat Detection
 	AnalyzeThreatLevel(ctx context.Context, userID uuid.UUID, ipAddress, userAgent string) (ThreatLevel, error)
 	DetectSuspiciousActivity(ctx context.Context, userID uuid.UUID, activity *ActivityContext) (*ThreatAssessment, error)
 	ProcessBruteForceDetection(ctx context.Context, email, ipAddress string) error
-	
+
 	// Encryption Management
 	GetEncryptionKey(ctx context.Context, keyName string, tenantID *uuid.UUID) (*EncryptionKey, error)
 	RotateEncryptionKey(ctx context.Context, keyName string, tenantID *uuid.UUID) (*EncryptionKey, error)
 	EncryptData(data []byte, keyID uuid.UUID) ([]byte, error)
 	DecryptData(encryptedData []byte, keyID uuid.UUID) ([]byte, error)
-	
+
 	// Security Analytics
 	GetSecurityDashboard(ctx context.Context, tenantID *uuid.UUID, period time.Duration) (*SecurityDashboard, error)
 	GetSecurityReport(ctx context.Context, filter SecurityReportFilter) (*SecurityReport, error)
@@ -76,39 +76,39 @@ type LoginAttemptRequest struct {
 }
 
 type Location struct {
-	Country    string  `json:"country"`
-	City       string  `json:"city"`
-	Latitude   float64 `json:"latitude"`
-	Longitude  float64 `json:"longitude"`
-	ISP        string  `json:"isp"`
-	Timezone   string  `json:"timezone"`
+	Country   string  `json:"country"`
+	City      string  `json:"city"`
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+	ISP       string  `json:"isp"`
+	Timezone  string  `json:"timezone"`
 }
 
 type PasswordValidationResult struct {
-	IsValid      bool     `json:"is_valid"`
-	Errors       []string `json:"errors"`
-	Strength     int      `json:"strength"`
-	IsCompromised bool    `json:"is_compromised"`
-	Policy       *PasswordPolicy `json:"policy"`
+	IsValid       bool            `json:"is_valid"`
+	Errors        []string        `json:"errors"`
+	Strength      int             `json:"strength"`
+	IsCompromised bool            `json:"is_compromised"`
+	Policy        *PasswordPolicy `json:"policy"`
 }
 
 type LoginValidationResult struct {
-	IsAllowed      bool      `json:"is_allowed"`
-	Reason         string    `json:"reason,omitempty"`
-	ThreatLevel    ThreatLevel `json:"threat_level"`
-	RequiresMFA    bool      `json:"requires_mfa"`
-	AccountLocked  bool      `json:"account_locked"`
-	UnlocksAt      *time.Time `json:"unlocks_at,omitempty"`
-	RemainingAttempts int    `json:"remaining_attempts"`
+	IsAllowed         bool        `json:"is_allowed"`
+	Reason            string      `json:"reason,omitempty"`
+	ThreatLevel       ThreatLevel `json:"threat_level"`
+	RequiresMFA       bool        `json:"requires_mfa"`
+	AccountLocked     bool        `json:"account_locked"`
+	UnlocksAt         *time.Time  `json:"unlocks_at,omitempty"`
+	RemainingAttempts int         `json:"remaining_attempts"`
 }
 
 type AccountLockoutStatus struct {
-	IsLocked       bool       `json:"is_locked"`
-	LockedAt       *time.Time `json:"locked_at,omitempty"`
-	UnlocksAt      *time.Time `json:"unlocks_at,omitempty"`
-	Reason         string     `json:"reason,omitempty"`
-	AttemptCount   int        `json:"attempt_count"`
-	MaxAttempts    int        `json:"max_attempts"`
+	IsLocked     bool       `json:"is_locked"`
+	LockedAt     *time.Time `json:"locked_at,omitempty"`
+	UnlocksAt    *time.Time `json:"unlocks_at,omitempty"`
+	Reason       string     `json:"reason,omitempty"`
+	AttemptCount int        `json:"attempt_count"`
+	MaxAttempts  int        `json:"max_attempts"`
 }
 
 type TrustedDeviceRequest struct {
@@ -124,33 +124,33 @@ type TrustedDeviceRequest struct {
 }
 
 type DeviceValidationResult struct {
-	IsTrusted    bool       `json:"is_trusted"`
-	TrustScore   float64    `json:"trust_score"`
-	Device       *TrustedDevice `json:"device,omitempty"`
-	RequiresMFA  bool       `json:"requires_mfa"`
-	IsBlocked    bool       `json:"is_blocked"`
-	LastSeen     *time.Time `json:"last_seen,omitempty"`
+	IsTrusted   bool           `json:"is_trusted"`
+	TrustScore  float64        `json:"trust_score"`
+	Device      *TrustedDevice `json:"device,omitempty"`
+	RequiresMFA bool           `json:"requires_mfa"`
+	IsBlocked   bool           `json:"is_blocked"`
+	LastSeen    *time.Time     `json:"last_seen,omitempty"`
 }
 
 type SecurityEventRequest struct {
-	UserID      *uuid.UUID  `json:"user_id,omitempty"`
-	TenantID    *uuid.UUID  `json:"tenant_id,omitempty"`
-	EventType   string      `json:"event_type"`
-	Description string      `json:"description"`
-	ThreatLevel ThreatLevel `json:"threat_level"`
-	IPAddress   string      `json:"ip_address"`
-	UserAgent   string      `json:"user_agent"`
+	UserID      *uuid.UUID             `json:"user_id,omitempty"`
+	TenantID    *uuid.UUID             `json:"tenant_id,omitempty"`
+	EventType   string                 `json:"event_type"`
+	Description string                 `json:"description"`
+	ThreatLevel ThreatLevel            `json:"threat_level"`
+	IPAddress   string                 `json:"ip_address"`
+	UserAgent   string                 `json:"user_agent"`
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`
-	Location    *Location   `json:"location,omitempty"`
+	Location    *Location              `json:"location,omitempty"`
 }
 
 type ActivityContext struct {
-	Action     string                 `json:"action"`
-	Resource   string                 `json:"resource"`
-	IPAddress  string                 `json:"ip_address"`
-	UserAgent  string                 `json:"user_agent"`
-	Timestamp  time.Time              `json:"timestamp"`
-	Metadata   map[string]interface{} `json:"metadata,omitempty"`
+	Action    string                 `json:"action"`
+	Resource  string                 `json:"resource"`
+	IPAddress string                 `json:"ip_address"`
+	UserAgent string                 `json:"user_agent"`
+	Timestamp time.Time              `json:"timestamp"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type ThreatAssessment struct {
@@ -162,17 +162,17 @@ type ThreatAssessment struct {
 }
 
 type SecurityDashboard struct {
-	Period           time.Duration     `json:"period"`
-	TotalLogins      int64             `json:"total_logins"`
-	FailedLogins     int64             `json:"failed_logins"`
-	BlockedAttempts  int64             `json:"blocked_attempts"`
-	ActiveLockouts   int64             `json:"active_lockouts"`
-	TrustedDevices   int64             `json:"trusted_devices"`
-	SecurityEvents   int64             `json:"security_events"`
-	HighThreatEvents int64             `json:"high_threat_events"`
-	RiskScore        float64           `json:"risk_score"`
-	TopThreats       []ThreatSummary   `json:"top_threats"`
-	RecentEvents     []*SecurityEvent  `json:"recent_events"`
+	Period           time.Duration    `json:"period"`
+	TotalLogins      int64            `json:"total_logins"`
+	FailedLogins     int64            `json:"failed_logins"`
+	BlockedAttempts  int64            `json:"blocked_attempts"`
+	ActiveLockouts   int64            `json:"active_lockouts"`
+	TrustedDevices   int64            `json:"trusted_devices"`
+	SecurityEvents   int64            `json:"security_events"`
+	HighThreatEvents int64            `json:"high_threat_events"`
+	RiskScore        float64          `json:"risk_score"`
+	TopThreats       []ThreatSummary  `json:"top_threats"`
+	RecentEvents     []*SecurityEvent `json:"recent_events"`
 }
 
 type ThreatSummary struct {
@@ -183,21 +183,21 @@ type ThreatSummary struct {
 }
 
 type SecurityReportFilter struct {
-	TenantID    *uuid.UUID `json:"tenant_id,omitempty"`
-	StartTime   time.Time  `json:"start_time"`
-	EndTime     time.Time  `json:"end_time"`
-	EventTypes  []string   `json:"event_types,omitempty"`
+	TenantID    *uuid.UUID   `json:"tenant_id,omitempty"`
+	StartTime   time.Time    `json:"start_time"`
+	EndTime     time.Time    `json:"end_time"`
+	EventTypes  []string     `json:"event_types,omitempty"`
 	ThreatLevel *ThreatLevel `json:"threat_level,omitempty"`
-	UserID      *uuid.UUID `json:"user_id,omitempty"`
+	UserID      *uuid.UUID   `json:"user_id,omitempty"`
 }
 
 type SecurityReport struct {
-	Filter      SecurityReportFilter `json:"filter"`
-	Summary     *SecurityMetrics     `json:"summary"`
-	Events      []*SecurityEvent     `json:"events"`
-	Trends      []TrendData          `json:"trends"`
-	Recommendations []string         `json:"recommendations"`
-	GeneratedAt time.Time            `json:"generated_at"`
+	Filter          SecurityReportFilter `json:"filter"`
+	Summary         *SecurityMetrics     `json:"summary"`
+	Events          []*SecurityEvent     `json:"events"`
+	Trends          []TrendData          `json:"trends"`
+	Recommendations []string             `json:"recommendations"`
+	GeneratedAt     time.Time            `json:"generated_at"`
 }
 
 type TrendData struct {
@@ -207,12 +207,12 @@ type TrendData struct {
 }
 
 type RiskScore struct {
-	UserID          uuid.UUID            `json:"user_id"`
-	OverallScore    float64              `json:"overall_score"`
-	Level           string               `json:"level"`
-	Factors         []RiskFactor         `json:"factors"`
-	Recommendations []string             `json:"recommendations"`
-	LastUpdated     time.Time            `json:"last_updated"`
+	UserID          uuid.UUID    `json:"user_id"`
+	OverallScore    float64      `json:"overall_score"`
+	Level           string       `json:"level"`
+	Factors         []RiskFactor `json:"factors"`
+	Recommendations []string     `json:"recommendations"`
+	LastUpdated     time.Time    `json:"last_updated"`
 }
 
 type RiskFactor struct {
@@ -240,7 +240,7 @@ func (s *securityService) ValidatePassword(ctx context.Context, password string,
 		IsValid: true,
 		Errors:  []string{},
 	}
-	
+
 	// Get password policy
 	policy, err := s.repo.GetPasswordPolicy(ctx, tenantID)
 	if err != nil {
@@ -251,44 +251,44 @@ func (s *securityService) ValidatePassword(ctx context.Context, password string,
 			RequireLowercase: true,
 			RequireNumbers:   true,
 			RequireSymbols:   true,
-			MaxAge:          90,
-			HistoryCount:    5,
+			MaxAge:           90,
+			HistoryCount:     5,
 		}
 	}
 	result.Policy = policy
-	
+
 	// Validate length
 	if len(password) < policy.MinLength {
 		result.IsValid = false
 		result.Errors = append(result.Errors, fmt.Sprintf("Password must be at least %d characters long", policy.MinLength))
 	}
-	
+
 	if policy.MaxLength > 0 && len(password) > policy.MaxLength {
 		result.IsValid = false
 		result.Errors = append(result.Errors, fmt.Sprintf("Password must be no more than %d characters long", policy.MaxLength))
 	}
-	
+
 	// Character requirements
 	if policy.RequireUppercase && !regexp.MustCompile(`[A-Z]`).MatchString(password) {
 		result.IsValid = false
 		result.Errors = append(result.Errors, "Password must contain at least one uppercase letter")
 	}
-	
+
 	if policy.RequireLowercase && !regexp.MustCompile(`[a-z]`).MatchString(password) {
 		result.IsValid = false
 		result.Errors = append(result.Errors, "Password must contain at least one lowercase letter")
 	}
-	
+
 	if policy.RequireNumbers && !regexp.MustCompile(`[0-9]`).MatchString(password) {
 		result.IsValid = false
 		result.Errors = append(result.Errors, "Password must contain at least one number")
 	}
-	
+
 	if policy.RequireSymbols && !regexp.MustCompile(`[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]`).MatchString(password) {
 		result.IsValid = false
 		result.Errors = append(result.Errors, "Password must contain at least one special character")
 	}
-	
+
 	// Check forbidden patterns
 	for _, pattern := range policy.ForbiddenPatterns {
 		if matched, _ := regexp.MatchString(pattern, strings.ToLower(password)); matched {
@@ -297,10 +297,10 @@ func (s *securityService) ValidatePassword(ctx context.Context, password string,
 			break
 		}
 	}
-	
+
 	// Calculate strength
 	result.Strength = s.calculatePasswordStrength(password)
-	
+
 	// Check if password is compromised
 	compromised, err := s.IsPasswordCompromised(password)
 	if err == nil && compromised {
@@ -308,7 +308,7 @@ func (s *securityService) ValidatePassword(ctx context.Context, password string,
 		result.IsValid = false
 		result.Errors = append(result.Errors, "Password has been found in data breaches")
 	}
-	
+
 	// Check password history
 	if userID != uuid.Nil {
 		history, err := s.repo.GetPasswordHistory(ctx, userID, policy.HistoryCount)
@@ -322,7 +322,7 @@ func (s *securityService) ValidatePassword(ctx context.Context, password string,
 			}
 		}
 	}
-	
+
 	return result, nil
 }
 
@@ -345,25 +345,25 @@ func (s *securityService) EnforcePasswordExpiry(ctx context.Context, userID uuid
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if policy.MaxAge <= 0 {
 		return policy, nil // No expiry enforced
 	}
-	
+
 	// Get latest password from history
 	history, err := s.repo.GetPasswordHistory(ctx, userID, 1)
 	if err != nil || len(history) == 0 {
 		return policy, nil
 	}
-	
+
 	latestPassword := history[0]
 	expiryDate := latestPassword.CreatedAt.AddDate(0, 0, policy.MaxAge)
-	
+
 	if time.Now().After(expiryDate) {
 		// Password has expired - this would trigger a password reset flow
 		return policy, fmt.Errorf("password has expired")
 	}
-	
+
 	return policy, nil
 }
 
@@ -374,12 +374,12 @@ func (s *securityService) StorePasswordHistory(ctx context.Context, userID uuid.
 		PasswordHash: hashedPassword,
 		CreatedAt:    time.Now(),
 	}
-	
+
 	err := s.repo.CreatePasswordHistory(ctx, history)
 	if err != nil {
 		return err
 	}
-	
+
 	// Cleanup old history
 	return s.repo.CleanupOldPasswordHistory(ctx, userID, 10)
 }
@@ -391,7 +391,7 @@ func (s *securityService) RecordLoginAttempt(ctx context.Context, request *Login
 		userID = *request.UserID
 	}
 	threatLevel, _ := s.AnalyzeThreatLevel(ctx, userID, request.IPAddress, request.UserAgent)
-	
+
 	attempt := &LoginAttempt{
 		ID:          uuid.New(),
 		UserID:      request.UserID,
@@ -401,29 +401,29 @@ func (s *securityService) RecordLoginAttempt(ctx context.Context, request *Login
 		ThreatLevel: threatLevel,
 		AttemptedAt: time.Now(),
 	}
-	
+
 	if request.Success {
 		attempt.Status = LoginAttemptSuccess
 	} else {
 		attempt.Status = LoginAttemptFailed
 		attempt.FailureReason = request.FailReason
 	}
-	
+
 	if request.Location != nil {
 		attempt.Country = request.Location.Country
 		attempt.City = request.Location.City
 	}
-	
+
 	err := s.repo.CreateLoginAttempt(ctx, attempt)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Process failed login for brute force detection
 	if !request.Success {
 		_ = s.ProcessBruteForceDetection(ctx, request.Email, request.IPAddress)
 	}
-	
+
 	return attempt, nil
 }
 
@@ -431,13 +431,13 @@ func (s *securityService) ValidateLoginAttempt(ctx context.Context, userID uuid.
 	result := &LoginValidationResult{
 		IsAllowed: true,
 	}
-	
+
 	// Check account lockout
 	lockoutStatus, err := s.CheckAccountLockout(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if lockoutStatus.IsLocked {
 		result.IsAllowed = false
 		result.AccountLocked = true
@@ -445,38 +445,38 @@ func (s *securityService) ValidateLoginAttempt(ctx context.Context, userID uuid.
 		result.UnlocksAt = lockoutStatus.UnlocksAt
 		return result, nil
 	}
-	
+
 	// Analyze threat level
 	threatLevel, err := s.AnalyzeThreatLevel(ctx, userID, ipAddress, "")
 	if err != nil {
 		threatLevel = ThreatLevelLow
 	}
 	result.ThreatLevel = threatLevel
-	
+
 	// Check recent failed attempts
 	failedCount, err := s.repo.GetFailedLoginCount(ctx, email, time.Now().Add(-15*time.Minute))
 	if err == nil {
 		maxAttempts := 5 // This could come from policy
 		result.RemainingAttempts = maxAttempts - failedCount
-		
+
 		if failedCount >= maxAttempts {
 			result.IsAllowed = false
 			result.Reason = "Too many failed login attempts"
 		}
 	}
-	
+
 	// Require MFA for high threat levels
 	if threatLevel >= ThreatLevelHigh {
 		result.RequiresMFA = true
 	}
-	
+
 	return result, nil
 }
 
 func (s *securityService) ProcessSuccessfulLogin(ctx context.Context, userID uuid.UUID, ipAddress, userAgent string) error {
 	// Update device activity if it's a trusted device
 	_ = s.UpdateDeviceActivity(ctx, userID, s.generateDeviceFingerprint(userAgent, ipAddress), ipAddress)
-	
+
 	// Log security event for successful login
 	return s.LogSecurityEvent(ctx, &SecurityEventRequest{
 		UserID:      &userID,
@@ -506,17 +506,17 @@ func (s *securityService) ProcessFailedLogin(ctx context.Context, email, ipAddre
 // Account Lockout Management
 func (s *securityService) CheckAccountLockout(ctx context.Context, userID uuid.UUID) (*AccountLockoutStatus, error) {
 	status := &AccountLockoutStatus{}
-	
+
 	lockout, err := s.repo.GetActiveAccountLockout(ctx, userID)
 	if err != nil {
 		return status, nil // No active lockout
 	}
-	
+
 	status.IsLocked = true
 	status.LockedAt = &lockout.LockedAt
 	status.UnlocksAt = lockout.UnlocksAt
 	status.Reason = lockout.Reason
-	
+
 	return status, nil
 }
 
@@ -528,12 +528,12 @@ func (s *securityService) LockAccount(ctx context.Context, userID uuid.UUID, rea
 		LockedAt: time.Now(),
 		IsActive: true,
 	}
-	
+
 	if duration != nil {
 		unlocksAt := time.Now().Add(*duration)
 		lockout.UnlocksAt = &unlocksAt
 	}
-	
+
 	return s.repo.CreateAccountLockout(ctx, lockout)
 }
 
@@ -542,12 +542,12 @@ func (s *securityService) UnlockAccount(ctx context.Context, userID uuid.UUID, a
 	if err != nil {
 		return err
 	}
-	
+
 	now := time.Now()
 	lockout.IsActive = false
 	lockout.UnlockedAt = &now
 	lockout.UnlockedBy = adminID
-	
+
 	return s.repo.UpdateAccountLockout(ctx, lockout)
 }
 
@@ -558,31 +558,31 @@ func (s *securityService) ProcessAutomaticUnlocks(ctx context.Context) error {
 // Device Management
 func (s *securityService) RegisterTrustedDevice(ctx context.Context, request *TrustedDeviceRequest) (*TrustedDevice, error) {
 	device := &TrustedDevice{
-		ID:           uuid.New(),
-		UserID:       request.UserID,
-		Fingerprint:  request.Fingerprint,
-		DeviceName:   request.DeviceName,
-		DeviceType:   request.DeviceType,
-		OS:           request.OS,
-		Browser:      request.Browser,
-		IPAddress:    request.IPAddress,
-		UserAgent:    request.UserAgent,
-		Status:       DeviceStatusTrusted,
-		TrustScore:   0.8, // Initial trust score
-		FirstSeenAt:  time.Now(),
-		LastSeenAt:   time.Now(),
+		ID:          uuid.New(),
+		UserID:      request.UserID,
+		Fingerprint: request.Fingerprint,
+		DeviceName:  request.DeviceName,
+		DeviceType:  request.DeviceType,
+		OS:          request.OS,
+		Browser:     request.Browser,
+		IPAddress:   request.IPAddress,
+		UserAgent:   request.UserAgent,
+		Status:      DeviceStatusTrusted,
+		TrustScore:  0.8, // Initial trust score
+		FirstSeenAt: time.Now(),
+		LastSeenAt:  time.Now(),
 	}
-	
+
 	if request.Location != nil {
 		device.Country = request.Location.Country
 		device.City = request.Location.City
 	}
-	
+
 	err := s.repo.CreateTrustedDevice(ctx, device)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return device, nil
 }
 
@@ -590,32 +590,32 @@ func (s *securityService) ValidateDevice(ctx context.Context, userID uuid.UUID, 
 	result := &DeviceValidationResult{
 		IsTrusted: false,
 	}
-	
+
 	device, err := s.repo.GetTrustedDevice(ctx, userID, fingerprint)
 	if err != nil {
 		// Device not found - not trusted
 		return result, nil
 	}
-	
+
 	result.Device = device
 	result.LastSeen = &device.LastSeenAt
-	
+
 	// Check device status
 	if device.Status == DeviceStatusBlocked {
 		result.IsBlocked = true
 		return result, nil
 	}
-	
+
 	if device.Status == DeviceStatusTrusted {
 		result.IsTrusted = true
 		result.TrustScore = device.TrustScore
-		
+
 		// Require MFA if trust score is low
 		if device.TrustScore < 0.5 {
 			result.RequiresMFA = true
 		}
 	}
-	
+
 	return result, nil
 }
 
@@ -624,16 +624,16 @@ func (s *securityService) UpdateDeviceActivity(ctx context.Context, userID uuid.
 	if err != nil {
 		return err
 	}
-	
+
 	device.LastSeenAt = time.Now()
 	device.IPAddress = ipAddress
 	device.AccessCount++
-	
+
 	// Update trust score based on consistent usage
 	if device.AccessCount > 10 && device.TrustScore < 1.0 {
 		device.TrustScore = minFloat(1.0, device.TrustScore+0.1)
 	}
-	
+
 	return s.repo.UpdateTrustedDevice(ctx, device)
 }
 
@@ -660,12 +660,12 @@ func (s *securityService) LogSecurityEvent(ctx context.Context, request *Securit
 		OccurredAt:  time.Now(),
 		IsResolved:  false,
 	}
-	
+
 	if request.Location != nil {
 		event.Country = request.Location.Country
 		event.City = request.Location.City
 	}
-	
+
 	return s.repo.CreateSecurityEvent(ctx, event)
 }
 
@@ -681,20 +681,20 @@ func (s *securityService) ResolveSecurityEvent(ctx context.Context, eventID uuid
 // Threat Detection
 func (s *securityService) AnalyzeThreatLevel(ctx context.Context, userID uuid.UUID, ipAddress, userAgent string) (ThreatLevel, error) {
 	score := 0.0
-	
+
 	// Check IP reputation (simplified)
 	if s.isPrivateIP(ipAddress) {
 		score -= 0.2 // Local IPs are generally safer
 	} else {
 		score += 0.1 // External IPs have slight risk
 	}
-	
+
 	// Check for recent failed attempts from this IP
 	failedCount, err := s.repo.GetFailedLoginCount(ctx, "", time.Now().Add(-1*time.Hour))
 	if err == nil && failedCount > 5 {
 		score += 0.3
 	}
-	
+
 	// Determine threat level based on score
 	if score >= 0.7 {
 		return ThreatLevelCritical, nil
@@ -703,7 +703,7 @@ func (s *securityService) AnalyzeThreatLevel(ctx context.Context, userID uuid.UU
 	} else if score >= 0.3 {
 		return ThreatLevelMedium, nil
 	}
-	
+
 	return ThreatLevelLow, nil
 }
 
@@ -715,13 +715,13 @@ func (s *securityService) DetectSuspiciousActivity(ctx context.Context, userID u
 		Actions:     []string{},
 		Metadata:    make(map[string]interface{}),
 	}
-	
+
 	// Analyze various factors
 	// Geographic anomaly
 	// Time-based anomaly
 	// Behavioral anomaly
 	// Device anomaly
-	
+
 	return assessment, nil
 }
 
@@ -731,7 +731,7 @@ func (s *securityService) ProcessBruteForceDetection(ctx context.Context, email,
 	if err != nil {
 		return err
 	}
-	
+
 	if failedCount >= 10 {
 		// Log high-threat security event
 		return s.LogSecurityEvent(ctx, &SecurityEventRequest{
@@ -745,7 +745,7 @@ func (s *securityService) ProcessBruteForceDetection(ctx context.Context, email,
 			},
 		})
 	}
-	
+
 	return nil
 }
 
@@ -788,7 +788,7 @@ func (s *securityService) GetRiskScore(ctx context.Context, userID uuid.UUID) (*
 // Helper functions
 func (s *securityService) calculatePasswordStrength(password string) int {
 	score := 0
-	
+
 	if len(password) >= 8 {
 		score += 25
 	}
@@ -804,7 +804,7 @@ func (s *securityService) calculatePasswordStrength(password string) int {
 	if regexp.MustCompile(`[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]`).MatchString(password) {
 		score += 25
 	}
-	
+
 	// Bonus for length
 	if len(password) >= 12 {
 		score += 10
@@ -812,7 +812,7 @@ func (s *securityService) calculatePasswordStrength(password string) int {
 	if len(password) >= 16 {
 		score += 10
 	}
-	
+
 	// Penalty for repeated characters (3 or more in a row)
 	for i := 0; i < len(password)-2; i++ {
 		if password[i] == password[i+1] && password[i+1] == password[i+2] {
@@ -823,7 +823,7 @@ func (s *securityService) calculatePasswordStrength(password string) int {
 	if regexp.MustCompile(`(012|123|234|345|456|567|678|789|890|abc|bcd|cde)`).MatchString(strings.ToLower(password)) {
 		score -= 10
 	}
-	
+
 	return maxInt(0, int(minFloat(100.0, float64(score))))
 }
 
@@ -837,7 +837,7 @@ func (s *securityService) isPrivateIP(ipAddress string) bool {
 	if ip == nil {
 		return false
 	}
-	
+
 	return ip.IsPrivate() || ip.IsLoopback()
 }
 

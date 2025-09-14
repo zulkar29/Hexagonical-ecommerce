@@ -100,7 +100,7 @@ func (r *Repository) GetPages(tenantID uuid.UUID, filter PageListFilter) ([]Page
 
 func (r *Repository) GetPublishedPages(tenantID uuid.UUID) ([]Page, error) {
 	var pages []Page
-	err := r.db.Where("tenant_id = ? AND status = ? AND (published_at IS NULL OR published_at <= NOW())", 
+	err := r.db.Where("tenant_id = ? AND status = ? AND (published_at IS NULL OR published_at <= NOW())",
 		tenantID, StatusPublished).
 		Order("published_at DESC").
 		Find(&pages).Error
@@ -134,11 +134,11 @@ func (r *Repository) IncrementPageViews(tenantID, pageID uuid.UUID) error {
 func (r *Repository) SlugExists(tenantID uuid.UUID, slug string, excludeID uuid.UUID) (bool, error) {
 	var count int64
 	query := r.db.Model(&Page{}).Where("tenant_id = ? AND slug = ?", tenantID, slug)
-	
+
 	if excludeID != uuid.Nil {
 		query = query.Where("id != ?", excludeID)
 	}
-	
+
 	err := query.Count(&count).Error
 	return count > 0, err
 }
@@ -268,7 +268,7 @@ func (r *Repository) DeleteMenu(tenantID, menuID uuid.UUID) error {
 	if err := r.db.Where("menu_id = ?", menuID).Delete(&MenuItem{}).Error; err != nil {
 		return err
 	}
-	
+
 	// Delete menu
 	return r.db.Where("tenant_id = ? AND id = ?", tenantID, menuID).Delete(&Menu{}).Error
 }
@@ -339,7 +339,7 @@ func (r *Repository) DeleteMenuItem(tenantID, itemID uuid.UUID) error {
 	if err := r.db.Where("parent_id = ?", itemID).Delete(&MenuItem{}).Error; err != nil {
 		return err
 	}
-	
+
 	// Delete the item
 	return r.db.Where("id = ?", itemID).Delete(&MenuItem{}).Error
 }
@@ -391,7 +391,7 @@ func (r *Repository) DeleteTag(tenantID, tagID uuid.UUID) error {
 	if err := r.db.Exec("DELETE FROM page_tags WHERE tag_id = ? AND EXISTS (SELECT 1 FROM tags WHERE tags.id = page_tags.tag_id AND tags.tenant_id = ?)", tagID, tenantID).Error; err != nil {
 		return err
 	}
-	
+
 	// Delete tag
 	return r.db.Where("tenant_id = ? AND id = ?", tenantID, tagID).Delete(&Tag{}).Error
 }
@@ -439,14 +439,14 @@ func (r *Repository) DeleteCategory(tenantID, categoryID uuid.UUID) error {
 	if err := r.db.Exec("DELETE FROM page_categories WHERE category_id = ? AND EXISTS (SELECT 1 FROM categories WHERE categories.id = page_categories.category_id AND categories.tenant_id = ?)", categoryID, tenantID).Error; err != nil {
 		return err
 	}
-	
+
 	// Update children to remove parent reference
 	if err := r.db.Model(&Category{}).
 		Where("tenant_id = ? AND parent_id = ?", tenantID, categoryID).
 		Update("parent_id", nil).Error; err != nil {
 		return err
 	}
-	
+
 	// Delete category
 	return r.db.Where("tenant_id = ? AND id = ?", tenantID, categoryID).Delete(&Category{}).Error
 }
@@ -630,7 +630,7 @@ func (r *Repository) GetPagesByCategory(tenantID uuid.UUID, categoryID uuid.UUID
 
 func (r *Repository) GetRelatedPages(tenantID uuid.UUID, pageID uuid.UUID, limit int) ([]Page, error) {
 	var pages []Page
-	
+
 	// Get pages that share tags or categories with the current page
 	err := r.db.Raw(`
 		SELECT DISTINCT p.* FROM pages p
@@ -650,7 +650,7 @@ func (r *Repository) GetRelatedPages(tenantID uuid.UUID, pageID uuid.UUID, limit
 		ORDER BY p.view_count DESC, p.published_at DESC
 		LIMIT ?
 	`, tenantID, pageID, pageID, pageID, pageID, pageID, limit).Scan(&pages).Error
-	
+
 	return pages, err
 }
 
@@ -691,17 +691,17 @@ func (r *Repository) BulkDeletePages(tenantID uuid.UUID, pageIDs []uuid.UUID) er
 		if err := tx.Exec("DELETE FROM page_tags WHERE page_id IN ? AND EXISTS (SELECT 1 FROM pages WHERE pages.id = page_tags.page_id AND pages.tenant_id = ?)", pageIDs, tenantID).Error; err != nil {
 			return err
 		}
-		
+
 		// Delete category associations
 		if err := tx.Exec("DELETE FROM page_categories WHERE page_id IN ? AND EXISTS (SELECT 1 FROM pages WHERE pages.id = page_categories.page_id AND pages.tenant_id = ?)", pageIDs, tenantID).Error; err != nil {
 			return err
 		}
-		
+
 		// Delete pages
 		if err := tx.Where("tenant_id = ? AND id IN ?", tenantID, pageIDs).Delete(&Page{}).Error; err != nil {
 			return err
 		}
-		
+
 		return nil
 	})
 }

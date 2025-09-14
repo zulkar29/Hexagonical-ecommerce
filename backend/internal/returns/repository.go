@@ -18,21 +18,21 @@ type Repository interface {
 	ListReturns(ctx context.Context, tenantID uuid.UUID, filter ReturnFilter) ([]*Return, int64, error)
 	UpdateReturn(ctx context.Context, return_ *Return) error
 	DeleteReturn(ctx context.Context, tenantID, returnID uuid.UUID) error
-	
+
 	// Return item operations
 	CreateReturnItem(ctx context.Context, item *ReturnItem) error
 	GetReturnItemByID(ctx context.Context, itemID uuid.UUID) (*ReturnItem, error)
 	GetReturnItems(ctx context.Context, returnID uuid.UUID) ([]*ReturnItem, error)
 	UpdateReturnItem(ctx context.Context, item *ReturnItem) error
 	DeleteReturnItem(ctx context.Context, itemID uuid.UUID) error
-	
+
 	// Return reason operations
 	CreateReturnReason(ctx context.Context, reason *ReturnReason) error
 	GetReturnReasonByID(ctx context.Context, tenantID, reasonID uuid.UUID) (*ReturnReason, error)
 	ListReturnReasons(ctx context.Context, tenantID uuid.UUID, activeOnly bool) ([]*ReturnReason, error)
 	UpdateReturnReason(ctx context.Context, reason *ReturnReason) error
 	DeleteReturnReason(ctx context.Context, tenantID, reasonID uuid.UUID) error
-	
+
 	// Statistics and analytics
 	GetReturnStats(ctx context.Context, tenantID uuid.UUID, filter StatsFilter) (*ReturnStats, error)
 	GetReturnsByCustomer(ctx context.Context, tenantID, customerID uuid.UUID, filter ReturnFilter) ([]*Return, int64, error)
@@ -46,23 +46,23 @@ type ReturnFilter struct {
 	CustomerID *uuid.UUID     `json:"customer_id,omitempty"`
 	OrderID    *uuid.UUID     `json:"order_id,omitempty"`
 	ReasonID   *uuid.UUID     `json:"reason_id,omitempty"`
-	
+
 	// Date filters
 	CreatedAfter  *time.Time `json:"created_after,omitempty"`
 	CreatedBefore *time.Time `json:"created_before,omitempty"`
-	
+
 	// Amount filters
 	MinRefundAmount *float64 `json:"min_refund_amount,omitempty"`
 	MaxRefundAmount *float64 `json:"max_refund_amount,omitempty"`
-	
+
 	// Search
 	Search string `json:"search,omitempty"`
-	
+
 	// Pagination
 	Page   int `json:"page,omitempty"`
 	Limit  int `json:"limit,omitempty"`
 	Offset int `json:"offset,omitempty"`
-	
+
 	// Sorting
 	SortBy    string `json:"sort_by,omitempty"`
 	SortOrder string `json:"sort_order,omitempty"`
@@ -77,41 +77,41 @@ type StatsFilter struct {
 
 // ReturnStats represents return statistics
 type ReturnStats struct {
-	TotalReturns       int64   `json:"total_returns"`
-	TotalRefundAmount  float64 `json:"total_refund_amount"`
+	TotalReturns        int64   `json:"total_returns"`
+	TotalRefundAmount   float64 `json:"total_refund_amount"`
 	AverageRefundAmount float64 `json:"average_refund_amount"`
-	
+
 	// Status breakdown
-	PendingReturns   int64 `json:"pending_returns"`
-	ApprovedReturns  int64 `json:"approved_returns"`
-	RejectedReturns  int64 `json:"rejected_returns"`
+	PendingReturns    int64 `json:"pending_returns"`
+	ApprovedReturns   int64 `json:"approved_returns"`
+	RejectedReturns   int64 `json:"rejected_returns"`
 	ProcessingReturns int64 `json:"processing_returns"`
-	CompletedReturns int64 `json:"completed_returns"`
-	
+	CompletedReturns  int64 `json:"completed_returns"`
+
 	// Type breakdown
 	RefundReturns   int64 `json:"refund_returns"`
 	ExchangeReturns int64 `json:"exchange_returns"`
-	
+
 	// Time-based stats
 	ReturnsByPeriod []PeriodStats `json:"returns_by_period,omitempty"`
-	
+
 	// Top reasons
 	TopReasons []ReasonStats `json:"top_reasons,omitempty"`
 }
 
 // PeriodStats represents statistics for a specific time period
 type PeriodStats struct {
-	Period      string  `json:"period"`
-	Count       int64   `json:"count"`
+	Period       string  `json:"period"`
+	Count        int64   `json:"count"`
 	RefundAmount float64 `json:"refund_amount"`
 }
 
 // ReasonStats represents statistics for return reasons
 type ReasonStats struct {
-	ReasonID    uuid.UUID `json:"reason_id"`
-	ReasonName  string    `json:"reason_name"`
-	Count       int64     `json:"count"`
-	Percentage  float64   `json:"percentage"`
+	ReasonID   uuid.UUID `json:"reason_id"`
+	ReasonName string    `json:"reason_name"`
+	Count      int64     `json:"count"`
+	Percentage float64   `json:"percentage"`
 }
 
 // gormRepository implements the Repository interface using GORM
@@ -137,7 +137,7 @@ func (r *gormRepository) GetReturnByID(ctx context.Context, tenantID, returnID u
 		Preload("Reason").
 		Where("tenant_id = ? AND id = ?", tenantID, returnID).
 		First(&return_).Error
-	
+
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +152,7 @@ func (r *gormRepository) GetReturnByNumber(ctx context.Context, tenantID uuid.UU
 		Preload("Reason").
 		Where("tenant_id = ? AND return_number = ?", tenantID, returnNumber).
 		First(&return_).Error
-	
+
 	if err != nil {
 		return nil, err
 	}
@@ -165,10 +165,10 @@ func (r *gormRepository) ListReturns(ctx context.Context, tenantID uuid.UUID, fi
 		Preload("Items").
 		Preload("Reason").
 		Where("tenant_id = ?", tenantID)
-	
+
 	// Apply filters
 	query = r.applyReturnFilters(query, filter)
-	
+
 	// Count total records
 	var total int64
 	countQuery := r.db.WithContext(ctx).Model(&Return{}).Where("tenant_id = ?", tenantID)
@@ -176,7 +176,7 @@ func (r *gormRepository) ListReturns(ctx context.Context, tenantID uuid.UUID, fi
 	if err := countQuery.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	
+
 	// Apply sorting
 	if filter.SortBy != "" {
 		order := "ASC"
@@ -187,7 +187,7 @@ func (r *gormRepository) ListReturns(ctx context.Context, tenantID uuid.UUID, fi
 	} else {
 		query = query.Order("created_at DESC")
 	}
-	
+
 	// Apply pagination
 	if filter.Limit > 0 {
 		query = query.Limit(filter.Limit)
@@ -195,7 +195,7 @@ func (r *gormRepository) ListReturns(ctx context.Context, tenantID uuid.UUID, fi
 			query = query.Offset((filter.Page - 1) * filter.Limit)
 		}
 	}
-	
+
 	var returns []*Return
 	findErr := query.Find(&returns).Error
 	return returns, total, findErr
@@ -224,7 +224,7 @@ func (r *gormRepository) GetReturnItemByID(ctx context.Context, itemID uuid.UUID
 	err := r.db.WithContext(ctx).
 		Where("id = ?", itemID).
 		First(&item).Error
-	
+
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +261,7 @@ func (r *gormRepository) GetReturnReasonByID(ctx context.Context, tenantID, reas
 	err := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND id = ?", tenantID, reasonID).
 		First(&reason).Error
-	
+
 	if err != nil {
 		return nil, err
 	}
@@ -271,11 +271,11 @@ func (r *gormRepository) GetReturnReasonByID(ctx context.Context, tenantID, reas
 // ListReturnReasons retrieves return reasons
 func (r *gormRepository) ListReturnReasons(ctx context.Context, tenantID uuid.UUID, activeOnly bool) ([]*ReturnReason, error) {
 	query := r.db.WithContext(ctx).Where("tenant_id = ?", tenantID)
-	
+
 	if activeOnly {
 		query = query.Where("is_active = ?", true)
 	}
-	
+
 	var reasons []*ReturnReason
 	err := query.Order("display_order ASC, name ASC").Find(&reasons).Error
 	return reasons, err
@@ -296,10 +296,10 @@ func (r *gormRepository) DeleteReturnReason(ctx context.Context, tenantID, reaso
 // GetReturnStats retrieves return statistics
 func (r *gormRepository) GetReturnStats(ctx context.Context, tenantID uuid.UUID, filter StatsFilter) (*ReturnStats, error) {
 	stats := &ReturnStats{}
-	
+
 	// Base query
 	query := r.db.WithContext(ctx).Model(&Return{}).Where("tenant_id = ?", tenantID)
-	
+
 	// Apply date filters
 	if filter.DateFrom != nil {
 		query = query.Where("created_at >= ?", filter.DateFrom)
@@ -307,35 +307,35 @@ func (r *gormRepository) GetReturnStats(ctx context.Context, tenantID uuid.UUID,
 	if filter.DateTo != nil {
 		query = query.Where("created_at <= ?", filter.DateTo)
 	}
-	
+
 	// Get total counts and amounts
 	var totalCount int64
 	var totalRefund float64
-	
+
 	if err := query.Count(&totalCount).Error; err != nil {
 		return nil, err
 	}
 	stats.TotalReturns = totalCount
-	
+
 	if err := query.Select("COALESCE(SUM(total_refund), 0)").Scan(&totalRefund).Error; err != nil {
 		return nil, err
 	}
 	stats.TotalRefundAmount = totalRefund
-	
+
 	if totalCount > 0 {
 		stats.AverageRefundAmount = totalRefund / float64(totalCount)
 	}
-	
+
 	// Get status breakdown
 	var statusCounts []struct {
 		Status ReturnStatus `json:"status"`
 		Count  int64        `json:"count"`
 	}
-	
+
 	if err := query.Select("status, COUNT(*) as count").Group("status").Scan(&statusCounts).Error; err != nil {
 		return nil, err
 	}
-	
+
 	for _, sc := range statusCounts {
 		switch sc.Status {
 		case StatusPending:
@@ -350,17 +350,17 @@ func (r *gormRepository) GetReturnStats(ctx context.Context, tenantID uuid.UUID,
 			stats.CompletedReturns = sc.Count
 		}
 	}
-	
+
 	// Get type breakdown
 	var typeCounts []struct {
 		Type  ReturnType `json:"type"`
 		Count int64      `json:"count"`
 	}
-	
+
 	if err := query.Select("type, COUNT(*) as count").Group("type").Scan(&typeCounts).Error; err != nil {
 		return nil, err
 	}
-	
+
 	for _, tc := range typeCounts {
 		switch tc.Type {
 		case TypeRefund:
@@ -369,7 +369,7 @@ func (r *gormRepository) GetReturnStats(ctx context.Context, tenantID uuid.UUID,
 			stats.ExchangeReturns = tc.Count
 		}
 	}
-	
+
 	// Get top reasons
 	var reasonStats []ReasonStats
 	if err := r.db.WithContext(ctx).
@@ -384,7 +384,7 @@ func (r *gormRepository) GetReturnStats(ctx context.Context, tenantID uuid.UUID,
 		return nil, err
 	}
 	stats.TopReasons = reasonStats
-	
+
 	return stats, nil
 }
 
@@ -394,16 +394,16 @@ func (r *gormRepository) GetReturnsByCustomer(ctx context.Context, tenantID, cus
 		Preload("Items").
 		Preload("Reason").
 		Where("tenant_id = ? AND customer_id = ?", tenantID, customerID)
-	
+
 	// Apply additional filters
 	query = r.applyReturnFilters(query, filter)
-	
+
 	// Get total count
 	var total int64
 	if err := query.Model(&Return{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	
+
 	// Apply pagination and ordering
 	query = query.Order("created_at DESC")
 	if filter.Limit > 0 {
@@ -412,7 +412,7 @@ func (r *gormRepository) GetReturnsByCustomer(ctx context.Context, tenantID, cus
 	if filter.Offset > 0 {
 		query = query.Offset(filter.Offset)
 	}
-	
+
 	var returns []*Return
 	err := query.Find(&returns).Error
 	return returns, total, err
@@ -436,27 +436,27 @@ func (r *gormRepository) applyReturnFilters(query *gorm.DB, filter ReturnFilter)
 	if len(filter.Status) > 0 {
 		query = query.Where("status IN ?", filter.Status)
 	}
-	
+
 	// Type filter
 	if len(filter.Type) > 0 {
 		query = query.Where("type IN ?", filter.Type)
 	}
-	
+
 	// Customer filter
 	if filter.CustomerID != nil {
 		query = query.Where("customer_id = ?", *filter.CustomerID)
 	}
-	
+
 	// Order filter
 	if filter.OrderID != nil {
 		query = query.Where("order_id = ?", *filter.OrderID)
 	}
-	
+
 	// Reason filter
 	if filter.ReasonID != nil {
 		query = query.Where("reason_id = ?", *filter.ReasonID)
 	}
-	
+
 	// Date filters
 	if filter.CreatedAfter != nil {
 		query = query.Where("created_at >= ?", filter.CreatedAfter)
@@ -464,7 +464,7 @@ func (r *gormRepository) applyReturnFilters(query *gorm.DB, filter ReturnFilter)
 	if filter.CreatedBefore != nil {
 		query = query.Where("created_at <= ?", filter.CreatedBefore)
 	}
-	
+
 	// Amount filters
 	if filter.MinRefundAmount != nil {
 		query = query.Where("total_refund >= ?", *filter.MinRefundAmount)
@@ -472,7 +472,7 @@ func (r *gormRepository) applyReturnFilters(query *gorm.DB, filter ReturnFilter)
 	if filter.MaxRefundAmount != nil {
 		query = query.Where("total_refund <= ?", *filter.MaxRefundAmount)
 	}
-	
+
 	// Search filter
 	if filter.Search != "" {
 		query = query.Where(
@@ -482,6 +482,6 @@ func (r *gormRepository) applyReturnFilters(query *gorm.DB, filter ReturnFilter)
 			"%"+filter.Search+"%",
 		)
 	}
-	
+
 	return query
 }

@@ -353,19 +353,21 @@ func (r *repository) GetContactSettings(ctx context.Context, tenantID uuid.UUID)
 		First(&settings).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			// Return default settings if not found
+			// Return default settings
 			return &ContactSettings{
-				TenantID:             tenantID,
-				ContactEmail:         "contact@example.com",
-				AutoAssignEnabled:    false,
-				AutoReplyEnabled:     true,
-				EmailNotifications:   true,
-				SLAResponseTime:      24, // 24 hours
-				SLAResolutionTime:    72, // 72 hours
+				TenantID:              tenantID,
+				ContactEmail:          "contact@example.com",
+				SupportEmail:          "support@example.com",
+				BusinessHours:         "9 AM - 5 PM",
+				Timezone:              "Asia/Dhaka",
+				AutoReplyEnabled:      true,
+				SLAResponseTime:       24,
+				SLAResolutionTime:     72,
+				EmailNotifications:    true,
+				NotifyOnNewContact:    true,
 				AllowAnonymousContact: true,
-				EnableSpamFilter:     true,
-				DataRetentionDays:    365,
-				ConsentRequired:      true,
+				EnableSpamFilter:      true,
+				MaxDailySubmissions:   10,
 			}, nil
 		}
 		return nil, err

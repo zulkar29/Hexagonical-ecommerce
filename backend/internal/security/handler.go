@@ -25,50 +25,50 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	// 🔐 PASSWORD MANAGEMENT ENDPOINTS
 	passwords := router.Group("/passwords")
 	{
-		passwords.POST("/validate", h.ValidatePassword)        // ValidatePassword
+		passwords.POST("/validate", h.ValidatePassword)          // ValidatePassword
 		passwords.POST("/check-compromised", h.CheckCompromised) // IsPasswordCompromised
-		passwords.GET("/policy", h.GetPasswordPolicy)          // Get password policy
+		passwords.GET("/policy", h.GetPasswordPolicy)            // Get password policy
 	}
 
 	// 🔐 LOGIN SECURITY ENDPOINTS
 	logins := router.Group("/login-security")
 	{
-		logins.POST("/attempts", h.RecordLoginAttempt)     // RecordLoginAttempt
-		logins.POST("/validate", h.ValidateLoginAttempt)   // ValidateLoginAttempt
-		logins.GET("/attempts", h.GetLoginAttempts)        // Get login attempts
+		logins.POST("/attempts", h.RecordLoginAttempt)   // RecordLoginAttempt
+		logins.POST("/validate", h.ValidateLoginAttempt) // ValidateLoginAttempt
+		logins.GET("/attempts", h.GetLoginAttempts)      // Get login attempts
 	}
 
 	// 🔐 ACCOUNT LOCKOUT ENDPOINTS
 	lockouts := router.Group("/lockouts")
 	{
-		lockouts.GET("/status/:user_id", h.GetLockoutStatus)  // CheckAccountLockout
-		lockouts.POST("/lock", h.LockAccount)                 // LockAccount
-		lockouts.POST("/unlock", h.UnlockAccount)             // UnlockAccount
-		lockouts.GET("", h.GetAccountLockouts)                // Get all lockouts
+		lockouts.GET("/status/:user_id", h.GetLockoutStatus) // CheckAccountLockout
+		lockouts.POST("/lock", h.LockAccount)                // LockAccount
+		lockouts.POST("/unlock", h.UnlockAccount)            // UnlockAccount
+		lockouts.GET("", h.GetAccountLockouts)               // Get all lockouts
 	}
 
 	// 🔐 TRUSTED DEVICE ENDPOINTS
 	devices := router.Group("/devices")
 	{
-		devices.POST("/register", h.RegisterTrustedDevice)    // RegisterTrustedDevice
-		devices.POST("/validate", h.ValidateDevice)           // ValidateDevice
-		devices.GET("/user/:user_id", h.GetUserDevices)       // GetUserDevices
-		devices.DELETE("/:device_id", h.RevokeTrustedDevice)  // RevokeTrustedDevice
+		devices.POST("/register", h.RegisterTrustedDevice)   // RegisterTrustedDevice
+		devices.POST("/validate", h.ValidateDevice)          // ValidateDevice
+		devices.GET("/user/:user_id", h.GetUserDevices)      // GetUserDevices
+		devices.DELETE("/:device_id", h.RevokeTrustedDevice) // RevokeTrustedDevice
 	}
 
 	// 🔐 SECURITY EVENT ENDPOINTS
 	events := router.Group("/events")
 	{
-		events.POST("", h.LogSecurityEvent)                   // LogSecurityEvent
-		events.GET("", h.GetSecurityEvents)                   // Get security events
+		events.POST("", h.LogSecurityEvent)                      // LogSecurityEvent
+		events.GET("", h.GetSecurityEvents)                      // Get security events
 		events.PUT("/:event_id/resolve", h.ResolveSecurityEvent) // ResolveSecurityEvent
 	}
 
 	// 🔐 THREAT DETECTION ENDPOINTS
 	threats := router.Group("/threats")
 	{
-		threats.POST("/analyze", h.AnalyzeThreatLevel)        // AnalyzeThreatLevel
-		threats.POST("/detect", h.DetectSuspiciousActivity)   // DetectSuspiciousActivity
+		threats.POST("/analyze", h.AnalyzeThreatLevel)      // AnalyzeThreatLevel
+		threats.POST("/detect", h.DetectSuspiciousActivity) // DetectSuspiciousActivity
 	}
 
 	// 🔐 SECURITY ANALYTICS ENDPOINTS
@@ -530,8 +530,6 @@ func (h *Handler) getUUIDParam(c *gin.Context, param string) (uuid.UUID, error) 
 	idStr := c.Param(param)
 	return uuid.Parse(idStr)
 }
-
-
 
 // handleServiceError handles service layer errors
 func (h *Handler) handleServiceError(c *gin.Context, err error) {

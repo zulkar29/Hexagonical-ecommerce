@@ -87,11 +87,11 @@ type PageListFilter struct {
 }
 
 type UploadMediaRequest struct {
-	File        multipart.File   `json:"-"`
+	File        multipart.File        `json:"-"`
 	Header      *multipart.FileHeader `json:"-"`
-	Title       string           `json:"title"`
-	Description string           `json:"description"`
-	AltText     string           `json:"alt_text"`
+	Title       string                `json:"title"`
+	Description string                `json:"description"`
+	AltText     string                `json:"alt_text"`
 }
 
 type UpdateMediaRequest struct {
@@ -187,36 +187,36 @@ type UpdateCategoryRequest struct {
 }
 
 type UpdateSEOSettingsRequest struct {
-	SiteTitle            *string `json:"site_title"`
-	SiteDescription      *string `json:"site_description"`
-	DefaultMetaTitle     *string `json:"default_meta_title"`
-	DefaultMetaDesc      *string `json:"default_meta_description"`
-	DefaultOGImage       *string `json:"default_og_image"`
-	GoogleAnalyticsID    *string `json:"google_analytics_id"`
-	GoogleTagManagerID   *string `json:"google_tag_manager_id"`
-	FacebookPixelID      *string `json:"facebook_pixel_id"`
-	GoogleVerification   *string `json:"google_verification"`
-	BingVerification     *string `json:"bing_verification"`
-	RobotsTxt            *string `json:"robots_txt"`
-	EnableSitemap        *bool   `json:"enable_sitemap"`
-	SitemapFrequency     *string `json:"sitemap_frequency"`
+	SiteTitle          *string `json:"site_title"`
+	SiteDescription    *string `json:"site_description"`
+	DefaultMetaTitle   *string `json:"default_meta_title"`
+	DefaultMetaDesc    *string `json:"default_meta_description"`
+	DefaultOGImage     *string `json:"default_og_image"`
+	GoogleAnalyticsID  *string `json:"google_analytics_id"`
+	GoogleTagManagerID *string `json:"google_tag_manager_id"`
+	FacebookPixelID    *string `json:"facebook_pixel_id"`
+	GoogleVerification *string `json:"google_verification"`
+	BingVerification   *string `json:"bing_verification"`
+	RobotsTxt          *string `json:"robots_txt"`
+	EnableSitemap      *bool   `json:"enable_sitemap"`
+	SitemapFrequency   *string `json:"sitemap_frequency"`
 }
 
 type ContentAnalytics struct {
-	TotalPages      int                   `json:"total_pages"`
-	PublishedPages  int                   `json:"published_pages"`
-	DraftPages      int                   `json:"draft_pages"`
-	TotalMedia      int                   `json:"total_media"`
-	TotalViews      int64                 `json:"total_views"`
-	PopularPages    []PageAnalytics       `json:"popular_pages"`
-	RecentPages     []Page                `json:"recent_pages"`
-	ContentByType   []ContentTypeStats    `json:"content_by_type"`
-	ViewsByMonth    []MonthlyViewStats    `json:"views_by_month"`
+	TotalPages     int                `json:"total_pages"`
+	PublishedPages int                `json:"published_pages"`
+	DraftPages     int                `json:"draft_pages"`
+	TotalMedia     int                `json:"total_media"`
+	TotalViews     int64              `json:"total_views"`
+	PopularPages   []PageAnalytics    `json:"popular_pages"`
+	RecentPages    []Page             `json:"recent_pages"`
+	ContentByType  []ContentTypeStats `json:"content_by_type"`
+	ViewsByMonth   []MonthlyViewStats `json:"views_by_month"`
 }
 
 type PageAnalytics struct {
-	Page      Page  `json:"page"`
-	Views     int64 `json:"views"`
+	Page      Page    `json:"page"`
+	Views     int64   `json:"views"`
 	ViewsRate float64 `json:"views_rate"`
 }
 
@@ -231,10 +231,10 @@ type MonthlyViewStats struct {
 }
 
 type ContentSearchFilter struct {
-	Query  string `json:"query"`
-	Type   string `json:"type"`
-	Page   int    `json:"page"`
-	Limit  int    `json:"limit"`
+	Query string `json:"query"`
+	Type  string `json:"type"`
+	Page  int    `json:"page"`
+	Limit int    `json:"limit"`
 }
 
 type ContentSearchResult struct {
@@ -1042,21 +1042,21 @@ func (s *Service) SearchContent(tenantID uuid.UUID, filter ContentSearchFilter) 
 func (s *Service) generateSlug(title string) string {
 	// Convert to lowercase
 	slug := strings.ToLower(title)
-	
+
 	// Replace spaces with hyphens
 	slug = strings.ReplaceAll(slug, " ", "-")
-	
+
 	// Remove special characters (keep only alphanumeric and hyphens)
 	reg := regexp.MustCompile(`[^a-z0-9-]`)
 	slug = reg.ReplaceAllString(slug, "")
-	
+
 	// Remove multiple consecutive hyphens
 	reg = regexp.MustCompile(`-+`)
 	slug = reg.ReplaceAllString(slug, "-")
-	
+
 	// Trim hyphens from start and end
 	slug = strings.Trim(slug, "-")
-	
+
 	return slug
 }
 
@@ -1091,21 +1091,21 @@ func (s *Service) getMediaType(mimeType string) (MediaType, error) {
 func (s *Service) generateFileName(originalName string) string {
 	ext := filepath.Ext(originalName)
 	nameWithoutExt := strings.TrimSuffix(originalName, ext)
-	
+
 	// Clean the filename
 	reg := regexp.MustCompile(`[^a-zA-Z0-9._-]`)
 	cleanName := reg.ReplaceAllString(nameWithoutExt, "_")
-	
+
 	// Add timestamp to make it unique
 	timestamp := time.Now().Unix()
-	
+
 	return fmt.Sprintf("%s_%d%s", cleanName, timestamp, ext)
 }
 
 func (s *Service) generateFilePath(tenantID uuid.UUID, fileName string) string {
 	year := time.Now().Format("2006")
 	month := time.Now().Format("01")
-	
+
 	return fmt.Sprintf("uploads/%s/%s/%s/%s", tenantID.String(), year, month, fileName)
 }
 

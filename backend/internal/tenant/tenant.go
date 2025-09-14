@@ -14,8 +14,8 @@ type Status string
 type Plan string
 
 const (
-	StatusActive   Status = "active"
-	StatusInactive Status = "inactive"
+	StatusActive    Status = "active"
+	StatusInactive  Status = "inactive"
 	StatusSuspended Status = "suspended"
 )
 
@@ -28,30 +28,30 @@ const (
 
 // Tenant represents a store/tenant in the system
 type Tenant struct {
-	ID          uuid.UUID `json:"id" gorm:"primarykey"`
-	Name        string    `json:"name" gorm:"not null"`
-	Subdomain   string    `json:"subdomain" gorm:"unique;not null"`
+	ID           uuid.UUID `json:"id" gorm:"primarykey"`
+	Name         string    `json:"name" gorm:"not null"`
+	Subdomain    string    `json:"subdomain" gorm:"unique;not null"`
 	CustomDomain string    `json:"custom_domain,omitempty"`
-	Status      Status    `json:"status" gorm:"default:active"`
-	Plan        Plan      `json:"plan" gorm:"default:starter"`
-	
+	Status       Status    `json:"status" gorm:"default:active"`
+	Plan         Plan      `json:"plan" gorm:"default:starter"`
+
 	// Business Information
-	Description  string `json:"description,omitempty"`
-	Phone        string `json:"phone,omitempty"`
-	Email        string `json:"email,omitempty"`
-	Address      string `json:"address,omitempty"`
-	Logo         string `json:"logo,omitempty"`
-	
+	Description string `json:"description,omitempty"`
+	Phone       string `json:"phone,omitempty"`
+	Email       string `json:"email,omitempty"`
+	Address     string `json:"address,omitempty"`
+	Logo        string `json:"logo,omitempty"`
+
 	// Settings
-	Currency     string `json:"currency" gorm:"default:BDT"`
-	Language     string `json:"language" gorm:"default:bn"`
-	Timezone     string `json:"timezone" gorm:"default:Asia/Dhaka"`
-	
+	Currency string `json:"currency" gorm:"default:BDT"`
+	Language string `json:"language" gorm:"default:bn"`
+	Timezone string `json:"timezone" gorm:"default:Asia/Dhaka"`
+
 	// Limits based on plan
-	ProductLimit    int `json:"product_limit" gorm:"default:100"`
-	StorageLimit    int `json:"storage_limit" gorm:"default:1024"` // MB
-	BandwidthLimit  int `json:"bandwidth_limit" gorm:"default:10240"` // MB
-	
+	ProductLimit   int `json:"product_limit" gorm:"default:100"`
+	StorageLimit   int `json:"storage_limit" gorm:"default:1024"`    // MB
+	BandwidthLimit int `json:"bandwidth_limit" gorm:"default:10240"` // MB
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -71,24 +71,24 @@ func (t *Tenant) CanCreateProducts(currentCount int) bool {
 		PlanPremium:    5000,
 		PlanEnterprise: -1, // unlimited
 	}
-	
+
 	limit, exists := limits[t.Plan]
 	if !exists {
 		return false
 	}
-	
+
 	return limit == -1 || currentCount < limit
 }
 
 // GetStorageLimit returns storage limit in MB based on plan
 func (t *Tenant) GetStorageLimit() int {
 	limits := map[Plan]int{
-		PlanStarter:    1024,   // 1GB
-		PlanPro:        5120,   // 5GB
-		PlanPremium:    10240,  // 10GB
-		PlanEnterprise: 51200,  // 50GB
+		PlanStarter:    1024,  // 1GB
+		PlanPro:        5120,  // 5GB
+		PlanPremium:    10240, // 10GB
+		PlanEnterprise: 51200, // 50GB
 	}
-	
+
 	if limit, exists := limits[t.Plan]; exists {
 		return limit
 	}
@@ -103,7 +103,7 @@ func (t *Tenant) GetMonthlyPrice() int {
 		PlanPremium:    7990,
 		PlanEnterprise: 12990,
 	}
-	
+
 	if price, exists := prices[t.Plan]; exists {
 		return price
 	}
@@ -172,17 +172,17 @@ type UpdatePlanRequest struct {
 
 // TenantStatsResponse represents tenant statistics
 type TenantStatsResponse struct {
-	TenantID        string  `json:"tenant_id"`
-	ProductCount    int64   `json:"product_count"`
-	OrderCount      int64   `json:"order_count"`
-	CustomerCount   int64   `json:"customer_count"`
-	Revenue         float64 `json:"revenue"`
-	StorageUsed     int64   `json:"storage_used_mb"`
-	BandwidthUsed   int64   `json:"bandwidth_used_mb"`
-	StorageLimit    int     `json:"storage_limit_mb"`
-	BandwidthLimit  int     `json:"bandwidth_limit_mb"`
-	ProductLimit    int     `json:"product_limit"`
-	PlanFeatures    []string `json:"plan_features"`
+	TenantID       string   `json:"tenant_id"`
+	ProductCount   int64    `json:"product_count"`
+	OrderCount     int64    `json:"order_count"`
+	CustomerCount  int64    `json:"customer_count"`
+	Revenue        float64  `json:"revenue"`
+	StorageUsed    int64    `json:"storage_used_mb"`
+	BandwidthUsed  int64    `json:"bandwidth_used_mb"`
+	StorageLimit   int      `json:"storage_limit_mb"`
+	BandwidthLimit int      `json:"bandwidth_limit_mb"`
+	ProductLimit   int      `json:"product_limit"`
+	PlanFeatures   []string `json:"plan_features"`
 }
 
 // TenantFilter represents filtering options for tenant listing
@@ -222,12 +222,12 @@ func (t *Tenant) CanUpgradeTo(newPlan Plan) bool {
 		PlanPremium:    {PlanEnterprise},
 		PlanEnterprise: {}, // Cannot upgrade from enterprise
 	}
-	
+
 	allowedUpgrades, exists := upgradePaths[t.Plan]
 	if !exists {
 		return false
 	}
-	
+
 	for _, allowed := range allowedUpgrades {
 		if allowed == newPlan {
 			return true
@@ -279,7 +279,7 @@ func (t *Tenant) GetFeatureList() []string {
 			"Multi-store management",
 		},
 	}
-	
+
 	if planFeatures, exists := features[t.Plan]; exists {
 		return planFeatures
 	}
@@ -301,7 +301,7 @@ func (t *Tenant) GetBandwidthLimit() int {
 		PlanPremium:    102400, // 100GB
 		PlanEnterprise: 512000, // 500GB
 	}
-	
+
 	if limit, exists := limits[t.Plan]; exists {
 		return limit
 	}
@@ -325,21 +325,21 @@ func (t *Tenant) IsBusinessInfoComplete() bool {
 func (t *Tenant) CanAccessFeature(feature string) bool {
 	premiumFeatures := []string{"custom_domain", "api_access", "advanced_analytics", "multi_language"}
 	enterpriseFeatures := []string{"white_label", "custom_development", "dedicated_support"}
-	
+
 	// Check if it's a premium feature
 	for _, f := range premiumFeatures {
 		if f == feature {
 			return t.Plan == PlanPremium || t.Plan == PlanEnterprise
 		}
 	}
-	
+
 	// Check if it's an enterprise feature
 	for _, f := range enterpriseFeatures {
 		if f == feature {
 			return t.Plan == PlanEnterprise
 		}
 	}
-	
+
 	// Basic features available to all plans
 	return true
 }

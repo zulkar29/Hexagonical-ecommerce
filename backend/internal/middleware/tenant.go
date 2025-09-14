@@ -16,7 +16,7 @@ import (
 type TenantContextKey string
 
 const (
-	TenantKey TenantContextKey = "tenant"
+	TenantKey   TenantContextKey = "tenant"
 	TenantIDKey TenantContextKey = "tenant_id"
 )
 
@@ -38,7 +38,7 @@ func NewTenantMiddleware(tenantRepo tenantpkg.RepositoryInterface, baseDomain st
 func (tm *TenantMiddleware) ResolveTenant() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		host := c.Request.Host
-		
+
 		// Remove port if present
 		if colonIndex := strings.Index(host, ":"); colonIndex != -1 {
 			host = host[:colonIndex]
@@ -47,7 +47,7 @@ func (tm *TenantMiddleware) ResolveTenant() gin.HandlerFunc {
 		tenant, err := tm.resolveTenantFromHost(host)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{
-				"error": "Tenant not found",
+				"error":   "Tenant not found",
 				"message": "The domain you're trying to access is not associated with any active tenant",
 			})
 			c.Abort()
@@ -56,7 +56,7 @@ func (tm *TenantMiddleware) ResolveTenant() gin.HandlerFunc {
 
 		if !tenant.IsActive() {
 			c.JSON(http.StatusServiceUnavailable, gin.H{
-				"error": "Tenant inactive",
+				"error":   "Tenant inactive",
 				"message": "This tenant is currently inactive",
 			})
 			c.Abort()
@@ -66,7 +66,7 @@ func (tm *TenantMiddleware) ResolveTenant() gin.HandlerFunc {
 		// Set tenant in context
 		c.Set(string(TenantKey), tenant)
 		c.Set(string(TenantIDKey), tenant.ID)
-		
+
 		// Set tenant in request context for downstream services
 		ctx := context.WithValue(c.Request.Context(), TenantKey, tenant)
 		ctx = context.WithValue(ctx, TenantIDKey, tenant.ID)
@@ -89,7 +89,7 @@ func (tm *TenantMiddleware) resolveTenantFromHost(host string) (*tenantpkg.Tenan
 	if strings.HasSuffix(host, "."+tm.baseDomain) {
 		// Extract subdomain
 		subdomain := strings.TrimSuffix(host, "."+tm.baseDomain)
-		
+
 		// Handle nested subdomains (take the first part)
 		if dotIndex := strings.Index(subdomain, "."); dotIndex != -1 {
 			subdomain = subdomain[:dotIndex]
@@ -109,7 +109,7 @@ func RequireTenant() gin.HandlerFunc {
 		tenant, exists := c.Get(string(TenantKey))
 		if !exists {
 			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "Tenant required",
+				"error":   "Tenant required",
 				"message": "This endpoint requires tenant context",
 			})
 			c.Abort()

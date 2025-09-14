@@ -19,7 +19,7 @@ func NewModule(db *gorm.DB) *Module {
 	handler := NewHandler(service)
 
 	log.Println("✅ Notification module initialized successfully")
-	
+
 	return &Module{
 		repository: repository,
 		service:    service,

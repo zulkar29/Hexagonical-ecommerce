@@ -12,19 +12,19 @@ import (
 type Service interface {
 	// Global search across all content types
 	Search(ctx context.Context, req *SearchQuery) (*SearchResponse, error)
-	
+
 	// Product-specific search with advanced filters
 	SearchProducts(ctx context.Context, req *ProductSearchRequest) (*SearchResponse, error)
-	
+
 	// Get search suggestions/autocomplete
 	GetSuggestions(ctx context.Context, req *SuggestionRequest) (*SuggestionResponse, error)
-	
+
 	// Get search analytics and metrics
 	GetAnalytics(ctx context.Context, req *SearchAnalyticsRequest) (*SearchAnalyticsResponse, error)
-	
+
 	// Manage search filters
 	ManageFilters(ctx context.Context, req *FilterRequest) (*FilterResponse, error)
-	
+
 	// Get available filters
 	GetFilters(ctx context.Context, searchType string) (*FilterResponse, error)
 }

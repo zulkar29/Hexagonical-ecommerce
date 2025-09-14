@@ -13,9 +13,9 @@ import (
 
 // Constants
 const (
-	DefaultPageSize = 20
-	MaxPageSize     = 100
-	MaxBulkSize     = 100
+	DefaultPageSize         = 20
+	MaxPageSize             = 100
+	MaxBulkSize             = 100
 	MaxAddressesPerCustomer = 10
 )
 
@@ -27,33 +27,33 @@ type Service interface {
 	UpdateAddress(ctx context.Context, tenantID, addressID uuid.UUID, req UpdateAddressRequest) (*AddressResponse, error)
 	DeleteAddress(ctx context.Context, tenantID, addressID uuid.UUID) error
 	ListAddresses(ctx context.Context, tenantID uuid.UUID, filter AddressFilter, limit, offset int) (*AddressListResponse, error)
-	
+
 	// Customer address operations
 	GetCustomerAddresses(ctx context.Context, tenantID, customerID uuid.UUID) ([]*AddressResponse, error)
 	GetDefaultAddress(ctx context.Context, tenantID, customerID uuid.UUID, addressType string) (*AddressResponse, error)
 	SetDefaultAddress(ctx context.Context, tenantID, customerID, addressID uuid.UUID) error
 	UnsetDefaultAddresses(ctx context.Context, tenantID, customerID uuid.UUID, addressType string) error
-	
+
 	// Address validation operations
 	ValidateAddress(ctx context.Context, tenantID, addressID uuid.UUID, req ValidateAddressRequest) (*AddressValidationResponse, error)
 	GetAddressValidation(ctx context.Context, tenantID, addressID uuid.UUID) (*AddressValidationResponse, error)
 	ListAddressValidations(ctx context.Context, tenantID uuid.UUID, limit, offset int) (*AddressValidationListResponse, error)
-	
+
 	// Bulk operations
 	BulkCreateAddresses(ctx context.Context, tenantID uuid.UUID, requests []CreateAddressRequest) ([]*AddressResponse, error)
 	BulkUpdateAddresses(ctx context.Context, tenantID uuid.UUID, updates []BulkUpdateAddressRequest) ([]*AddressResponse, error)
 	BulkDeleteAddresses(ctx context.Context, tenantID uuid.UUID, addressIDs []uuid.UUID) error
-	
+
 	// Statistics and analytics
 	GetAddressStats(ctx context.Context, tenantID uuid.UUID) (*AddressStats, error)
 	GetAddressesByCountry(ctx context.Context, tenantID uuid.UUID) (map[string]int64, error)
 	GetAddressesByType(ctx context.Context, tenantID uuid.UUID) (map[string]int64, error)
 	GetRecentAddresses(ctx context.Context, tenantID uuid.UUID, days int) ([]*AddressResponse, error)
-	
+
 	// Maintenance operations
 	CleanupUnvalidatedAddresses(ctx context.Context, tenantID uuid.UUID, days int) (int64, error)
 	CleanupOrphanedValidations(ctx context.Context, tenantID uuid.UUID) (int64, error)
-	
+
 	// Utility operations
 	NormalizeAddress(ctx context.Context, req NormalizeAddressRequest) (*NormalizeAddressResponse, error)
 	SuggestAddresses(ctx context.Context, req AddressSuggestionRequest) (*AddressSuggestionResponse, error)
@@ -79,20 +79,20 @@ func (s *ServiceImpl) CreateAddress(ctx context.Context, tenantID uuid.UUID, req
 	if err := s.validateCreateAddressRequest(req); err != nil {
 		return nil, err
 	}
-	
+
 	// Check if customer exists (this would typically call user service)
 	// For now, we'll assume the customer exists
-	
+
 	// Check address limit per customer
 	count, err := s.repo.CountCustomerAddresses(ctx, tenantID, req.CustomerID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to count customer addresses: %w", err)
 	}
-	
+
 	if count >= MaxAddressesPerCustomer {
 		return nil, ErrTooManyAddresses
 	}
-	
+
 	// Create address entity
 	address := &Address{
 		ID:         uuid.New(),
@@ -114,19 +114,19 @@ func (s *ServiceImpl) CreateAddress(ctx context.Context, tenantID uuid.UUID, req
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
 	}
-	
+
 	// If this is set as default, unset other defaults
 	if req.IsDefault {
 		if err := s.repo.UnsetDefaultAddresses(ctx, tenantID, req.CustomerID, req.Type); err != nil {
 			return nil, fmt.Errorf("failed to unset default addresses: %w", err)
 		}
 	}
-	
+
 	// Create the address
 	if err := s.repo.Create(ctx, address); err != nil {
 		return nil, fmt.Errorf("failed to create address: %w", err)
 	}
-	
+
 	return s.buildAddressResponse(address), nil
 }
 
@@ -136,7 +136,7 @@ func (s *ServiceImpl) GetAddress(ctx context.Context, tenantID, addressID uuid.U
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return s.buildAddressResponse(address), nil
 }
 
@@ -147,12 +147,12 @@ func (s *ServiceImpl) UpdateAddress(ctx context.Context, tenantID, addressID uui
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Validate request
 	if err := s.validateUpdateAddressRequest(req); err != nil {
 		return nil, err
 	}
-	
+
 	// Update fields
 	if req.Type != nil {
 		address.Type = *req.Type
@@ -192,7 +192,7 @@ func (s *ServiceImpl) UpdateAddress(ctx context.Context, tenantID, addressID uui
 	}
 	if req.IsDefault != nil {
 		address.IsDefault = *req.IsDefault
-		
+
 		// If setting as default, unset other defaults
 		if *req.IsDefault {
 			if err := s.repo.UnsetDefaultAddresses(ctx, tenantID, address.CustomerID, address.Type); err != nil {
@@ -200,20 +200,20 @@ func (s *ServiceImpl) UpdateAddress(ctx context.Context, tenantID, addressID uui
 			}
 		}
 	}
-	
+
 	address.UpdatedAt = time.Now()
-	
+
 	// Reset validation if address details changed
 	if s.addressDetailsChanged(req) {
 		address.IsValidated = false
 		// Reset validation status
 	}
-	
+
 	// Update the address
 	if err := s.repo.Update(ctx, address); err != nil {
 		return nil, fmt.Errorf("failed to update address: %w", err)
 	}
-	
+
 	return s.buildAddressResponse(address), nil
 }
 
@@ -224,16 +224,16 @@ func (s *ServiceImpl) DeleteAddress(ctx context.Context, tenantID, addressID uui
 	if err != nil {
 		return fmt.Errorf("failed to check address existence: %w", err)
 	}
-	
+
 	if !exists {
 		return ErrAddressNotFound
 	}
-	
+
 	// Delete the address
 	if err := s.repo.Delete(ctx, tenantID, addressID); err != nil {
 		return fmt.Errorf("failed to delete address: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -246,17 +246,17 @@ func (s *ServiceImpl) ListAddresses(ctx context.Context, tenantID uuid.UUID, fil
 	if offset < 0 {
 		offset = 0
 	}
-	
+
 	addresses, total, err := s.repo.List(ctx, tenantID, filter, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list addresses: %w", err)
 	}
-	
+
 	responses := make([]*AddressResponse, len(addresses))
 	for i, address := range addresses {
 		responses[i] = s.buildAddressResponse(address)
 	}
-	
+
 	return &AddressListResponse{
 		Addresses: responses,
 		Total:     total,
@@ -273,12 +273,12 @@ func (s *ServiceImpl) GetCustomerAddresses(ctx context.Context, tenantID, custom
 	if err != nil {
 		return nil, fmt.Errorf("failed to get customer addresses: %w", err)
 	}
-	
+
 	responses := make([]*AddressResponse, len(addresses))
 	for i, address := range addresses {
 		responses[i] = s.buildAddressResponse(address)
 	}
-	
+
 	return responses, nil
 }
 
@@ -288,7 +288,7 @@ func (s *ServiceImpl) GetDefaultAddress(ctx context.Context, tenantID, customerI
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return s.buildAddressResponse(address), nil
 }
 
@@ -299,11 +299,11 @@ func (s *ServiceImpl) SetDefaultAddress(ctx context.Context, tenantID, customerI
 	if err != nil {
 		return err
 	}
-	
+
 	if address.CustomerID != customerID {
 		return ErrAddressNotFound
 	}
-	
+
 	return s.repo.SetDefaultAddress(ctx, tenantID, customerID, addressID)
 }
 
@@ -321,7 +321,7 @@ func (s *ServiceImpl) ValidateAddress(ctx context.Context, tenantID, addressID u
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Create validation record
 	validation := &AddressValidation{
 		ID:               uuid.New(),
@@ -334,20 +334,20 @@ func (s *ServiceImpl) ValidateAddress(ctx context.Context, tenantID, addressID u
 		ValidationErrors: "",
 		ValidatedAt:      time.Now(),
 	}
-	
+
 	// Save validation
 	if err := s.repo.CreateValidation(ctx, validation); err != nil {
 		return nil, fmt.Errorf("failed to create validation: %w", err)
 	}
-	
+
 	// Update address validation status
 	address.IsValidated = true
 	address.UpdatedAt = time.Now()
-	
+
 	if err := s.repo.Update(ctx, address); err != nil {
 		return nil, fmt.Errorf("failed to update address validation: %w", err)
 	}
-	
+
 	return s.buildAddressValidationResponse(validation), nil
 }
 
@@ -357,7 +357,7 @@ func (s *ServiceImpl) GetAddressValidation(ctx context.Context, tenantID, addres
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return s.buildAddressValidationResponse(validation), nil
 }
 
@@ -370,17 +370,17 @@ func (s *ServiceImpl) ListAddressValidations(ctx context.Context, tenantID uuid.
 	if offset < 0 {
 		offset = 0
 	}
-	
+
 	validations, total, err := s.repo.ListValidations(ctx, tenantID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list validations: %w", err)
 	}
-	
+
 	responses := make([]*AddressValidationResponse, len(validations))
 	for i, validation := range validations {
 		responses[i] = s.buildAddressValidationResponse(validation)
 	}
-	
+
 	return &AddressValidationListResponse{
 		Validations: responses,
 		Total:       total,
@@ -396,18 +396,18 @@ func (s *ServiceImpl) BulkCreateAddresses(ctx context.Context, tenantID uuid.UUI
 	if len(requests) == 0 {
 		return []*AddressResponse{}, nil
 	}
-	
+
 	if len(requests) > MaxBulkSize {
 		return nil, ErrBulkSizeExceeded
 	}
-	
+
 	addresses := make([]*Address, len(requests))
 	for i, req := range requests {
 		// Validate each request
 		if err := s.validateCreateAddressRequest(req); err != nil {
 			return nil, fmt.Errorf("validation failed for request %d: %w", i, err)
 		}
-		
+
 		// Create address entity
 		addresses[i] = &Address{
 			ID:         uuid.New(),
@@ -430,18 +430,18 @@ func (s *ServiceImpl) BulkCreateAddresses(ctx context.Context, tenantID uuid.UUI
 			UpdatedAt:  time.Now(),
 		}
 	}
-	
+
 	// Create all addresses
 	if err := s.repo.BulkCreate(ctx, addresses); err != nil {
 		return nil, fmt.Errorf("failed to bulk create addresses: %w", err)
 	}
-	
+
 	// Build responses
 	responses := make([]*AddressResponse, len(addresses))
 	for i, address := range addresses {
 		responses[i] = s.buildAddressResponse(address)
 	}
-	
+
 	return responses, nil
 }
 
@@ -450,11 +450,11 @@ func (s *ServiceImpl) BulkUpdateAddresses(ctx context.Context, tenantID uuid.UUI
 	if len(updates) == 0 {
 		return []*AddressResponse{}, nil
 	}
-	
+
 	if len(updates) > MaxBulkSize {
 		return nil, ErrBulkSizeExceeded
 	}
-	
+
 	addresses := make([]*Address, len(updates))
 	for i, update := range updates {
 		// Get existing address
@@ -462,7 +462,7 @@ func (s *ServiceImpl) BulkUpdateAddresses(ctx context.Context, tenantID uuid.UUI
 		if err != nil {
 			return nil, fmt.Errorf("failed to get address %s: %w", update.ID, err)
 		}
-		
+
 		// Apply updates
 		if update.Label != nil {
 			address.Label = *update.Label
@@ -470,22 +470,22 @@ func (s *ServiceImpl) BulkUpdateAddresses(ctx context.Context, tenantID uuid.UUI
 		if update.IsDefault != nil {
 			address.IsDefault = *update.IsDefault
 		}
-		
+
 		address.UpdatedAt = time.Now()
 		addresses[i] = address
 	}
-	
+
 	// Update all addresses
 	if err := s.repo.BulkUpdate(ctx, addresses); err != nil {
 		return nil, fmt.Errorf("failed to bulk update addresses: %w", err)
 	}
-	
+
 	// Build responses
 	responses := make([]*AddressResponse, len(addresses))
 	for i, address := range addresses {
 		responses[i] = s.buildAddressResponse(address)
 	}
-	
+
 	return responses, nil
 }
 
@@ -494,11 +494,11 @@ func (s *ServiceImpl) BulkDeleteAddresses(ctx context.Context, tenantID uuid.UUI
 	if len(addressIDs) == 0 {
 		return nil
 	}
-	
+
 	if len(addressIDs) > MaxBulkSize {
 		return ErrBulkSizeExceeded
 	}
-	
+
 	return s.repo.BulkDelete(ctx, tenantID, addressIDs)
 }
 
@@ -524,17 +524,17 @@ func (s *ServiceImpl) GetRecentAddresses(ctx context.Context, tenantID uuid.UUID
 	if days <= 0 {
 		days = 30 // Default to 30 days
 	}
-	
+
 	addresses, err := s.repo.GetRecentAddresses(ctx, tenantID, days)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get recent addresses: %w", err)
 	}
-	
+
 	responses := make([]*AddressResponse, len(addresses))
 	for i, address := range addresses {
 		responses[i] = s.buildAddressResponse(address)
 	}
-	
+
 	return responses, nil
 }
 
@@ -545,7 +545,7 @@ func (s *ServiceImpl) CleanupUnvalidatedAddresses(ctx context.Context, tenantID 
 	if days <= 0 {
 		days = 90 // Default to 90 days
 	}
-	
+
 	return s.repo.CleanupUnvalidatedAddresses(ctx, tenantID, days)
 }
 
@@ -560,7 +560,7 @@ func (s *ServiceImpl) CleanupOrphanedValidations(ctx context.Context, tenantID u
 func (s *ServiceImpl) NormalizeAddress(ctx context.Context, req NormalizeAddressRequest) (*NormalizeAddressResponse, error) {
 	// This would typically call an external address normalization service
 	// For now, we'll implement basic normalization
-	
+
 	titleCaser := cases.Title(language.English)
 	normalized := NormalizeAddressResponse{
 		Address1:   strings.TrimSpace(titleCaser.String(strings.ToLower(req.Address1))),
@@ -570,7 +570,7 @@ func (s *ServiceImpl) NormalizeAddress(ctx context.Context, req NormalizeAddress
 		PostalCode: strings.TrimSpace(strings.ToUpper(req.PostalCode)),
 		Country:    strings.TrimSpace(strings.ToUpper(req.Country)),
 	}
-	
+
 	return &normalized, nil
 }
 
@@ -578,7 +578,7 @@ func (s *ServiceImpl) NormalizeAddress(ctx context.Context, req NormalizeAddress
 func (s *ServiceImpl) SuggestAddresses(ctx context.Context, req AddressSuggestionRequest) (*AddressSuggestionResponse, error) {
 	// This would typically call an external address suggestion service
 	// For now, we'll return an empty response
-	
+
 	return &AddressSuggestionResponse{
 		Suggestions: []AddressSuggestion{},
 	}, nil
@@ -591,43 +591,43 @@ func (s *ServiceImpl) validateCreateAddressRequest(req CreateAddressRequest) err
 	if req.CustomerID == uuid.Nil {
 		return ErrInvalidCustomerID
 	}
-	
+
 	if req.Type == "" {
 		req.Type = AddressTypeBoth
 	}
-	
+
 	if req.Type != AddressTypeShipping && req.Type != AddressTypeBilling && req.Type != AddressTypeBoth {
 		return ErrInvalidAddressType
 	}
-	
+
 	if strings.TrimSpace(req.FirstName) == "" {
 		return ErrInvalidFirstName
 	}
-	
+
 	if strings.TrimSpace(req.LastName) == "" {
 		return ErrInvalidLastName
 	}
-	
+
 	if strings.TrimSpace(req.Address1) == "" {
 		return ErrInvalidAddress
 	}
-	
+
 	if strings.TrimSpace(req.City) == "" {
 		return ErrInvalidCity
 	}
-	
+
 	if strings.TrimSpace(req.State) == "" {
 		return ErrInvalidState
 	}
-	
+
 	if strings.TrimSpace(req.PostalCode) == "" {
 		return ErrInvalidPostalCode
 	}
-	
+
 	if strings.TrimSpace(req.Country) == "" {
 		return ErrInvalidCountry
 	}
-	
+
 	return nil
 }
 
@@ -638,35 +638,35 @@ func (s *ServiceImpl) validateUpdateAddressRequest(req UpdateAddressRequest) err
 			return ErrInvalidAddressType
 		}
 	}
-	
+
 	if req.FirstName != nil && strings.TrimSpace(*req.FirstName) == "" {
 		return ErrInvalidFirstName
 	}
-	
+
 	if req.LastName != nil && strings.TrimSpace(*req.LastName) == "" {
 		return ErrInvalidLastName
 	}
-	
+
 	if req.Address1 != nil && strings.TrimSpace(*req.Address1) == "" {
 		return ErrInvalidAddress
 	}
-	
+
 	if req.City != nil && strings.TrimSpace(*req.City) == "" {
 		return ErrInvalidCity
 	}
-	
+
 	if req.State != nil && strings.TrimSpace(*req.State) == "" {
 		return ErrInvalidState
 	}
-	
+
 	if req.PostalCode != nil && strings.TrimSpace(*req.PostalCode) == "" {
 		return ErrInvalidPostalCode
 	}
-	
+
 	if req.Country != nil && strings.TrimSpace(*req.Country) == "" {
 		return ErrInvalidCountry
 	}
-	
+
 	return nil
 }
 
@@ -679,25 +679,25 @@ func (s *ServiceImpl) addressDetailsChanged(req UpdateAddressRequest) bool {
 // buildAddressResponse builds address response
 func (s *ServiceImpl) buildAddressResponse(address *Address) *AddressResponse {
 	return &AddressResponse{
-		ID:              address.ID,
-		CustomerID:      address.CustomerID,
-		Type:            address.Type,
-		Label:           address.Label,
-		FirstName:       address.FirstName,
-		LastName:        address.LastName,
-		Company:         address.Company,
-		Address1:        address.Address1,
-		Address2:        address.Address2,
-		City:            address.City,
-		State:           address.State,
-		PostalCode:      address.PostalCode,
-		Country:         address.Country,
-		Phone:           address.Phone,
-		IsDefault:       address.IsDefault,
-		IsValidated:     address.IsValidated,
+		ID:          address.ID,
+		CustomerID:  address.CustomerID,
+		Type:        address.Type,
+		Label:       address.Label,
+		FirstName:   address.FirstName,
+		LastName:    address.LastName,
+		Company:     address.Company,
+		Address1:    address.Address1,
+		Address2:    address.Address2,
+		City:        address.City,
+		State:       address.State,
+		PostalCode:  address.PostalCode,
+		Country:     address.Country,
+		Phone:       address.Phone,
+		IsDefault:   address.IsDefault,
+		IsValidated: address.IsValidated,
 		// ValidationScore field removed
-		CreatedAt:       address.CreatedAt,
-		UpdatedAt:       address.UpdatedAt,
+		CreatedAt: address.CreatedAt,
+		UpdatedAt: address.UpdatedAt,
 	}
 }
 
@@ -708,7 +708,7 @@ func (s *ServiceImpl) buildAddressValidationResponse(validation *AddressValidati
 		// Parse JSON string to slice if needed - simplified for now
 		validationErrors = []string{validation.ValidationErrors}
 	}
-	
+
 	return &AddressValidationResponse{
 		ID:               validation.ID,
 		AddressID:        validation.AddressID,

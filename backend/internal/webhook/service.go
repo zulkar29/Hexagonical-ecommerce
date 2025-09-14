@@ -44,12 +44,12 @@ func (s *Service) CreateEndpoint(tenantID uuid.UUID, endpoint *WebhookEndpoint) 
 	endpoint.TenantID = tenantID
 	endpoint.CreatedAt = time.Now()
 	endpoint.UpdatedAt = time.Now()
-	
+
 	// Generate a secret for the endpoint
 	if endpoint.Secret == "" {
 		endpoint.Secret = s.generateSecret()
 	}
-	
+
 	return s.repo.CreateEndpoint(endpoint)
 }
 
@@ -58,7 +58,7 @@ func (s *Service) UpdateEndpoint(tenantID uuid.UUID, endpointID uuid.UUID, updat
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Update allowed fields
 	if updates.URL != "" {
 		existing.URL = updates.URL
@@ -74,7 +74,7 @@ func (s *Service) UpdateEndpoint(tenantID uuid.UUID, endpointID uuid.UUID, updat
 	}
 	existing.IsActive = updates.IsActive
 	existing.UpdatedAt = time.Now()
-	
+
 	return s.repo.UpdateEndpoint(existing)
 }
 
@@ -102,24 +102,24 @@ func (s *Service) DispatchEvent(tenantID uuid.UUID, event WebhookEvent, eventID 
 	if err != nil {
 		return err
 	}
-	
+
 	// Create deliveries for each endpoint
 	for _, endpoint := range endpoints {
 		if !endpoint.IsActive {
 			continue
 		}
-		
+
 		// Check rate limiting
 		if s.IsRateLimited(tenantID, endpoint.ID) {
 			continue
 		}
-		
+
 		// Marshal payload to JSON
 		payloadBytes, err := json.Marshal(payload)
 		if err != nil {
 			continue // Skip this endpoint if payload marshaling fails
 		}
-		
+
 		// Create delivery record
 		delivery := &WebhookDelivery{
 			ID:           uuid.New(),
@@ -135,12 +135,12 @@ func (s *Service) DispatchEvent(tenantID uuid.UUID, event WebhookEvent, eventID 
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
 		}
-		
+
 		// Save delivery record
 		if _, err := s.repo.CreateDelivery(delivery); err != nil {
 			continue // Log error but continue with other endpoints
 		}
-		
+
 		// Attempt immediate delivery
 		go func(d *WebhookDelivery) {
 			if err := s.DeliverWebhook(d); err != nil {
@@ -148,7 +148,7 @@ func (s *Service) DispatchEvent(tenantID uuid.UUID, event WebhookEvent, eventID 
 			}
 		}(delivery)
 	}
-	
+
 	return nil
 }
 
@@ -158,7 +158,7 @@ func (s *Service) DeliverWebhook(delivery *WebhookDelivery) error {
 	if err != nil {
 		return err
 	}
-	
+
 	// Prepare payload from request body
 	var payloadBytes []byte
 	if delivery.RequestBody != "" {
@@ -167,48 +167,48 @@ func (s *Service) DeliverWebhook(delivery *WebhookDelivery) error {
 		// If no request body, create empty JSON
 		payloadBytes = []byte("{}")
 	}
-	
+
 	// Create HTTP request
 	req, err := http.NewRequest("POST", endpoint.URL, bytes.NewBuffer(payloadBytes))
 	if err != nil {
 		return err
 	}
-	
+
 	// Set headers
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "Webhook-Service/1.0")
 	req.Header.Set("X-Webhook-Event", string(delivery.Event))
 	req.Header.Set("X-Webhook-ID", delivery.ID.String())
 	req.Header.Set("X-Webhook-Timestamp", fmt.Sprintf("%d", time.Now().Unix()))
-	
+
 	// Generate and set signature
 	signature := s.GenerateWebhookSignature(payloadBytes, endpoint.Secret)
 	req.Header.Set("X-Webhook-Signature", signature)
-	
+
 	// Update delivery attempt
 	delivery.AttemptCount++
 	now := time.Now()
 	delivery.LastAttemptAt = &now
 	delivery.UpdatedAt = time.Now()
-	
+
 	// Make HTTP request
 	start := time.Now()
 	resp, err := s.httpClient.Do(req)
 	responseTime := int(time.Since(start).Milliseconds())
-	
+
 	delivery.ResponseTime = responseTime
-	
+
 	if err != nil {
 		delivery.Status = StatusFailed
 		delivery.ErrorMessage = err.Error()
 	} else {
 		delivery.ResponseStatus = resp.StatusCode
-		
+
 		// Read response body
 		body, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		delivery.ResponseBody = string(body)
-		
+
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			delivery.Status = StatusDelivered
 			delivery.DeliveredAt = delivery.LastAttemptAt
@@ -217,24 +217,24 @@ func (s *Service) DeliverWebhook(delivery *WebhookDelivery) error {
 			delivery.ErrorMessage = fmt.Sprintf("HTTP %d: %s", resp.StatusCode, string(body))
 		}
 	}
-	
+
 	// Update delivery record
 	if _, err := s.repo.UpdateDelivery(delivery); err != nil {
 		log.Printf("Failed to update delivery record: %v", err)
 	}
-	
+
 	// Schedule retry if failed and retries remaining
 	if delivery.Status == StatusFailed && delivery.ShouldRetry() {
 		if err := s.ScheduleRetry(delivery); err != nil {
 			log.Printf("Failed to schedule retry: %v", err)
 		}
 	}
-	
+
 	// Increment rate limit
 	if err := s.IncrementRateLimit(delivery.TenantID, delivery.EndpointID); err != nil {
 		log.Printf("Failed to increment rate limit: %v", err)
 	}
-	
+
 	return nil
 }
 
@@ -244,7 +244,7 @@ func (s *Service) RetryFailedDeliveries() error {
 	if err != nil {
 		return err
 	}
-	
+
 	for _, delivery := range deliveries {
 		if delivery.ShouldRetry() {
 			go func(d *WebhookDelivery) {
@@ -254,7 +254,7 @@ func (s *Service) RetryFailedDeliveries() error {
 			}(delivery)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -323,13 +323,13 @@ func (s *Service) ProcessStripeWebhook(tenantID uuid.UUID, signature string, bod
 	if !s.validateStripeSignature(signature, body) {
 		return fmt.Errorf("invalid stripe webhook signature")
 	}
-	
+
 	// Parse Stripe event
 	var event map[string]interface{}
 	if err := json.Unmarshal(body, &event); err != nil {
 		return err
 	}
-	
+
 	// Create incoming webhook record
 	incoming := &WebhookIncoming{
 		ID:          uuid.New(),
@@ -342,7 +342,7 @@ func (s *Service) ProcessStripeWebhook(tenantID uuid.UUID, signature string, bod
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
-	
+
 	return s.processIncomingWebhook(incoming)
 }
 
@@ -351,7 +351,7 @@ func (s *Service) ProcessPayPalWebhook(tenantID uuid.UUID, signature string, bod
 	if err := json.Unmarshal(body, &event); err != nil {
 		return err
 	}
-	
+
 	incoming := &WebhookIncoming{
 		ID:          uuid.New(),
 		TenantID:    tenantID,
@@ -363,7 +363,7 @@ func (s *Service) ProcessPayPalWebhook(tenantID uuid.UUID, signature string, bod
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
-	
+
 	return s.processIncomingWebhook(incoming)
 }
 
@@ -372,7 +372,7 @@ func (s *Service) ProcessBkashWebhook(tenantID uuid.UUID, signature string, body
 	if err := json.Unmarshal(body, &event); err != nil {
 		return err
 	}
-	
+
 	incoming := &WebhookIncoming{
 		ID:          uuid.New(),
 		TenantID:    tenantID,
@@ -384,7 +384,7 @@ func (s *Service) ProcessBkashWebhook(tenantID uuid.UUID, signature string, body
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
-	
+
 	return s.processIncomingWebhook(incoming)
 }
 
@@ -393,7 +393,7 @@ func (s *Service) ProcessNagadWebhook(tenantID uuid.UUID, signature string, body
 	if err := json.Unmarshal(body, &event); err != nil {
 		return err
 	}
-	
+
 	incoming := &WebhookIncoming{
 		ID:          uuid.New(),
 		TenantID:    tenantID,
@@ -405,7 +405,7 @@ func (s *Service) ProcessNagadWebhook(tenantID uuid.UUID, signature string, body
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
-	
+
 	return s.processIncomingWebhook(incoming)
 }
 
@@ -414,7 +414,7 @@ func (s *Service) ProcessPathaoWebhook(tenantID uuid.UUID, signature string, bod
 	if err := json.Unmarshal(body, &event); err != nil {
 		return err
 	}
-	
+
 	incoming := &WebhookIncoming{
 		ID:          uuid.New(),
 		TenantID:    tenantID,
@@ -426,7 +426,7 @@ func (s *Service) ProcessPathaoWebhook(tenantID uuid.UUID, signature string, bod
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
-	
+
 	return s.processIncomingWebhook(incoming)
 }
 
@@ -435,7 +435,7 @@ func (s *Service) ProcessRedXWebhook(tenantID uuid.UUID, signature string, body 
 	if err := json.Unmarshal(body, &event); err != nil {
 		return err
 	}
-	
+
 	incoming := &WebhookIncoming{
 		ID:          uuid.New(),
 		TenantID:    tenantID,
@@ -447,7 +447,7 @@ func (s *Service) ProcessRedXWebhook(tenantID uuid.UUID, signature string, body 
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
-	
+
 	return s.processIncomingWebhook(incoming)
 }
 
@@ -456,7 +456,7 @@ func (s *Service) ProcessPaperflyWebhook(tenantID uuid.UUID, signature string, b
 	if err := json.Unmarshal(body, &event); err != nil {
 		return err
 	}
-	
+
 	incoming := &WebhookIncoming{
 		ID:          uuid.New(),
 		TenantID:    tenantID,
@@ -468,7 +468,7 @@ func (s *Service) ProcessPaperflyWebhook(tenantID uuid.UUID, signature string, b
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
-	
+
 	return s.processIncomingWebhook(incoming)
 }
 
@@ -477,10 +477,10 @@ func (s *Service) processIncomingWebhook(incoming *WebhookIncoming) error {
 	if _, err := s.repo.CreateIncomingWebhook(incoming); err != nil {
 		return err
 	}
-	
+
 	// Process webhook asynchronously
 	go s.handleIncomingWebhook(incoming)
-	
+
 	return nil
 }
 
@@ -495,7 +495,7 @@ func (s *Service) handleIncomingWebhook(incoming *WebhookIncoming) {
 			log.Printf("Failed to update incoming webhook: %v", err)
 		}
 	}()
-	
+
 	// Handle based on provider and event type
 	switch incoming.Provider {
 	case ProviderStripe:
@@ -539,7 +539,7 @@ func (s *Service) ValidateWebhookSignature(payload []byte, signature string, sec
 	h := hmac.New(sha256.New, []byte(secret))
 	h.Write(payload)
 	expectedSignature := hex.EncodeToString(h.Sum(nil))
-	
+
 	// Compare signatures (constant time comparison)
 	return hmac.Equal([]byte(signature), []byte(expectedSignature))
 }
@@ -554,14 +554,14 @@ func (s *Service) IsRateLimited(tenantID uuid.UUID, endpointID uuid.UUID) bool {
 	// Calculate current window start (beginning of current hour)
 	now := time.Now()
 	windowStart := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 0, 0, 0, now.Location())
-	
+
 	// Get current rate limit for endpoint
 	rateLimit, err := s.repo.GetRateLimit(tenantID, endpointID, windowStart)
 	if err != nil {
 		// No rate limit exists, not limited
 		return false
 	}
-	
+
 	// Check if we're in a new time window (1 hour)
 	if time.Since(rateLimit.WindowStart) > time.Hour {
 		// Reset the window
@@ -573,7 +573,7 @@ func (s *Service) IsRateLimited(tenantID uuid.UUID, endpointID uuid.UUID) bool {
 		}
 		return false
 	}
-	
+
 	// Check if rate limit exceeded (default: 1000 requests per hour)
 	maxRequests := 1000
 	return rateLimit.RequestCount >= maxRequests
@@ -583,19 +583,19 @@ func (s *Service) IncrementRateLimit(tenantID uuid.UUID, endpointID uuid.UUID) e
 	// Calculate current window start (beginning of current hour)
 	now := time.Now()
 	windowStart := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 0, 0, 0, now.Location())
-	
+
 	// Get current rate limit
 	rateLimit, err := s.repo.GetRateLimit(tenantID, endpointID, windowStart)
 	if err != nil {
 		// No rate limit exists, create one
 		rateLimit = &WebhookRateLimit{
-			ID:         uuid.New(),
-			TenantID:   tenantID,
-			EndpointID: endpointID,
+			ID:           uuid.New(),
+			TenantID:     tenantID,
+			EndpointID:   endpointID,
 			RequestCount: 1,
-			WindowStart: time.Now(),
-			CreatedAt:  time.Now(),
-			UpdatedAt:  time.Now(),
+			WindowStart:  time.Now(),
+			CreatedAt:    time.Now(),
+			UpdatedAt:    time.Now(),
 		}
 		_, createErr := s.repo.CreateRateLimit(rateLimit)
 		if createErr != nil {
@@ -603,7 +603,7 @@ func (s *Service) IncrementRateLimit(tenantID uuid.UUID, endpointID uuid.UUID) e
 		}
 		return nil
 	}
-	
+
 	// Check if we're in a new time window (1 hour)
 	if time.Since(rateLimit.WindowStart) > time.Hour {
 		// Reset the window
@@ -613,7 +613,7 @@ func (s *Service) IncrementRateLimit(tenantID uuid.UUID, endpointID uuid.UUID) e
 		// Increment count
 		rateLimit.RequestCount++
 	}
-	
+
 	rateLimit.UpdatedAt = time.Now()
 	_, err = s.repo.UpdateRateLimit(rateLimit)
 	return err
@@ -647,16 +647,16 @@ func (s *Service) TestEndpoint(tenantID uuid.UUID, endpointID uuid.UUID) (*TestR
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Create test payload
 	testPayload := map[string]interface{}{
-		"event": "test",
+		"event":     "test",
 		"timestamp": time.Now().Unix(),
 		"data": map[string]string{
 			"message": "This is a test webhook",
 		},
 	}
-	
+
 	payloadBytes, err := json.Marshal(testPayload)
 	if err != nil {
 		return &TestResult{
@@ -664,7 +664,7 @@ func (s *Service) TestEndpoint(tenantID uuid.UUID, endpointID uuid.UUID) (*TestR
 			Error:   "Failed to marshal test payload",
 		}, nil
 	}
-	
+
 	// Create HTTP request
 	req, err := http.NewRequest("POST", endpoint.URL, bytes.NewBuffer(payloadBytes))
 	if err != nil {
@@ -673,26 +673,26 @@ func (s *Service) TestEndpoint(tenantID uuid.UUID, endpointID uuid.UUID) (*TestR
 			Error:   "Failed to create HTTP request",
 		}, nil
 	}
-	
+
 	// Set headers
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "Webhook-Service/1.0")
 	req.Header.Set("X-Webhook-Event", "test")
 	req.Header.Set("X-Webhook-Test", "true")
-	
+
 	// Generate and set signature
 	signature := s.GenerateWebhookSignature(payloadBytes, endpoint.Secret)
 	req.Header.Set("X-Webhook-Signature", signature)
-	
+
 	// Make HTTP request with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	req = req.WithContext(ctx)
-	
+
 	start := time.Now()
 	resp, err := s.httpClient.Do(req)
 	responseTime := int(time.Since(start).Milliseconds())
-	
+
 	if err != nil {
 		return &TestResult{
 			Success:      false,
@@ -701,7 +701,7 @@ func (s *Service) TestEndpoint(tenantID uuid.UUID, endpointID uuid.UUID) (*TestR
 		}, nil
 	}
 	defer resp.Body.Close()
-	
+
 	return &TestResult{
 		Success:      resp.StatusCode >= 200 && resp.StatusCode < 300,
 		ResponseCode: resp.StatusCode,
@@ -717,11 +717,11 @@ func (s *Service) ScheduleRetry(delivery *WebhookDelivery) error {
 	if backoffDuration > 24*time.Hour {
 		backoffDuration = 24 * time.Hour
 	}
-	
+
 	nextRetry := time.Now().Add(backoffDuration)
 	delivery.NextRetryAt = &nextRetry
 	delivery.UpdatedAt = time.Now()
-	
+
 	_, err := s.repo.UpdateDelivery(delivery)
 	return err
 }
@@ -737,7 +737,7 @@ func (s *Service) DisableFailingEndpoints() error {
 	if err != nil {
 		return err
 	}
-	
+
 	for _, endpoint := range failingEndpoints {
 		endpoint.IsActive = false
 		endpoint.UpdatedAt = time.Now()
@@ -747,7 +747,7 @@ func (s *Service) DisableFailingEndpoints() error {
 			continue
 		}
 	}
-	
+
 	return nil
 }
 
@@ -756,16 +756,16 @@ func (s *Service) ProcessBackgroundTasks() error {
 	if err := s.ProcessRetryQueue(); err != nil {
 		return err
 	}
-	
+
 	// Cleanup old deliveries (older than 30 days)
 	if err := s.CleanupOldDeliveries(30 * 24 * time.Hour); err != nil {
 		return err
 	}
-	
+
 	// Disable failing endpoints
 	if err := s.DisableFailingEndpoints(); err != nil {
 		return err
 	}
-	
+
 	return nil
 }

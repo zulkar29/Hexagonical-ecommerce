@@ -13,12 +13,12 @@ type ReturnStatus string
 type ReturnType string
 
 const (
-	StatusPending   ReturnStatus = "pending"
-	StatusApproved  ReturnStatus = "approved"
-	StatusRejected  ReturnStatus = "rejected"
+	StatusPending    ReturnStatus = "pending"
+	StatusApproved   ReturnStatus = "approved"
+	StatusRejected   ReturnStatus = "rejected"
 	StatusProcessing ReturnStatus = "processing"
-	StatusCompleted ReturnStatus = "completed"
-	StatusCancelled ReturnStatus = "cancelled"
+	StatusCompleted  ReturnStatus = "completed"
+	StatusCancelled  ReturnStatus = "cancelled"
 )
 
 const (
@@ -30,56 +30,56 @@ const (
 type Return struct {
 	ID       uuid.UUID `json:"id" gorm:"primarykey"`
 	TenantID uuid.UUID `json:"tenant_id" gorm:"not null;index"`
-	
+
 	// Order and customer information
 	OrderID    uuid.UUID `json:"order_id" gorm:"not null;index"`
 	CustomerID uuid.UUID `json:"customer_id" gorm:"not null;index"`
-	
+
 	// Return details
 	ReturnNumber string       `json:"return_number" gorm:"unique;not null"`
 	Status       ReturnStatus `json:"status" gorm:"default:pending"`
 	Type         ReturnType   `json:"type" gorm:"not null"`
-	
+
 	// Return reason
 	ReasonID    *uuid.UUID `json:"reason_id,omitempty" gorm:"index"`
 	ReasonText  string     `json:"reason_text,omitempty"`
 	Description string     `json:"description,omitempty"`
-	
+
 	// Financial details
-	RefundAmount    float64 `json:"refund_amount" gorm:"default:0"`
-	RestockingFee   float64 `json:"restocking_fee" gorm:"default:0"`
-	ShippingRefund  float64 `json:"shipping_refund" gorm:"default:0"`
-	TotalRefund     float64 `json:"total_refund" gorm:"default:0"`
-	Currency        string  `json:"currency" gorm:"default:BDT"`
-	
+	RefundAmount   float64 `json:"refund_amount" gorm:"default:0"`
+	RestockingFee  float64 `json:"restocking_fee" gorm:"default:0"`
+	ShippingRefund float64 `json:"shipping_refund" gorm:"default:0"`
+	TotalRefund    float64 `json:"total_refund" gorm:"default:0"`
+	Currency       string  `json:"currency" gorm:"default:BDT"`
+
 	// Exchange details (for exchange type)
 	ExchangeOrderID *uuid.UUID `json:"exchange_order_id,omitempty" gorm:"index"`
 	ExchangeAmount  float64    `json:"exchange_amount" gorm:"default:0"`
-	
+
 	// Shipping information
 	ReturnShippingLabelURL string `json:"return_shipping_label_url,omitempty"`
 	TrackingNumber         string `json:"tracking_number,omitempty"`
 	TrackingURL            string `json:"tracking_url,omitempty"`
-	
+
 	// Processing information
-	ProcessedBy   *uuid.UUID `json:"processed_by,omitempty" gorm:"index"`
-	ProcessedAt   *time.Time `json:"processed_at,omitempty"`
-	ApprovedBy    *uuid.UUID `json:"approved_by,omitempty" gorm:"index"`
-	ApprovedAt    *time.Time `json:"approved_at,omitempty"`
-	RejectedBy    *uuid.UUID `json:"rejected_by,omitempty" gorm:"index"`
-	RejectedAt    *time.Time `json:"rejected_at,omitempty"`
-	RejectionReason string   `json:"rejection_reason,omitempty"`
-	
+	ProcessedBy     *uuid.UUID `json:"processed_by,omitempty" gorm:"index"`
+	ProcessedAt     *time.Time `json:"processed_at,omitempty"`
+	ApprovedBy      *uuid.UUID `json:"approved_by,omitempty" gorm:"index"`
+	ApprovedAt      *time.Time `json:"approved_at,omitempty"`
+	RejectedBy      *uuid.UUID `json:"rejected_by,omitempty" gorm:"index"`
+	RejectedAt      *time.Time `json:"rejected_at,omitempty"`
+	RejectionReason string     `json:"rejection_reason,omitempty"`
+
 	// Additional data
 	Notes    string                 `json:"notes,omitempty"`
 	Metadata map[string]interface{} `json:"metadata,omitempty" gorm:"type:jsonb"`
-	
+
 	// Timestamps
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-	
+
 	// Relations
-	Items  []ReturnItem `json:"items,omitempty" gorm:"foreignKey:ReturnID"`
+	Items  []ReturnItem  `json:"items,omitempty" gorm:"foreignKey:ReturnID"`
 	Reason *ReturnReason `json:"reason,omitempty" gorm:"foreignKey:ReasonID"`
 }
 
@@ -87,32 +87,32 @@ type Return struct {
 type ReturnItem struct {
 	ID       uuid.UUID `json:"id" gorm:"primarykey"`
 	ReturnID uuid.UUID `json:"return_id" gorm:"not null;index"`
-	
+
 	// Order item reference
-	OrderItemID uuid.UUID `json:"order_item_id" gorm:"not null;index"`
-	ProductID   uuid.UUID `json:"product_id" gorm:"not null;index"`
+	OrderItemID uuid.UUID  `json:"order_item_id" gorm:"not null;index"`
+	ProductID   uuid.UUID  `json:"product_id" gorm:"not null;index"`
 	VariantID   *uuid.UUID `json:"variant_id,omitempty" gorm:"index"`
-	
+
 	// Product details (snapshot)
 	ProductName string  `json:"product_name" gorm:"not null"`
 	ProductSKU  string  `json:"product_sku,omitempty"`
 	VariantName string  `json:"variant_name,omitempty"`
 	UnitPrice   float64 `json:"unit_price" gorm:"not null"`
-	
+
 	// Return details
 	QuantityOrdered  int     `json:"quantity_ordered" gorm:"not null"`
 	QuantityReturned int     `json:"quantity_returned" gorm:"not null"`
 	RefundAmount     float64 `json:"refund_amount" gorm:"not null"`
-	
+
 	// Item condition
-	Condition   string `json:"condition,omitempty"` // new, used, damaged
+	Condition      string `json:"condition,omitempty"` // new, used, damaged
 	ConditionNotes string `json:"condition_notes,omitempty"`
-	
+
 	// Exchange details (for exchange items)
 	ExchangeProductID *uuid.UUID `json:"exchange_product_id,omitempty" gorm:"index"`
 	ExchangeVariantID *uuid.UUID `json:"exchange_variant_id,omitempty" gorm:"index"`
 	ExchangeQuantity  int        `json:"exchange_quantity" gorm:"default:0"`
-	
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -121,23 +121,23 @@ type ReturnItem struct {
 type ReturnReason struct {
 	ID       uuid.UUID `json:"id" gorm:"primarykey"`
 	TenantID uuid.UUID `json:"tenant_id" gorm:"not null;index"`
-	
+
 	Name        string `json:"name" gorm:"not null"`
 	Description string `json:"description,omitempty"`
 	Category    string `json:"category,omitempty"` // defective, wrong_item, not_as_described, etc.
-	
+
 	// Settings
-	IsActive           bool    `json:"is_active" gorm:"default:true"`
-	RequiresApproval   bool    `json:"requires_approval" gorm:"default:true"`
-	AllowsExchange     bool    `json:"allows_exchange" gorm:"default:true"`
-	RestockingFeeRate  float64 `json:"restocking_fee_rate" gorm:"default:0"`
-	MaxReturnDays      int     `json:"max_return_days" gorm:"default:30"`
-	
+	IsActive          bool    `json:"is_active" gorm:"default:true"`
+	RequiresApproval  bool    `json:"requires_approval" gorm:"default:true"`
+	AllowsExchange    bool    `json:"allows_exchange" gorm:"default:true"`
+	RestockingFeeRate float64 `json:"restocking_fee_rate" gorm:"default:0"`
+	MaxReturnDays     int     `json:"max_return_days" gorm:"default:30"`
+
 	// Display settings
 	DisplayOrder int    `json:"display_order" gorm:"default:0"`
 	Color        string `json:"color,omitempty"`
 	Icon         string `json:"icon,omitempty"`
-	
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

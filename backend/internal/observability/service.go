@@ -94,7 +94,7 @@ func (s *ObservabilityService) GetHealthStatus(ctx context.Context) (*HealthStat
 // GetMetrics returns collected metrics
 func (s *ObservabilityService) GetMetrics(ctx context.Context, filters map[string]string) (map[string]*Metric, error) {
 	metrics := s.metrics.GetMetrics()
-	
+
 	// Apply filters if provided
 	if len(filters) > 0 {
 		filtered := make(map[string]*Metric)
@@ -119,7 +119,7 @@ func (s *ObservabilityService) GetMetrics(ctx context.Context, filters map[strin
 // GetTraces returns traces
 func (s *ObservabilityService) GetTraces(ctx context.Context, limit int) (map[string]*Trace, error) {
 	traces := s.tracer.GetTraces()
-	
+
 	// If limit is specified, return only the most recent traces
 	if limit > 0 && len(traces) > limit {
 		// This is a simple implementation - in production you'd want proper pagination
@@ -153,10 +153,10 @@ func (s *ObservabilityService) CreateAlert(ctx context.Context, alert *Alert) er
 
 	// Log the alert
 	s.logger.Warn(ctx, fmt.Sprintf("Alert created: %s", alert.Title), map[string]interface{}{
-		"alert_id":   alert.ID,
-		"severity":   alert.Severity,
-		"service":    alert.Service,
-		"condition":  alert.Condition,
+		"alert_id":  alert.ID,
+		"severity":  alert.Severity,
+		"service":   alert.Service,
+		"condition": alert.Condition,
 	})
 
 	// Record alert metric
@@ -214,8 +214,8 @@ func (s *ObservabilityService) TrackUserAction(ctx context.Context, userID, tena
 
 	// Record metrics
 	s.metrics.Increment("user.actions", map[string]string{
-		"action":     action,
-		"tenant_id":  tenantID,
+		"action":    action,
+		"tenant_id": tenantID,
 	})
 }
 
@@ -244,7 +244,7 @@ func (s *ObservabilityService) TrackBusinessEvent(ctx context.Context, event str
 // TrackAPIPerformance tracks API endpoint performance
 func (s *ObservabilityService) TrackAPIPerformance(ctx context.Context, endpoint, method string, statusCode int, duration time.Duration) {
 	status := fmt.Sprintf("%d", statusCode)
-	
+
 	// Record performance metrics
 	s.metrics.Timer("api.request.duration", duration, map[string]string{
 		"endpoint": endpoint,
@@ -260,10 +260,10 @@ func (s *ObservabilityService) TrackAPIPerformance(ctx context.Context, endpoint
 	// Log slow requests
 	if duration > 1*time.Second {
 		s.logger.Warn(ctx, "Slow API request", map[string]interface{}{
-			"endpoint":     endpoint,
-			"method":       method,
-			"status_code":  statusCode,
-			"duration_ms":  duration.Milliseconds(),
+			"endpoint":    endpoint,
+			"method":      method,
+			"status_code": statusCode,
+			"duration_ms": duration.Milliseconds(),
 		})
 	}
 }
@@ -304,7 +304,7 @@ func (s *ObservabilityService) MetricsMiddleware() gin.HandlerFunc {
 		c.Next()
 
 		duration := time.Since(start)
-		
+
 		// Track API performance
 		s.TrackAPIPerformance(
 			c.Request.Context(),
@@ -320,7 +320,7 @@ func (s *ObservabilityService) MetricsMiddleware() gin.HandlerFunc {
 func (s *ObservabilityService) TracingMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Start a new trace for the request
-		ctx, trace := s.tracer.StartTrace(c.Request.Context(), 
+		ctx, trace := s.tracer.StartTrace(c.Request.Context(),
 			fmt.Sprintf("%s %s", c.Request.Method, c.FullPath()),
 			map[string]interface{}{
 				"http.method": c.Request.Method,

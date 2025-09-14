@@ -30,10 +30,10 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	router.PATCH("/cart/items/:id", h.UpdateCartItem) // PATCH /cart/items/:id
 	router.PATCH("/cart", h.UpdateCart)               // PATCH /cart
 	router.POST("/cart/estimates", h.GetEstimates)    // POST /cart/estimates
-	
+
 	// Guest Cart & Checkout (3 endpoints)
-	router.GET("/cart/guest", h.GetGuestCart)         // GET /cart/guest
-	router.PATCH("/cart/guest", h.UpdateGuestCart)   // PATCH /cart/guest
+	router.GET("/cart/guest", h.GetGuestCart)              // GET /cart/guest
+	router.PATCH("/cart/guest", h.UpdateGuestCart)         // PATCH /cart/guest
 	router.POST("/checkout/guest", h.ProcessGuestCheckout) // POST /checkout/guest
 }
 
@@ -136,7 +136,7 @@ func (h *Handler) GetCart(c *gin.Context) {
 
 	// Parse include parameter
 	include := c.Query("include")
-	
+
 	userUUID := userID.(uuid.UUID)
 	cart, err := h.service.GetCartByCustomer(tenantID.(uuid.UUID), userUUID)
 	if err != nil {
@@ -529,20 +529,20 @@ func (h *Handler) ListCarts(c *gin.Context) {
 
 	// Parse min_total
 	if minTotalStr := c.Query("min_total"); minTotalStr != "" {
-		if minTotal, err := strconv.ParseFloat(minTotalStr, 64); err == nil {
+		if minTotal, parseErr := strconv.ParseFloat(minTotalStr, 64); parseErr == nil {
 			filter.MinTotal = &minTotal
 		}
 	}
 
 	// Parse max_total
 	if maxTotalStr := c.Query("max_total"); maxTotalStr != "" {
-		if maxTotal, err := strconv.ParseFloat(maxTotalStr, 64); err == nil {
+		if maxTotal, parseErr := strconv.ParseFloat(maxTotalStr, 64); parseErr == nil {
 			filter.MaxTotal = &maxTotal
 		}
 	}
 
 	if customerIDStr := c.Query("customer_id"); customerIDStr != "" {
-		if customerID, err := uuid.Parse(customerIDStr); err == nil {
+		if customerID, parseErr := uuid.Parse(customerIDStr); parseErr == nil {
 			filter.CustomerID = &customerID
 		}
 	}

@@ -16,27 +16,27 @@ type Service interface {
 	GetCategoryBySlug(ctx context.Context, tenantID uuid.UUID, slug string) (*CategoryResponse, error)
 	UpdateCategory(ctx context.Context, tenantID, categoryID uuid.UUID, req UpdateCategoryRequest) (*CategoryResponse, error)
 	DeleteCategory(ctx context.Context, tenantID, categoryID uuid.UUID) error
-	
+
 	// Category listing and filtering
 	ListCategories(ctx context.Context, tenantID uuid.UUID, filter CategoryFilter, limit, offset int) ([]CategoryResponse, int64, error)
 	GetCategoryTree(ctx context.Context, tenantID uuid.UUID, parentID *uuid.UUID) ([]CategoryTreeResponse, error)
 	GetCategoryPath(ctx context.Context, tenantID, categoryID uuid.UUID) ([]CategoryResponse, error)
-	
+
 	// Category management
 	MoveCategory(ctx context.Context, tenantID, categoryID uuid.UUID, newParentID *uuid.UUID) error
 	ReorderCategories(ctx context.Context, tenantID uuid.UUID, categoryOrders map[uuid.UUID]int) error
 	BulkUpdateStatus(ctx context.Context, tenantID uuid.UUID, categoryIDs []uuid.UUID, status CategoryStatus) error
-	
+
 	// Product associations
 	AddProductToCategory(ctx context.Context, tenantID, categoryID, productID uuid.UUID) error
 	RemoveProductFromCategory(ctx context.Context, tenantID, categoryID, productID uuid.UUID) error
 	GetCategoryProducts(ctx context.Context, tenantID, categoryID uuid.UUID, limit, offset int) ([]Product, error)
-	
+
 	// Statistics and analytics
 	GetCategoryStats(ctx context.Context, tenantID uuid.UUID) (*CategoryStats, error)
 	GetFeaturedCategories(ctx context.Context, tenantID uuid.UUID, limit int) ([]CategoryResponse, error)
 	GetPopularCategories(ctx context.Context, tenantID uuid.UUID, limit int) ([]CategoryResponse, error)
-	
+
 	// Utility operations
 	ValidateSlug(ctx context.Context, tenantID uuid.UUID, slug string, excludeID *uuid.UUID) error
 	GenerateUniqueSlug(ctx context.Context, tenantID uuid.UUID, name string, excludeID *uuid.UUID) (string, error)
@@ -65,7 +65,7 @@ func (s *ServiceImpl) CreateCategory(ctx context.Context, tenantID uuid.UUID, re
 	if err := s.validateCreateRequest(ctx, tenantID, req); err != nil {
 		return nil, err
 	}
-	
+
 	// Create category entity
 	category := &Category{
 		ID:              uuid.New(),
@@ -84,7 +84,7 @@ func (s *ServiceImpl) CreateCategory(ctx context.Context, tenantID uuid.UUID, re
 		IsFeatured:      req.IsFeatured,
 		ShowInMenu:      req.ShowInMenu,
 	}
-	
+
 	// Generate slug if not provided
 	if category.Slug == "" {
 		slug, err := s.GenerateUniqueSlug(ctx, tenantID, category.Name, nil)
@@ -93,17 +93,17 @@ func (s *ServiceImpl) CreateCategory(ctx context.Context, tenantID uuid.UUID, re
 		}
 		category.Slug = slug
 	}
-	
+
 	// Set hierarchy information
 	if err := s.setHierarchyInfo(ctx, tenantID, category); err != nil {
 		return nil, err
 	}
-	
+
 	// Save category
 	if err := s.repo.Save(ctx, category); err != nil {
 		return nil, fmt.Errorf("failed to create category: %w", err)
 	}
-	
+
 	return s.buildCategoryResponse(category), nil
 }
 
@@ -113,7 +113,7 @@ func (s *ServiceImpl) GetCategory(ctx context.Context, tenantID, categoryID uuid
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return s.buildCategoryResponse(category), nil
 }
 
@@ -123,7 +123,7 @@ func (s *ServiceImpl) GetCategoryBySlug(ctx context.Context, tenantID uuid.UUID,
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return s.buildCategoryResponse(category), nil
 }
 
@@ -134,34 +134,34 @@ func (s *ServiceImpl) UpdateCategory(ctx context.Context, tenantID, categoryID u
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Validate update request
 	if err := s.validateUpdateRequest(ctx, tenantID, categoryID, req); err != nil {
 		return nil, err
 	}
-	
+
 	// Update fields
 	s.updateCategoryFields(category, req)
-	
+
 	// Handle parent change
 	if req.ParentID != nil && (category.ParentID == nil || *category.ParentID != *req.ParentID) {
 		if err := s.setHierarchyInfo(ctx, tenantID, category); err != nil {
 			return nil, err
 		}
 	}
-	
+
 	// Save updated category
 	if err := s.repo.Update(ctx, category); err != nil {
 		return nil, fmt.Errorf("failed to update category: %w", err)
 	}
-	
+
 	// Update children paths if parent changed
 	if req.ParentID != nil {
 		if err := s.updateChildrenPaths(ctx, tenantID, category); err != nil {
 			return nil, err
 		}
 	}
-	
+
 	return s.buildCategoryResponse(category), nil
 }
 
@@ -172,7 +172,7 @@ func (s *ServiceImpl) DeleteCategory(ctx context.Context, tenantID, categoryID u
 	if err != nil {
 		return err
 	}
-	
+
 	// Check if category can be deleted
 	if !category.CanDelete() {
 		if category.HasChildren() {
@@ -182,7 +182,7 @@ func (s *ServiceImpl) DeleteCategory(ctx context.Context, tenantID, categoryID u
 			return ErrCategoryHasProducts
 		}
 	}
-	
+
 	// Delete category
 	return s.repo.Delete(ctx, tenantID, categoryID)
 }
@@ -193,17 +193,17 @@ func (s *ServiceImpl) ListCategories(ctx context.Context, tenantID uuid.UUID, fi
 	if err != nil {
 		return nil, 0, err
 	}
-	
+
 	count, err := s.repo.Count(ctx, tenantID, filter)
 	if err != nil {
 		return nil, 0, err
 	}
-	
+
 	responses := make([]CategoryResponse, len(categories))
 	for i, category := range categories {
 		responses[i] = *s.buildCategoryResponse(&category)
 	}
-	
+
 	return responses, count, nil
 }
 
@@ -213,7 +213,7 @@ func (s *ServiceImpl) GetCategoryTree(ctx context.Context, tenantID uuid.UUID, p
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return s.buildCategoryTreeResponse(categories), nil
 }
 
@@ -223,12 +223,12 @@ func (s *ServiceImpl) GetCategoryPath(ctx context.Context, tenantID, categoryID 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	responses := make([]CategoryResponse, len(path))
 	for i, category := range path {
 		responses[i] = *s.buildCategoryResponse(&category)
 	}
-	
+
 	return responses, nil
 }
 
@@ -240,26 +240,26 @@ func (s *ServiceImpl) MoveCategory(ctx context.Context, tenantID, categoryID uui
 			return err
 		}
 	}
-	
+
 	// Get category
 	category, err := s.repo.FindByID(ctx, tenantID, categoryID)
 	if err != nil {
 		return err
 	}
-	
+
 	// Update parent
 	category.ParentID = newParentID
-	
+
 	// Update hierarchy info
 	if err := s.setHierarchyInfo(ctx, tenantID, category); err != nil {
 		return err
 	}
-	
+
 	// Save category
 	if err := s.repo.Update(ctx, category); err != nil {
 		return err
 	}
-	
+
 	// Update children paths
 	return s.updateChildrenPaths(ctx, tenantID, category)
 }
@@ -281,12 +281,12 @@ func (s *ServiceImpl) AddProductToCategory(ctx context.Context, tenantID, catego
 	if err != nil {
 		return err
 	}
-	
+
 	// Add product to category
 	if err := s.repo.AddProduct(ctx, tenantID, categoryID, productID); err != nil {
 		return err
 	}
-	
+
 	// Update product count
 	return s.repo.UpdateProductCount(ctx, tenantID, categoryID)
 }
@@ -297,7 +297,7 @@ func (s *ServiceImpl) RemoveProductFromCategory(ctx context.Context, tenantID, c
 	if err := s.repo.RemoveProduct(ctx, tenantID, categoryID, productID); err != nil {
 		return err
 	}
-	
+
 	// Update product count
 	return s.repo.UpdateProductCount(ctx, tenantID, categoryID)
 }
@@ -318,12 +318,12 @@ func (s *ServiceImpl) GetFeaturedCategories(ctx context.Context, tenantID uuid.U
 	if err != nil {
 		return nil, err
 	}
-	
+
 	responses := make([]CategoryResponse, len(categories))
 	for i, category := range categories {
 		responses[i] = *s.buildCategoryResponse(&category)
 	}
-	
+
 	return responses, nil
 }
 
@@ -333,12 +333,12 @@ func (s *ServiceImpl) GetPopularCategories(ctx context.Context, tenantID uuid.UU
 	if err != nil {
 		return nil, err
 	}
-	
+
 	responses := make([]CategoryResponse, len(categories))
 	for i, category := range categories {
 		responses[i] = *s.buildCategoryResponse(&category)
 	}
-	
+
 	return responses, nil
 }
 
@@ -347,20 +347,20 @@ func (s *ServiceImpl) ValidateSlug(ctx context.Context, tenantID uuid.UUID, slug
 	if slug == "" {
 		return ErrInvalidSlug
 	}
-	
+
 	if len(slug) > MaxSlugLength {
 		return ErrInvalidSlug
 	}
-	
+
 	exists, err := s.repo.ExistsBySlug(ctx, tenantID, slug, excludeID)
 	if err != nil {
 		return err
 	}
-	
+
 	if exists {
 		return ErrCategoryExists
 	}
-	
+
 	return nil
 }
 
@@ -369,21 +369,21 @@ func (s *ServiceImpl) GenerateUniqueSlug(ctx context.Context, tenantID uuid.UUID
 	baseSlug := s.generateSlugFromName(name)
 	slug := baseSlug
 	counter := 1
-	
+
 	for {
 		err := s.ValidateSlug(ctx, tenantID, slug, excludeID)
 		if err == nil {
 			return slug, nil
 		}
-		
+
 		if err != ErrCategoryExists {
 			return "", err
 		}
-		
+
 		// Try with counter
 		slug = fmt.Sprintf("%s-%d", baseSlug, counter)
 		counter++
-		
+
 		if counter > 100 {
 			return "", fmt.Errorf("unable to generate unique slug")
 		}
@@ -397,27 +397,27 @@ func (s *ServiceImpl) validateCreateRequest(ctx context.Context, tenantID uuid.U
 	if req.Name == "" {
 		return fmt.Errorf("category name is required")
 	}
-	
+
 	// Validate slug if provided
 	if req.Slug != "" {
 		if err := s.ValidateSlug(ctx, tenantID, req.Slug, nil); err != nil {
 			return err
 		}
 	}
-	
+
 	// Validate parent if provided
 	if req.ParentID != nil {
 		parent, err := s.repo.FindByID(ctx, tenantID, *req.ParentID)
 		if err != nil {
 			return ErrInvalidParent
 		}
-		
+
 		// Check depth limit
 		if parent.Level >= MaxCategoryDepth-1 {
 			return ErrMaxDepthExceeded
 		}
 	}
-	
+
 	return nil
 }
 
@@ -429,24 +429,24 @@ func (s *ServiceImpl) validateUpdateRequest(ctx context.Context, tenantID, categ
 			return err
 		}
 	}
-	
+
 	// Validate parent if provided
 	if req.ParentID != nil {
 		if err := s.repo.ValidateParent(ctx, tenantID, categoryID, *req.ParentID); err != nil {
 			return err
 		}
-		
+
 		// Check depth limit
 		parent, err := s.repo.FindByID(ctx, tenantID, *req.ParentID)
 		if err != nil {
 			return ErrInvalidParent
 		}
-		
+
 		if parent.Level >= MaxCategoryDepth-1 {
 			return ErrMaxDepthExceeded
 		}
 	}
-	
+
 	return nil
 }
 
@@ -500,12 +500,12 @@ func (s *ServiceImpl) setHierarchyInfo(ctx context.Context, tenantID uuid.UUID, 
 		category.Path = ""
 		return nil
 	}
-	
+
 	parent, err := s.repo.FindByID(ctx, tenantID, *category.ParentID)
 	if err != nil {
 		return ErrInvalidParent
 	}
-	
+
 	category.UpdatePath(parent)
 	return nil
 }
@@ -522,7 +522,7 @@ func (s *ServiceImpl) generateSlugFromName(name string) string {
 	slug = strings.ReplaceAll(slug, " ", "-")
 	slug = strings.ReplaceAll(slug, "&", "and")
 	slug = strings.ReplaceAll(slug, "'", "")
-	
+
 	// Remove special characters (keep only alphanumeric and hyphens)
 	var result strings.Builder
 	for _, r := range slug {
@@ -530,7 +530,7 @@ func (s *ServiceImpl) generateSlugFromName(name string) string {
 			result.WriteRune(r)
 		}
 	}
-	
+
 	return result.String()
 }
 
@@ -546,13 +546,13 @@ func (s *ServiceImpl) buildCategoryResponse(category *Category) *CategoryRespons
 // buildCategoryTreeResponse builds hierarchical category tree response
 func (s *ServiceImpl) buildCategoryTreeResponse(categories []Category) []CategoryTreeResponse {
 	responses := make([]CategoryTreeResponse, len(categories))
-	
+
 	for i, category := range categories {
 		responses[i] = CategoryTreeResponse{
 			Category: &category,
 			Children: s.buildCategoryTreeResponse(category.Children),
 		}
 	}
-	
+
 	return responses
 }

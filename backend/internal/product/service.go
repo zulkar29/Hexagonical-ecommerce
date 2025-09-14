@@ -6,8 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
+
+	sharedErrors "ecommerce-saas/internal/shared/errors"
 )
 
 type ProductListFilter struct {
@@ -39,7 +41,7 @@ func (s *Service) CreateProduct(tenantID uuid.UUID, product *Product) (*Product,
 	// Set tenant ID and generate new ID
 	product.TenantID = tenantID
 	product.ID = uuid.New()
-	
+
 	// Validate product data
 	if validateErr := product.ValidateProductData(); validateErr != nil {
 		return nil, validateErr
@@ -47,17 +49,17 @@ func (s *Service) CreateProduct(tenantID uuid.UUID, product *Product) (*Product,
 
 	// Validate struct tags
 	if structErr := s.validator.Struct(product); structErr != nil {
-		return nil, structErr
+		return nil, sharedErrors.NewValidationError("Product validation failed", structErr.Error())
 	}
 
 	// Generate slug
 	slug := s.generateSlug(product.Name)
-	
+
 	// Check if slug exists for this tenant
-	if exists, slugErr := s.repo.SlugExists(tenantID, slug); slugErr != nil {
+	if exists, slugErr := s.repo.ProductSlugExists(tenantID, slug); slugErr != nil {
 		return nil, slugErr
 	} else if exists {
-		slug = s.generateUniqueSlug(tenantID, slug)
+		return nil, sharedErrors.ErrProductSlugTaken
 	}
 	product.Slug = slug
 
@@ -89,37 +91,51 @@ func (s *Service) CreateProduct(tenantID uuid.UUID, product *Product) (*Product,
 		product.FeaturedImage = product.Images[0]
 	}
 
-	return s.repo.SaveProduct(product)
+	return s.repo.CreateProduct(product)
 }
 
 // GetProduct retrieves a product by ID
 func (s *Service) GetProduct(tenantID uuid.UUID, id string) (*Product, error) {
 	productID, err := uuid.Parse(id)
 	if err != nil {
-		return nil, errors.New("invalid product ID")
+		return nil, sharedErrors.NewBadRequestError("Invalid product ID format")
 	}
 
-	return s.repo.FindProductByID(tenantID, productID)
+	product, err := s.repo.GetProductByID(tenantID, productID)
+	if err != nil {
+		return nil, sharedErrors.Wrap(err, sharedErrors.CodeInternal, "Failed to retrieve product", 500)
+	}
+	if product == nil {
+		return nil, sharedErrors.ErrProductNotFound
+	}
+	return product, nil
 }
 
 // GetProductBySlug retrieves a product by slug
 func (s *Service) GetProductBySlug(tenantID uuid.UUID, slug string) (*Product, error) {
 	if slug == "" {
-		return nil, errors.New("slug is required")
+		return nil, sharedErrors.NewBadRequestError("Product slug is required")
 	}
 
-	return s.repo.FindProductBySlug(tenantID, slug)
+	product, err := s.repo.GetProductBySlug(tenantID, slug)
+	if err != nil {
+		return nil, sharedErrors.Wrap(err, sharedErrors.CodeInternal, "Failed to retrieve product by slug", 500)
+	}
+	if product == nil {
+		return nil, sharedErrors.ErrProductNotFound
+	}
+	return product, nil
 }
 
 // UpdateProduct updates an existing product
 func (s *Service) UpdateProduct(tenantID, productID uuid.UUID, product *Product) (*Product, error) {
 	// Get existing product
-	existingProduct, err := s.repo.FindProductByID(tenantID, productID)
+	existingProduct, err := s.repo.GetProductByID(tenantID, productID)
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.Wrap(err, sharedErrors.CodeInternal, "Failed to find product", 500)
 	}
 	if existingProduct == nil {
-		return nil, errors.New("product not found")
+		return nil, sharedErrors.ErrProductNotFound
 	}
 
 	// Validate product data
@@ -138,8 +154,8 @@ func (s *Service) UpdateProduct(tenantID, productID uuid.UUID, product *Product)
 		// Regenerate slug if name changed
 		slug := s.generateSlug(existingProduct.Name)
 		if slug != existingProduct.Slug {
-			if exists, slugErr := s.repo.SlugExists(tenantID, slug); slugErr != nil {
-				return nil, slugErr
+			if exists, slugErr := s.repo.ProductSlugExists(tenantID, slug); slugErr != nil {
+				return nil, sharedErrors.Wrap(slugErr, sharedErrors.CodeInternal, "Failed to check slug existence", 500)
 			} else if exists {
 				slug = s.generateUniqueSlug(tenantID, slug)
 			}
@@ -200,9 +216,9 @@ func (s *Service) UpdateProduct(tenantID, productID uuid.UUID, product *Product)
 	if product.CategoryID != uuid.Nil {
 		// Validate category if provided
 		if exists, catErr := s.repo.CategoryExists(tenantID, product.CategoryID); catErr != nil {
-			return nil, catErr
+			return nil, sharedErrors.Wrap(catErr, sharedErrors.CodeInternal, "Failed to validate category", 500)
 		} else if !exists {
-			return nil, errors.New("category not found")
+			return nil, sharedErrors.ErrCategoryNotFound
 		}
 		existingProduct.CategoryID = product.CategoryID
 	}
@@ -221,7 +237,7 @@ func (s *Service) UpdateProduct(tenantID, productID uuid.UUID, product *Product)
 
 	existingProduct.UpdatedAt = time.Now()
 
-	return s.repo.SaveProduct(existingProduct)
+	return s.repo.UpdateProduct(existingProduct)
 }
 
 // ListProducts returns a paginated list of products
@@ -233,26 +249,32 @@ func (s *Service) ListProducts(tenantID uuid.UUID, filter ProductListFilter, off
 func (s *Service) DeleteProduct(tenantID uuid.UUID, id string) error {
 	productID, err := uuid.Parse(id)
 	if err != nil {
-		return errors.New("invalid product ID")
+		return sharedErrors.NewBadRequestError("Invalid product ID format")
 	}
 
-	return s.repo.DeleteProduct(tenantID, productID)
+	if err := s.repo.DeleteProduct(tenantID, productID); err != nil {
+		return sharedErrors.Wrap(err, sharedErrors.CodeInternal, "Failed to delete product", 500)
+	}
+	return nil
 }
 
 // UpdateInventory updates product inventory
 func (s *Service) UpdateInventory(tenantID uuid.UUID, id string, quantity int) error {
 	productID, err := uuid.Parse(id)
 	if err != nil {
-		return errors.New("invalid product ID")
+		return sharedErrors.NewBadRequestError("Invalid product ID format")
 	}
 
-	return s.repo.UpdateInventory(tenantID, productID, quantity)
+	if err := s.repo.UpdateProductInventory(tenantID, productID, quantity); err != nil {
+		return sharedErrors.Wrap(err, sharedErrors.CodeInternal, "Failed to update inventory", 500)
+	}
+	return nil
 }
 
 // ReserveStock reserves inventory for a product (decrements inventory)
 func (s *Service) ReserveStock(tenantID uuid.UUID, productID uuid.UUID, quantity int) error {
 	// Get the product first
-	product, err := s.repo.FindProductByID(tenantID, productID)
+	product, err := s.repo.GetProductByID(tenantID, productID)
 	if err != nil {
 		return fmt.Errorf("product not found: %w", err)
 	}
@@ -268,14 +290,14 @@ func (s *Service) ReserveStock(tenantID uuid.UUID, productID uuid.UUID, quantity
 	}
 
 	// Save the updated product
-	_, err = s.repo.SaveProduct(product)
+	_, err = s.repo.UpdateProduct(product)
 	return err
 }
 
 // RestoreStock restores inventory for a product (increments inventory)
 func (s *Service) RestoreStock(tenantID uuid.UUID, productID uuid.UUID, quantity int) error {
 	// Get the product first
-	product, err := s.repo.FindProductByID(tenantID, productID)
+	product, err := s.repo.GetProductByID(tenantID, productID)
 	if err != nil {
 		return fmt.Errorf("product not found: %w", err)
 	}
@@ -284,14 +306,14 @@ func (s *Service) RestoreStock(tenantID uuid.UUID, productID uuid.UUID, quantity
 	product.IncrementInventory(quantity)
 
 	// Save the updated product
-	_, err = s.repo.SaveProduct(product)
+	_, err = s.repo.UpdateProduct(product)
 	return err
 }
 
 // CheckAvailability checks if sufficient inventory is available
 func (s *Service) CheckAvailability(tenantID uuid.UUID, productID uuid.UUID, variantID *uuid.UUID, quantity int) (bool, error) {
 	// For now, we only handle product-level inventory (not variant-level)
-	product, err := s.repo.FindProductByID(tenantID, productID)
+	product, err := s.repo.GetProductByID(tenantID, productID)
 	if err != nil {
 		return false, fmt.Errorf("product not found: %w", err)
 	}
@@ -307,26 +329,26 @@ func (s *Service) CreateCategory(tenantID uuid.UUID, category *Category) (*Categ
 
 	// Validate struct tags
 	if structErr := s.validator.Struct(category); structErr != nil {
-		return nil, structErr
+		return nil, sharedErrors.NewValidationError("Category validation failed", structErr.Error())
 	}
 
 	// Generate slug
 	slug := s.generateSlug(category.Name)
-	
+
 	// Check if slug exists for this tenant
 	if exists, slugErr := s.repo.CategorySlugExists(tenantID, slug); slugErr != nil {
-		return nil, slugErr
+		return nil, sharedErrors.Wrap(slugErr, sharedErrors.CodeInternal, "Failed to check category slug existence", 500)
 	} else if exists {
-		slug = s.generateUniqueCategorySlug(tenantID, slug)
+		return nil, sharedErrors.NewConflictError("Category slug already exists")
 	}
 	category.Slug = slug
 
 	// Validate parent category if provided
 	if category.ParentID != nil {
 		if exists, parentErr := s.repo.CategoryExists(tenantID, *category.ParentID); parentErr != nil {
-			return nil, parentErr
+			return nil, sharedErrors.Wrap(parentErr, sharedErrors.CodeInternal, "Failed to validate parent category", 500)
 		} else if !exists {
-			return nil, errors.New("parent category not found")
+			return nil, sharedErrors.ErrCategoryNotFound
 		}
 	}
 
@@ -336,7 +358,7 @@ func (s *Service) CreateCategory(tenantID uuid.UUID, category *Category) (*Categ
 	category.MetaTitle = strings.TrimSpace(category.MetaTitle)
 	category.MetaDescription = strings.TrimSpace(category.MetaDescription)
 
-	return s.repo.SaveCategory(category)
+	return s.repo.CreateCategory(category)
 }
 
 // GetCategory retrieves a category by ID
@@ -346,7 +368,7 @@ func (s *Service) GetCategory(tenantID uuid.UUID, id string) (*Category, error) 
 		return nil, errors.New("invalid category ID")
 	}
 
-	return s.repo.FindCategoryByID(tenantID, categoryID)
+	return s.repo.GetCategoryByID(tenantID, categoryID)
 }
 
 // ListCategories returns all categories for a tenant
@@ -360,7 +382,7 @@ func (s *Service) generateSlug(name string) string {
 	// Convert to lowercase and replace spaces with hyphens
 	slug := strings.ToLower(strings.TrimSpace(name))
 	slug = strings.ReplaceAll(slug, " ", "-")
-	
+
 	// Remove special characters using regex-like approach
 	var result strings.Builder
 	for _, r := range slug {
@@ -368,22 +390,22 @@ func (s *Service) generateSlug(name string) string {
 			result.WriteRune(r)
 		}
 	}
-	
+
 	slug = result.String()
-	
+
 	// Remove multiple consecutive hyphens
 	for strings.Contains(slug, "--") {
 		slug = strings.ReplaceAll(slug, "--", "-")
 	}
-	
+
 	// Remove leading and trailing hyphens
 	slug = strings.Trim(slug, "-")
-	
+
 	// Ensure slug is not empty
 	if slug == "" {
 		slug = "product"
 	}
-	
+
 	return slug
 }
 
@@ -391,11 +413,11 @@ func (s *Service) generateUniqueSlug(tenantID uuid.UUID, baseSlug string) string
 	// Try appending numbers 1, 2, 3, etc.
 	for i := 1; i <= 100; i++ {
 		newSlug := fmt.Sprintf("%s-%d", baseSlug, i)
-		if exists, err := s.repo.SlugExists(tenantID, newSlug); err == nil && !exists {
+		if exists, err := s.repo.ProductSlugExists(tenantID, newSlug); err == nil && !exists {
 			return newSlug
 		}
 	}
-	
+
 	// Fallback to UUID if all numbers are taken
 	return baseSlug + "-" + uuid.New().String()[:8]
 }
@@ -408,12 +430,10 @@ func (s *Service) generateUniqueCategorySlug(tenantID uuid.UUID, baseSlug string
 			return newSlug
 		}
 	}
-	
+
 	// Fallback to UUID if all numbers are taken
 	return baseSlug + "-" + uuid.New().String()[:8]
 }
-
-
 
 // BulkDeleteProducts deletes multiple products at once
 func (s *Service) BulkDeleteProducts(tenantID uuid.UUID, productIDs []string) error {
@@ -440,7 +460,7 @@ func (s *Service) GetProductAnalytics(tenantID uuid.UUID, productID, analyticsTy
 	}
 
 	// Verify product exists
-	_, err = s.repo.FindProductByID(tenantID, prodID)
+	_, err = s.repo.GetProductByID(tenantID, prodID)
 	if err != nil {
 		return nil, errors.New("product not found")
 	}
@@ -448,90 +468,90 @@ func (s *Service) GetProductAnalytics(tenantID uuid.UUID, productID, analyticsTy
 	switch analyticsType {
 	case "performance":
 		// Get product performance analytics
-		product, err := s.repo.FindProductByID(tenantID, prodID)
+		product, err := s.repo.GetProductByID(tenantID, prodID)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		// Calculate basic performance metrics
 		conversionRate := 0.0
 		if product.InventoryQuantity > 0 {
 			// Simple conversion rate calculation based on stock movement
 			conversionRate = float64(product.InventoryQuantity) / 100.0
 		}
-		
+
 		return map[string]interface{}{
-			"views": 150, // Placeholder - would come from analytics service
-			"sales": 25,  // Placeholder - would come from order service
-			"revenue": float64(product.Price) * 25, // Calculated from price and sales
+			"views":           150,                         // Placeholder - would come from analytics service
+			"sales":           25,                          // Placeholder - would come from order service
+			"revenue":         float64(product.Price) * 25, // Calculated from price and sales
 			"conversion_rate": conversionRate,
 		}, nil
 	case "inventory":
 		// Get inventory analytics
-		product, err := s.repo.FindProductByID(tenantID, prodID)
+		product, err := s.repo.GetProductByID(tenantID, prodID)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		lowStockAlert := 0
 		if product.TrackQuantity && product.InventoryQuantity < 10 {
 			lowStockAlert = 1
 		}
-		
+
 		return map[string]interface{}{
 			"current_stock": product.InventoryQuantity,
 			"stock_movements": []interface{}{
 				map[string]interface{}{
-					"date": time.Now().AddDate(0, 0, -1).Format("2006-01-02"),
-					"type": "sale",
+					"date":     time.Now().AddDate(0, 0, -1).Format("2006-01-02"),
+					"type":     "sale",
 					"quantity": -2,
-					"reason": "Product sold",
+					"reason":   "Product sold",
 				},
 				map[string]interface{}{
-					"date": time.Now().AddDate(0, 0, -3).Format("2006-01-02"),
-					"type": "restock",
+					"date":     time.Now().AddDate(0, 0, -3).Format("2006-01-02"),
+					"type":     "restock",
 					"quantity": 50,
-					"reason": "Inventory replenishment",
+					"reason":   "Inventory replenishment",
 				},
 			},
 			"low_stock_alerts": lowStockAlert,
 		}, nil
 	case "sales":
 		// Get sales analytics
-		product, err := s.repo.FindProductByID(tenantID, prodID)
+		product, err := s.repo.GetProductByID(tenantID, prodID)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		// Generate mock monthly sales data
 		monthlySales := []interface{}{}
 		for i := 5; i >= 0; i-- {
 			month := time.Now().AddDate(0, -i, 0)
 			sales := 10 + (i * 3) // Mock increasing sales
 			monthlySales = append(monthlySales, map[string]interface{}{
-				"month": month.Format("2006-01"),
-				"sales": sales,
+				"month":   month.Format("2006-01"),
+				"sales":   sales,
 				"revenue": float64(product.Price) * float64(sales),
 			})
 		}
-		
+
 		// Generate top variants data
 		topVariants := []interface{}{}
 		for i, variant := range product.Variants {
 			if i < 3 { // Top 3 variants
 				topVariants = append(topVariants, map[string]interface{}{
 					"variant_id": variant.ID,
-					"name": variant.GetDisplayName(),
-					"sales": 15 - (i * 3), // Mock decreasing sales
-					"revenue": float64(variant.Price) * float64(15-(i*3)),
+					"name":       variant.GetDisplayName(),
+					"sales":      15 - (i * 3), // Mock decreasing sales
+					"revenue":    float64(variant.Price) * float64(15-(i*3)),
 				})
 			}
 		}
-		
+
 		return map[string]interface{}{
-			"total_sales": 75, // Mock total sales
+			"total_sales":   75, // Mock total sales
 			"monthly_sales": monthlySales,
-			"top_variants": topVariants,
+			"top_variants":  topVariants,
 		}, nil
 	default:
 		return nil, errors.New("invalid analytics type")
@@ -589,13 +609,13 @@ func (s *Service) BulkUpdateProducts(tenantID uuid.UUID, productIDs []string, up
 func (s *Service) DuplicateProduct(tenantID uuid.UUID, productIDStr string) (*Product, error) {
 	productID, err := uuid.Parse(productIDStr)
 	if err != nil {
-		return nil, errors.New("invalid product ID")
+		return nil, sharedErrors.NewBadRequestError("Invalid product ID format")
 	}
 
 	// Get original product
-	original, err := s.repo.FindProductByID(tenantID, productID)
+	original, err := s.repo.GetProductByID(tenantID, productID)
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.Wrap(err, sharedErrors.CodeInternal, "Failed to find product", 500)
 	}
 
 	// Create duplicate with modified name and slug
@@ -628,13 +648,13 @@ func (s *Service) DuplicateProduct(tenantID uuid.UUID, productIDStr string) (*Pr
 		Tags:              original.Tags,
 	}
 
-	return s.repo.SaveProduct(duplicate)
+	return s.repo.CreateProduct(duplicate)
 }
 
 // SearchProducts performs search across products
 func (s *Service) SearchProducts(tenantID uuid.UUID, query string, offset, limit int) ([]*Product, int64, error) {
 	if query == "" {
-		return nil, 0, errors.New("search query is required")
+		return nil, 0, sharedErrors.NewBadRequestError("Search query is required")
 	}
 
 	return s.repo.SearchProducts(tenantID, query, offset, limit)
@@ -653,19 +673,19 @@ func (s *Service) GetLowStockProducts(tenantID uuid.UUID, threshold int) ([]*Pro
 func (s *Service) UpdateProductStatus(tenantID uuid.UUID, productIDStr string, status ProductStatus) error {
 	productID, err := uuid.Parse(productIDStr)
 	if err != nil {
-		return errors.New("invalid product ID")
+		return sharedErrors.NewBadRequestError("Invalid product ID format")
 	}
 
 	// Validate status
 	validStatuses := map[ProductStatus]bool{
-		ProductStatusDraft:     true,
-		ProductStatusActive:    true,
-		ProductStatusInactive:  true,
-		ProductStatusArchived:  true,
+		ProductStatusDraft:    true,
+		ProductStatusActive:   true,
+		ProductStatusInactive: true,
+		ProductStatusArchived: true,
 	}
 
 	if !validStatuses[status] {
-		return errors.New("invalid product status")
+		return sharedErrors.NewValidationError("Invalid product status", "")
 	}
 
 	updates := map[string]interface{}{
@@ -685,26 +705,26 @@ func (s *Service) CreateProductVariant(tenantID, productID uuid.UUID, variant *P
 
 	// Validate struct tags
 	if structErr := s.validator.Struct(variant); structErr != nil {
-		return nil, structErr
+		return nil, sharedErrors.NewValidationError("Variant validation failed", structErr.Error())
 	}
 
 	// Validate product exists
 	if exists, productErr := s.repo.ProductExists(tenantID, productID); productErr != nil {
-		return nil, productErr
+		return nil, sharedErrors.Wrap(productErr, sharedErrors.CodeInternal, "Failed to check product existence", 500)
 	} else if !exists {
-		return nil, errors.New("product not found")
+		return nil, sharedErrors.ErrProductNotFound
 	}
 
 	// Validate business rules
 	if variant.ComparePrice > 0 && variant.Price >= variant.ComparePrice {
-		return nil, errors.New("compare price must be higher than selling price")
+		return nil, sharedErrors.NewValidationError("Compare price must be higher than selling price", "")
 	}
 
 	// Trim string fields
 	variant.SKU = strings.TrimSpace(variant.SKU)
 	variant.Barcode = strings.TrimSpace(variant.Barcode)
 
-	return s.repo.SaveProductVariant(variant)
+	return s.repo.CreateProductVariant(variant)
 }
 
 // GetProductVariants returns all variants for a product
@@ -715,12 +735,12 @@ func (s *Service) GetProductVariants(tenantID uuid.UUID, productIDStr string) ([
 	}
 
 	// Verify product exists and belongs to tenant
-	_, err = s.repo.FindProductByID(tenantID, productID)
+	_, err = s.repo.GetProductByID(tenantID, productID)
 	if err != nil {
 		return nil, errors.New("product not found")
 	}
 
-	return s.repo.FindProductVariants(tenantID, productID)
+	return s.repo.GetProductVariants(tenantID, productID)
 }
 
 // UpdateProductVariant updates an existing product variant
@@ -787,7 +807,7 @@ func (s *Service) UpdateProductVariant(tenantID, productID, variantID uuid.UUID,
 
 	existingVariant.UpdatedAt = time.Now()
 
-	return s.repo.SaveProductVariant(existingVariant)
+	return s.repo.UpdateProductVariant(existingVariant)
 }
 
 // DeleteProductVariant deletes a product variant
@@ -803,7 +823,7 @@ func (s *Service) DeleteProductVariant(tenantID uuid.UUID, productIDStr, variant
 	}
 
 	// Verify product exists and belongs to tenant
-	_, err = s.repo.FindProductByID(tenantID, productID)
+	_, err = s.repo.GetProductByID(tenantID, productID)
 	if err != nil {
 		return errors.New("product not found")
 	}
@@ -816,7 +836,7 @@ func (s *Service) DeleteProductVariant(tenantID uuid.UUID, productIDStr, variant
 // UpdateCategory updates an existing category
 func (s *Service) UpdateCategory(tenantID, categoryID uuid.UUID, category *Category) (*Category, error) {
 	// Get existing category
-	existingCategory, err := s.repo.GetCategory(tenantID, categoryID)
+	existingCategory, err := s.repo.GetCategoryByID(tenantID, categoryID)
 	if err != nil {
 		return nil, err
 	}
@@ -872,7 +892,7 @@ func (s *Service) UpdateCategory(tenantID, categoryID uuid.UUID, category *Categ
 
 	existingCategory.UpdatedAt = time.Now()
 
-	return s.repo.SaveCategory(existingCategory)
+	return s.repo.UpdateCategory(existingCategory)
 }
 
 // DeleteCategory deletes a category

@@ -86,7 +86,7 @@ func (r *repository) SearchProducts(ctx context.Context, tenantID uuid.UUID, req
 	// Add search conditions
 	if req.Query != "" {
 		searchTerm := "%" + strings.ToLower(req.Query) + "%"
-		query = query.Where("(LOWER(p.name) LIKE ? OR LOWER(p.description) LIKE ? OR LOWER(p.sku) LIKE ?)", 
+		query = query.Where("(LOWER(p.name) LIKE ? OR LOWER(p.description) LIKE ? OR LOWER(p.sku) LIKE ?)",
 			searchTerm, searchTerm, searchTerm)
 	}
 
@@ -420,7 +420,7 @@ func (r *repository) searchCategories(ctx context.Context, tenantID uuid.UUID, q
 
 	err := r.db.WithContext(ctx).Table("categories").
 		Select("id, name, description, created_at, updated_at").
-		Where("tenant_id = ? AND deleted_at IS NULL AND (LOWER(name) LIKE ? OR LOWER(description) LIKE ?)", 
+		Where("tenant_id = ? AND deleted_at IS NULL AND (LOWER(name) LIKE ? OR LOWER(description) LIKE ?)",
 			tenantID, searchTerm, searchTerm).
 		Offset(query.Offset).Limit(query.Limit).
 		Scan(&categories).Error

@@ -15,25 +15,25 @@ type Service interface {
 	GetCampaigns(ctx context.Context, tenantID uuid.UUID, filter CampaignFilter) ([]Campaign, error)
 	UpdateCampaign(ctx context.Context, tenantID, campaignID uuid.UUID, req UpdateCampaignRequest) (*Campaign, error)
 	DeleteCampaign(ctx context.Context, tenantID, campaignID uuid.UUID) error
-	
+
 	// Campaign execution
 	ScheduleCampaign(ctx context.Context, tenantID, campaignID uuid.UUID, scheduledAt time.Time) error
 	StartCampaign(ctx context.Context, tenantID, campaignID uuid.UUID) error
 	PauseCampaign(ctx context.Context, tenantID, campaignID uuid.UUID) error
 	StopCampaign(ctx context.Context, tenantID, campaignID uuid.UUID) error
-	
+
 	// Email operations
 	GetCampaignEmails(ctx context.Context, tenantID, campaignID uuid.UUID, filter EmailFilter) ([]CampaignEmail, error)
 	TrackEmailOpen(ctx context.Context, emailID uuid.UUID) error
 	TrackEmailClick(ctx context.Context, emailID uuid.UUID) error
-	
+
 	// Template operations
 	CreateTemplate(ctx context.Context, req CreateTemplateRequest) (*EmailTemplate, error)
 	GetTemplate(ctx context.Context, tenantID, templateID uuid.UUID) (*EmailTemplate, error)
 	GetTemplates(ctx context.Context, tenantID uuid.UUID, filter TemplateFilter) ([]EmailTemplate, error)
 	UpdateTemplate(ctx context.Context, tenantID, templateID uuid.UUID, req UpdateTemplateRequest) (*EmailTemplate, error)
 	DeleteTemplate(ctx context.Context, tenantID, templateID uuid.UUID) error
-	
+
 	// Segment operations
 	CreateSegment(ctx context.Context, req CreateSegmentRequest) (*CustomerSegment, error)
 	GetSegment(ctx context.Context, tenantID, segmentID uuid.UUID) (*CustomerSegment, error)
@@ -41,23 +41,23 @@ type Service interface {
 	UpdateSegment(ctx context.Context, tenantID, segmentID uuid.UUID, req UpdateSegmentRequest) (*CustomerSegment, error)
 	DeleteSegment(ctx context.Context, tenantID, segmentID uuid.UUID) error
 	RefreshSegment(ctx context.Context, tenantID, segmentID uuid.UUID) error
-	
+
 	// Newsletter operations
 	Subscribe(ctx context.Context, req SubscribeRequest) (*NewsletterSubscriber, error)
 	Unsubscribe(ctx context.Context, tenantID uuid.UUID, email string) error
 	GetSubscriber(ctx context.Context, tenantID uuid.UUID, email string) (*NewsletterSubscriber, error)
 	GetSubscribers(ctx context.Context, tenantID uuid.UUID, filter SubscriberFilter) ([]NewsletterSubscriber, error)
-	
+
 	// Abandoned cart operations
 	CreateAbandonedCart(ctx context.Context, req CreateAbandonedCartRequest) (*AbandonedCart, error)
 	GetAbandonedCarts(ctx context.Context, tenantID uuid.UUID, filter AbandonedCartFilter) ([]AbandonedCart, error)
 	MarkCartRecovered(ctx context.Context, tenantID, cartID uuid.UUID, recoveredValue float64) error
 	SendAbandonedCartEmail(ctx context.Context, tenantID, abandonedCartID uuid.UUID) error
-	
+
 	// Settings operations
 	GetSettings(ctx context.Context, tenantID uuid.UUID) (*MarketingSettings, error)
 	UpdateSettings(ctx context.Context, tenantID uuid.UUID, req UpdateSettingsRequest) (*MarketingSettings, error)
-	
+
 	// Analytics
 	GetCampaignStats(ctx context.Context, tenantID, campaignID uuid.UUID) (*CampaignStats, error)
 	GetMarketingOverview(ctx context.Context, tenantID uuid.UUID, period string) (*MarketingOverview, error)
@@ -75,37 +75,37 @@ func NewService(repo Repository) Service {
 
 // Request/Response DTOs
 type CreateCampaignRequest struct {
-	TenantID    uuid.UUID      `json:"tenant_id" validate:"required"`
-	Name        string         `json:"name" validate:"required"`
-	Description string         `json:"description"`
-	Type        CampaignType   `json:"type" validate:"required"`
-	Subject     string         `json:"subject"`
-	Content     string         `json:"content" validate:"required"`
-	PreviewText string         `json:"preview_text"`
-	TemplateID  *uuid.UUID     `json:"template_id"`
-	SegmentID   *uuid.UUID     `json:"segment_id"`
-	SegmentType SegmentType    `json:"segment_type"`
-	SegmentRules string        `json:"segment_rules"`
-	FromName    string         `json:"from_name"`
-	FromEmail   string         `json:"from_email"`
-	ReplyToEmail string        `json:"reply_to_email"`
-	ScheduledAt *time.Time     `json:"scheduled_at"`
+	TenantID     uuid.UUID    `json:"tenant_id" validate:"required"`
+	Name         string       `json:"name" validate:"required"`
+	Description  string       `json:"description"`
+	Type         CampaignType `json:"type" validate:"required"`
+	Subject      string       `json:"subject"`
+	Content      string       `json:"content" validate:"required"`
+	PreviewText  string       `json:"preview_text"`
+	TemplateID   *uuid.UUID   `json:"template_id"`
+	SegmentID    *uuid.UUID   `json:"segment_id"`
+	SegmentType  SegmentType  `json:"segment_type"`
+	SegmentRules string       `json:"segment_rules"`
+	FromName     string       `json:"from_name"`
+	FromEmail    string       `json:"from_email"`
+	ReplyToEmail string       `json:"reply_to_email"`
+	ScheduledAt  *time.Time   `json:"scheduled_at"`
 }
 
 type UpdateCampaignRequest struct {
-	Name        *string        `json:"name"`
-	Description *string        `json:"description"`
-	Subject     *string        `json:"subject"`
-	Content     *string        `json:"content"`
-	PreviewText *string        `json:"preview_text"`
-	TemplateID  *uuid.UUID     `json:"template_id"`
-	SegmentID   *uuid.UUID     `json:"segment_id"`
-	SegmentType *SegmentType   `json:"segment_type"`
-	SegmentRules *string       `json:"segment_rules"`
-	FromName    *string        `json:"from_name"`
-	FromEmail   *string        `json:"from_email"`
-	ReplyToEmail *string       `json:"reply_to_email"`
-	ScheduledAt *time.Time     `json:"scheduled_at"`
+	Name         *string      `json:"name"`
+	Description  *string      `json:"description"`
+	Subject      *string      `json:"subject"`
+	Content      *string      `json:"content"`
+	PreviewText  *string      `json:"preview_text"`
+	TemplateID   *uuid.UUID   `json:"template_id"`
+	SegmentID    *uuid.UUID   `json:"segment_id"`
+	SegmentType  *SegmentType `json:"segment_type"`
+	SegmentRules *string      `json:"segment_rules"`
+	FromName     *string      `json:"from_name"`
+	FromEmail    *string      `json:"from_email"`
+	ReplyToEmail *string      `json:"reply_to_email"`
+	ScheduledAt  *time.Time   `json:"scheduled_at"`
 }
 
 type CampaignFilter struct {
@@ -128,41 +128,41 @@ type EmailFilter struct {
 }
 
 type CreateTemplateRequest struct {
-	TenantID    uuid.UUID       `json:"tenant_id" validate:"required"`
-	Name        string          `json:"name" validate:"required"`
-	Description string          `json:"description"`
-	Category    string          `json:"category"`
-	Type        CampaignType    `json:"type"`
-	Subject     string          `json:"subject" validate:"required"`
-	Content     string          `json:"content" validate:"required"`
-	PreviewText string          `json:"preview_text"`
-	DesignJSON  string          `json:"design_json"`
-	FromName    string          `json:"from_name"`
-	FromEmail   string          `json:"from_email"`
-	ReplyToEmail string         `json:"reply_to_email"`
+	TenantID     uuid.UUID    `json:"tenant_id" validate:"required"`
+	Name         string       `json:"name" validate:"required"`
+	Description  string       `json:"description"`
+	Category     string       `json:"category"`
+	Type         CampaignType `json:"type"`
+	Subject      string       `json:"subject" validate:"required"`
+	Content      string       `json:"content" validate:"required"`
+	PreviewText  string       `json:"preview_text"`
+	DesignJSON   string       `json:"design_json"`
+	FromName     string       `json:"from_name"`
+	FromEmail    string       `json:"from_email"`
+	ReplyToEmail string       `json:"reply_to_email"`
 }
 
 type UpdateTemplateRequest struct {
-	Name        *string  `json:"name"`
-	Description *string  `json:"description"`
-	Category    *string  `json:"category"`
-	Subject     *string  `json:"subject"`
-	Content     *string  `json:"content"`
-	PreviewText *string  `json:"preview_text"`
-	DesignJSON  *string  `json:"design_json"`
-	IsActive    *bool    `json:"is_active"`
-	FromName    *string  `json:"from_name"`
-	FromEmail   *string  `json:"from_email"`
+	Name         *string `json:"name"`
+	Description  *string `json:"description"`
+	Category     *string `json:"category"`
+	Subject      *string `json:"subject"`
+	Content      *string `json:"content"`
+	PreviewText  *string `json:"preview_text"`
+	DesignJSON   *string `json:"design_json"`
+	IsActive     *bool   `json:"is_active"`
+	FromName     *string `json:"from_name"`
+	FromEmail    *string `json:"from_email"`
 	ReplyToEmail *string `json:"reply_to_email"`
 }
 
 type TemplateFilter struct {
-	Category  string          `json:"category"`
-	Type      []CampaignType  `json:"type"`
-	IsActive  *bool           `json:"is_active"`
-	Search    string          `json:"search"`
-	Page      int             `json:"page"`
-	Limit     int             `json:"limit"`
+	Category string         `json:"category"`
+	Type     []CampaignType `json:"type"`
+	IsActive *bool          `json:"is_active"`
+	Search   string         `json:"search"`
+	Page     int            `json:"page"`
+	Limit    int            `json:"limit"`
 }
 
 type CreateSegmentRequest struct {
@@ -176,37 +176,37 @@ type CreateSegmentRequest struct {
 }
 
 type UpdateSegmentRequest struct {
-	Name        *string      `json:"name"`
-	Description *string      `json:"description"`
-	Rules       *string      `json:"rules"`
-	IsActive    *bool        `json:"is_active"`
-	AutoUpdate  *bool        `json:"auto_update"`
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
+	Rules       *string `json:"rules"`
+	IsActive    *bool   `json:"is_active"`
+	AutoUpdate  *bool   `json:"auto_update"`
 }
 
 type SubscribeRequest struct {
-	TenantID        uuid.UUID `json:"tenant_id" validate:"required"`
-	Email           string    `json:"email" validate:"required,email"`
-	Name            string    `json:"name"`
-	FirstName       string    `json:"first_name"`
-	LastName        string    `json:"last_name"`
-	Source          string    `json:"source"`
-	Preferences     string    `json:"preferences"`
-	Tags            []string  `json:"tags"`
-	SourceURL       string    `json:"source_url"`
-	SourceCampaign  string    `json:"source_campaign"`
-	IPAddress       string    `json:"ip_address"`
-	UserAgent       string    `json:"user_agent"`
-	DoubleOptIn     bool      `json:"double_opt_in"`
+	TenantID       uuid.UUID `json:"tenant_id" validate:"required"`
+	Email          string    `json:"email" validate:"required,email"`
+	Name           string    `json:"name"`
+	FirstName      string    `json:"first_name"`
+	LastName       string    `json:"last_name"`
+	Source         string    `json:"source"`
+	Preferences    string    `json:"preferences"`
+	Tags           []string  `json:"tags"`
+	SourceURL      string    `json:"source_url"`
+	SourceCampaign string    `json:"source_campaign"`
+	IPAddress      string    `json:"ip_address"`
+	UserAgent      string    `json:"user_agent"`
+	DoubleOptIn    bool      `json:"double_opt_in"`
 }
 
 type SubscriberFilter struct {
-	Status    []string  `json:"status"`
-	Tags      []string  `json:"tags"`
-	Search    string    `json:"search"`
+	Status    []string   `json:"status"`
+	Tags      []string   `json:"tags"`
+	Search    string     `json:"search"`
 	StartDate *time.Time `json:"start_date"`
 	EndDate   *time.Time `json:"end_date"`
-	Page      int       `json:"page"`
-	Limit     int       `json:"limit"`
+	Page      int        `json:"page"`
+	Limit     int        `json:"limit"`
 }
 
 type CreateAbandonedCartRequest struct {
@@ -232,37 +232,37 @@ type AbandonedCartFilter struct {
 }
 
 type UpdateSettingsRequest struct {
-	FromName              *string `json:"from_name"`
-	FromEmail             *string `json:"from_email"`
-	ReplyToEmail          *string `json:"reply_to_email"`
-	EmailProvider         *string `json:"email_provider"`
-	SMTPHost              *string `json:"smtp_host"`
-	SMTPPort              *int    `json:"smtp_port"`
-	SMTPUsername          *string `json:"smtp_username"`
-	SMTPPassword          *string `json:"smtp_password"`
-	SendGridAPIKey        *string `json:"sendgrid_api_key"`
-	MailgunAPIKey         *string `json:"mailgun_api_key"`
-	MailgunDomain         *string `json:"mailgun_domain"`
-	AbandonedCartEnabled  *bool   `json:"abandoned_cart_enabled"`
-	AbandonedCartDelay    *int    `json:"abandoned_cart_delay"`
-	WelcomeEmailEnabled   *bool   `json:"welcome_email_enabled"`
-	WelcomeEmailDelay     *int    `json:"welcome_email_delay"`
-	TrackingEnabled       *bool   `json:"tracking_enabled"`
-	DoubleOptIn           *bool   `json:"double_opt_in"`
-	UnsubscribeFooter     *string `json:"unsubscribe_footer"`
+	FromName             *string `json:"from_name"`
+	FromEmail            *string `json:"from_email"`
+	ReplyToEmail         *string `json:"reply_to_email"`
+	EmailProvider        *string `json:"email_provider"`
+	SMTPHost             *string `json:"smtp_host"`
+	SMTPPort             *int    `json:"smtp_port"`
+	SMTPUsername         *string `json:"smtp_username"`
+	SMTPPassword         *string `json:"smtp_password"`
+	SendGridAPIKey       *string `json:"sendgrid_api_key"`
+	MailgunAPIKey        *string `json:"mailgun_api_key"`
+	MailgunDomain        *string `json:"mailgun_domain"`
+	AbandonedCartEnabled *bool   `json:"abandoned_cart_enabled"`
+	AbandonedCartDelay   *int    `json:"abandoned_cart_delay"`
+	WelcomeEmailEnabled  *bool   `json:"welcome_email_enabled"`
+	WelcomeEmailDelay    *int    `json:"welcome_email_delay"`
+	TrackingEnabled      *bool   `json:"tracking_enabled"`
+	DoubleOptIn          *bool   `json:"double_opt_in"`
+	UnsubscribeFooter    *string `json:"unsubscribe_footer"`
 }
 
 type CampaignStats struct {
-	CampaignID     uuid.UUID `json:"campaign_id"`
-	SentCount      int       `json:"sent_count"`
-	DeliveredCount int       `json:"delivered_count"`
-	OpenedCount    int       `json:"opened_count"`
-	ClickedCount   int       `json:"clicked_count"`
-	BouncedCount   int       `json:"bounced_count"`
-	UnsubscribedCount int    `json:"unsubscribed_count"`
-	OpenRate       float64   `json:"open_rate"`
-	ClickRate      float64   `json:"click_rate"`
-	BounceRate     float64   `json:"bounce_rate"`
+	CampaignID        uuid.UUID `json:"campaign_id"`
+	SentCount         int       `json:"sent_count"`
+	DeliveredCount    int       `json:"delivered_count"`
+	OpenedCount       int       `json:"opened_count"`
+	ClickedCount      int       `json:"clicked_count"`
+	BouncedCount      int       `json:"bounced_count"`
+	UnsubscribedCount int       `json:"unsubscribed_count"`
+	OpenRate          float64   `json:"open_rate"`
+	ClickRate         float64   `json:"click_rate"`
+	BounceRate        float64   `json:"bounce_rate"`
 }
 
 type MarketingOverview struct {
@@ -351,16 +351,16 @@ func (s *service) DeleteCampaign(ctx context.Context, tenantID, campaignID uuid.
 
 func (s *service) ScheduleCampaign(ctx context.Context, tenantID, campaignID uuid.UUID, scheduledAt time.Time) error {
 	return s.repo.UpdateCampaign(ctx, tenantID, campaignID, map[string]interface{}{
-		"status": StatusScheduled,
+		"status":       StatusScheduled,
 		"scheduled_at": scheduledAt,
-		"updated_at": time.Now(),
+		"updated_at":   time.Now(),
 	})
 }
 
 func (s *service) StartCampaign(ctx context.Context, tenantID, campaignID uuid.UUID) error {
 	now := time.Now()
 	return s.repo.UpdateCampaign(ctx, tenantID, campaignID, map[string]interface{}{
-		"status": StatusRunning,
+		"status":     StatusRunning,
 		"started_at": &now,
 		"updated_at": now,
 	})
@@ -368,7 +368,7 @@ func (s *service) StartCampaign(ctx context.Context, tenantID, campaignID uuid.U
 
 func (s *service) PauseCampaign(ctx context.Context, tenantID, campaignID uuid.UUID) error {
 	return s.repo.UpdateCampaign(ctx, tenantID, campaignID, map[string]interface{}{
-		"status": StatusPaused,
+		"status":     StatusPaused,
 		"updated_at": time.Now(),
 	})
 }
@@ -376,9 +376,9 @@ func (s *service) PauseCampaign(ctx context.Context, tenantID, campaignID uuid.U
 func (s *service) StopCampaign(ctx context.Context, tenantID, campaignID uuid.UUID) error {
 	now := time.Now()
 	return s.repo.UpdateCampaign(ctx, tenantID, campaignID, map[string]interface{}{
-		"status": StatusCompleted,
+		"status":       StatusCompleted,
 		"completed_at": &now,
-		"updated_at": now,
+		"updated_at":   now,
 	})
 }
 
@@ -390,7 +390,7 @@ func (s *service) TrackEmailOpen(ctx context.Context, emailID uuid.UUID) error {
 	now := time.Now()
 	return s.repo.UpdateCampaignEmail(ctx, emailID, map[string]interface{}{
 		"opened_at": &now,
-		"status": "opened",
+		"status":    "opened",
 	})
 }
 
@@ -398,28 +398,28 @@ func (s *service) TrackEmailClick(ctx context.Context, emailID uuid.UUID) error 
 	now := time.Now()
 	return s.repo.UpdateCampaignEmail(ctx, emailID, map[string]interface{}{
 		"clicked_at": &now,
-		"status": "clicked",
+		"status":     "clicked",
 	})
 }
 
 func (s *service) CreateTemplate(ctx context.Context, req CreateTemplateRequest) (*EmailTemplate, error) {
 	template := &EmailTemplate{
-		ID:          uuid.New(),
-		TenantID:    req.TenantID,
-		Name:        req.Name,
-		Description: req.Description,
-		Category:    req.Category,
-		Type:        req.Type,
-		Subject:     req.Subject,
-		Content:     req.Content,
-		PreviewText: req.PreviewText,
-		DesignJSON:  req.DesignJSON,
-		FromName:    req.FromName,
-		FromEmail:   req.FromEmail,
+		ID:           uuid.New(),
+		TenantID:     req.TenantID,
+		Name:         req.Name,
+		Description:  req.Description,
+		Category:     req.Category,
+		Type:         req.Type,
+		Subject:      req.Subject,
+		Content:      req.Content,
+		PreviewText:  req.PreviewText,
+		DesignJSON:   req.DesignJSON,
+		FromName:     req.FromName,
+		FromEmail:    req.FromEmail,
 		ReplyToEmail: req.ReplyToEmail,
-		IsActive:    true,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		IsActive:     true,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
 	}
 
 	err := s.repo.CreateTemplate(ctx, template)
@@ -465,16 +465,16 @@ func (s *service) DeleteTemplate(ctx context.Context, tenantID, templateID uuid.
 
 func (s *service) CreateSegment(ctx context.Context, req CreateSegmentRequest) (*CustomerSegment, error) {
 	segment := &CustomerSegment{
-		ID:           uuid.New(),
-		TenantID:     req.TenantID,
-		Name:         req.Name,
-		Description:  req.Description,
-		Type:         req.Type,
-		Rules:        req.Rules,
-		AutoUpdate:   req.AutoUpdate,
-		IsActive:     true,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		ID:          uuid.New(),
+		TenantID:    req.TenantID,
+		Name:        req.Name,
+		Description: req.Description,
+		Type:        req.Type,
+		Rules:       req.Rules,
+		AutoUpdate:  req.AutoUpdate,
+		IsActive:    true,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 
 	// Calculate initial customer count
@@ -551,7 +551,7 @@ func (s *service) RefreshSegment(ctx context.Context, tenantID, segmentID uuid.U
 	// Update segment with new customer count
 	return s.repo.UpdateSegment(ctx, tenantID, segmentID, map[string]interface{}{
 		"customer_count": count,
-		"updated_at": time.Now(),
+		"updated_at":     time.Now(),
 	})
 }
 
@@ -580,7 +580,7 @@ func (s *service) Unsubscribe(ctx context.Context, tenantID uuid.UUID, email str
 	// TODO: Implement unsubscribe logic
 	now := time.Now()
 	return s.repo.UpdateSubscriber(ctx, tenantID, email, map[string]interface{}{
-		"status": "unsubscribed",
+		"status":          "unsubscribed",
 		"unsubscribed_at": &now,
 	})
 }
@@ -620,8 +620,8 @@ func (s *service) MarkCartRecovered(ctx context.Context, tenantID, cartID uuid.U
 	// TODO: Implement cart recovery logic
 	now := time.Now()
 	return s.repo.UpdateAbandonedCart(ctx, tenantID, cartID, map[string]interface{}{
-		"is_recovered": true,
-		"recovered_at": &now,
+		"is_recovered":    true,
+		"recovered_at":    &now,
 		"recovered_value": recoveredValue,
 	})
 }
@@ -638,7 +638,7 @@ func (s *service) SendAbandonedCartEmail(ctx context.Context, tenantID, abandone
 	now := time.Now()
 	return s.repo.UpdateAbandonedCart(ctx, tenantID, abandonedCartID, map[string]interface{}{
 		"email_sent_at": &now,
-		"updated_at": now,
+		"updated_at":    now,
 	})
 }
 

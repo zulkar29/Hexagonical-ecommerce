@@ -17,28 +17,28 @@ type Service interface {
 	GetProductReviews(ctx context.Context, tenantID, productID uuid.UUID, filter ProductReviewFilter) ([]Review, error)
 	UpdateReview(ctx context.Context, tenantID, reviewID uuid.UUID, req UpdateReviewRequest) (*Review, error)
 	DeleteReview(ctx context.Context, tenantID, reviewID uuid.UUID) error
-	
+
 	// Review moderation
 	ApproveReview(ctx context.Context, tenantID, reviewID uuid.UUID, moderatorID uuid.UUID) error
 	RejectReview(ctx context.Context, tenantID, reviewID uuid.UUID, moderatorID uuid.UUID, reason string) error
 	MarkAsSpam(ctx context.Context, tenantID, reviewID uuid.UUID, moderatorID uuid.UUID) error
 	BulkModerateReviews(ctx context.Context, tenantID uuid.UUID, req BulkModerationRequest) error
-	
+
 	// Review replies
 	AddReply(ctx context.Context, req AddReplyRequest) (*ReviewReply, error)
 	GetReplies(ctx context.Context, tenantID, reviewID uuid.UUID) ([]ReviewReply, error)
 	UpdateReply(ctx context.Context, tenantID, replyID uuid.UUID, req UpdateReplyRequest) (*ReviewReply, error)
 	DeleteReply(ctx context.Context, tenantID, replyID uuid.UUID) error
-	
+
 	// Review reactions (helpful/unhelpful)
 	ReactToReview(ctx context.Context, req ReviewReactionRequest) error
 	RemoveReaction(ctx context.Context, tenantID, reviewID uuid.UUID, customerEmail string) error
-	
+
 	// Review statistics and summaries
 	GetReviewSummary(ctx context.Context, tenantID, productID uuid.UUID) (*ReviewSummary, error)
 	RefreshReviewSummary(ctx context.Context, tenantID, productID uuid.UUID) (*ReviewSummary, error)
 	GetReviewStats(ctx context.Context, tenantID uuid.UUID, period string) (*ReviewStats, error)
-	
+
 	// Review invitations
 	CreateReviewInvitation(ctx context.Context, req CreateInvitationRequest) (*ReviewInvitation, error)
 	UpdateReviewInvitation(ctx context.Context, tenantID, invitationID uuid.UUID, req UpdateInvitationRequest) (*ReviewInvitation, error)
@@ -47,11 +47,11 @@ type Service interface {
 	SendReviewReminder(ctx context.Context, tenantID, invitationID uuid.UUID) error
 	ProcessInvitationClick(ctx context.Context, token string) (*ReviewInvitation, error)
 	GetPendingInvitations(ctx context.Context, tenantID uuid.UUID) ([]ReviewInvitation, error)
-	
+
 	// Settings
 	GetSettings(ctx context.Context, tenantID uuid.UUID) (*ReviewSettings, error)
 	UpdateSettings(ctx context.Context, tenantID uuid.UUID, req UpdateSettingsRequest) (*ReviewSettings, error)
-	
+
 	// Analytics and reporting
 	GetTopRatedProducts(ctx context.Context, tenantID uuid.UUID, limit int) ([]ProductRating, error)
 	GetRecentReviews(ctx context.Context, tenantID uuid.UUID, limit int) ([]Review, error)
@@ -99,42 +99,42 @@ type UpdateReviewRequest struct {
 }
 
 type ReviewFilter struct {
-	ProductID   *uuid.UUID     `json:"product_id"`
-	OrderID     *uuid.UUID     `json:"order_id"`
-	UserID      *uuid.UUID     `json:"user_id"`
-	Type        []ReviewType   `json:"type"`
-	Status      []ReviewStatus `json:"status"`
-	Rating      []int          `json:"rating"`
-	IsVerified  *bool          `json:"is_verified"`
-	HasImages   *bool          `json:"has_images"`
-	HasVideos   *bool          `json:"has_videos"`
-	Search      string         `json:"search"`
-	StartDate   *time.Time     `json:"start_date"`
-	EndDate     *time.Time     `json:"end_date"`
-	SortBy      string         `json:"sort_by"` // created_at, rating, helpful_count
-	SortOrder   string         `json:"sort_order"` // asc, desc
-	Page        int            `json:"page"`
-	Limit       int            `json:"limit"`
+	ProductID  *uuid.UUID     `json:"product_id"`
+	OrderID    *uuid.UUID     `json:"order_id"`
+	UserID     *uuid.UUID     `json:"user_id"`
+	Type       []ReviewType   `json:"type"`
+	Status     []ReviewStatus `json:"status"`
+	Rating     []int          `json:"rating"`
+	IsVerified *bool          `json:"is_verified"`
+	HasImages  *bool          `json:"has_images"`
+	HasVideos  *bool          `json:"has_videos"`
+	Search     string         `json:"search"`
+	StartDate  *time.Time     `json:"start_date"`
+	EndDate    *time.Time     `json:"end_date"`
+	SortBy     string         `json:"sort_by"`    // created_at, rating, helpful_count
+	SortOrder  string         `json:"sort_order"` // asc, desc
+	Page       int            `json:"page"`
+	Limit      int            `json:"limit"`
 }
 
 type ProductReviewFilter struct {
-	Status      []ReviewStatus `json:"status"`
-	Rating      []int          `json:"rating"`
-	IsVerified  *bool          `json:"is_verified"`
-	HasImages   *bool          `json:"has_images"`
-	HasVideos   *bool          `json:"has_videos"`
-	Search      string         `json:"search"`
-	SortBy      string         `json:"sort_by"`
-	SortOrder   string         `json:"sort_order"`
-	Page        int            `json:"page"`
-	Limit       int            `json:"limit"`
+	Status     []ReviewStatus `json:"status"`
+	Rating     []int          `json:"rating"`
+	IsVerified *bool          `json:"is_verified"`
+	HasImages  *bool          `json:"has_images"`
+	HasVideos  *bool          `json:"has_videos"`
+	Search     string         `json:"search"`
+	SortBy     string         `json:"sort_by"`
+	SortOrder  string         `json:"sort_order"`
+	Page       int            `json:"page"`
+	Limit      int            `json:"limit"`
 }
 
 type BulkModerationRequest struct {
-	ReviewIDs   []uuid.UUID  `json:"review_ids" validate:"required"`
-	Action      string       `json:"action" validate:"required"` // approve, reject, spam
-	ModeratorID uuid.UUID    `json:"moderator_id" validate:"required"`
-	Reason      string       `json:"reason"` // For reject/spam actions
+	ReviewIDs   []uuid.UUID `json:"review_ids" validate:"required"`
+	Action      string      `json:"action" validate:"required"` // approve, reject, spam
+	ModeratorID uuid.UUID   `json:"moderator_id" validate:"required"`
+	Reason      string      `json:"reason"` // For reject/spam actions
 }
 
 type AddReplyRequest struct {
@@ -161,13 +161,13 @@ type ReviewReactionRequest struct {
 }
 
 type CreateInvitationRequest struct {
-	TenantID      uuid.UUID   `json:"tenant_id" validate:"required"`
-	OrderID       uuid.UUID   `json:"order_id" validate:"required"`
-	UserID        *uuid.UUID  `json:"user_id"`
-	CustomerEmail string      `json:"customer_email" validate:"required,email"`
-	CustomerName  string      `json:"customer_name"`
-	ProductIDs    []string    `json:"product_ids" validate:"required"`
-	ExpiresIn     int         `json:"expires_in"` // Days from now
+	TenantID      uuid.UUID  `json:"tenant_id" validate:"required"`
+	OrderID       uuid.UUID  `json:"order_id" validate:"required"`
+	UserID        *uuid.UUID `json:"user_id"`
+	CustomerEmail string     `json:"customer_email" validate:"required,email"`
+	CustomerName  string     `json:"customer_name"`
+	ProductIDs    []string   `json:"product_ids" validate:"required"`
+	ExpiresIn     int        `json:"expires_in"` // Days from now
 }
 
 type UpdateInvitationRequest struct {
@@ -175,59 +175,59 @@ type UpdateInvitationRequest struct {
 	CustomerName  *string  `json:"customer_name"`
 	ProductIDs    []string `json:"product_ids"`
 	ExpiresIn     *int     `json:"expires_in"` // Days from now
-	Action        string   `json:"action"` // send, remind
+	Action        string   `json:"action"`     // send, remind
 }
 
 type UpdateSettingsRequest struct {
-	ReviewsEnabled         *bool   `json:"reviews_enabled"`
-	RequireModeration      *bool   `json:"require_moderation"`
-	RequireVerifiedBuyer   *bool   `json:"require_verified_buyer"`
-	AllowAnonymous         *bool   `json:"allow_anonymous"`
-	AllowImages            *bool   `json:"allow_images"`
-	AllowVideos            *bool   `json:"allow_videos"`
-	MaxImagesPerReview     *int    `json:"max_images_per_review"`
-	MaxVideosPerReview     *int    `json:"max_videos_per_review"`
-	MinContentLength       *int    `json:"min_content_length"`
-	MaxContentLength       *int    `json:"max_content_length"`
-	AllowReactions         *bool   `json:"allow_reactions"`
-	AllowReplies           *bool   `json:"allow_replies"`
-	AllowCustomerReplies   *bool   `json:"allow_customer_replies"`
-	ShowReviewerName       *bool   `json:"show_reviewer_name"`
-	ShowReviewDate         *bool   `json:"show_review_date"`
-	ShowVerifiedBadge      *bool   `json:"show_verified_badge"`
-	ReviewsPerPage         *int    `json:"reviews_per_page"`
-	EmailOnNewReview       *bool   `json:"email_on_new_review"`
-	NotificationEmail      *string `json:"notification_email"`
-	AutoRequestReviews     *bool   `json:"auto_request_reviews"`
-	RequestReviewsAfter    *int    `json:"request_reviews_after"`
-	RewardForReviews       *bool   `json:"reward_for_reviews"`
-	RewardPoints           *int    `json:"reward_points"`
-	RewardDiscount         *float64 `json:"reward_discount"`
+	ReviewsEnabled       *bool    `json:"reviews_enabled"`
+	RequireModeration    *bool    `json:"require_moderation"`
+	RequireVerifiedBuyer *bool    `json:"require_verified_buyer"`
+	AllowAnonymous       *bool    `json:"allow_anonymous"`
+	AllowImages          *bool    `json:"allow_images"`
+	AllowVideos          *bool    `json:"allow_videos"`
+	MaxImagesPerReview   *int     `json:"max_images_per_review"`
+	MaxVideosPerReview   *int     `json:"max_videos_per_review"`
+	MinContentLength     *int     `json:"min_content_length"`
+	MaxContentLength     *int     `json:"max_content_length"`
+	AllowReactions       *bool    `json:"allow_reactions"`
+	AllowReplies         *bool    `json:"allow_replies"`
+	AllowCustomerReplies *bool    `json:"allow_customer_replies"`
+	ShowReviewerName     *bool    `json:"show_reviewer_name"`
+	ShowReviewDate       *bool    `json:"show_review_date"`
+	ShowVerifiedBadge    *bool    `json:"show_verified_badge"`
+	ReviewsPerPage       *int     `json:"reviews_per_page"`
+	EmailOnNewReview     *bool    `json:"email_on_new_review"`
+	NotificationEmail    *string  `json:"notification_email"`
+	AutoRequestReviews   *bool    `json:"auto_request_reviews"`
+	RequestReviewsAfter  *int     `json:"request_reviews_after"`
+	RewardForReviews     *bool    `json:"reward_for_reviews"`
+	RewardPoints         *int     `json:"reward_points"`
+	RewardDiscount       *float64 `json:"reward_discount"`
 	// Additional fields for settings
-	AutoApprove            *bool   `json:"auto_approve"`
-	RequireApproval        *bool   `json:"require_approval"`
-	RequireVerifiedPurchase *bool  `json:"require_verified_purchase"`
-	EnablePhotos           *bool   `json:"enable_photos"`
-	EnableVideos           *bool   `json:"enable_videos"`
-	MaxPhotos              *int    `json:"max_photos"`
-	MaxVideos              *int    `json:"max_videos"`
-	AutoInviteAfterDays    *int    `json:"auto_invite_after_days"`
-	ReminderAfterDays      *int    `json:"reminder_after_days"`
+	AutoApprove             *bool `json:"auto_approve"`
+	RequireApproval         *bool `json:"require_approval"`
+	RequireVerifiedPurchase *bool `json:"require_verified_purchase"`
+	EnablePhotos            *bool `json:"enable_photos"`
+	EnableVideos            *bool `json:"enable_videos"`
+	MaxPhotos               *int  `json:"max_photos"`
+	MaxVideos               *int  `json:"max_videos"`
+	AutoInviteAfterDays     *int  `json:"auto_invite_after_days"`
+	ReminderAfterDays       *int  `json:"reminder_after_days"`
 }
 
 // Analytics DTOs
 type ReviewStats struct {
-	TotalReviews        int                    `json:"total_reviews"`
-	ApprovedReviews     int                    `json:"approved_reviews"`
-	PendingReviews      int                    `json:"pending_reviews"`
-	RejectedReviews     int                    `json:"rejected_reviews"`
-	AverageRating       float64                `json:"average_rating"`
-	ReviewsByRating     map[int]int            `json:"reviews_by_rating"`
-	ReviewsByStatus     map[ReviewStatus]int   `json:"reviews_by_status"`
-	VerifiedReviews     int                    `json:"verified_reviews"`
-	ReviewsWithMedia    int                    `json:"reviews_with_media"`
-	ResponseRate        float64                `json:"response_rate"`
-	AverageResponseTime string                 `json:"average_response_time"`
+	TotalReviews        int                  `json:"total_reviews"`
+	ApprovedReviews     int                  `json:"approved_reviews"`
+	PendingReviews      int                  `json:"pending_reviews"`
+	RejectedReviews     int                  `json:"rejected_reviews"`
+	AverageRating       float64              `json:"average_rating"`
+	ReviewsByRating     map[int]int          `json:"reviews_by_rating"`
+	ReviewsByStatus     map[ReviewStatus]int `json:"reviews_by_status"`
+	VerifiedReviews     int                  `json:"verified_reviews"`
+	ReviewsWithMedia    int                  `json:"reviews_with_media"`
+	ResponseRate        float64              `json:"response_rate"`
+	AverageResponseTime string               `json:"average_response_time"`
 }
 
 type ProductRating struct {
@@ -238,12 +238,12 @@ type ProductRating struct {
 }
 
 type ReviewTrends struct {
-	Period          string             `json:"period"`
-	TotalReviews    int                `json:"total_reviews"`
-	AverageRating   float64            `json:"average_rating"`
-	DailyReviews    []DailyReviewCount `json:"daily_reviews"`
-	TopProducts     []ProductRating    `json:"top_products"`
-	RecentReviews   []Review           `json:"recent_reviews"`
+	Period        string             `json:"period"`
+	TotalReviews  int                `json:"total_reviews"`
+	AverageRating float64            `json:"average_rating"`
+	DailyReviews  []DailyReviewCount `json:"daily_reviews"`
+	TopProducts   []ProductRating    `json:"top_products"`
+	RecentReviews []Review           `json:"recent_reviews"`
 }
 
 type DailyReviewCount struct {
@@ -318,7 +318,7 @@ func (s *service) GetProductReviews(ctx context.Context, tenantID, productID uui
 		Page:       filter.Page,
 		Limit:      filter.Limit,
 	}
-	
+
 	return s.repo.GetReviews(ctx, tenantID, reviewFilter)
 }
 
@@ -386,16 +386,16 @@ func (s *service) DeleteReview(ctx context.Context, tenantID, reviewID uuid.UUID
 func (s *service) ApproveReview(ctx context.Context, tenantID, reviewID uuid.UUID, moderatorID uuid.UUID) error {
 	now := time.Now()
 	updates := map[string]interface{}{
-		"status":        StatusApproved,
-		"moderated_by":  moderatorID,
-		"moderated_at":  &now,
+		"status":       StatusApproved,
+		"moderated_by": moderatorID,
+		"moderated_at": &now,
 	}
-	
+
 	approveErr := s.repo.UpdateReview(ctx, tenantID, reviewID, updates)
 	if approveErr != nil {
 		return approveErr
 	}
-	
+
 	// TODO: Update review summary and send notifications
 	return nil
 }
@@ -408,7 +408,7 @@ func (s *service) RejectReview(ctx context.Context, tenantID, reviewID uuid.UUID
 		"moderated_at":    &now,
 		"moderation_note": reason,
 	}
-	
+
 	return s.repo.UpdateReview(ctx, tenantID, reviewID, updates)
 }
 
@@ -419,7 +419,7 @@ func (s *service) MarkAsSpam(ctx context.Context, tenantID, reviewID uuid.UUID, 
 		"moderated_by": moderatorID,
 		"moderated_at": &now,
 	}
-	
+
 	return s.repo.UpdateReview(ctx, tenantID, reviewID, updates)
 }
 
@@ -532,7 +532,7 @@ func (s *service) RefreshReviewSummary(ctx context.Context, tenantID, productID 
 		Status:    []ReviewStatus{StatusApproved},
 		Limit:     1000, // Get all reviews
 	}
-	
+
 	reviews, reviewsErr := s.repo.GetReviews(ctx, tenantID, filter)
 	if reviewsErr != nil {
 		return nil, reviewsErr
@@ -553,15 +553,15 @@ func (s *service) RefreshReviewSummary(ctx context.Context, tenantID, productID 
 	}
 
 	summary := &ReviewSummary{
-		ProductID:      &productID,
-		TotalReviews:   len(reviews),
-		AverageRating:  avgRating,
-		Rating1Count:   ratingCounts[1],
-		Rating2Count:   ratingCounts[2],
-		Rating3Count:   ratingCounts[3],
-		Rating4Count:   ratingCounts[4],
-		Rating5Count:   ratingCounts[5],
-		UpdatedAt:      time.Now(),
+		ProductID:     &productID,
+		TotalReviews:  len(reviews),
+		AverageRating: avgRating,
+		Rating1Count:  ratingCounts[1],
+		Rating2Count:  ratingCounts[2],
+		Rating3Count:  ratingCounts[3],
+		Rating4Count:  ratingCounts[4],
+		Rating5Count:  ratingCounts[5],
+		UpdatedAt:     time.Now(),
 	}
 
 	// Try to get existing summary
@@ -581,14 +581,14 @@ func (s *service) RefreshReviewSummary(ctx context.Context, tenantID, productID 
 
 	// Update existing summary
 	updates := map[string]interface{}{
-		"total_reviews":   summary.TotalReviews,
-		"average_rating":  summary.AverageRating,
-		"rating_1_count":  summary.Rating1Count,
-		"rating_2_count":  summary.Rating2Count,
-		"rating_3_count":  summary.Rating3Count,
-		"rating_4_count":  summary.Rating4Count,
-		"rating_5_count":  summary.Rating5Count,
-		"updated_at":      summary.UpdatedAt,
+		"total_reviews":  summary.TotalReviews,
+		"average_rating": summary.AverageRating,
+		"rating_1_count": summary.Rating1Count,
+		"rating_2_count": summary.Rating2Count,
+		"rating_3_count": summary.Rating3Count,
+		"rating_4_count": summary.Rating4Count,
+		"rating_5_count": summary.Rating5Count,
+		"updated_at":     summary.UpdatedAt,
 	}
 
 	updateErr := s.repo.UpdateReviewSummary(ctx, tenantID, productID, updates)
@@ -647,18 +647,18 @@ func (s *service) CreateReviewInvitation(ctx context.Context, req CreateInvitati
 	// For now, create new invitation
 
 	invitation := &ReviewInvitation{
-		ID:            uuid.New(),
-		TenantID:      req.TenantID,
-		OrderID:       req.OrderID,
-		ProductIDs:    req.ProductIDs,
-		UserID:        req.UserID,
-		CustomerName:  req.CustomerName,
-		CustomerEmail: req.CustomerEmail,
+		ID:              uuid.New(),
+		TenantID:        req.TenantID,
+		OrderID:         req.OrderID,
+		ProductIDs:      req.ProductIDs,
+		UserID:          req.UserID,
+		CustomerName:    req.CustomerName,
+		CustomerEmail:   req.CustomerEmail,
 		InvitationToken: generateInvitationToken(),
-		Status:        "pending",
-		ExpiresAt:     time.Now().AddDate(0, 0, req.ExpiresIn),
-		CreatedAt:     time.Now(),
-		UpdatedAt:     time.Now(),
+		Status:          "pending",
+		ExpiresAt:       time.Now().AddDate(0, 0, req.ExpiresIn),
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 	}
 
 	createErr := s.repo.CreateInvitation(ctx, invitation)
@@ -685,8 +685,8 @@ func (s *service) SendReviewInvitation(ctx context.Context, tenantID, invitation
 	// TODO: Integrate with email service to send invitation
 	// For now, just update the status
 	updates := map[string]interface{}{
-		"status":   "sent",
-		"sent_at":  time.Now(),
+		"status":     "sent",
+		"sent_at":    time.Now(),
 		"updated_at": time.Now(),
 	}
 
@@ -850,7 +850,7 @@ func (s *service) GetRecentReviews(ctx context.Context, tenantID uuid.UUID, limi
 		Limit:     limit,
 		Page:      1,
 	}
-	
+
 	return s.repo.GetReviews(ctx, tenantID, filter)
 }
 

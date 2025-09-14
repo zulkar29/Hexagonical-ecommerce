@@ -9,7 +9,6 @@ import (
 
 	"ecommerce-saas/internal/product"
 	"ecommerce-saas/internal/discount"
-	"ecommerce-saas/internal/tax"
 	"ecommerce-saas/internal/shipping"
 	"github.com/google/uuid"
 	"github.com/go-playground/validator/v10"
@@ -123,8 +122,36 @@ type DiscountService interface {
 	GetDiscountByCode(ctx context.Context, tenantID uuid.UUID, code string) (*discount.Discount, error)
 }
 
+// TaxCalculationRequest represents a tax calculation request
+type TaxCalculationRequest struct {
+	Amount          float64 `json:"amount"`
+	ShippingAddress Address `json:"shipping_address"`
+	Items           []TaxableItem `json:"items"`
+}
+
+// TaxCalculationResponse represents a tax calculation response
+type TaxCalculationResponse struct {
+	TotalTax float64   `json:"total_tax"`
+	TaxRate  float64   `json:"tax_rate"`
+	Details  []TaxItem `json:"details"`
+}
+
+// TaxableItem represents an item for tax calculation
+type TaxableItem struct {
+	ID       uuid.UUID `json:"id"`
+	Amount   float64   `json:"amount"`
+	Category string    `json:"category"`
+}
+
+// TaxItem represents a tax calculation detail
+type TaxItem struct {
+	Type   string  `json:"type"`
+	Rate   float64 `json:"rate"`
+	Amount float64 `json:"amount"`
+}
+
 type TaxService interface {
-	CalculateTax(ctx context.Context, tenantID uuid.UUID, req tax.TaxCalculationRequest) (*tax.TaxCalculationResponse, error)
+	CalculateTax(ctx context.Context, tenantID uuid.UUID, req TaxCalculationRequest) (*TaxCalculationResponse, error)
 }
 
 type ShippingService interface {

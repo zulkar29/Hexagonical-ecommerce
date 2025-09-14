@@ -975,10 +975,10 @@ func (h *Handler) SearchContent(c *gin.Context) {
 	contentType := c.Query("type")
 
 	searchFilter := ContentSearchFilter{
-		Query:  query,
-		Type:   contentType,
-		Page:   page,
-		Limit:  limit,
+		Query: query,
+		Type:  contentType,
+		Page:  page,
+		Limit: limit,
 	}
 
 	results, total, err := h.service.SearchContent(tenantID.(uuid.UUID), searchFilter)
@@ -1094,7 +1094,7 @@ func (h *Handler) GetPublicRobotsTxt(c *gin.Context) {
 func (h *Handler) extractTenantFromRequest(c *gin.Context) (uuid.UUID, error) {
 	// Try to get tenant from header first
 	tenantIDStr := c.GetHeader("X-Tenant-ID")
-	
+
 	// If not in header, try to extract from subdomain
 	if tenantIDStr == "" {
 		host := c.GetHeader("Host")
@@ -1108,11 +1108,11 @@ func (h *Handler) extractTenantFromRequest(c *gin.Context) (uuid.UUID, error) {
 			}
 		}
 	}
-	
+
 	if tenantIDStr == "" {
 		return uuid.Nil, nil
 	}
-	
+
 	return uuid.Parse(tenantIDStr)
 }
 

@@ -19,7 +19,7 @@ type Repository interface {
 	Delete(ctx context.Context, tenantID, wishlistID uuid.UUID) error
 	List(ctx context.Context, tenantID uuid.UUID, filter WishlistFilter, limit, offset int) ([]Wishlist, error)
 	Count(ctx context.Context, tenantID uuid.UUID, filter WishlistFilter) (int64, error)
-	
+
 	// Wishlist item operations
 	SaveItem(ctx context.Context, item *WishlistItem) error
 	FindItemByID(ctx context.Context, tenantID, itemID uuid.UUID) (*WishlistItem, error)
@@ -28,31 +28,31 @@ type Repository interface {
 	DeleteItem(ctx context.Context, tenantID, itemID uuid.UUID) error
 	ListItems(ctx context.Context, tenantID uuid.UUID, filter WishlistItemFilter, limit, offset int) ([]WishlistItem, error)
 	CountItems(ctx context.Context, tenantID uuid.UUID, filter WishlistItemFilter) (int64, error)
-	
+
 	// Wishlist management
 	SetDefaultWishlist(ctx context.Context, tenantID, customerID, wishlistID uuid.UUID) error
 	ClearItems(ctx context.Context, tenantID, wishlistID uuid.UUID) error
 	MoveItem(ctx context.Context, tenantID, itemID, targetWishlistID uuid.UUID) error
 	CopyItem(ctx context.Context, tenantID, itemID, targetWishlistID uuid.UUID) error
 	MergeWishlists(ctx context.Context, tenantID, sourceWishlistID, targetWishlistID uuid.UUID) error
-	
+
 	// Bulk operations
 	BulkAddItems(ctx context.Context, items []WishlistItem) error
 	BulkDeleteItems(ctx context.Context, tenantID uuid.UUID, itemIDs []uuid.UUID) error
 	BulkUpdateItemPriority(ctx context.Context, tenantID uuid.UUID, updates map[uuid.UUID]int) error
-	
+
 	// Validation and checks
 	ExistsByName(ctx context.Context, tenantID, customerID uuid.UUID, name string, excludeID *uuid.UUID) (bool, error)
 	ExistsByShareToken(ctx context.Context, shareToken string, excludeID *uuid.UUID) (bool, error)
 	CountWishlistsByCustomer(ctx context.Context, tenantID, customerID uuid.UUID) (int64, error)
 	CountItemsByWishlist(ctx context.Context, tenantID, wishlistID uuid.UUID) (int64, error)
-	
+
 	// Statistics and analytics
 	GetStats(ctx context.Context, tenantID uuid.UUID) (*WishlistStats, error)
 	GetMostWishedProducts(ctx context.Context, tenantID uuid.UUID, limit int) ([]ProductWishCount, error)
 	GetCustomerWishlistActivity(ctx context.Context, tenantID, customerID uuid.UUID, days int) ([]WishlistActivity, error)
 	GetPopularWishlists(ctx context.Context, tenantID uuid.UUID, limit int) ([]Wishlist, error)
-	
+
 	// Cleanup operations
 	CleanupEmptyWishlists(ctx context.Context, tenantID uuid.UUID, olderThanDays int) (int64, error)
 	CleanupOrphanedItems(ctx context.Context, tenantID uuid.UUID) (int64, error)
@@ -70,9 +70,9 @@ func NewGormRepository(db *gorm.DB) Repository {
 
 // WishlistActivity represents wishlist activity data
 type WishlistActivity struct {
-	Date       string `json:"date"`
-	ItemsAdded int64  `json:"items_added"`
-	ItemsRemoved int64 `json:"items_removed"`
+	Date         string `json:"date"`
+	ItemsAdded   int64  `json:"items_added"`
+	ItemsRemoved int64  `json:"items_removed"`
 }
 
 // Wishlist operations
@@ -91,14 +91,14 @@ func (r *GormRepository) FindByID(ctx context.Context, tenantID, wishlistID uuid
 		Preload("Items.Variant").
 		Where("tenant_id = ? AND id = ?", tenantID, wishlistID).
 		First(&wishlist).Error
-	
+
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrWishlistNotFound
 		}
 		return nil, err
 	}
-	
+
 	return &wishlist, nil
 }
 
@@ -109,7 +109,7 @@ func (r *GormRepository) FindByCustomerID(ctx context.Context, tenantID, custome
 		Where("tenant_id = ? AND customer_id = ?", tenantID, customerID).
 		Order("is_default DESC, created_at ASC").
 		Find(&wishlists).Error
-	
+
 	return wishlists, findErr
 }
 
@@ -119,14 +119,14 @@ func (r *GormRepository) FindDefaultByCustomerID(ctx context.Context, tenantID, 
 	err := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND customer_id = ? AND is_default = ?", tenantID, customerID, true).
 		First(&wishlist).Error
-	
+
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrWishlistNotFound
 		}
 		return nil, err
 	}
-	
+
 	return &wishlist, nil
 }
 
@@ -139,14 +139,14 @@ func (r *GormRepository) FindByShareToken(ctx context.Context, shareToken string
 		Preload("Items.Variant").
 		Where("share_token = ? AND is_public = ?", shareToken, true).
 		First(&wishlist).Error
-	
+
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrWishlistNotFound
 		}
 		return nil, err
 	}
-	
+
 	return &wishlist, nil
 }
 
@@ -165,10 +165,10 @@ func (r *GormRepository) Delete(ctx context.Context, tenantID, wishlistID uuid.U
 // List returns paginated wishlists with filters
 func (r *GormRepository) List(ctx context.Context, tenantID uuid.UUID, filter WishlistFilter, limit, offset int) ([]Wishlist, error) {
 	query := r.db.WithContext(ctx).Where("tenant_id = ?", tenantID)
-	
+
 	// Apply filters
 	query = r.applyWishlistFilters(query, filter)
-	
+
 	var wishlists []Wishlist
 	err := query.Limit(limit).Offset(offset).Order("created_at DESC").Find(&wishlists).Error
 	return wishlists, err
@@ -177,10 +177,10 @@ func (r *GormRepository) List(ctx context.Context, tenantID uuid.UUID, filter Wi
 // Count returns the total count of wishlists with filters
 func (r *GormRepository) Count(ctx context.Context, tenantID uuid.UUID, filter WishlistFilter) (int64, error) {
 	query := r.db.WithContext(ctx).Model(&Wishlist{}).Where("tenant_id = ?", tenantID)
-	
+
 	// Apply filters
 	query = r.applyWishlistFilters(query, filter)
-	
+
 	var count int64
 	err := query.Count(&count).Error
 	return count, err
@@ -195,7 +195,7 @@ func (r *GormRepository) SaveItem(ctx context.Context, item *WishlistItem) error
 		if err := tx.Create(item).Error; err != nil {
 			return err
 		}
-		
+
 		// Update wishlist item count
 		return tx.Model(&Wishlist{}).
 			Where("id = ?", item.WishlistID).
@@ -211,14 +211,14 @@ func (r *GormRepository) FindItemByID(ctx context.Context, tenantID, itemID uuid
 		Preload("Variant").
 		Where("tenant_id = ? AND id = ?", tenantID, itemID).
 		First(&item).Error
-	
+
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrWishlistItemNotFound
 		}
 		return nil, err
 	}
-	
+
 	return &item, nil
 }
 
@@ -226,23 +226,23 @@ func (r *GormRepository) FindItemByID(ctx context.Context, tenantID, itemID uuid
 func (r *GormRepository) FindItemByProductAndWishlist(ctx context.Context, tenantID, wishlistID, productID uuid.UUID, variantID *uuid.UUID) (*WishlistItem, error) {
 	query := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND wishlist_id = ? AND product_id = ?", tenantID, wishlistID, productID)
-	
+
 	if variantID != nil {
 		query = query.Where("variant_id = ?", *variantID)
 	} else {
 		query = query.Where("variant_id IS NULL")
 	}
-	
+
 	var item WishlistItem
 	err := query.First(&item).Error
-	
+
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, ErrWishlistItemNotFound
 		}
 		return nil, err
 	}
-	
+
 	return &item, nil
 }
 
@@ -259,12 +259,12 @@ func (r *GormRepository) DeleteItem(ctx context.Context, tenantID, itemID uuid.U
 		if findErr := tx.Where("tenant_id = ? AND id = ?", tenantID, itemID).First(&item).Error; findErr != nil {
 			return findErr
 		}
-		
+
 		// Delete the item
 		if deleteErr := tx.Delete(&item).Error; deleteErr != nil {
 			return deleteErr
 		}
-		
+
 		// Update wishlist item count
 		return tx.Model(&Wishlist{}).
 			Where("id = ?", item.WishlistID).
@@ -278,10 +278,10 @@ func (r *GormRepository) ListItems(ctx context.Context, tenantID uuid.UUID, filt
 		Preload("Product").
 		Preload("Variant").
 		Where("tenant_id = ?", tenantID)
-	
+
 	// Apply filters
 	query = r.applyWishlistItemFilters(query, filter)
-	
+
 	var items []WishlistItem
 	err := query.Limit(limit).Offset(offset).Order("priority DESC, added_at DESC").Find(&items).Error
 	return items, err
@@ -290,10 +290,10 @@ func (r *GormRepository) ListItems(ctx context.Context, tenantID uuid.UUID, filt
 // CountItems returns the total count of wishlist items with filters
 func (r *GormRepository) CountItems(ctx context.Context, tenantID uuid.UUID, filter WishlistItemFilter) (int64, error) {
 	query := r.db.WithContext(ctx).Model(&WishlistItem{}).Where("tenant_id = ?", tenantID)
-	
+
 	// Apply filters
 	query = r.applyWishlistItemFilters(query, filter)
-	
+
 	var count int64
 	err := query.Count(&count).Error
 	return count, err
@@ -310,7 +310,7 @@ func (r *GormRepository) SetDefaultWishlist(ctx context.Context, tenantID, custo
 			Update("is_default", false).Error; err != nil {
 			return err
 		}
-		
+
 		// Set new default
 		return tx.Model(&Wishlist{}).
 			Where("tenant_id = ? AND id = ?", tenantID, wishlistID).
@@ -326,7 +326,7 @@ func (r *GormRepository) ClearItems(ctx context.Context, tenantID, wishlistID uu
 			Delete(&WishlistItem{}).Error; err != nil {
 			return err
 		}
-		
+
 		// Reset item count
 		return tx.Model(&Wishlist{}).
 			Where("tenant_id = ? AND id = ?", tenantID, wishlistID).
@@ -342,21 +342,21 @@ func (r *GormRepository) MoveItem(ctx context.Context, tenantID, itemID, targetW
 		if findErr := tx.Where("tenant_id = ? AND id = ?", tenantID, itemID).First(&item).Error; findErr != nil {
 			return findErr
 		}
-		
+
 		oldWishlistID := item.WishlistID
-		
+
 		// Update item wishlist
 		if updateErr := tx.Model(&item).Update("wishlist_id", targetWishlistID).Error; updateErr != nil {
 			return updateErr
 		}
-		
+
 		// Update old wishlist count
 		if err := tx.Model(&Wishlist{}).
 			Where("id = ?", oldWishlistID).
 			Update("item_count", gorm.Expr("item_count - 1")).Error; err != nil {
 			return err
 		}
-		
+
 		// Update new wishlist count
 		return tx.Model(&Wishlist{}).
 			Where("id = ?", targetWishlistID).
@@ -372,7 +372,7 @@ func (r *GormRepository) CopyItem(ctx context.Context, tenantID, itemID, targetW
 		if err := tx.Where("tenant_id = ? AND id = ?", tenantID, itemID).First(&originalItem).Error; err != nil {
 			return err
 		}
-		
+
 		// Create new item
 		newItem := WishlistItem{
 			ID:         uuid.New(),
@@ -384,12 +384,12 @@ func (r *GormRepository) CopyItem(ctx context.Context, tenantID, itemID, targetW
 			Notes:      originalItem.Notes,
 			Priority:   originalItem.Priority,
 		}
-		
+
 		// Save new item
 		if err := tx.Create(&newItem).Error; err != nil {
 			return err
 		}
-		
+
 		// Update target wishlist count
 		return tx.Model(&Wishlist{}).
 			Where("id = ?", targetWishlistID).
@@ -406,20 +406,20 @@ func (r *GormRepository) MergeWishlists(ctx context.Context, tenantID, sourceWis
 			Update("wishlist_id", targetWishlistID).Error; moveErr != nil {
 			return moveErr
 		}
-		
+
 		// Get item count from source
 		var sourceWishlist Wishlist
 		if findErr := tx.Where("tenant_id = ? AND id = ?", tenantID, sourceWishlistID).First(&sourceWishlist).Error; findErr != nil {
 			return findErr
 		}
-		
+
 		// Update target wishlist count
 		if updateErr := tx.Model(&Wishlist{}).
 			Where("tenant_id = ? AND id = ?", tenantID, targetWishlistID).
 			Update("item_count", gorm.Expr("item_count + ?", sourceWishlist.ItemCount)).Error; updateErr != nil {
 			return updateErr
 		}
-		
+
 		// Delete source wishlist
 		return tx.Where("tenant_id = ? AND id = ?", tenantID, sourceWishlistID).Delete(&Wishlist{}).Error
 	})
@@ -434,13 +434,13 @@ func (r *GormRepository) BulkAddItems(ctx context.Context, items []WishlistItem)
 		if createErr := tx.Create(&items).Error; createErr != nil {
 			return createErr
 		}
-		
+
 		// Update wishlist counts
 		wishlistCounts := make(map[uuid.UUID]int)
 		for _, item := range items {
 			wishlistCounts[item.WishlistID]++
 		}
-		
+
 		for wishlistID, count := range wishlistCounts {
 			if updateErr := tx.Model(&Wishlist{}).
 				Where("id = ?", wishlistID).
@@ -448,7 +448,7 @@ func (r *GormRepository) BulkAddItems(ctx context.Context, items []WishlistItem)
 				return updateErr
 			}
 		}
-		
+
 		return nil
 	})
 }
@@ -461,18 +461,18 @@ func (r *GormRepository) BulkDeleteItems(ctx context.Context, tenantID uuid.UUID
 		if findErr := tx.Where("tenant_id = ? AND id IN ?", tenantID, itemIDs).Find(&items).Error; findErr != nil {
 			return findErr
 		}
-		
+
 		// Count items per wishlist
 		wishlistCounts := make(map[uuid.UUID]int)
 		for _, item := range items {
 			wishlistCounts[item.WishlistID]++
 		}
-		
+
 		// Delete items
 		if deleteErr := tx.Where("tenant_id = ? AND id IN ?", tenantID, itemIDs).Delete(&WishlistItem{}).Error; deleteErr != nil {
 			return deleteErr
 		}
-		
+
 		// Update wishlist counts
 		for wishlistID, count := range wishlistCounts {
 			if updateErr := tx.Model(&Wishlist{}).
@@ -481,7 +481,7 @@ func (r *GormRepository) BulkDeleteItems(ctx context.Context, tenantID uuid.UUID
 				return updateErr
 			}
 		}
-		
+
 		return nil
 	})
 }
@@ -506,11 +506,11 @@ func (r *GormRepository) BulkUpdateItemPriority(ctx context.Context, tenantID uu
 func (r *GormRepository) ExistsByName(ctx context.Context, tenantID, customerID uuid.UUID, name string, excludeID *uuid.UUID) (bool, error) {
 	query := r.db.WithContext(ctx).Model(&Wishlist{}).
 		Where("tenant_id = ? AND customer_id = ? AND name = ?", tenantID, customerID, name)
-	
+
 	if excludeID != nil {
 		query = query.Where("id != ?", *excludeID)
 	}
-	
+
 	var count int64
 	err := query.Count(&count).Error
 	return count > 0, err
@@ -519,11 +519,11 @@ func (r *GormRepository) ExistsByName(ctx context.Context, tenantID, customerID 
 // ExistsByShareToken checks if a wishlist with the given share token exists
 func (r *GormRepository) ExistsByShareToken(ctx context.Context, shareToken string, excludeID *uuid.UUID) (bool, error) {
 	query := r.db.WithContext(ctx).Model(&Wishlist{}).Where("share_token = ?", shareToken)
-	
+
 	if excludeID != nil {
 		query = query.Where("id != ?", *excludeID)
 	}
-	
+
 	var count int64
 	err := query.Count(&count).Error
 	return count > 0, err
@@ -552,48 +552,48 @@ func (r *GormRepository) CountItemsByWishlist(ctx context.Context, tenantID, wis
 // GetStats returns wishlist statistics
 func (r *GormRepository) GetStats(ctx context.Context, tenantID uuid.UUID) (*WishlistStats, error) {
 	stats := &WishlistStats{}
-	
+
 	// Total wishlists
 	r.db.WithContext(ctx).Model(&Wishlist{}).
 		Where("tenant_id = ?", tenantID).
 		Count(&stats.TotalWishlists)
-	
+
 	// Total items
 	r.db.WithContext(ctx).Model(&WishlistItem{}).
 		Where("tenant_id = ?", tenantID).
 		Count(&stats.TotalItems)
-	
+
 	// Average items per wishlist
 	if stats.TotalWishlists > 0 {
 		stats.AverageItemsPerWishlist = float64(stats.TotalItems) / float64(stats.TotalWishlists)
 	}
-	
+
 	// Public/Private wishlists
 	r.db.WithContext(ctx).Model(&Wishlist{}).
 		Where("tenant_id = ? AND is_public = ?", tenantID, true).
 		Count(&stats.PublicWishlists)
-	
+
 	stats.PrivateWishlists = stats.TotalWishlists - stats.PublicWishlists
-	
+
 	// Empty wishlists
 	r.db.WithContext(ctx).Model(&Wishlist{}).
 		Where("tenant_id = ? AND item_count = 0", tenantID).
 		Count(&stats.EmptyWishlists)
-	
+
 	// Most wished products
 	mostWished, err := r.GetMostWishedProducts(ctx, tenantID, 10)
 	if err != nil {
 		return nil, err
 	}
 	stats.MostWishedProducts = mostWished
-	
+
 	return stats, nil
 }
 
 // GetMostWishedProducts returns the most wished products
 func (r *GormRepository) GetMostWishedProducts(ctx context.Context, tenantID uuid.UUID, limit int) ([]ProductWishCount, error) {
 	var results []ProductWishCount
-	
+
 	err := r.db.WithContext(ctx).
 		Model(&WishlistItem{}).
 		Select("product_id, COUNT(*) as wish_count").
@@ -602,14 +602,14 @@ func (r *GormRepository) GetMostWishedProducts(ctx context.Context, tenantID uui
 		Order("wish_count DESC").
 		Limit(limit).
 		Scan(&results).Error
-	
+
 	return results, err
 }
 
 // GetCustomerWishlistActivity returns customer wishlist activity
 func (r *GormRepository) GetCustomerWishlistActivity(ctx context.Context, tenantID, customerID uuid.UUID, days int) ([]WishlistActivity, error) {
 	var results []WishlistActivity
-	
+
 	// This is a simplified implementation
 	// In a real application, you might want to track activity in a separate table
 	query := `
@@ -623,7 +623,7 @@ func (r *GormRepository) GetCustomerWishlistActivity(ctx context.Context, tenant
 		GROUP BY DATE(added_at)
 		ORDER BY date DESC
 	`
-	
+
 	err := r.db.WithContext(ctx).Raw(query, tenantID, customerID, days).Scan(&results).Error
 	return results, err
 }
@@ -636,7 +636,7 @@ func (r *GormRepository) GetPopularWishlists(ctx context.Context, tenantID uuid.
 		Order("item_count DESC, created_at DESC").
 		Limit(limit).
 		Find(&wishlists).Error
-	
+
 	return wishlists, err
 }
 
@@ -647,7 +647,7 @@ func (r *GormRepository) CleanupEmptyWishlists(ctx context.Context, tenantID uui
 	result := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND item_count = 0 AND is_default = false AND created_at < DATE_SUB(NOW(), INTERVAL ? DAY)", tenantID, olderThanDays).
 		Delete(&Wishlist{})
-	
+
 	return result.RowsAffected, result.Error
 }
 
@@ -665,19 +665,19 @@ func (r *GormRepository) applyWishlistFilters(query *gorm.DB, filter WishlistFil
 	if filter.CustomerID != nil {
 		query = query.Where("customer_id = ?", *filter.CustomerID)
 	}
-	
+
 	if filter.Name != "" {
 		query = query.Where("name ILIKE ?", "%"+filter.Name+"%")
 	}
-	
+
 	if filter.IsDefault != nil {
 		query = query.Where("is_default = ?", *filter.IsDefault)
 	}
-	
+
 	if filter.IsPublic != nil {
 		query = query.Where("is_public = ?", *filter.IsPublic)
 	}
-	
+
 	if filter.IsEmpty != nil {
 		if *filter.IsEmpty {
 			query = query.Where("item_count = 0")
@@ -685,7 +685,7 @@ func (r *GormRepository) applyWishlistFilters(query *gorm.DB, filter WishlistFil
 			query = query.Where("item_count > 0")
 		}
 	}
-	
+
 	return query
 }
 
@@ -694,25 +694,25 @@ func (r *GormRepository) applyWishlistItemFilters(query *gorm.DB, filter Wishlis
 	if filter.WishlistID != nil {
 		query = query.Where("wishlist_id = ?", *filter.WishlistID)
 	}
-	
+
 	if filter.ProductID != nil {
 		query = query.Where("product_id = ?", *filter.ProductID)
 	}
-	
+
 	if filter.VariantID != nil {
 		query = query.Where("variant_id = ?", *filter.VariantID)
 	}
-	
+
 	if filter.MinPriority != nil {
 		query = query.Where("priority >= ?", *filter.MinPriority)
 	}
-	
+
 	if filter.MaxPriority != nil {
 		query = query.Where("priority <= ?", *filter.MaxPriority)
 	}
-	
+
 	// Note: IsAvailable and HasDiscount filters would require joining with product tables
 	// These would be better handled in the service layer
-	
+
 	return query
 }
