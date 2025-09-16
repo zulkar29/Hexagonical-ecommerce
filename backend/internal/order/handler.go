@@ -583,7 +583,6 @@ func (h *Handler) GetOrderInvoice(c *gin.Context) {
 		},
 		"items":    order.Items,
 		"subtotal": order.SubtotalAmount,
-		"tax":      order.TaxAmount,
 		"shipping": order.ShippingAmount,
 		"discount": order.DiscountAmount,
 		"total":    order.TotalAmount,

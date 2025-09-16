@@ -169,10 +169,7 @@ func (h *Handler) GetCart(c *gin.Context) {
 		// Add shipping methods logic here
 		response["shipping_methods"] = []interface{}{}
 	}
-	if strings.Contains(include, "taxes") {
-		// Add tax calculation logic here
-		response["taxes"] = gin.H{"total": 0}
-	}
+
 
 	c.JSON(http.StatusOK, response)
 }
@@ -256,7 +253,7 @@ func (h *Handler) UpdateCart(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": updatedCart})
 }
 
-// GetEstimates calculates shipping and tax estimates
+// GetEstimates calculates shipping estimates
 func (h *Handler) GetEstimates(c *gin.Context) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {

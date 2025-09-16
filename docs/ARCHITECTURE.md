@@ -1,6 +1,5 @@
 # Hexagonal E-commerce SaaS Platform Architecture
 
-📋 **Documentation Navigation**: [📖 Project Home](../README.md) | [🚀 Features](./FEATURES.md) | [📋 Roadmap](./ROADMAP.md) | [🚢 Deployment](./DEPLOYMENT.md)
 
 ## Overview
 Technical architecture for a single vendor multi-tenant e-commerce SaaS platform using Hexagonal Architecture principles with modular monolith design for optimal performance and maintainability.
@@ -177,3 +176,88 @@ func (r *ProductRepository) FindByTenant(ctx context.Context, tenantID string) (
 - **Connection pooling** to prevent pool exhaustion
 - **Lazy loading** for large tenant datasets
 - **Background jobs** for heavy operations (reports, exports)
+
+## Technical Implementation Details
+
+### Database Connection Pooling Configuration
+```yaml
+PostgreSQL Connection Pool (PgBouncer):
+  max_client_conn: 200
+  default_pool_size: 25
+  min_pool_size: 5
+  reserve_pool_size: 5
+  reserve_pool_timeout: 5
+  max_db_connections: 100
+  pool_mode: transaction
+
+Connection Pool Per Plan:
+  Free: 2 max connections
+  Starter: 10 max connections
+  Professional: 25 max connections
+  Pro: 50 max connections
+  Enterprise: 100 max connections
+```
+
+### Redis Cache Configuration
+```yaml
+Redis Cache Policies:
+  Eviction Policy: allkeys-lru
+  Max Memory: 2GB
+  Max Memory Policy: allkeys-lru
+
+Cache TTL Settings:
+  Product catalog: 1 hour
+  User sessions: 24 hours
+  API rate limits: 1 hour
+  Search results: 30 minutes
+
+Tenant Isolation:
+  Key pattern: "tenant:{tenant_id}:{cache_type}:{key}"
+  Example: "tenant:shop123:products:category_electronics"
+```
+
+### File Upload Limits & Processing
+```yaml
+File Upload Configuration:
+  Max file size by plan:
+    Free: 2MB
+    Starter: 10MB
+    Professional: 25MB
+    Pro: 50MB
+    Enterprise: 100MB
+
+  Supported formats:
+    Images: JPEG, PNG, WebP, SVG
+    Documents: PDF, DOC, DOCX
+    Archives: ZIP, RAR
+
+  Processing pipeline:
+    1. Virus scan (ClamAV)
+    2. File type validation
+    3. Size compression
+    4. CDN upload
+    5. Tenant storage quota check
+```
+
+### WebSocket Connection Management
+```yaml
+WebSocket Limits:
+  Free: 10 concurrent connections
+  Starter: 100 concurrent connections
+  Professional: 500 concurrent connections
+  Pro: 2,000 concurrent connections
+  Enterprise: 10,000 concurrent connections
+
+Connection Features:
+  - Real-time order updates
+  - Inventory synchronization
+  - Customer chat support
+  - Admin notifications
+  - Live analytics updates
+
+Timeout Settings:
+  Idle timeout: 30 minutes
+  Heartbeat interval: 30 seconds
+  Reconnection attempts: 3
+  Backoff strategy: Exponential
+```

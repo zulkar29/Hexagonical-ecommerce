@@ -190,7 +190,6 @@ type Invoice struct {
 
 	// Amounts
 	SubtotalAmount float64 `json:"subtotal_amount" gorm:"not null"`
-	TaxAmount      float64 `json:"tax_amount" gorm:"default:0"`
 	TotalAmount    float64 `json:"total_amount" gorm:"not null"`
 	PaidAmount     float64 `json:"paid_amount" gorm:"default:0"`
 	Currency       string  `json:"currency" gorm:"default:BDT"`
@@ -497,20 +496,4 @@ func ValidateSubscriptionLimits(subscription *TenantSubscription, usage map[Usag
 	}
 
 	return nil
-}
-
-// CalculateTax calculates tax amount based on location (simplified implementation)
-func CalculateTax(amount float64, tenantLocation string) float64 {
-	// Simplified tax calculation - in real implementation, this would
-	// integrate with tax calculation services like TaxJar or Avalara
-	switch tenantLocation {
-	case "BD", "Bangladesh":
-		return amount * 0.15 // 15% VAT in Bangladesh
-	case "US":
-		return amount * 0.08 // Average US sales tax
-	case "EU":
-		return amount * 0.20 // Average EU VAT
-	default:
-		return 0 // No tax for other locations
-	}
 }

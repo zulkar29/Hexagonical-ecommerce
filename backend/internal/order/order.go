@@ -77,7 +77,6 @@ type Order struct {
 	
 	// Financial details
 	SubtotalAmount float64 `json:"subtotal_amount" gorm:"not null"`
-	TaxAmount      float64 `json:"tax_amount" gorm:"default:0"`
 	ShippingAmount float64 `json:"shipping_amount" gorm:"default:0"`
 	DiscountAmount float64 `json:"discount_amount" gorm:"default:0"`
 	TotalAmount    float64 `json:"total_amount" gorm:"not null"`
@@ -202,7 +201,7 @@ func (o *Order) IsRefundable() bool {
 
 // CalculateTotal recalculates the total amount
 func (o *Order) CalculateTotal() {
-	o.TotalAmount = o.SubtotalAmount + o.TaxAmount + o.ShippingAmount - o.DiscountAmount
+	o.TotalAmount = o.SubtotalAmount + o.ShippingAmount - o.DiscountAmount
 	if o.TotalAmount < 0 {
 		o.TotalAmount = 0
 	}
@@ -298,7 +297,6 @@ func (a *Address) GetFormattedAddress() string {
 // TODO: Add more business logic methods
 // - GenerateOrderNumber() string
 // - ValidateOrder() error
-// - CalculateTax() float64
 // - CalculateShipping() float64
 // - ApplyDiscount(code string) error
 // - ProcessPayment() error
@@ -334,15 +332,7 @@ func (o *Order) ValidateOrder() error {
 	return nil
 }
 
-// CalculateTaxAmount calculates tax based on shipping location
-func (o *Order) CalculateTaxAmount() float64 {
-	// Bangladesh VAT is typically 15%
-	if o.ShippingAddress.Country == "BD" {
-		return o.SubtotalAmount * 0.15
-	}
-	// No tax for other countries in this example
-	return 0.0
-}
+
 
 // CalculateShippingAmount calculates shipping cost
 func (o *Order) CalculateShippingAmount() float64 {

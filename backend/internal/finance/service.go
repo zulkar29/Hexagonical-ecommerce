@@ -43,7 +43,7 @@ type Service interface {
 	GetCashFlow(ctx context.Context, tenantID uuid.UUID, period ReportPeriod, startDate, endDate time.Time) (*CashFlowReport, error)
 	GetRevenueReport(ctx context.Context, tenantID uuid.UUID, period ReportPeriod, startDate, endDate time.Time) (*RevenueReport, error)
 	GetExpenseReport(ctx context.Context, tenantID uuid.UUID, period ReportPeriod, startDate, endDate time.Time) (*ExpenseReport, error)
-	GetTaxReport(ctx context.Context, tenantID uuid.UUID, period ReportPeriod, startDate, endDate time.Time) (*TaxReport, error)
+
 }
 
 // service implements the Service interface
@@ -276,10 +276,7 @@ func (s *service) GetExpenseReport(ctx context.Context, tenantID uuid.UUID, peri
 	return s.repo.GetExpenseReport(ctx, tenantID, period, startDate, endDate)
 }
 
-// GetTaxReport generates a tax report
-func (s *service) GetTaxReport(ctx context.Context, tenantID uuid.UUID, period ReportPeriod, startDate, endDate time.Time) (*TaxReport, error) {
-	return s.repo.GetTaxReport(ctx, tenantID, startDate, endDate)
-}
+
 
 // Helper functions
 func (s *service) validateAccount(account *Account) error {

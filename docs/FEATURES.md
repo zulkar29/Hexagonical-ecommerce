@@ -1,6 +1,4 @@
-# Hexagonal E-commerce SaaS Platform Features
-
-📋 **Documentation Navigation**: [📖 Project Home](../README.md) | [🏗️ Architecture](./ARCHITECTURE.md) | [📋 Roadmap](./ROADMAP.md) | [💰 Business Analysis](./PROFIT_ANALYSIS.md)
+# Platform Features
 
 ## Core Platform Features
 
@@ -118,6 +116,14 @@
 
 ## Pricing Tiers & Feature Matrix
 
+### Free Plan (৳0/month)
+- Up to 10 products
+- Basic storefront
+- Community support
+- Platform branding
+- 1GB storage
+- Limited features
+
 ### Starter Plan (৳1,990/month)
 - Up to 500 products
 - 1 staff account
@@ -156,6 +162,70 @@
 - Priority database performance (shared DB with optimized queries)
 - Custom development support
 - Priority feature requests
+
+## Performance Limits & Quotas
+
+### API Rate Limits (Per Plan)
+```yaml
+Free Plan:
+  - API calls: 1,000/hour
+  - Burst limit: 50/minute
+  - Storage: 1GB
+  - Bandwidth: 10GB/month
+  - File upload: 2MB max
+
+Starter Plan:
+  - API calls: 10,000/hour
+  - Burst limit: 200/minute
+  - Storage: 5GB
+  - Bandwidth: 100GB/month
+  - File upload: 10MB max
+
+Professional Plan:
+  - API calls: 50,000/hour
+  - Burst limit: 500/minute
+  - Storage: 20GB
+  - Bandwidth: 500GB/month
+  - File upload: 25MB max
+
+Pro Plan:
+  - API calls: 200,000/hour
+  - Burst limit: 1,000/minute
+  - Storage: 100GB
+  - Bandwidth: 2TB/month
+  - File upload: 50MB max
+
+Enterprise Plan:
+  - API calls: 1,000,000/hour
+  - Burst limit: 2,000/minute
+  - Storage: Unlimited
+  - Bandwidth: Unlimited
+  - File upload: 100MB max
+```
+
+### Resource Quotas Enforcement
+```yaml
+Database Connections:
+  - Free: 2 concurrent connections
+  - Starter: 10 concurrent connections
+  - Professional: 25 concurrent connections
+  - Pro: 50 concurrent connections
+  - Enterprise: 100 concurrent connections
+
+WebSocket Connections:
+  - Free: 10 concurrent
+  - Starter: 100 concurrent
+  - Professional: 500 concurrent
+  - Pro: 2,000 concurrent
+  - Enterprise: 10,000 concurrent
+
+Email/SMS Limits:
+  - Free: 100/month
+  - Starter: 1,000/month
+  - Professional: 10,000/month
+  - Pro: 50,000/month
+  - Enterprise: Unlimited
+```
 
 ## AI-Enhanced Features (Future Development)
 

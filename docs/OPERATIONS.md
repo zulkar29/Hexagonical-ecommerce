@@ -1,10 +1,64 @@
 # Production Operations Guide
 
-📋 **Documentation Navigation**: [📖 Project Home](../README.md) | [🚀 Deployment](./DEPLOYMENT.md) | [📊 Monitoring](./MONITORING.md) | [🏗️ Infrastructure](./INFRASTRUCTURE.md)
 
 ## Operations Overview
 
-Comprehensive operational procedures for maintaining the multi-tenant e-commerce SaaS platform (Go Gin + PostgreSQL + Redis) with shared database tenant isolation in production.
+Comprehensive operational procedures for maintaining the multi-tenant e-commerce SaaS platform (PostgreSQL + Redis) with shared database tenant isolation in production.
+
+## Data Migration Strategy
+
+### Tenant Data Migration Procedures
+```yaml
+Migration Types:
+  Server Migration:
+    - Full tenant database export with tenant_id filtering
+    - Schema validation and compatibility check
+    - Target server preparation and tenant_id remapping
+    - Incremental data sync during maintenance window
+    - DNS cutover and validation
+
+  Plan Migration:
+    - Feature access validation
+    - Storage quota adjustment
+    - API rate limit updates
+    - Billing cycle synchronization
+
+  Emergency Migration:
+    - Automated failover to backup server
+    - Real-time data replication validation
+    - Service continuity monitoring
+```
+
+### Database Schema Migration
+```sql
+-- Tenant-safe schema migration template
+BEGIN;
+  -- 1. Create new schema elements
+  ALTER TABLE products ADD COLUMN IF NOT EXISTS new_field VARCHAR(255);
+
+  -- 2. Validate tenant_id integrity
+  UPDATE products SET new_field = 'default_value'
+  WHERE tenant_id IN (SELECT DISTINCT tenant_id FROM tenants WHERE status = 'active');
+
+  -- 3. Verify cross-tenant isolation
+  SELECT tenant_id, COUNT(*) FROM products GROUP BY tenant_id;
+
+COMMIT;
+```
+
+### Tenant Data Backup/Restore
+```bash
+# Tenant-specific backup
+pg_dump --host=localhost --port=5432 --username=postgres \
+  --format=custom --file="tenant_${TENANT_ID}_backup.dump" \
+  --table="products" --table="orders" --table="customers" \
+  --where="tenant_id='${TENANT_ID}'" ecommerce_db
+
+# Tenant restore with validation
+pg_restore --host=localhost --port=5432 --username=postgres \
+  --dbname=ecommerce_db --clean --if-exists \
+  "tenant_${TENANT_ID}_backup.dump"
+```
 
 ## Maintenance Windows
 

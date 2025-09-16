@@ -1,10 +1,8 @@
 # Change Management & Operational Processes
 
-📋 **Documentation Navigation**: [📖 Project Home](../README.md) | [🚀 Deployment](./DEPLOYMENT.md) | [⚙️ Operations](./OPERATIONS.md) | [🏗️ Infrastructure](./INFRASTRUCTURE.md)
-
 ## Change Management Overview
 
-Structured approach to managing all changes in the multi-tenant production environment (Go Gin + PostgreSQL shared database) to minimize risk while preserving tenant data isolation.
+Structured approach to managing all changes in the multi-tenant production environment to minimize risk while preserving tenant data isolation.
 
 ## Change Classification
 

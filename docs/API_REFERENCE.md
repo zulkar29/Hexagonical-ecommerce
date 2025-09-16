@@ -1,8 +1,6 @@
-# Hexagonal E-commerce SaaS API Documentation
+# API Documentation
 
-📋 **Documentation Navigation**: [📖 Project Home](../README.md) | [🏗️ Architecture](./ARCHITECTURE.md) | [🚀 Features](./FEATURES.md) | [🔄 User Flows](./USER_FLOWS.md)
-
-Comprehensive REST API specification for the hexagonal e-commerce SaaS platform with **271 documented endpoints** covering all business operations across 27 active modules with multi-tenant architecture, authentication, and WebSocket real-time capabilities.
+Comprehensive REST API specification for the multi-tenant e-commerce SaaS platform with **284 documented endpoints** covering all business operations across 28 active modules with multi-tenant architecture, authentication, and WebSocket real-time capabilities.
 
 ## Base URL
 ```
@@ -114,19 +112,19 @@ All API endpoints return standard HTTP status codes and JSON error responses:
 | GET | `/users/profile` | Get user profile | ✅ | ❌ |
 | PUT | `/users/profile` | Update user profile | ✅ | ❌ |
 | POST | `/users/change-password` | Change user password | ✅ | ❌ |
-| PATCH | `/users/account` | Manage account (?action=deactivate\|anonymize\|delete\|export_data) | ✅ | ❌ |
+| PATCH | `/users/account` | Manage account (?action=deactivate\|anonymize\|delete) | ✅ | ❌ |
 | GET | `/users/preferences` | Get user preferences | ✅ | ❌ |
 | PUT | `/users/preferences` | Update user preferences | ✅ | ❌ |
 | GET | `/users` | List users (admin) | ✅ | ❌ |
 | GET | `/users/:id` | Get user by ID (admin) | ✅ | ❌ |
 | GET | `/users/:id/activity` | Get user activity logs | ✅ | ❌ |
 | PATCH | `/users/:id` | Update user (status, role, profile, etc.) | ✅ | ❌ |
-| POST | `/users/bulk-import` | Bulk import users | ✅ | ❌ |
+| POST | `/users/bulk` | Bulk operations (?operation=import\|export\|create\|delete) | ✅ | ❌ |
 | POST | `/users/export` | Export user data | ✅ | ❌ |
 | GET | `/users/:id/orders` | Get user's orders | ✅ | ❌ |
 | GET | `/users/:id/addresses` | Get user's addresses | ✅ | ❌ |
 
-## Admin Dashboard Module (8 endpoints)
+## Admin Dashboard Module (10 endpoints)
 
 ### Tenant Admin Management (Store Management)
 | Method | URL | Description | Auth | Tenant |
@@ -134,9 +132,11 @@ All API endpoints return standard HTTP status codes and JSON error responses:
 | GET | `/admin/dashboard` | Get tenant admin dashboard (?period=day\|week\|month, ?metrics=sales\|orders\|customers) | ✅ | ✅ |
 | GET | `/admin/quick-stats` | Get quick statistics (orders, revenue, customers, products) | ✅ | ✅ |
 | GET | `/admin/staff` | List tenant staff (?role=admin\|manager\|staff, ?status=active\|inactive) | ✅ | ✅ |
-| PATCH | `/admin/staff/:id` | Manage tenant staff (?action=create\|update\|delete\|assign_roles\|change_status) | ✅ | ✅ |
+| POST | `/admin/staff` | Create tenant staff | ✅ | ✅ |
+| PATCH | `/admin/staff/:id` | Update tenant staff (?action=update\|delete\|assign_roles\|change_status) | ✅ | ✅ |
 | GET | `/admin/roles` | List tenant roles & permissions (?include_permissions=true) | ✅ | ✅ |
-| PATCH | `/admin/roles/:id` | Manage tenant roles (?action=create\|update\|delete\|assign_permissions) | ✅ | ✅ |
+| POST | `/admin/roles` | Create tenant role | ✅ | ✅ |
+| PATCH | `/admin/roles/:id` | Update tenant roles (?action=update\|delete\|assign_permissions) | ✅ | ✅ |
 | GET | `/admin/activity-logs` | Get tenant admin activity logs (?user_id=id, ?action=login\|update\|delete, ?date_from=date, ?date_to=date) | ✅ | ✅ |
 | GET | `/admin/system-health` | Get tenant system health & performance metrics | ✅ | ✅ |
 
@@ -360,7 +360,7 @@ All API endpoints return standard HTTP status codes and JSON error responses:
 | GET | `/analytics/segments/:id/customers` | Get customers in segment (?export=csv, pagination) | ✅ | ✅ |
 | PATCH | `/analytics/segments/:id` | Update segment (?action=update\|refresh\|delete) | ✅ | ✅ |
 
-## Marketing Module (10 endpoints)
+## Marketing Module (13 endpoints)
 
 ### Marketing
 | Method | URL | Description | Auth | Tenant |
@@ -374,6 +374,9 @@ All API endpoints return standard HTTP status codes and JSON error responses:
 | PATCH | `/marketing/segments/:id` | Manage segment (?action=create\|update\|delete\|refresh) | ✅ | ✅ |
 | POST | `/marketing/newsletter` | Manage newsletter (?action=subscribe\|unsubscribe) | ❌ | ✅ |
 | GET | `/marketing/subscribers` | List newsletter subscribers | ✅ | ✅ |
+| GET | `/marketing/referrals` | List referral programs | ✅ | ✅ |
+| POST | `/marketing/referrals` | Create referral program | ✅ | ✅ |
+| GET | `/marketing/referrals/:id/stats` | Get referral statistics | ✅ | ✅ |
 | GET | `/marketing/abandoned-carts` | Get abandoned carts | ✅ | ✅ |
 
 ## Discount Module (9 endpoints)
@@ -407,7 +410,7 @@ All API endpoints return standard HTTP status codes and JSON error responses:
 | POST | `/search/reindex` | Reindex search data (?type=products\|categories\|all) | ✅ | ✅ |
 | GET | `/search/filters` | Get available search filters | ❌ | ✅ |
 
-## Settings Module (5 endpoints)
+## Settings Module (8 endpoints)
 
 ### Settings Management
 | Method | URL | Description | Auth | Tenant |
@@ -421,6 +424,9 @@ All API endpoints return standard HTTP status codes and JSON error responses:
 |--------|-----|-------------|------|--------|
 | GET | `/settings/maintenance` | Get maintenance mode status | ✅ | ✅ |
 | PATCH | `/settings/maintenance` | Toggle maintenance mode (?action=enable\|disable, ?message=custom_message) | ✅ | ✅ |
+| PATCH | `/settings/reviews` | Update review settings | ✅ | ✅ |
+| PATCH | `/settings/contact` | Update contact settings | ✅ | ✅ |
+| PATCH | `/settings/support` | Update support settings | ✅ | ✅ |
 
 ## Public Access Module (3 endpoints)
 
@@ -475,7 +481,7 @@ All API endpoints return standard HTTP status codes and JSON error responses:
 | POST | `/finance/payouts` | Request payout (?method=bank_transfer\|mobile_banking) | ✅ | ✅ |
 | GET | `/finance/dashboard` | Get financial dashboard overview | ✅ | ✅ |
 
-## Reviews Module (10 endpoints)
+## Reviews Module (9 endpoints)
 
 ### Review Management  
 | Method | URL | Description | Auth | Tenant |
@@ -487,7 +493,6 @@ All API endpoints return standard HTTP status codes and JSON error responses:
 | DELETE | `/reviews/:id` | Delete review | ✅ | ✅ |
 | POST | `/reviews/bulk` | Bulk operations (?operation=moderate\|approve\|reject) | ✅ | ✅ |
 | GET | `/reviews/invitations` | Manage review invitations (?token=invitation_token for public access) | ❌/✅ | ❌/✅ |
-| GET | `/reviews/settings` | Get/update review settings (?action=update) | ✅ | ✅ |
 
 ### Public Reviews
 | Method | URL | Description | Auth | Tenant |
@@ -495,7 +500,7 @@ All API endpoints return standard HTTP status codes and JSON error responses:
 | GET | `/public/reviews/:product_id` | Get product reviews (public) | ❌ | ✅ |
 | POST | `/public/reviews` | Submit product review (customer) | ✅ | ✅ |
 
-## Support & Contact Module (14 endpoints)
+## Support & Contact Module (12 endpoints)
 
 ### Support Management
 | Method | URL | Description | Auth | Tenant |
@@ -507,7 +512,6 @@ All API endpoints return standard HTTP status codes and JSON error responses:
 | GET | `/support/faqs` | List FAQs (?category=category_name) | ✅ | ✅ |
 | PATCH | `/support/faqs/:id` | Manage FAQ (?action=create\|update\|delete) | ✅ | ✅ |
 | GET | `/support/knowledge-base` | List articles (?slug=article_slug) | ✅ | ✅ |
-| GET | `/support/settings` | Get support settings | ✅ | ✅ |
 
 ### Contact Management
 | Method | URL | Description | Auth | Tenant |
@@ -517,7 +521,6 @@ All API endpoints return standard HTTP status codes and JSON error responses:
 | PATCH | `/contacts/:id` | Update contact (?action=create\|reply\|assign\|close\|add_note\|delete) | ✅ | ✅ |
 | POST | `/contact-forms` | Submit contact form (?form_type=support\|general) | ❌ | ✅ |
 | GET | `/contact-templates` | List contact templates | ✅ | ✅ |
-| PATCH | `/contact-settings` | Update contact settings | ✅ | ✅ |
 
 ## Content Management Module (8 endpoints)
 
@@ -585,6 +588,15 @@ All API endpoints return standard HTTP status codes and JSON error responses:
 | POST | `/tenants/:id/domain` | Configure custom domain | ✅ | ❌ |
 | GET | `/tenants/:id/onboarding-status` | Get onboarding completion status | ✅ | ❌ |
 | PATCH | `/tenants/:id/approve` | Approve tenant onboarding (?action=approve\|reject) | ✅ | ❌ |
+| GET | `/tenants/current/page-builder` | Get page builder components | ✅ | ✅ |
+| POST | `/tenants/current/page-builder` | Save page builder layout | ✅ | ✅ |
+| GET | `/tenants/current/themes` | List available themes | ✅ | ✅ |
+| PATCH | `/tenants/current/themes/:id` | Apply theme customization | ✅ | ✅ |
+| GET | `/tenants/current/languages` | List supported languages | ✅ | ✅ |
+| POST | `/tenants/current/languages` | Add language support | ✅ | ✅ |
+| GET | `/tenants/current/currencies` | List supported currencies | ✅ | ✅ |
+| POST | `/tenants/current/currencies` | Add currency support | ✅ | ✅ |
+| PATCH | `/tenants/current/currencies/:code` | Update exchange rates | ✅ | ✅ |
 
 ### Tenant Subscription & Limits
 | Method | URL | Description | Auth | Tenant |
@@ -636,6 +648,24 @@ All API endpoints return standard HTTP status codes and JSON error responses:
 | DELETE | `/wishlists/:id` | Delete wishlist | ✅ | ✅ |
 | POST | `/wishlists/bulk` | Bulk operations (?operation=add_items\|remove_items\|cleanup) | ✅ | ✅ |
 
+## Social Commerce Module (8 endpoints)
+
+### Social Media Integration
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/integrations/instagram/connect` | Connect Instagram Business account | ✅ | ✅ |
+| POST | `/integrations/facebook/connect` | Connect Facebook Shop | ✅ | ✅ |
+| GET | `/integrations/social/status` | Get social integration status | ✅ | ✅ |
+| POST | `/integrations/social/disconnect` | Disconnect social platform (?platform=instagram\|facebook) | ✅ | ✅ |
+
+### Social Commerce Operations
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/integrations/social/product-sync` | Sync products to social platforms (?platform=instagram\|facebook\|all) | ✅ | ✅ |
+| GET | `/integrations/social/sync-status` | Get product sync status (?platform=instagram\|facebook) | ✅ | ✅ |
+| PATCH | `/integrations/social/products/:id` | Update social product settings (?action=enable\|disable\|update_tags) | ✅ | ✅ |
+| GET | `/integrations/social/analytics` | Get social commerce analytics (?platform=instagram\|facebook, ?date_from=date, ?date_to=date) | ✅ | ✅ |
+
 ## Real-time Features (WebSocket)
 
 ### WebSocket Connection
@@ -654,10 +684,10 @@ wss://api.yourplatform.com/ws
 
 ## Summary
 
-The e-commerce platform implements **271 documented API endpoints** across **27 optimized modules** with token-based REST design:
+The e-commerce platform implements **284 documented API endpoints** across **28 optimized modules** with token-based REST design:
 
 - ✅ **User Module** - 23 endpoints (authentication, phone verification, profile management, admin operations, bulk operations)
-- ✅ **Admin Dashboard Module** - 8 endpoints (admin dashboard, staff management, roles, activity logs)
+- ✅ **Admin Dashboard Module** - 10 endpoints (admin dashboard, staff management, roles, activity logs)
 - ✅ **Platform Admin Module** - 15 endpoints (platform management, tenant management, system configuration)
 - ✅ **Security Module** - 16 endpoints (audit logs, fraud detection, tenant boundaries, 2FA, vulnerability scanning, API key management, rate limiting)
 - ✅ **Product Module** - 31 endpoints (products, variants, categories, tags, stock reservation, inventory, stock management, public access, analytics) 
@@ -669,17 +699,18 @@ The e-commerce platform implements **271 documented API endpoints** across **27 
 - ✅ **Shipping Module** - 11 endpoints (zones, rates, labels, tracking, webhooks)
 - ✅ **Notification Module** - 8 endpoints (notifications, templates, preferences)
 - ✅ **Analytics Module** - 10 endpoints (tracking, dashboard, insights, reports, customer segmentation)
-- ✅ **Marketing Module** - 10 endpoints (campaigns, templates, segments, automation)
+- ✅ **Marketing Module** - 13 endpoints (campaigns, templates, segments, automation, referrals)
 - ✅ **Discount Module** - 9 endpoints (discounts, gift cards, store credit)
 - ✅ **Search Module** - 6 endpoints (global search, product search, suggestions, analytics, filters)
-- ✅ **Settings Module** - 5 endpoints (store settings, maintenance mode, SEO, appearance, integrations)
+- ✅ **Settings Module** - 8 endpoints (store settings, maintenance mode, SEO, appearance, integrations, reviews, contact, support)
 - ✅ **Public Access Module** - 3 endpoints (public pages, customer registration)
-- ✅ **Reviews Module** - 10 endpoints (reviews, moderation, invitations, public reviews)
-- ✅ **Support & Contact Module** - 14 endpoints (tickets, FAQ, knowledge base, contact management)
+- ✅ **Reviews Module** - 9 endpoints (reviews, moderation, invitations, public reviews)
+- ✅ **Support & Contact Module** - 12 endpoints (tickets, FAQ, knowledge base, contact management)
+- ✅ **Social Commerce Module** - 8 endpoints (Instagram/Facebook integration, product sync, analytics)
 - ✅ **Content Management Module** - 8 endpoints (pages, posts, media, menus)
 - ✅ **Webhook Module** - 7 endpoints (endpoint management, deliveries, events)
 - ✅ **Billing Module** - 12 endpoints (plans, subscriptions, usage, invoices, admin)
-- ✅ **Tenant Module** - 7 endpoints (tenant operations, onboarding, configuration)
+- ✅ **Tenant Module** - 16 endpoints (tenant operations, onboarding, configuration, themes, page builder, languages, currencies)
 - ✅ **Observability Module** - 8 endpoints (health, metrics, logs, alerts)
 - ✅ **Returns Module** - 6 endpoints (return management, reasons, processing)
 - ✅ **Finance Module** - 6 endpoints (ledger, transactions, reports, payouts)

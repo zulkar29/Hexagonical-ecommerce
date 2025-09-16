@@ -63,15 +63,11 @@ type EstimateRequest struct {
 
 type EstimateResponse struct {
 	ShippingMethods []ShippingMethod `json:"shipping_methods"`
-	Taxes           TaxEstimate      `json:"taxes"`
 	Subtotal        float64          `json:"subtotal"`
 	Total           float64          `json:"total"`
 }
 
-type TaxEstimate struct {
-	Amount float64 `json:"amount"`
-	Rate   float64 `json:"rate"`
-}
+
 
 type GuestCheckoutRequest struct {
 	SessionID       string  `json:"session_id" validate:"required"`
@@ -122,37 +118,7 @@ type DiscountService interface {
 	GetDiscountByCode(ctx context.Context, tenantID uuid.UUID, code string) (*discount.Discount, error)
 }
 
-// TaxCalculationRequest represents a tax calculation request
-type TaxCalculationRequest struct {
-	Amount          float64 `json:"amount"`
-	ShippingAddress Address `json:"shipping_address"`
-	Items           []TaxableItem `json:"items"`
-}
 
-// TaxCalculationResponse represents a tax calculation response
-type TaxCalculationResponse struct {
-	TotalTax float64   `json:"total_tax"`
-	TaxRate  float64   `json:"tax_rate"`
-	Details  []TaxItem `json:"details"`
-}
-
-// TaxableItem represents an item for tax calculation
-type TaxableItem struct {
-	ID       uuid.UUID `json:"id"`
-	Amount   float64   `json:"amount"`
-	Category string    `json:"category"`
-}
-
-// TaxItem represents a tax calculation detail
-type TaxItem struct {
-	Type   string  `json:"type"`
-	Rate   float64 `json:"rate"`
-	Amount float64 `json:"amount"`
-}
-
-type TaxService interface {
-	CalculateTax(ctx context.Context, tenantID uuid.UUID, req TaxCalculationRequest) (*TaxCalculationResponse, error)
-}
 
 type ShippingService interface {
 	CreateShippingZone(tenantID uuid.UUID, req shipping.CreateShippingZoneRequest) (*shipping.ShippingZone, error)
@@ -209,27 +175,25 @@ type CartService struct {
 	validator       *validator.Validate
 	productService  ProductService
 	discountService DiscountService
-	taxService      TaxService
 	shippingService ShippingService
 	cartExpiration  time.Duration
 }
 
 // NewCartService creates a new cart service implementation
-func NewCartService(repo Repository, productService ProductService, discountService DiscountService, taxService TaxService, shippingService ShippingService) *CartService {
+func NewCartService(repo Repository, productService ProductService, discountService DiscountService, shippingService ShippingService) *CartService {
 	return &CartService{
 		repo:            repo,
 		validator:       validator.New(),
 		productService:  productService,
 		discountService: discountService,
-		taxService:      taxService,
 		shippingService: shippingService,
 		cartExpiration:  24 * time.Hour * 30, // 30 days default
 	}
 }
 
 // NewService creates a new cart service (interface compatibility)
-func NewService(repo Repository, productService ProductService, discountService DiscountService, taxService TaxService, shippingService ShippingService) Service {
-	return NewCartService(repo, productService, discountService, taxService, shippingService)
+func NewService(repo Repository, productService ProductService, discountService DiscountService, shippingService ShippingService) Service {
+	return NewCartService(repo, productService, discountService, shippingService)
 }
 
 // CreateCart creates a new cart
@@ -576,7 +540,6 @@ func (s *CartService) ClearCart(tenantID, cartID uuid.UUID) error {
 	// Reset cart totals
 	cart.Items = []CartItem{}
 	cart.Subtotal = 0
-	cart.TaxAmount = 0
 	cart.ShippingCost = 0
 	cart.DiscountAmount = 0
 	cart.Total = 0
@@ -677,7 +640,7 @@ func (s *CartService) UpdateAddress(tenantID, cartID uuid.UUID, req UpdateAddres
 		cart.BillingAddress = req.BillingAddress
 	}
 
-	// Recalculate tax and shipping if address changed
+	// Recalculate shipping if address changed
 	if recalcErr := s.recalculateCart(cart); recalcErr != nil {
 		return nil, recalcErr
 	}
@@ -834,9 +797,8 @@ func (s *CartService) recalculateCart(cart *Cart) error {
 	// Calculate subtotal
 	cart.UpdateTotals()
 
-	// Tax, shipping, and discount calculations will be done during order processing
+	// Shipping and discount calculations will be done during order processing
 	// Cart serves as a temporary storage for items and basic information
-	cart.TaxAmount = 0
 	cart.ShippingCost = 0
 	if cart.CouponCode == "" {
 		cart.DiscountAmount = 0
@@ -910,7 +872,7 @@ func (s *CartService) UpdateCart(tenantID, cartID uuid.UUID, req UpdateCartReque
 	return s.buildCartResponse(updatedCart), nil
 }
 
-// GetEstimates calculates shipping and tax estimates
+// GetEstimates calculates shipping estimates
 func (s *CartService) GetEstimates(tenantID, cartID uuid.UUID, req EstimateRequest) (*EstimateResponse, error) {
 	// Validate request
 	if err := s.validator.Struct(req); err != nil {
@@ -931,16 +893,12 @@ func (s *CartService) GetEstimates(tenantID, cartID uuid.UUID, req EstimateReque
 	// Return basic estimates for now
 	var shippingMethods []*ShippingMethod
 	shippingCost := 0.0
-	taxEstimate := TaxEstimate{Amount: 0, Rate: 0}
 
 	// Calculate shipping cost based on the provided address
 	if tempCart.ShippingAddress != nil {
 		// Use the shipping address for location-based calculations
 		// This ensures the ShippingAddress field is actually utilized
 		shippingCost = s.calculateShippingCostByAddress(tempCart.ShippingAddress)
-		
-		// Calculate tax based on shipping address location
-		taxEstimate = s.calculateTaxByAddress(tempCart.ShippingAddress, tempCart.Subtotal)
 	}
 
 	// Initialize with basic shipping method if none available
@@ -957,7 +915,7 @@ func (s *CartService) GetEstimates(tenantID, cartID uuid.UUID, req EstimateReque
 	}
 
 	// Calculate total using tempCart which includes the provided shipping address
-	total := tempCart.Subtotal + shippingCost + taxEstimate.Amount - tempCart.DiscountAmount
+	total := tempCart.Subtotal + shippingCost - tempCart.DiscountAmount
 
 	// Convert shipping methods to response format
 	responseShippingMethods := make([]ShippingMethod, len(shippingMethods))
@@ -969,7 +927,6 @@ func (s *CartService) GetEstimates(tenantID, cartID uuid.UUID, req EstimateReque
 
 	return &EstimateResponse{
 		ShippingMethods: responseShippingMethods,
-		Taxes:           taxEstimate,
 		Subtotal:        tempCart.Subtotal,
 		Total:           total,
 	}, nil
@@ -1060,25 +1017,4 @@ func (s *CartService) calculateShippingCostByAddress(address *Address) float64 {
 	// - address.PostalCode for zone-based pricing
 	// - integration with shipping providers
 	return 5.99 // Default shipping cost
-}
-
-// calculateTaxByAddress calculates tax based on shipping address
-func (s *CartService) calculateTaxByAddress(address *Address, subtotal float64) TaxEstimate {
-	if address == nil || subtotal == 0 {
-		return TaxEstimate{Amount: 0, Rate: 0}
-	}
-	
-	// Simple tax calculation - in a real implementation this would:
-	// - Look up tax rates by address.State, address.Country
-	// - Handle different tax jurisdictions
-	// - Integrate with tax calculation services
-	
-	// Example: 8.25% tax rate for demonstration
-	rate := 0.0825
-	amount := subtotal * rate
-	
-	return TaxEstimate{
-		Amount: amount,
-		Rate:   rate,
-	}
 }

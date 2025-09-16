@@ -69,7 +69,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		reports.GET("/cash-flow", h.GetCashFlow)         // GET /api/v1/reports/cash-flow
 		reports.GET("/revenue", h.GetRevenueReport)      // GET /api/v1/reports/revenue
 		reports.GET("/expense", h.GetExpenseReport)      // GET /api/v1/reports/expense
-		reports.GET("/tax", h.GetTaxReport)              // GET /api/v1/reports/tax
+
 	}
 }
 
@@ -795,40 +795,7 @@ func (h *Handler) GetExpenseReport(c *gin.Context) {
 	c.JSON(http.StatusOK, report)
 }
 
-// GetTaxReport generates a tax report
-func (h *Handler) GetTaxReport(c *gin.Context) {
-	tenantID := getTenantIDFromContext(c)
 
-	// Parse parameters
-	period := ReportPeriod(c.DefaultQuery("period", "monthly"))
-	startDateStr := c.Query("start_date")
-	endDateStr := c.Query("end_date")
-
-	if startDateStr == "" || endDateStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "start_date and end_date parameters are required"})
-		return
-	}
-
-	startDate, err := time.Parse(time.RFC3339, startDateStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid start_date format, use RFC3339"})
-		return
-	}
-
-	endDate, err := time.Parse(time.RFC3339, endDateStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid end_date format, use RFC3339"})
-		return
-	}
-
-	report, err := h.service.GetTaxReport(c.Request.Context(), tenantID, period, startDate, endDate)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate tax report", "details": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, report)
-}
 
 // Helper functions
 

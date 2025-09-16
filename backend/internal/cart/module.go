@@ -13,9 +13,9 @@ type Module struct {
 }
 
 // NewModule creates a new cart module instance
-func NewModule(db *gorm.DB, productSvc ProductService, discountSvc DiscountService, taxSvc TaxService, shippingSvc ShippingService) *Module {
+func NewModule(db *gorm.DB, productSvc ProductService, discountSvc DiscountService, shippingSvc ShippingService) *Module {
 	repo := NewRepository(db)
-	svc := NewCartService(repo, productSvc, discountSvc, taxSvc, shippingSvc)
+	svc := NewCartService(repo, productSvc, discountSvc, shippingSvc)
 	handler := NewHandler(svc)
 
 	return &Module{

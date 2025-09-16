@@ -1,6 +1,4 @@
-# Hexagonal E-commerce SaaS - User Flows for Testing
-
-📋 **Documentation Navigation**: [📖 Project Home](../README.md) | [🏗️ Architecture](./ARCHITECTURE.md) | [🚀 Features](./FEATURES.md) | [📋 Roadmap](./ROADMAP.md) | [📡 API Reference](./API_REFERENCE.md)
+# User Flows for Testing
 
 This document outlines all user flows in the system to help plan comprehensive testing coverage.
 
@@ -50,8 +48,6 @@ This document outlines all user flows in the system to help plan comprehensive t
 
 ### API Security & Management
 - [ ] **API Key Management**: Key generation → Tenant assignment → Usage tracking → Key rotation → Revocation
-- [ ] **API Rate Limiting**: Request monitoring → Rate threshold check → Limit enforcement → Temporary blocking
-
 ### Multi-tenant Security
 - [ ] **Tenant Data Isolation Validation**: Database query execution → Tenant_id filter verification → Access control validation → Query result scoping
 - [ ] **Cross-tenant Security Testing**: Data access attempt → Tenant boundary validation → Unauthorized access prevention → Security violation logging
@@ -76,6 +72,8 @@ This document outlines all user flows in the system to help plan comprehensive t
 - [ ] **Tenant Trial Management**: Trial activation → Usage tracking → Trial expiry monitoring → Conversion prompts → Plan upgrade
 
 ### Tenant Subscription Management
+- [ ] **Free Plan Registration**: Email verification → Free plan activation → Feature limitations enforcement → Upgrade prompts
+- [ ] **Free to Paid Conversion**: Upgrade prompt → Plan selection → Payment → Feature unlock → Trial period tracking
 - [ ] **Plan Upgrade**: Current plan → Available upgrades → SSLCommerz payment → Plan activation → Trigger notification system (Section 8)
 - [ ] **Plan Downgrade**: Current plan → Downgrade options → Confirmation → Plan change → Trigger notification system (Section 8)
 - [ ] **Subscription Renewal**: Renewal reminder → Manual payment → SSLCommerz processing → Plan extension → Trigger notification system (Section 8)
@@ -244,11 +242,24 @@ This document outlines all user flows in the system to help plan comprehensive t
 - [ ] **Coupon Management**: Create coupon codes → Set discount rules (percentage/fixed) → Usage limits → Expiry dates → Activation → Usage tracking
 - [ ] **Bulk Coupon Creation**: CSV upload → Coupon generation → Validation → Activation → Distribution
 - [ ] **Promotion Campaigns**: Campaign creation → Target audience → Discount rules → Schedule → Performance tracking
+- [ ] **Referral Program Setup**: Define referral rewards → Commission structure → Referral link generation → Tracking setup
+- [ ] **Referral Tracking**: Track referral signups → Commission calculation → Payment processing → Performance analytics
 
 ### Tenant Staff Management
 - [ ] **Tenant Staff Creation**: User details → Role assignment → Account activation → Login credentials
 - [ ] **Role Management**: Role definition → Permission assignment → User assignment
 - [ ] **User Permissions**: Permission matrix → Role-based access → Access control
+
+### Multi-Language & Localization
+- [ ] **Language Setup**: Add supported languages → Configure default language → Enable language switching
+- [ ] **Content Translation**: Translate product descriptions → Category names → UI elements → Store policies
+- [ ] **Template Localization**: Translate email templates → SMS templates → Checkout flows → Error messages
+- [ ] **Currency Management**: Add supported currencies → Set exchange rates → Configure currency display → Auto-conversion
+
+### Multi-Currency Operations
+- [ ] **Currency Configuration**: Define base currency → Add additional currencies → Set conversion rates → Update frequency
+- [ ] **Price Display**: Show prices in customer's currency → Real-time conversion → Checkout currency handling
+- [ ] **Payment Processing**: Multi-currency checkout → Currency validation → Settlement currency → Exchange rate tracking
 
 ## 11. Additional E-commerce Flows
 
@@ -277,7 +288,6 @@ This document outlines all user flows in the system to help plan comprehensive t
 
 ### API Security & Management
 - [ ] **API Key Management**: Key generation → Tenant assignment → Usage tracking → Key rotation → Revocation
-- [ ] **API Rate Limiting**: Request monitoring → Rate threshold check → Limit enforcement → Temporary blocking
 - [ ] **Webhook Security**: Webhook payload → Signature generation → Delivery → Signature verification → Response validation
 - [ ] **Third-party Integration**: Integration setup → Authentication → API testing → Activation → Monitoring
 
@@ -287,6 +297,34 @@ This document outlines all user flows in the system to help plan comprehensive t
 - [ ] **Contact Form**: Customer inquiry → Form submission → Trigger notification system (Section 8) → Tenant admin response → Customer follow-up
 - [ ] **Support Ticket**: Issue creation → Ticket assignment → Resolution → Closure
 - [ ] **FAQ Management**: FAQ creation → Categorization → Public display
+
+## 14. Theme & Store Customization Flows
+
+### Store Appearance Management
+- [ ] **Theme Selection**: Browse available themes → Preview theme → Apply to store → Customization options
+- [ ] **Logo Upload & Branding**: Upload logo → Image optimization → Favicon generation → Brand color selection → Font configuration
+- [ ] **Store Layout Customization**: Header/footer configuration → Navigation menu setup → Homepage layout → Mobile responsiveness check
+- [ ] **Custom CSS/HTML**: Custom code input → Validation → Preview → Apply changes → Backup original theme
+
+### Template Management
+- [ ] **Page Template Creation**: Create custom pages → Template selection → Content management → SEO configuration
+- [ ] **Product Page Customization**: Layout modification → Field configuration → Image gallery setup → Related products configuration
+- [ ] **Drag & Drop Page Builder**: Visual page builder → Component library → Drag elements → Preview → Publish landing pages
+- [ ] **CDN Content Management**: Asset upload → CDN distribution → Performance optimization → Global delivery → Cache management
+
+## 15. Social Commerce Integration Flows
+
+### Social Media Setup
+- [ ] **Instagram Shopping Integration**: Account connection → Product sync → Catalog approval → Shopping tags setup
+- [ ] **Facebook Shop Configuration**: Business account setup → Product catalog sync → Shop customization → Payment integration
+- [ ] **Social Media Product Sync**: Automatic product updates → Image optimization → Price synchronization → Inventory sync
+
+## 16. Performance Limit Enforcement Flows
+
+### Resource Management
+- [ ] **API Rate Limit Enforcement**: Request monitoring → Limit breach detection → Temporary blocking → Upgrade notification
+- [ ] **Storage Quota Management**: Storage usage tracking → Quota breach warning → File upload restriction → Plan upgrade prompt
+- [ ] **Plan Downgrade Restrictions**: Feature access removal → Data migration warning → Graceful degradation → Customer notification
 
 ## Testing Priority Levels
 
@@ -317,26 +355,19 @@ This document outlines all user flows in the system to help plan comprehensive t
 - **Important Flows**: 70%+ coverage  
 - **Nice to Have**: 40%+ coverage
 
-## 13. Advanced SaaS Management Flows
+## 17. Advanced SaaS Management Flows
 
 ### Customer Segmentation & Analytics
 - [ ] **Create Customer Segments**: Define criteria → Analyze customer behavior → Create segment → Apply to marketing campaigns
 - [ ] **Segment Analysis**: Select segment → View customer stats → Export customer list → Analyze purchase patterns
 - [ ] **Customer Lifecycle Tracking**: Track purchase frequency → Identify VIP customers → Monitor customer value → Predict churn risk
 
-### Stock & Inventory Management
-- [ ] **Low Stock Monitoring**: Set stock thresholds → Monitor product levels → Generate alerts → Reorder automation
-- [ ] **Stock Audit Reports**: Generate audit report → Review discrepancies → Adjust stock levels → Document changes
-- [ ] **Stock Alerts Configuration**: Define alert rules → Set notification preferences → Monitor stock trends → Proactive restocking
-
 ### Bulk Operations & Enterprise Features
 - [ ] **Bulk Order Processing**: Select multiple orders → Update statuses → Apply bulk actions → Generate reports
 - [ ] **Enterprise Account Management**: GDPR compliance → Data export → Account anonymization → Secure deletion
-- [ ] **API Rate Limiting**: Monitor API usage → Set rate limits per tenant → Adjust limits → Prevent abuse
+- [ ] **Tenant Data Management**: GDPR requests → Data export → Account deactivation → Data anonymization
 
 ### Advanced Security & Compliance
-- [ ] **Rate Limit Management**: Monitor API calls → Set tenant limits → Dynamic adjustment → Abuse prevention
-- [ ] **User Data Management**: GDPR requests → Data export → Account deactivation → Data anonymization
 - [ ] **Compliance Monitoring**: Audit trails → Data retention policies → Legal compliance → Security reports
 
 ---

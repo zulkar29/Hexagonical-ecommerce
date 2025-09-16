@@ -9,6 +9,7 @@ import (
 	"ecommerce-saas/internal/analytics"
 	"ecommerce-saas/internal/contact"
 	"ecommerce-saas/internal/payment"
+
 	"github.com/google/uuid"
 )
 
@@ -513,7 +514,7 @@ func (s *service) UpgradePlan(ctx context.Context, tenantID, newPlanID uuid.UUID
 	}
 
 	// Calculate proration for immediate upgrade
-	prorationAmount, err := s.calculateProration(ctx, subscription, newPlan)
+	prorationAmount, err := s.calculateProration(subscription, newPlan)
 	if err != nil {
 		return nil, err
 	}
@@ -582,7 +583,7 @@ func (s *service) DowngradePlan(ctx context.Context, tenantID, newPlanID uuid.UU
 	return subscription, nil
 }
 
-func (s *service) calculateProration(ctx context.Context, subscription *TenantSubscription, newPlan *BillingPlan) (float64, error) {
+func (s *service) calculateProration(subscription *TenantSubscription, newPlan *BillingPlan) (float64, error) {
 	// Calculate days remaining in current period
 	daysRemaining := int(time.Until(subscription.CurrentPeriodEnd).Hours() / 24)
 	totalDays := subscription.BillingCycle.GetDays()
@@ -918,16 +919,7 @@ func (s *service) GenerateInvoice(ctx context.Context, subscriptionID uuid.UUID,
 		invoice.SubtotalAmount += usageCharge.TotalPrice
 	}
 
-	// Calculate tax (if applicable)
-	taxRate, err := s.getTaxRate(ctx, subscription.TenantID)
-	if err != nil {
-		// Log error but continue with 0 tax
-		log.Printf("Failed to get tax rate for tenant %s: %v", subscription.TenantID, err)
-		taxRate = 0
-	}
-	invoice.TaxAmount = invoice.SubtotalAmount * taxRate
-
-	invoice.TotalAmount = invoice.SubtotalAmount + invoice.TaxAmount
+	invoice.TotalAmount = invoice.SubtotalAmount
 
 	// Start transaction
 	tx, err := s.repo.BeginTransaction(ctx)
@@ -991,16 +983,6 @@ func (s *service) GenerateInvoice(ctx context.Context, subscriptionID uuid.UUID,
 	}
 
 	return invoice, nil
-}
-
-func (s *service) getTaxRate(ctx context.Context, tenantID uuid.UUID) (float64, error) {
-	// Simplified tax rate implementation
-	// In production, this would integrate with tax services like Avalara, TaxJar
-	// or maintain a proper tax rate database with tenant location information
-
-	// For now, return 0% tax rate as default
-	// TODO: Implement proper tax calculation when tenant service is available
-	return 0.0, nil
 }
 
 func (s *service) calculateUsageCharges(ctx context.Context, subscription *TenantSubscription, periodStart, periodEnd time.Time) ([]InvoiceLineItem, error) {
@@ -1189,7 +1171,7 @@ func (s *service) ProcessPayment(ctx context.Context, invoiceID uuid.UUID, payme
 	}
 
 	// Get tenant information for customer data
-	tenant, err := s.getTenantInfo(ctx, invoice.TenantID)
+	tenant, err := s.getTenantInfo(invoice.TenantID)
 	if err != nil {
 		log.Printf("Failed to get tenant info for payment: %v", err)
 	}
@@ -1824,7 +1806,7 @@ func (s *service) GetChurnAnalysis(ctx context.Context, period time.Duration) (*
 }
 
 // Helper methods for tenant information
-func (s *service) getTenantInfo(ctx context.Context, tenantID uuid.UUID) (*Tenant, error) {
+func (s *service) getTenantInfo(tenantID uuid.UUID) (*Tenant, error) {
 	// This would typically call a tenant service or repository
 	// For now, return a basic tenant structure
 	return &Tenant{

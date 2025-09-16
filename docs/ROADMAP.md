@@ -1,10 +1,8 @@
-# Hexagonal E-commerce SaaS Development Roadmap & Implementation Plan
-
-📋 **Documentation Navigation**: [📖 Project Home](../README.md) | [🏗️ Architecture](./ARCHITECTURE.md) | [🚀 Features](./FEATURES.md) | [💰 Business Analysis](./PROFIT_ANALYSIS.md) | [🚢 Deployment](./DEPLOYMENT.md)
+# Development Roadmap & Implementation Plan
 
 ## Project Timeline Overview
-**MVP Timeline**: 12 months for complete e-commerce platform, advanced features through 30 months
-**Team Size**: Solo full-stack developer (Months 1-12), assistant developer (Month 12-18), customer support (Month 18-24)
+**MVP Timeline**: 18 months for complete e-commerce platform, advanced features through 36 months
+**Team Size**: Solo full-stack developer (Months 1-18), assistant developer (Month 18-24), customer support (Month 24-30)
 **Single Vendor Platform**: Focused on Bangladesh market initially with expansion potential
 **Note**: Lean startup approach optimized for experienced solo developer with hexagonal architecture and expansion mindset
 
@@ -38,9 +36,10 @@
 
 - **Week 9-10**: Payment Integration Foundation
   - SSLCommerz integration for local Bangladesh payments
-  - Subscription management endpoints
+  - Subscription management endpoints (including Free plan)
   - Billing and invoicing system
   - Plan upgrade/downgrade logic
+  - Free plan limitations and enforcement
 
 - **Week 11-12**: Testing & Documentation
   - Unit tests for core business logic
@@ -167,7 +166,7 @@
   - Load testing and scaling
   - Beta testing with select customers
 
-## ✅ 12-Month MVP Deliverables
+## ✅ 18-Month MVP Deliverables
 
 **Complete E-commerce SaaS Platform Including:**
 - ✅ Multi-tenant architecture with shared database (tenant_id isolation)
@@ -294,7 +293,7 @@ Note: Scalable architecture - can upgrade components as customer base grows
 
 ## Advanced Feature Expansion (Months 13+)
 
-**Note**: The 12-month timeline delivers a complete, production-ready e-commerce SaaS platform. The following phases add advanced features and scaling capabilities for market expansion and enterprise customers.
+**Note**: The 18-month timeline delivers a complete, production-ready e-commerce SaaS platform. The following phases add advanced features and scaling capabilities for market expansion and enterprise customers.
 
 ### Phase 5: Basic Automation (Months 13-15) 🚀 **REALISTIC SCOPE**
 **Phase 1 Automation:**

@@ -1,6 +1,4 @@
-# Hexagonal E-commerce SaaS Docker Development Environment
-
-📋 **Documentation Navigation**: [📖 Project Home](../README.md) | [🏗️ Architecture](./ARCHITECTURE.md) | [🚀 Features](./FEATURES.md) | [📋 Roadmap](./ROADMAP.md) | [🚢 Deployment](./DEPLOYMENT.md)
+# Docker Development Environment
 
 Complete Docker setup for the hexagonal e-commerce SaaS platform with all services containerized for easy development and deployment.
 

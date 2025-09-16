@@ -143,7 +143,6 @@ func (s *Service) CreateOrder(ctx context.Context, tenantID uuid.UUID, order *Or
 
 	// Calculate totals
 	order.SubtotalAmount = subtotal
-	order.TaxAmount = s.calculateTax(order.SubtotalAmount, order.ShippingAddress.Country)
 	order.ShippingAmount = s.calculateShipping(order.SubtotalAmount, order.ShippingAddress.Country)
 	order.DiscountAmount = 0.0
 
@@ -466,15 +465,7 @@ func (s *Service) generateOrderNumber(_ uuid.UUID) string {
 	return fmt.Sprintf("ORD-%d-%03d", timestamp, random)
 }
 
-// calculateTax calculates tax amount based on location
-func (s *Service) calculateTax(subtotal float64, country string) float64 {
-	// Bangladesh VAT is typically 15%
-	if country == "BD" {
-		return subtotal * 0.15
-	}
-	// Default no tax for other countries
-	return 0.0
-}
+
 
 // calculateShipping calculates shipping cost
 func (s *Service) calculateShipping(subtotal float64, country string) float64 {
@@ -600,7 +591,7 @@ func (s *Service) exportOrdersToCSV(orders []Order) ([]byte, string, error) {
 	// Write CSV header
 	header := []string{
 		"Order Number", "Customer Email", "Customer Phone", "Status", "Payment Status",
-		"Subtotal", "Tax", "Shipping", "Discount", "Total", "Currency",
+		"Subtotal", "Shipping", "Discount", "Total", "Currency",
 		"Payment Gateway", "Payment Method", "Shipping Address", "Billing Address",
 		"Created At", "Updated At",
 	}
@@ -617,7 +608,6 @@ func (s *Service) exportOrdersToCSV(orders []Order) ([]byte, string, error) {
 			string(order.Status),
 			string(order.PaymentStatus),
 			fmt.Sprintf("%.2f", order.SubtotalAmount),
-			fmt.Sprintf("%.2f", order.TaxAmount),
 			fmt.Sprintf("%.2f", order.ShippingAmount),
 			fmt.Sprintf("%.2f", order.DiscountAmount),
 			fmt.Sprintf("%.2f", order.TotalAmount),
@@ -661,7 +651,7 @@ func (s *Service) exportOrdersToExcel(orders []Order) ([]byte, string, error) {
 	// Set headers
 	headers := []string{
 		"Order Number", "Customer Email", "Customer Phone", "Status", "Payment Status",
-		"Subtotal", "Tax", "Shipping", "Discount", "Total", "Currency",
+		"Subtotal", "Shipping", "Discount", "Total", "Currency",
 		"Payment Gateway", "Payment Method", "Shipping Address", "Billing Address",
 		"Created At", "Updated At",
 	}
@@ -683,7 +673,6 @@ func (s *Service) exportOrdersToExcel(orders []Order) ([]byte, string, error) {
 			string(order.Status),
 			string(order.PaymentStatus),
 			order.SubtotalAmount,
-			order.TaxAmount,
 			order.ShippingAmount,
 			order.DiscountAmount,
 			order.TotalAmount,
@@ -792,40 +781,35 @@ func (s *Service) parseOrderFromCSVRecord(record []string) (*Order, error) {
 		return nil, fmt.Errorf("invalid subtotal amount: %v", err)
 	}
 
-	tax, err := strconv.ParseFloat(record[6], 64)
-	if err != nil {
-		return nil, fmt.Errorf("invalid tax amount: %v", err)
-	}
-
-	shipping, err := strconv.ParseFloat(record[7], 64)
+	shipping, err := strconv.ParseFloat(record[6], 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid shipping amount: %v", err)
 	}
 
-	discount, err := strconv.ParseFloat(record[8], 64)
+	discount, err := strconv.ParseFloat(record[7], 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid discount amount: %v", err)
 	}
 
-	total, err := strconv.ParseFloat(record[9], 64)
+	total, err := strconv.ParseFloat(record[8], 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid total amount: %v", err)
 	}
 
 	// Parse dates
-	createdAt, err := time.Parse("2006-01-02 15:04:05", record[15])
+	createdAt, err := time.Parse("2006-01-02 15:04:05", record[14])
 	if err != nil {
 		return nil, fmt.Errorf("invalid created_at date: %v", err)
 	}
 
-	updatedAt, err := time.Parse("2006-01-02 15:04:05", record[16])
+	updatedAt, err := time.Parse("2006-01-02 15:04:05", record[15])
 	if err != nil {
 		return nil, fmt.Errorf("invalid updated_at date: %v", err)
 	}
 
 	// Parse addresses
-	shippingAddr := s.parseAddressFromString(record[13])
-	billingAddr := s.parseAddressFromString(record[14])
+	shippingAddr := s.parseAddressFromString(record[12])
+	billingAddr := s.parseAddressFromString(record[13])
 
 	order := &Order{
 		ID:               uuid.New(),
@@ -835,13 +819,12 @@ func (s *Service) parseOrderFromCSVRecord(record []string) (*Order, error) {
 		Status:           OrderStatus(record[3]),
 		PaymentStatus:    PaymentStatus(record[4]),
 		SubtotalAmount:   subtotal,
-		TaxAmount:        tax,
 		ShippingAmount:   shipping,
 		DiscountAmount:   discount,
 		TotalAmount:      total,
-		Currency:         record[10],
-		PaymentGateway:   record[11],
-		PaymentMethod:    record[12],
+		Currency:         record[9],
+		PaymentGateway:   record[10],
+		PaymentMethod:    record[11],
 		ShippingAddress:  shippingAddr,
 		BillingAddress:   billingAddr,
 		CreatedAt:        createdAt,

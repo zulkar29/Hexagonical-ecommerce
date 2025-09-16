@@ -51,7 +51,7 @@ type Repository interface {
 	GetCashFlow(ctx context.Context, tenantID uuid.UUID, startDate, endDate time.Time) (*CashFlowReport, error)
 	GetRevenueReport(ctx context.Context, tenantID uuid.UUID, period ReportPeriod, startDate, endDate time.Time) (*RevenueReport, error)
 	GetExpenseReport(ctx context.Context, tenantID uuid.UUID, period ReportPeriod, startDate, endDate time.Time) (*ExpenseReport, error)
-	GetTaxReport(ctx context.Context, tenantID uuid.UUID, startDate, endDate time.Time) (*TaxReport, error)
+
 }
 
 // Filter structs
@@ -167,23 +167,7 @@ type ExpenseEntry struct {
 	AccountName string    `json:"account_name"`
 }
 
-type TaxReport struct {
-	PeriodStart    time.Time   `json:"period_start"`
-	PeriodEnd      time.Time   `json:"period_end"`
-	TaxableRevenue float64     `json:"taxable_revenue"`
-	TaxCollected   float64     `json:"tax_collected"`
-	TaxPaid        float64     `json:"tax_paid"`
-	TaxOwed        float64     `json:"tax_owed"`
-	TaxEntries     []*TaxEntry `json:"tax_entries"`
-}
 
-type TaxEntry struct {
-	Date        time.Time  `json:"date"`
-	Type        string     `json:"type"` // collected, paid, owed
-	Amount      float64    `json:"amount"`
-	Description string     `json:"description"`
-	OrderID     *uuid.UUID `json:"order_id,omitempty"`
-}
 
 // gormRepository implements the Repository interface using GORM
 type gormRepository struct {
@@ -665,10 +649,4 @@ func (r *gormRepository) GetExpenseReport(ctx context.Context, tenantID uuid.UUI
 	// Implementation would involve complex SQL queries to calculate expense report
 	// This is a placeholder - actual implementation would be more complex
 	return &ExpenseReport{}, nil
-}
-
-func (r *gormRepository) GetTaxReport(ctx context.Context, tenantID uuid.UUID, startDate, endDate time.Time) (*TaxReport, error) {
-	// Implementation would involve complex SQL queries to calculate tax report
-	// This is a placeholder - actual implementation would be more complex
-	return &TaxReport{}, nil
 }

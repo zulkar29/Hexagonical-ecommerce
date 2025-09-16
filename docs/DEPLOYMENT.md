@@ -1,16 +1,81 @@
-# Deployment Guide - Hexagonal E-commerce SaaS Platform
+# Deployment Guide
 
-📋 **Documentation Navigation**: [📖 Project Home](../README.md) | [🏗️ Architecture](./ARCHITECTURE.md) | [🐳 Docker Setup](./README-DOCKER.md) | [🚀 Features](./FEATURES.md)
+This guide covers deploying the multi-tenant e-commerce SaaS platform on a single VPS with Docker, supporting subdomain and custom domain routing for unlimited tenants.
 
-This guide covers deploying the multi-tenant hexagonal e-commerce SaaS platform on a single VPS with Docker, supporting subdomain and custom domain routing for unlimited tenants.
+## Tenant Onboarding Process
 
-## 🏗️ Hexagonal Architecture Overview
+### Automated Tenant Setup
+```yaml
+Registration Flow:
+  1. Email/Password Verification:
+     - Email validation with confirmation link
+     - Strong password policy enforcement
+     - Account activation within 24 hours
 
-**Architecture Clarification**:
-- **"Hexagonal"** = Hexagonal Architecture pattern (also known as Ports and Adapters pattern)
-- **Multi-tenancy** = Shared database with `tenant_id` isolation strategy
+  2. Subdomain Provisioning:
+     - Availability check: {subdomain}.platform.com
+     - DNS A record automatic creation
+     - SSL certificate generation (Let's Encrypt)
+     - Subdomain activation within 5 minutes
 
-### System Architecture (Hexagonal Pattern + Multi-tenant Database)
+  3. Store Initialization:
+     - Database tenant_id generation
+     - Default categories and settings creation
+     - Payment gateway configuration (SSLCommerz)
+     - Email template setup with tenant branding
+```
+
+### Custom Domain Configuration
+```bash
+# Customer DNS Configuration Guide
+# 1. Customer adds CNAME record:
+CNAME shop.customer.com -> platform.com
+
+# 2. Platform domain verification:
+curl -I "http://shop.customer.com"
+# Expected: HTTP 200 response
+
+# 3. SSL certificate generation:
+certbot certonly --webroot \
+  -w /var/www/html \
+  -d shop.customer.com \
+  --email admin@platform.com \
+  --agree-tos --non-interactive
+
+# 4. Caddy configuration update:
+echo "shop.customer.com {
+  reverse_proxy backend:8080 {
+    header_up X-Tenant-Domain shop.customer.com
+  }
+}" >> /etc/caddy/Caddyfile
+
+# 5. Reload Caddy configuration:
+systemctl reload caddy
+```
+
+### Domain Verification Process
+```yaml
+Verification Steps:
+  DNS Propagation:
+    - Check interval: Every 30 minutes
+    - Maximum wait: 48 hours
+    - Success criteria: CNAME resolves correctly
+    - Fallback: Manual verification option
+
+  SSL Certificate:
+    - Automatic Let's Encrypt request
+    - Certificate renewal every 60 days
+    - Backup certificate authority: ZeroSSL
+    - Manual certificate upload option
+
+  Testing Suite:
+    - HTTP/HTTPS accessibility test
+    - Tenant context resolution verification
+    - SSL certificate validation
+    - Performance baseline establishment
+```
+
+## System Architecture
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                  SINGLE VPS DEPLOYMENT                     │

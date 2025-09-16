@@ -102,7 +102,6 @@ CREATE TABLE IF NOT EXISTS invoices (
     period_start TIMESTAMP NOT NULL,
     period_end TIMESTAMP NOT NULL,
     subtotal_amount DECIMAL(10,2) NOT NULL,
-    tax_amount DECIMAL(10,2) DEFAULT 0.00,
     total_amount DECIMAL(10,2) NOT NULL,
     paid_amount DECIMAL(10,2) DEFAULT 0.00,
     currency VARCHAR(3) NOT NULL DEFAULT 'BDT',

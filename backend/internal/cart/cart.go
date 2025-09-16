@@ -27,10 +27,9 @@ type Cart struct {
 
 	// Cart totals
 	Subtotal       float64 `json:"subtotal" gorm:"default:0"`
-	TaxAmount      float64 `json:"tax_amount" gorm:"default:0"`
 	ShippingCost   float64 `json:"shipping_cost" gorm:"default:0"`
 	DiscountAmount float64 `json:"discount_amount" gorm:"default:0"`
-	Total          float64 `json:"total" gorm:"default:0"`
+	Total          float64 `json:"total" gorm:"default:0"` 
 
 	// Applied discounts and coupons
 	CouponCode string     `json:"coupon_code,omitempty"`
@@ -171,7 +170,7 @@ func (c *Cart) CalculateSubtotal() float64 {
 
 // CalculateTotal calculates final cart total
 func (c *Cart) CalculateTotal() float64 {
-	return c.Subtotal + c.TaxAmount + c.ShippingCost - c.DiscountAmount
+	return c.Subtotal + c.ShippingCost - c.DiscountAmount
 }
 
 // UpdateTotals recalculates all cart totals

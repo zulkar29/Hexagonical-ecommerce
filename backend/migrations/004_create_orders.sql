@@ -8,7 +8,6 @@ CREATE TABLE IF NOT EXISTS orders (
     order_number VARCHAR(50) UNIQUE NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
     subtotal DECIMAL(10,2) NOT NULL DEFAULT 0,
-    tax_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
     shipping_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
     discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
     total_amount DECIMAL(10,2) NOT NULL DEFAULT 0,

@@ -17,12 +17,14 @@ import (
 	"ecommerce-saas/internal/finance"
 	"ecommerce-saas/internal/marketing"
 	"ecommerce-saas/internal/notification"
+	"ecommerce-saas/internal/observability"
 	"ecommerce-saas/internal/order"
 	"ecommerce-saas/internal/payment"
 	"ecommerce-saas/internal/product"
 	"ecommerce-saas/internal/returns"
 	"ecommerce-saas/internal/reviews"
 	"ecommerce-saas/internal/search"
+	"ecommerce-saas/internal/security"
 
 	"ecommerce-saas/internal/settings"
 	"ecommerce-saas/internal/shipping"
@@ -43,8 +45,64 @@ type RouteConfig struct {
 	JWTManager *utils.JWTManager
 }
 
+// ServiceContainer holds shared service instances to avoid duplications
+type ServiceContainer struct {
+	// Repositories
+	ProductRepo   product.Repository
+	DiscountRepo  discount.Repository
+	ContactRepo   contact.Repository
+	AnalyticsRepo analytics.Repository
+	ShippingRepo  *shipping.Repository
+	PaymentRepo   payment.Repository
+	
+	// Services
+	ProductService   *product.Service
+	DiscountService  discount.Service
+	ContactService   contact.Service
+	AnalyticsService analytics.Service
+	ShippingService  *shipping.Service
+	PaymentService   payment.Service
+}
+
+// NewServiceContainer creates and initializes shared services
+func NewServiceContainer(cfg *RouteConfig) *ServiceContainer {
+	// Initialize repositories
+	productRepo := product.NewRepository(cfg.DB)
+	discountRepo := discount.NewRepository(cfg.DB)
+	contactRepo := contact.NewRepository(cfg.DB)
+	analyticsRepo := analytics.NewRepository(cfg.DB)
+	shippingRepo := shipping.NewRepository(cfg.DB)
+	paymentRepo := payment.NewRepository(cfg.DB)
+	
+	// Initialize services
+	productService := product.NewService(productRepo)
+	discountService := discount.NewService(discountRepo)
+	contactService := contact.NewService(contactRepo)
+	analyticsService := analytics.NewService(analyticsRepo)
+	shippingService := shipping.NewService(shippingRepo)
+	paymentService := payment.NewService(paymentRepo, cfg.Config)
+	
+	return &ServiceContainer{
+		ProductRepo:      productRepo,
+		DiscountRepo:     discountRepo,
+		ContactRepo:      contactRepo,
+		AnalyticsRepo:    analyticsRepo,
+		ShippingRepo:     shippingRepo,
+		PaymentRepo:      paymentRepo,
+		ProductService:   productService,
+		DiscountService:  discountService,
+		ContactService:   contactService,
+		AnalyticsService: analyticsService,
+		ShippingService:  shippingService,
+		PaymentService:   paymentService,
+	}
+}
+
 // SetupRoutes configures all application routes
 func SetupRoutes(r *gin.Engine, cfg *RouteConfig) {
+	// Initialize shared service container to avoid duplications
+	services := NewServiceContainer(cfg)
+	
 	// Global middleware
 	r.Use(gin.Recovery())
 	r.Use(middleware.LoggingMiddleware())
@@ -92,7 +150,7 @@ func SetupRoutes(r *gin.Engine, cfg *RouteConfig) {
 		setupProductRoutes(protected, cfg)
 		
 		// Setup order routes
-		setupOrderRoutes(protected, cfg)
+		setupOrderRoutes(protected, cfg, services)
 		
 		// Setup payment routes
 		setupPaymentRoutes(protected, cfg)
@@ -109,21 +167,22 @@ func SetupRoutes(r *gin.Engine, cfg *RouteConfig) {
 		// Setup other protected routes
 		setupAddressRoutes(protected, cfg)
 		setupAdminRoutes(protected, cfg)
-		setupAnalyticsRoutes(protected, cfg)
-		setupBillingRoutes(protected, cfg)
-		setupCartRoutes(protected, cfg)
+		setupAnalyticsRoutes(protected, cfg, services)
+		setupBillingRoutes(protected, cfg, services)
+		setupCartRoutes(protected, cfg, services)
 		setupComponentsRoutes(protected, cfg)
-		setupContactRoutes(protected, cfg)
+		setupContactRoutes(protected, cfg, services)
 		setupContentRoutes(protected, cfg)
-		setupDiscountRoutes(protected, cfg)
+		setupDiscountRoutes(protected, cfg, services)
 		setupMarketingRoutes(protected, cfg)
 		setupObservabilityRoutes(protected, cfg)
 		setupReviewsRoutes(protected, cfg)
 		setupSearchRoutes(protected, cfg)
+		setupSecurityRoutes(protected, cfg)
 		setupSettingsRoutes(protected, cfg)
-		setupShippingRoutes(protected, cfg)
+		setupShippingRoutes(protected, cfg, services)
 		setupSupportRoutes(protected, cfg)
-		setupTaxRoutes(protected, cfg)
+	
 		setupWebhookRoutes(protected, cfg)
 		setupWishlistRoutes(protected, cfg)
 	}
@@ -196,22 +255,13 @@ func setupPublicProductRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 	}
 }
 
-func setupOrderRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	// Initialize required service dependencies
-	productRepo := product.NewRepository(cfg.DB)
-	productService := product.NewService(productRepo)
-	
-	discountRepo := discount.NewRepository(cfg.DB)
-	discountService := discount.NewService(discountRepo)
-	
-	paymentModule := payment.NewModule(cfg.DB, cfg.Config)
-	paymentService := paymentModule.Service
-	
+func setupOrderRoutes(v1 *gin.RouterGroup, cfg *RouteConfig, services *ServiceContainer) {
+	// Initialize notification module (not in shared container as it's less commonly used)
 	notificationModule := notification.NewModule(cfg.DB)
 	notificationService := notificationModule.GetService()
 	
-	// Initialize order module
-	orderModule := order.NewModule(cfg.DB, productService, discountService, paymentService, notificationService)
+	// Initialize order module using shared services
+	orderModule := order.NewModule(cfg.DB, services.ProductService, services.DiscountService, services.PaymentService, notificationService)
 	
 	// Register order routes
 	orderModule.RegisterRoutes(v1)
@@ -259,10 +309,8 @@ func setupAddressRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 }
 
 // Setup analytics routes
-func setupAnalyticsRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	analyticsRepo := analytics.NewRepository(cfg.DB)
-	analyticsService := analytics.NewService(analyticsRepo)
-	analyticsHandler := analytics.NewHandler(analyticsService)
+func setupAnalyticsRoutes(v1 *gin.RouterGroup, cfg *RouteConfig, services *ServiceContainer) {
+	analyticsHandler := analytics.NewHandler(services.AnalyticsService)
 	
 	analyticsHandler.RegisterRoutes(v1)
 }
@@ -270,10 +318,8 @@ func setupAnalyticsRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 
 
 // Setup contact routes
-func setupContactRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	contactRepo := contact.NewRepository(cfg.DB)
-	contactService := contact.NewService(contactRepo)
-	contactHandler := contact.NewHandler(contactService)
+func setupContactRoutes(v1 *gin.RouterGroup, cfg *RouteConfig, services *ServiceContainer) {
+	contactHandler := contact.NewHandler(services.ContactService)
 	
 	contactHandler.RegisterRoutes(v1)
 }
@@ -288,10 +334,8 @@ func setupContentRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 }
 
 // Setup discount routes
-func setupDiscountRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	discountRepo := discount.NewRepository(cfg.DB)
-	discountService := discount.NewService(discountRepo)
-	discountHandler := discount.NewHandler(discountService)
+func setupDiscountRoutes(v1 *gin.RouterGroup, cfg *RouteConfig, services *ServiceContainer) {
+	discountHandler := discount.NewHandler(services.DiscountService)
 	
 	discountHandler.RegisterRoutes(v1)
 }
@@ -317,10 +361,8 @@ func setupReviewsRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 }
 
 // Setup shipping routes
-func setupShippingRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	shippingRepo := shipping.NewRepository(cfg.DB)
-	shippingService := shipping.NewService(shippingRepo)
-	shippingHandler := shipping.NewHandler(shippingService)
+func setupShippingRoutes(v1 *gin.RouterGroup, cfg *RouteConfig, services *ServiceContainer) {
+	shippingHandler := shipping.NewHandler(services.ShippingService)
 	
 	shippingHandler.RegisterRoutes(v1)
 }
@@ -336,15 +378,6 @@ func setupSupportRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 
 
 
-func setupTaxRoutes(protected *gin.RouterGroup, cfg *RouteConfig) {
-	// TODO: Implement tax module
-	// taxRepo := tax.NewGormRepository(cfg.DB)
-	// taxService := tax.NewService(taxRepo)
-	// taxHandler := tax.NewHandler(taxService)
-	// taxHandler.RegisterRoutes(protected)
-}
-
-
 
 // Setup admin routes
 func setupAdminRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
@@ -356,42 +389,18 @@ func setupAdminRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 }
 
 // Setup billing routes
-func setupBillingRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	// Initialize required service dependencies
-	paymentRepo := payment.NewRepository(cfg.DB)
-	paymentService := payment.NewService(paymentRepo, cfg.Config)
-	
-	contactRepo := contact.NewRepository(cfg.DB)
-	contactService := contact.NewService(contactRepo)
-	
-	analyticsRepo := analytics.NewRepository(cfg.DB)
-	analyticsService := analytics.NewService(analyticsRepo)
-	
-	// Initialize billing module with all dependencies
-	billingModule := billing.NewModule(cfg.DB, paymentService, contactService, analyticsService)
+func setupBillingRoutes(v1 *gin.RouterGroup, cfg *RouteConfig, services *ServiceContainer) {
+	// Initialize billing module using shared services
+	billingModule := billing.NewModule(cfg.DB, services.PaymentService, services.ContactService, services.AnalyticsService)
 	
 	// Register billing routes
 	billingModule.RegisterRoutes(v1)
 }
 
 // Setup cart routes
-func setupCartRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	// Initialize required service dependencies
-	productRepo := product.NewRepository(cfg.DB)
-	productService := product.NewService(productRepo)
-	
-	discountRepo := discount.NewRepository(cfg.DB)
-	discountService := discount.NewService(discountRepo)
-	
-	// TODO: Implement tax module
-	// taxRepo := tax.NewGormRepository(cfg.DB)
-	// taxService := tax.NewService(taxRepo)
-	
-	shippingRepo := shipping.NewRepository(cfg.DB)
-	shippingService := shipping.NewService(shippingRepo)
-	
-	// Initialize cart module with services directly (tax service commented out until tax module is implemented)
-	cartModule := cart.NewModule(cfg.DB, productService, discountService, nil, shippingService)
+func setupCartRoutes(v1 *gin.RouterGroup, cfg *RouteConfig, services *ServiceContainer) {
+	// Initialize cart module using shared services
+	cartModule := cart.NewModule(cfg.DB, services.ProductService, services.DiscountService, services.ShippingService)
 	
 	// Register cart routes
 	cartModule.RegisterRoutes(v1)
@@ -399,9 +408,11 @@ func setupCartRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 
 // Setup observability routes
 func setupObservabilityRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
-	// TODO: Implement observability module
-	// observabilityModule := observability.NewModule(cfg.DB)
-	// observabilityModule.RegisterRoutes(v1)
+	// Initialize observability module
+	observabilityModule := observability.NewModule(cfg.DB)
+	
+	// Register observability routes
+	observabilityModule.RegisterRoutes(v1)
 }
 
 // Setup search routes
@@ -449,4 +460,13 @@ func setupComponentsRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 	
 	// Register components routes
 	componentsModule.RegisterRoutes(v1)
+}
+
+// Setup security routes
+func setupSecurityRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
+	// Initialize security module
+	securityModule := security.NewModule(cfg.DB)
+	
+	// Register security routes
+	securityModule.RegisterRoutes(v1)
 }

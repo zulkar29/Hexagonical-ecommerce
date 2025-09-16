@@ -1,10 +1,8 @@
 # Monitoring & Observability Strategy
 
-📋 **Documentation Navigation**: [📖 Project Home](../README.md) | [🚀 Deployment](./DEPLOYMENT.md) | [🏗️ Architecture](./ARCHITECTURE.md)
-
 ## Overview
 
-Comprehensive monitoring strategy for the multi-tenant e-commerce SaaS platform built on Go Gin, PostgreSQL, and Redis, ensuring 99.9% uptime with shared database tenant isolation.
+Comprehensive monitoring strategy for the multi-tenant e-commerce SaaS platform ensuring 99.9% uptime with shared database tenant isolation.
 
 ## Service Level Objectives (SLOs)
 
