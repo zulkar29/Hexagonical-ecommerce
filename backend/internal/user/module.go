@@ -1,16 +1,16 @@
 package user
 
 import (
-	"gorm.io/gorm"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 	"ecommerce-saas/internal/shared/utils"
 )
 
 // Module represents the user module
 type Module struct {
-	repository Repository
-	service    Service
-	handler    *Handler
+	Repository RepositoryInterface
+	Service    *Service
+	Handler    *Handler
 }
 
 // NewModule creates a new user module instance
@@ -21,28 +21,28 @@ func NewModule(db *gorm.DB, jwtManager *utils.JWTManager) *Module {
 	handler := NewHandler(svc)
 
 	return &Module{
-		repository: repo,
-		service:    *svc,
-		handler:    handler,
+		Repository: repo,
+		Service:    svc,
+		Handler:    handler,
 	}
 }
 
 // RegisterRoutes registers all user routes
 func (m *Module) RegisterRoutes(router *gin.RouterGroup) {
-	m.handler.RegisterRoutes(router)
+	m.Handler.RegisterRoutes(router)
 }
 
 // GetHandler returns the user handler
 func (m *Module) GetHandler() *Handler {
-	return m.handler
+	return m.Handler
 }
 
 // GetService returns the user service
 func (m *Module) GetService() *Service {
-	return &m.service
+	return m.Service
 }
 
 // GetRepository returns the user repository
-func (m *Module) GetRepository() Repository {
-	return m.repository
+func (m *Module) GetRepository() RepositoryInterface {
+	return m.Repository
 }

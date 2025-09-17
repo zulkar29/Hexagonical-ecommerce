@@ -1,7 +1,11 @@
 package tenant
 
 import (
+	"context"
 	"errors"
+	"net"
+	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -267,17 +271,27 @@ func (s *Service) ValidateCustomDomain(id, domain string) error {
 	// Normalize domain
 	domain = strings.ToLower(strings.TrimSpace(domain))
 
+	// Validate domain format
+	if err := s.validateDomainFormat(domain); err != nil {
+		return err
+	}
+
 	// Check if domain is already taken
-	if exists, _ := s.repo.CustomDomainExists(domain); err != nil {
+	if exists, err := s.repo.CustomDomainExists(domain); err != nil {
 		return err
 	} else if exists {
 		return errors.New("domain already in use")
 	}
 
-	// TODO: Add DNS validation logic here
-	// - Check if domain points to our servers
-	// - Validate SSL certificate
-	// - Verify ownership
+	// Perform DNS validation
+	if err := s.validateDNSRecord(domain); err != nil {
+		return err
+	}
+
+	// Verify HTTP accessibility
+	if err := s.verifyDomainAccessibility(domain); err != nil {
+		return err
+	}
 
 	tenant.CustomDomain = domain
 	_, err = s.repo.Update(tenant)
@@ -419,6 +433,85 @@ func (s *Service) getProductLimitForPlan(plan Plan) int {
 		return limit
 	}
 	return 100 // default
+}
+
+// DNS validation helper methods
+
+func (s *Service) validateDomainFormat(domain string) error {
+	// Basic domain format validation
+	if len(domain) == 0 {
+		return errors.New("domain cannot be empty")
+	}
+
+	if len(domain) > 253 {
+		return errors.New("domain name too long")
+	}
+
+	// Check for valid characters and format
+	if strings.HasPrefix(domain, ".") || strings.HasSuffix(domain, ".") {
+		return errors.New("domain cannot start or end with a dot")
+	}
+
+	if strings.Contains(domain, "..") {
+		return errors.New("domain cannot contain consecutive dots")
+	}
+
+	// Prevent using platform domain as custom domain
+	if strings.HasSuffix(domain, "."+s.getBaseDomain()) {
+		return errors.New("cannot use platform subdomain as custom domain")
+	}
+
+	return nil
+}
+
+func (s *Service) validateDNSRecord(domain string) error {
+	baseDomain := s.getBaseDomain()
+
+	// Lookup CNAME record
+	cname, err := net.LookupCNAME(domain)
+	if err != nil {
+		return errors.New("DNS lookup failed: ensure CNAME record points to " + baseDomain)
+	}
+
+	// Verify CNAME points to our domain
+	if !strings.HasSuffix(strings.TrimSuffix(cname, "."), baseDomain) {
+		return errors.New("CNAME record must point to " + baseDomain)
+	}
+
+	return nil
+}
+
+func (s *Service) verifyDomainAccessibility(domain string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Test HTTP accessibility
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", "http://"+domain, nil)
+	if err != nil {
+		return errors.New("failed to create HTTP request")
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return errors.New("domain is not accessible via HTTP: " + err.Error())
+	}
+	defer resp.Body.Close()
+
+	// Accept any HTTP status as long as domain is reachable
+	return nil
+}
+
+func (s *Service) getBaseDomain() string {
+	// Get base domain from environment or config
+	baseDomain := os.Getenv("BASE_DOMAIN")
+	if baseDomain == "" {
+		baseDomain = "yourdomain.com" // fallback
+	}
+	return baseDomain
 }
 
 // TODO: Add integration methods when other modules are ready

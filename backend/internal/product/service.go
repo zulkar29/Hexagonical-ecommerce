@@ -436,20 +436,12 @@ func (s *Service) generateUniqueCategorySlug(tenantID uuid.UUID, baseSlug string
 }
 
 // BulkDeleteProducts deletes multiple products at once
-func (s *Service) BulkDeleteProducts(tenantID uuid.UUID, productIDs []string) error {
-	// Parse product IDs
-	uuidIDs := make([]uuid.UUID, 0, len(productIDs))
-	for _, idStr := range productIDs {
-		if id, err := uuid.Parse(idStr); err == nil {
-			uuidIDs = append(uuidIDs, id)
-		}
+func (s *Service) BulkDeleteProducts(tenantID uuid.UUID, productIDs []uuid.UUID) error {
+	if len(productIDs) == 0 {
+		return errors.New("no product IDs provided")
 	}
 
-	if len(uuidIDs) == 0 {
-		return errors.New("no valid product IDs provided")
-	}
-
-	return s.repo.BulkDeleteProducts(tenantID, uuidIDs)
+	return s.repo.BulkDeleteProducts(tenantID, productIDs)
 }
 
 // GetProductAnalytics returns analytics data for a specific product

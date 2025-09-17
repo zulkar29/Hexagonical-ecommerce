@@ -169,9 +169,9 @@ type DiscountApplication struct {
 
 // Module represents the order module
 type Module struct {
-	Handler    *Handler
+	Repository RepositoryInterface
 	Service    *Service
-	Repository Repository
+	Handler    *Handler
 }
 
 // NewModule creates a new order module with all dependencies
@@ -207,6 +207,6 @@ func (m *Module) GetService() *Service {
 }
 
 // GetRepository returns the order repository for direct database access
-func (m *Module) GetRepository() Repository {
+func (m *Module) GetRepository() RepositoryInterface {
 	return m.Repository
 }

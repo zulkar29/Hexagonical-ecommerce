@@ -5,8 +5,11 @@ import (
 	"gorm.io/gorm"
 )
 
-// Repository defines the product repository interface
-type Repository interface {
+// Repository is an alias for RepositoryInterface for backward compatibility
+type Repository = RepositoryInterface
+
+// RepositoryInterface defines the product repository interface
+type RepositoryInterface interface {
 	// Product operations
 	CreateProduct(product *Product) (*Product, error)
 	GetProductByID(tenantID, productID uuid.UUID) (*Product, error)
@@ -51,7 +54,7 @@ type repository struct {
 }
 
 // NewRepository creates a new product repository
-func NewRepository(db *gorm.DB) Repository {
+func NewRepository(db *gorm.DB) RepositoryInterface {
 	return &repository{
 		db: db,
 	}
@@ -299,10 +302,9 @@ func (r *repository) CreateProductVariant(variant *ProductVariant) (*ProductVari
 // GetProductVariants returns all variants for a product
 func (r *repository) GetProductVariants(tenantID, productID uuid.UUID) ([]*ProductVariant, error) {
 	var variants []*ProductVariant
-	// Join with products table to filter by tenant_id since variants don't have tenant_id directly
-	err := r.db.Joins("JOIN products ON product_variants.product_id = products.id").
-		Where("products.tenant_id = ? AND product_variants.product_id = ?", tenantID, productID).
-		Order("product_variants.created_at ASC").
+	// Use direct tenant_id filtering now that variants have tenant_id field
+	err := r.db.Where("tenant_id = ? AND product_id = ?", tenantID, productID).
+		Order("created_at ASC").
 		Find(&variants).Error
 	return variants, err
 }
@@ -310,9 +312,8 @@ func (r *repository) GetProductVariants(tenantID, productID uuid.UUID) ([]*Produ
 // GetProductVariant returns a specific product variant
 func (r *repository) GetProductVariant(tenantID, variantID uuid.UUID) (*ProductVariant, error) {
 	var variant ProductVariant
-	// Join with products table to filter by tenant_id since variants don't have tenant_id directly
-	err := r.db.Joins("JOIN products ON product_variants.product_id = products.id").
-		Where("products.tenant_id = ? AND product_variants.id = ?", tenantID, variantID).
+	// Use direct tenant_id filtering now that variants have tenant_id field
+	err := r.db.Where("tenant_id = ? AND id = ?", tenantID, variantID).
 		First(&variant).Error
 	if err != nil {
 		return nil, err

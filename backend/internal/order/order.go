@@ -120,6 +120,7 @@ type Order struct {
 // OrderItem represents an item in an order
 type OrderItem struct {
 	ID        uuid.UUID `json:"id" gorm:"primarykey"`
+	TenantID  uuid.UUID `json:"tenant_id" gorm:"not null;index"`
 	OrderID   uuid.UUID `json:"order_id" gorm:"not null;index"`
 	ProductID uuid.UUID `json:"product_id" gorm:"not null;index"`
 	VariantID *uuid.UUID `json:"variant_id,omitempty" gorm:"index"`

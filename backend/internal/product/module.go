@@ -7,9 +7,9 @@ import (
 
 // Module represents the product module
 type Module struct {
-	Handler    *Handler
+	Repository RepositoryInterface
 	Service    *Service
-	Repository Repository
+	Handler    *Handler
 }
 
 // NewModule creates a new product module with all dependencies
@@ -19,9 +19,9 @@ func NewModule(db *gorm.DB) *Module {
 	handler := NewHandler(service)
 
 	return &Module{
-		Handler:    handler,
-		Service:    service,
 		Repository: repository,
+		Service:    service,
+		Handler:    handler,
 	}
 }
 

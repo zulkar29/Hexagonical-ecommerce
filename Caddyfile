@@ -36,11 +36,16 @@
 {$DOMAIN:yourdomain.com} {
     import security_headers
     
-    # API routes
-    handle_path /api/* {
+    # API routes (versioned)
+    handle_path /api/v1/* {
         reverse_proxy backend:8080 {
             import common_headers
         }
+    }
+
+    # Legacy API routes (redirect to v1)
+    handle_path /api/* {
+        redir /api/v1{uri} permanent
     }
     
     # Health check
@@ -80,11 +85,16 @@
     # Skip admin subdomain
     @not_admin not host {$ADMIN_SUBDOMAIN:admin}.{$DOMAIN:yourdomain.com}
     
-    # API routes for tenant subdomains
-    handle_path @not_admin /api/* {
+    # API routes for tenant subdomains (versioned)
+    handle_path @not_admin /api/v1/* {
         reverse_proxy backend:8080 {
             import common_headers
         }
+    }
+
+    # Legacy API routes for tenants (redirect to v1)
+    handle_path @not_admin /api/* {
+        redir /api/v1{uri} permanent
     }
     
     # Tenant storefronts

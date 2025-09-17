@@ -14,7 +14,7 @@ Complete Docker setup for the hexagonal e-commerce SaaS platform with all servic
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd hexagonal-ecommerce
+cd esass
 
 # Start all services with one command
 make dev-up

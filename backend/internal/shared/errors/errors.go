@@ -221,8 +221,52 @@ var (
 	ErrInvalidPaymentMethod = NewBadRequestError("Invalid payment method")
 )
 
-// TODO: Add more error handling utilities
-// - ErrorResponse struct for consistent API responses
-// - ErrorMiddleware for Gin
-// - Error logging integration
-// - Error metrics collection
+// Error type checking functions
+func IsValidationError(err error) bool {
+	if appErr := GetAppError(err); appErr != nil {
+		return appErr.Code == CodeValidation
+	}
+	return false
+}
+
+func IsUnauthorizedError(err error) bool {
+	if appErr := GetAppError(err); appErr != nil {
+		return appErr.Code == CodeUnauthorized
+	}
+	return false
+}
+
+func IsForbiddenError(err error) bool {
+	if appErr := GetAppError(err); appErr != nil {
+		return appErr.Code == CodeForbidden
+	}
+	return false
+}
+
+func IsConflictError(err error) bool {
+	if appErr := GetAppError(err); appErr != nil {
+		return appErr.Code == CodeConflict
+	}
+	return false
+}
+
+func IsNotFoundError(err error) bool {
+	if appErr := GetAppError(err); appErr != nil {
+		return appErr.Code == CodeNotFound
+	}
+	return false
+}
+
+func IsBadRequestError(err error) bool {
+	if appErr := GetAppError(err); appErr != nil {
+		return appErr.Code == CodeBadRequest
+	}
+	return false
+}
+
+func IsInternalError(err error) bool {
+	if appErr := GetAppError(err); appErr != nil {
+		return appErr.Code == CodeInternal
+	}
+	return false
+}

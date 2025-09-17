@@ -351,109 +351,11 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 // Category Handlers
 
 // CreateCategory handles POST /api/categories
-func (h *Handler) CreateCategory(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
-		return
-	}
+// CreateCategory method removed - handled by category module
 
-	var category Category
-	if bindErr := c.ShouldBindJSON(&category); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
-		return
-	}
+// GetCategory and ListCategories methods removed - handled by category module
 
-	createdCategory, err := h.service.CreateCategory(tenantID.(uuid.UUID), &category)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "Category created successfully",
-		"data":    createdCategory,
-	})
-}
-
-// GetCategory handles GET /api/categories/:id
-func (h *Handler) GetCategory(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
-		return
-	}
-
-	categoryIDStr := c.Param("id")
-	categoryID, err := uuid.Parse(categoryIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
-		return
-	}
-
-	category, err := h.service.GetCategory(tenantID.(uuid.UUID), categoryID.String())
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"data": category,
-	})
-}
-
-// ListCategories handles GET /api/categories with hierarchy support
-func (h *Handler) ListCategories(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
-		return
-	}
-
-	// Check for hierarchy queries
-	hierarchy := c.Query("hierarchy")
-	switch hierarchy {
-	case "root":
-		categories, err := h.service.GetRootCategories(tenantID.(uuid.UUID))
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{
-			"message": "Root categories retrieved successfully",
-			"data":    categories,
-		})
-		return
-	case "children":
-		parentID := c.Query("parent_id")
-		if parentID == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "parent_id is required for children hierarchy"})
-			return
-		}
-		categories, err := h.service.GetCategoryChildren(tenantID.(uuid.UUID), parentID)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{
-			"message": "Child categories retrieved successfully",
-			"data":    categories,
-		})
-		return
-	}
-
-	// Regular category listing
-	categories, err := h.service.ListCategories(tenantID.(uuid.UUID))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch categories"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Categories retrieved successfully",
-		"data":    categories,
-	})
-}
+// ListCategories method removed - handled by category module
 
 // Product Variant Handlers
 
@@ -591,64 +493,7 @@ func (h *Handler) DeleteProductVariant(c *gin.Context) {
 
 // Enhanced Category Handlers
 
-// UpdateCategory handles PUT /api/categories/:id
-func (h *Handler) UpdateCategory(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
-		return
-	}
-
-	categoryIDStr := c.Param("id")
-	categoryID, err := uuid.Parse(categoryIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
-		return
-	}
-
-	var category Category
-	if bindErr := c.ShouldBindJSON(&category); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
-		return
-	}
-
-	updatedCategory, err := h.service.UpdateCategory(tenantID.(uuid.UUID), categoryID, &category)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Category updated successfully",
-		"data":    updatedCategory,
-	})
-}
-
-// DeleteCategory handles DELETE /api/categories/:id
-func (h *Handler) DeleteCategory(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
-		return
-	}
-
-	categoryIDStr := c.Param("id")
-	categoryID, err := uuid.Parse(categoryIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
-		return
-	}
-
-	err = h.service.DeleteCategory(tenantID.(uuid.UUID), categoryID.String())
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Category deleted successfully",
-	})
-}
+// UpdateCategory and DeleteCategory methods removed - handled by category module
 
 // SearchProducts handles GET /api/products/search
 func (h *Handler) SearchProducts(c *gin.Context) {
@@ -698,49 +543,9 @@ func (h *Handler) SearchProducts(c *gin.Context) {
 	})
 }
 
-// GetRootCategories handles GET /api/categories/root
-func (h *Handler) GetRootCategories(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
-		return
-	}
+// GetRootCategories method removed - handled by category module
 
-	categories, err := h.service.GetRootCategories(tenantID.(uuid.UUID))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch root categories"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"data": categories,
-	})
-}
-
-// GetCategoryChildren handles GET /api/categories/:id/children
-func (h *Handler) GetCategoryChildren(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
-		return
-	}
-
-	categoryIDStr := c.Param("id")
-	if categoryIDStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Category ID is required"})
-		return
-	}
-
-	children, err := h.service.GetCategoryChildren(tenantID.(uuid.UUID), categoryIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"data": children,
-	})
-}
+// GetCategoryChildren method removed - handled by category module
 
 // HandleProductOperations handles POST /api/products/operations for bulk operations
 func (h *Handler) HandleProductOperations(c *gin.Context) {
@@ -812,14 +617,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	}
 
 	// Category routes
-	categories := router.Group("/categories")
-	{
-		categories.POST("", h.CreateCategory)
-		categories.GET("", h.ListCategories) // Supports ?hierarchy=root|children, ?parent_id=id
-		categories.GET("/:id", h.GetCategory)
-		categories.PUT("/:id", h.UpdateCategory)
-		categories.DELETE("/:id", h.DeleteCategory)
-	}
+	// Category routes removed - handled by category module to avoid conflicts
 
 	// Note: Public routes are registered separately in routes.go setupPublicProductRoutes
 	// to avoid duplicate registration conflicts
@@ -866,7 +664,20 @@ func (h *Handler) HandleProductBulk(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 			return
 		}
-		err := h.service.BulkDeleteProducts(tenantID.(uuid.UUID), req.ProductIDs)
+		// Convert string IDs to UUIDs
+		productUUIDs := make([]uuid.UUID, 0, len(req.ProductIDs))
+		for _, idStr := range req.ProductIDs {
+			if id, err := uuid.Parse(idStr); err == nil {
+				productUUIDs = append(productUUIDs, id)
+			}
+		}
+
+		if len(productUUIDs) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "No valid product IDs provided"})
+			return
+		}
+
+		err := h.service.BulkDeleteProducts(tenantID.(uuid.UUID), productUUIDs)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -1054,33 +865,4 @@ func (h *Handler) GetPublicProduct(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": responseData})
 }
 
-// GetPublicCategories handles GET /public/categories
-func (h *Handler) GetPublicCategories(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
-		return
-	}
-
-	view := c.DefaultQuery("view", "flat")
-	_ = c.Query("include_products") == "true" // TODO: implement include_products functionality
-
-	switch view {
-	case "tree":
-		categories, err := h.service.GetRootCategories(tenantID.(uuid.UUID))
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch categories"})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"data": categories})
-	case "flat":
-		categories, err := h.service.ListCategories(tenantID.(uuid.UUID))
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch categories"})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"data": categories})
-	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid view parameter"})
-	}
-}
+// GetPublicCategories method removed - handled by category module

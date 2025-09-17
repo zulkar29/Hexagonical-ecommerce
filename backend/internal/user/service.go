@@ -42,13 +42,13 @@ func NewService(repo Repository, jwtManager *utils.JWTManager, securityService *
 // RegisterUser creates a new user account
 func (s *Service) RegisterUser(ctx context.Context, user *User) (*User, error) {
 	// Validate input
-	if err := s.validateUser(user); err != nil {
-		return nil, err
+	if validateErr := s.validateUser(user); validateErr != nil {
+		return nil, validateErr
 	}
 
 	// Validate password with security policies
-	if err := s.securityService.ValidatePassword(ctx, user.TenantID, user.Password); err != nil {
-		return nil, err
+	if passwordErr := s.securityService.ValidatePassword(ctx, user.TenantID, user.Password); passwordErr != nil {
+		return nil, passwordErr
 	}
 
 	// Check if user already exists
@@ -83,8 +83,8 @@ func (s *Service) RegisterUser(ctx context.Context, user *User) (*User, error) {
 	}
 
 	// Save initial password to history
-	if err := s.securityService.SavePasswordHistory(ctx, user.ID, user.Password); err != nil {
-		log.Printf("Failed to save initial password history: %v", err)
+	if historyErr := s.securityService.SavePasswordHistory(ctx, user.ID, user.Password); historyErr != nil {
+		log.Printf("Failed to save initial password history: %v", historyErr)
 	}
 
 	// Log security event
@@ -115,8 +115,8 @@ func (s *Service) LoginUser(ctx context.Context, email, password string) (*Login
 	}
 
 	// Check if account is locked
-	if locked, err := s.securityService.IsAccountLocked(ctx, user.ID, user.TenantID); err != nil {
-		return nil, sharedErrors.NewInternalError("Security check failed", err)
+	if locked, lockErr := s.securityService.IsAccountLocked(ctx, user.ID, user.TenantID); lockErr != nil {
+		return nil, sharedErrors.NewInternalError("Security check failed", lockErr)
 	} else if locked {
 		return nil, sharedErrors.NewForbiddenError("Account is temporarily locked due to multiple failed login attempts")
 	}
@@ -124,8 +124,8 @@ func (s *Service) LoginUser(ctx context.Context, email, password string) (*Login
 	// Check password
 	if tempErr := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); tempErr != nil {
 		// Record failed login attempt
-		if err := s.securityService.RecordFailedLogin(ctx, user.ID, user.TenantID, "", ""); err != nil {
-			log.Printf("Failed to record failed login: %v", err)
+		if recordErr := s.securityService.RecordFailedLogin(ctx, user.ID, user.TenantID, "", ""); recordErr != nil {
+			log.Printf("Failed to record failed login: %v", recordErr)
 		}
 		return nil, sharedErrors.ErrInvalidCredentials
 	}
@@ -136,8 +136,8 @@ func (s *Service) LoginUser(ctx context.Context, email, password string) (*Login
 	}
 
 	// Reset failed login attempts on successful login
-	if err := s.securityService.ResetFailedLogins(ctx, user.ID); err != nil {
-		log.Printf("Failed to reset failed login attempts: %v", err)
+	if resetErr := s.securityService.ResetFailedLogins(ctx, user.ID); resetErr != nil {
+		log.Printf("Failed to reset failed login attempts: %v", resetErr)
 	}
 
 	// Generate tokens
@@ -162,14 +162,14 @@ func (s *Service) LoginUser(ctx context.Context, email, password string) (*Login
 		UpdatedAt: time.Now(),
 	}
 
-	if err := s.repo.CreateSession(session); err != nil {
-		return nil, err
+	if sessionErr := s.repo.CreateSession(session); sessionErr != nil {
+		return nil, sessionErr
 	}
 
 	// Update last login
 	user.LastLoginAt = &[]time.Time{time.Now()}[0]
-	if _, err := s.repo.UpdateUser(ctx, user); err != nil {
-		log.Printf("Failed to update user last login: %v", err)
+	if _, updateErr := s.repo.UpdateUser(ctx, user); updateErr != nil {
+		log.Printf("Failed to update user last login: %v", updateErr)
 	}
 
 	return &LoginResponse{
@@ -189,7 +189,7 @@ func (s *Service) RefreshToken(refreshToken string) (*TokenResponse, error) {
 	}
 
 	// Check if session exists and is active
-	session, err := s.repo.GetSessionByToken(refreshToken)
+	session, err := s.repo.GetSessionByToken(claims.TenantID, refreshToken)
 	if err != nil || !session.IsActive {
 		return nil, sharedErrors.NewUnauthorizedError("Session not found or inactive")
 	}
@@ -215,8 +215,8 @@ func (s *Service) RefreshToken(refreshToken string) (*TokenResponse, error) {
 	session.Token = newRefreshToken
 	session.ExpiresAt = time.Now().Add(7 * 24 * time.Hour)
 	session.UpdatedAt = time.Now()
-	if err := s.repo.UpdateSession(session); err != nil {
-		log.Printf("Failed to update session: %v", err)
+	if updateErr := s.repo.UpdateSession(session); updateErr != nil {
+		log.Printf("Failed to update session: %v", updateErr)
 	}
 
 	return &TokenResponse{
@@ -228,7 +228,13 @@ func (s *Service) RefreshToken(refreshToken string) (*TokenResponse, error) {
 
 // LogoutUser logs out a user by invalidating session
 func (s *Service) LogoutUser(userID uuid.UUID, refreshToken string) error {
-	session, err := s.repo.GetSessionByToken(refreshToken)
+	// Get user to access tenant ID
+	user, userErr := s.repo.GetUserByID(context.Background(), userID)
+	if userErr != nil {
+		return userErr
+	}
+
+	session, err := s.repo.GetSessionByToken(user.TenantID, refreshToken)
 	if err != nil {
 		return nil // Already logged out
 	}
@@ -280,12 +286,12 @@ func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassw
 	}
 
 	// Validate new password with security policies
-	if err := s.securityService.ValidatePassword(ctx, user.TenantID, newPassword); err != nil {
-		return err
+	if validateErr := s.securityService.ValidatePassword(ctx, user.TenantID, newPassword); validateErr != nil {
+		return validateErr
 	}
 
 	// Check password history
-	if reused, err := s.securityService.IsPasswordReused(ctx, userID, user.TenantID, newPassword); err != nil {
+	if reused, historyErr := s.securityService.IsPasswordReused(ctx, userID, user.TenantID, newPassword); historyErr != nil {
 		return errors.New("failed to check password history")
 	} else if reused {
 		return errors.New("password has been used recently, please choose a different password")
@@ -298,8 +304,8 @@ func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassw
 	}
 
 	// Save password to history
-	if err := s.securityService.SavePasswordHistory(ctx, userID, string(hashedPassword)); err != nil {
-		log.Printf("Failed to save password history: %v", err)
+	if saveErr := s.securityService.SavePasswordHistory(ctx, userID, string(hashedPassword)); saveErr != nil {
+		log.Printf("Failed to save password history: %v", saveErr)
 	}
 
 	// Update password
@@ -315,8 +321,8 @@ func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassw
 		})
 
 	// Invalidate all existing sessions
-	if err := s.repo.InvalidateUserSessions(ctx, userID); err != nil {
-		log.Printf("Failed to invalidate user sessions: %v", err)
+	if invalidateErr := s.repo.InvalidateUserSessions(ctx, user.TenantID, userID); invalidateErr != nil {
+		log.Printf("Failed to invalidate user sessions: %v", invalidateErr)
 	}
 
 	_, err = s.repo.UpdateUser(ctx, user)
@@ -527,8 +533,14 @@ func (s *Service) DeleteUser(adminUserID, targetUserID uuid.UUID) error {
 		return errors.New("cannot delete your own account")
 	}
 
+	// Get target user to access tenant ID
+	targetUser, err := s.repo.GetUserByID(context.Background(), targetUserID)
+	if err != nil {
+		return err
+	}
+
 	// Invalidate all sessions first
-	if err := s.repo.InvalidateUserSessions(context.Background(), targetUserID); err != nil {
+	if err := s.repo.InvalidateUserSessions(context.Background(), targetUser.TenantID, targetUserID); err != nil {
 		log.Printf("Failed to invalidate user sessions: %v", err)
 	}
 
@@ -550,8 +562,8 @@ func (s *Service) CheckUserPermission(userID uuid.UUID, resource, action string)
 }
 
 // CleanupExpiredSessions removes expired sessions
-func (s *Service) CleanupExpiredSessions() error {
-	return s.repo.CleanupExpiredSessions()
+func (s *Service) CleanupExpiredSessions(tenantID *uuid.UUID) error {
+	return s.repo.CleanupExpiredSessions(tenantID)
 }
 
 // sendVerificationEmail sends email verification email
@@ -586,7 +598,7 @@ func (s *Service) ForgotPassword(ctx context.Context, email string) error {
 }
 
 // SendPasswordResetEmail sends password reset email
-func (s *Service) SendPasswordResetEmail(email, token string) error {
+func (s *Service) SendPasswordResetEmail(_, _ string) error {
 	// Send password reset email (email service integration needed)
 	return nil
 }
@@ -618,8 +630,14 @@ func (s *Service) DeleteAccount(ctx context.Context, userID uuid.UUID) error {
 
 // DeleteUserAccount deletes user account
 func (s *Service) DeleteUserAccount(ctx context.Context, userID uuid.UUID) error {
+	// Get user to access tenant ID
+	user, err := s.repo.GetUserByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
 	// Invalidate all user sessions
-	if err := s.repo.InvalidateUserSessions(ctx, userID); err != nil {
+	if err := s.repo.InvalidateUserSessions(ctx, user.TenantID, userID); err != nil {
 		return err
 	}
 
@@ -642,7 +660,7 @@ func (s *Service) UpdateUserPreferences(ctx context.Context, userID uuid.UUID, p
 }
 
 // GetUserActivity gets user activity logs
-func (s *Service) GetUserActivity(userID uuid.UUID, activityType, dateFrom, dateTo string, page, limit int) ([]interface{}, int64, error) {
+func (s *Service) GetUserActivity(_ uuid.UUID, _, _, _ string, _, _ int) ([]interface{}, int64, error) {
 	// Get user activity logs (activity service integration needed)
 	return []interface{}{}, 0, nil
 }
@@ -863,20 +881,20 @@ func (s *Service) convertUsersToCSV(users []User) string {
 	return csv.String()
 }
 
-func (s *Service) sendSMS(ctx context.Context, phone, message string) error {
+func (s *Service) sendSMS(_ context.Context, _, _ string) error {
 	// Implement SMS sending logic
 	// This is a placeholder - integrate with SMS provider
 	return nil
 }
 
 // GetUserOrders gets user's orders
-func (s *Service) GetUserOrders(userID uuid.UUID, status string, page, limit int) ([]interface{}, int64, error) {
+func (s *Service) GetUserOrders(_ uuid.UUID, _ string, _, _ int) ([]interface{}, int64, error) {
 	// Get user orders (order service integration needed)
 	return []interface{}{}, 0, nil
 }
 
 // GetUserAddresses gets user's addresses
-func (s *Service) GetUserAddresses(userID uuid.UUID) ([]interface{}, error) {
+func (s *Service) GetUserAddresses(_ uuid.UUID) ([]interface{}, error) {
 	// Get user addresses (address service integration needed)
 	return []interface{}{}, nil
 }
@@ -1023,7 +1041,7 @@ func (s *Service) Disable2FA(ctx context.Context, userID uuid.UUID, password str
 		})
 
 	// Invalidate all sessions for security
-	if err := s.repo.InvalidateUserSessions(ctx, userID); err != nil {
+	if err := s.repo.InvalidateUserSessions(ctx, user.TenantID, userID); err != nil {
 		log.Printf("Failed to invalidate user sessions: %v", err)
 	}
 
@@ -1103,7 +1121,7 @@ func (s *Service) generateOTP() string {
 }
 
 // verifyOTP verifies an OTP
-func (s *Service) verifyOTP(ctx context.Context, identifier, otp, otpType string) error {
+func (s *Service) verifyOTP(_ context.Context, _, otp, _ string) error {
 	// Verify OTP (OTP service integration needed)
 	// This is a placeholder implementation
 	if otp == "" {
@@ -1113,7 +1131,7 @@ func (s *Service) verifyOTP(ctx context.Context, identifier, otp, otpType string
 }
 
 // storeOTP stores an OTP for verification
-func (s *Service) storeOTP(ctx context.Context, identifier, otp, otpType string, expiry time.Duration) error {
+func (s *Service) storeOTP(_ context.Context, _, _, _ string, _ time.Duration) error {
 	// Store OTP (OTP service integration needed)
 	// This is a placeholder implementation
 	return nil

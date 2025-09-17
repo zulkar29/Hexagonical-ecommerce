@@ -32,6 +32,8 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		auth.POST("/reset-password", h.ResetPassword)
 		auth.POST("/verify-email", h.VerifyEmail)
 		auth.POST("/resend-verification", h.ResendVerification)
+		auth.POST("/verify-phone", h.VerifyPhone)
+		auth.POST("/resend-phone-otp", h.ResendPhoneOTP)
 	}
 
 	// Protected routes (require authentication)
@@ -76,10 +78,6 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		users.POST("/bulk", h.BulkOperations)
 		users.POST("/export", h.ExportUsers)
 		users.PATCH("/account", h.ManageAccount)
-		
-		// Phone verification endpoints
-		auth.POST("/verify-phone", h.VerifyPhone)
-		auth.POST("/resend-phone-otp", h.ResendPhoneOTP)
 	}
 }
 

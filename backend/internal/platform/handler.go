@@ -199,10 +199,10 @@ func (h *Handler) GetPlatformAdmin(c *gin.Context) {
 // CreatePlatformAdmin creates a new platform administrator
 func (h *Handler) CreatePlatformAdmin(c *gin.Context) {
 	var req CreatePlatformAdminRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Invalid request body",
-			"details": err.Error(),
+			"details": bindErr.Error(),
 		})
 		return
 	}
@@ -238,10 +238,10 @@ func (h *Handler) UpdatePlatformAdmin(c *gin.Context) {
 	}
 
 	var req UpdatePlatformAdminRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Invalid request body",
-			"details": err.Error(),
+			"details": bindErr.Error(),
 		})
 		return
 	}
@@ -338,10 +338,10 @@ func (h *Handler) GetPlatformRole(c *gin.Context) {
 // CreatePlatformRole creates a new platform role
 func (h *Handler) CreatePlatformRole(c *gin.Context) {
 	var req CreatePlatformRoleRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Invalid request body",
-			"details": err.Error(),
+			"details": bindErr.Error(),
 		})
 		return
 	}
@@ -374,10 +374,10 @@ func (h *Handler) UpdatePlatformRole(c *gin.Context) {
 	}
 
 	var req UpdatePlatformRoleRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Invalid request body",
-			"details": err.Error(),
+			"details": bindErr.Error(),
 		})
 		return
 	}
@@ -447,10 +447,10 @@ func (h *Handler) GetPlatformSettings(c *gin.Context) {
 // UpdatePlatformSettings updates platform settings
 func (h *Handler) UpdatePlatformSettings(c *gin.Context) {
 	var req UpdatePlatformSettingsRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Invalid request body",
-			"details": err.Error(),
+			"details": bindErr.Error(),
 		})
 		return
 	}
@@ -484,12 +484,12 @@ func (h *Handler) ListAllTenants(c *gin.Context) {
 
 	// Parse pagination
 	if limitStr := c.Query("limit"); limitStr != "" {
-		if limit, err := strconv.Atoi(limitStr); err == nil {
+		if limit, parseErr := strconv.Atoi(limitStr); parseErr == nil {
 			req.Limit = limit
 		}
 	}
 	if offsetStr := c.Query("offset"); offsetStr != "" {
-		if offset, err := strconv.Atoi(offsetStr); err == nil {
+		if offset, parseErr := strconv.Atoi(offsetStr); parseErr == nil {
 			req.Offset = offset
 		}
 	}
@@ -556,10 +556,10 @@ func (h *Handler) UpdateTenant(c *gin.Context) {
 	}
 
 	var req UpdateTenantRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Invalid request body",
-			"details": err.Error(),
+			"details": bindErr.Error(),
 		})
 		return
 	}
@@ -611,13 +611,13 @@ func (h *Handler) GetPlatformAuditLogs(c *gin.Context) {
 
 	// Parse query parameters
 	if userIDStr := c.Query("user_id"); userIDStr != "" {
-		if userID, err := uuid.Parse(userIDStr); err == nil {
+		if userID, parseErr := uuid.Parse(userIDStr); parseErr == nil {
 			req.UserID = &userID
 		}
 	}
 
 	if tenantIDStr := c.Query("tenant_id"); tenantIDStr != "" {
-		if tenantID, err := uuid.Parse(tenantIDStr); err == nil {
+		if tenantID, parseErr := uuid.Parse(tenantIDStr); parseErr == nil {
 			req.TenantID = &tenantID
 		}
 	}
@@ -627,25 +627,25 @@ func (h *Handler) GetPlatformAuditLogs(c *gin.Context) {
 
 	// Parse date filters
 	if dateFromStr := c.Query("date_from"); dateFromStr != "" {
-		if dateFrom, err := time.Parse(time.RFC3339, dateFromStr); err == nil {
+		if dateFrom, parseErr := time.Parse(time.RFC3339, dateFromStr); parseErr == nil {
 			req.DateFrom = &dateFrom
 		}
 	}
 
 	if dateToStr := c.Query("date_to"); dateToStr != "" {
-		if dateTo, err := time.Parse(time.RFC3339, dateToStr); err == nil {
+		if dateTo, parseErr := time.Parse(time.RFC3339, dateToStr); parseErr == nil {
 			req.DateTo = &dateTo
 		}
 	}
 
 	// Parse pagination
 	if limitStr := c.Query("limit"); limitStr != "" {
-		if limit, err := strconv.Atoi(limitStr); err == nil {
+		if limit, parseErr := strconv.Atoi(limitStr); parseErr == nil {
 			req.Limit = limit
 		}
 	}
 	if offsetStr := c.Query("offset"); offsetStr != "" {
-		if offset, err := strconv.Atoi(offsetStr); err == nil {
+		if offset, parseErr := strconv.Atoi(offsetStr); parseErr == nil {
 			req.Offset = offset
 		}
 	}

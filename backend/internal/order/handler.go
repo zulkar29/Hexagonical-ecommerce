@@ -34,7 +34,7 @@ func NewHandler(service *Service) *Handler {
 // @Router /orders [post]
 func (h *Handler) CreateOrder(c *gin.Context) {
 	var order Order
-	if err := c.ShouldBindJSON(&order); err != nil {
+	if bindErr := c.ShouldBindJSON(&order); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order data"})
 		return
 	}
@@ -355,8 +355,8 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 		var req struct {
 			Reason string `json:"reason"`
 		}
-		if err := c.ShouldBindJSON(&req); err != nil {
-			log.Printf("Failed to bind cancel request JSON: %v", err)
+		if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+			log.Printf("Failed to bind cancel request JSON: %v", bindErr)
 		}
 		order, cancelErr := h.service.CancelOrder(tenantID.(uuid.UUID), orderID.String(), req.Reason)
 		if cancelErr != nil {
@@ -835,8 +835,8 @@ func (h *Handler) CreateOrderDispute(c *gin.Context) {
 	}
 
 	var req CreateDisputeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
@@ -972,8 +972,8 @@ func (h *Handler) UpdateOrderDispute(c *gin.Context) {
 	}
 
 	var req UpdateDisputeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 

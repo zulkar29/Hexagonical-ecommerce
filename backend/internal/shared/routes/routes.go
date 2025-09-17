@@ -9,7 +9,7 @@ import (
 	"ecommerce-saas/internal/analytics"
 	"ecommerce-saas/internal/billing"
 	"ecommerce-saas/internal/cart"
-
+	"ecommerce-saas/internal/category"
 	"ecommerce-saas/internal/components"
 	"ecommerce-saas/internal/contact"
 	"ecommerce-saas/internal/content"
@@ -104,9 +104,16 @@ func SetupRoutes(r *gin.Engine, cfg *RouteConfig) {
 	// Initialize shared service container to avoid duplications
 	services := NewServiceContainer(cfg)
 	
+	// Initialize observability module for middleware
+	observabilityModule := observability.NewModule(cfg.DB)
+	observabilityService := observabilityModule.GetService()
+	
 	// Global middleware
 	r.Use(gin.Recovery())
 	r.Use(middleware.LoggingMiddleware())
+	r.Use(observabilityService.ObservabilityLoggingMiddleware())
+	r.Use(observabilityService.MetricsMiddleware())
+	r.Use(observabilityService.TracingMiddleware())
 	r.Use(middleware.CORSMiddleware(
 		[]string{"*"}, // Allow all origins in development
 	))
@@ -144,49 +151,51 @@ func SetupRoutes(r *gin.Engine, cfg *RouteConfig) {
 	protected.Use(tenantIsolation.ResolveTenantWithIsolation())
 	protected.Use(tenantIsolation.ValidateTenantAccess())
 	{
-		// Setup tenant routes
+		// Core tenant management
 		setupTenantRoutes(protected, cfg)
 		
-		// Setup product routes
+		// Product catalog management
 		setupProductRoutes(protected, cfg)
+		setupCategoryRoutes(protected, cfg)
+		setupReviewsRoutes(protected, cfg)
 		
-		// Setup order routes
+		// Order and commerce flow
 		setupOrderRoutes(protected, cfg, services)
-		
-		// Setup payment routes
+		setupCartRoutes(protected, cfg, services)
 		setupPaymentRoutes(protected, cfg)
-		
-		// Setup notification routes
-		setupNotificationRoutes(protected, cfg)
-		
-		// Setup finance routes
-		setupFinanceRoutes(protected, cfg)
-		
-		// Setup returns routes
+		setupShippingRoutes(protected, cfg, services)
 		setupReturnsRoutes(protected, cfg)
 		
-		// Setup other protected routes
-		setupAddressRoutes(protected, cfg)
-		setupAdminRoutes(protected, cfg)
-		setupAnalyticsRoutes(protected, cfg, services)
-		setupBillingRoutes(protected, cfg, services)
-		setupCartRoutes(protected, cfg, services)
-		setupComponentsRoutes(protected, cfg)
-		setupContactRoutes(protected, cfg, services)
-		setupContentRoutes(protected, cfg)
+		// Customer engagement
 		setupDiscountRoutes(protected, cfg, services)
 		setupMarketingRoutes(protected, cfg)
-		setupObservabilityRoutes(protected, cfg)
-		setupPlatformRoutes(protected, cfg)
-		setupReviewsRoutes(protected, cfg)
-		setupSearchRoutes(protected, cfg)
-		setupSecurityRoutes(protected, cfg)
-		setupSettingsRoutes(protected, cfg)
-		setupShippingRoutes(protected, cfg, services)
-		setupSupportRoutes(protected, cfg)
-	
-		setupWebhookRoutes(protected, cfg)
+		setupNotificationRoutes(protected, cfg)
 		setupWishlistRoutes(protected, cfg)
+		
+		// Business operations
+		setupFinanceRoutes(protected, cfg)
+		setupBillingRoutes(protected, cfg, services)
+		setupAnalyticsRoutes(protected, cfg, services)
+		
+		// Customer service
+		setupSupportRoutes(protected, cfg)
+		setupContactRoutes(protected, cfg, services)
+		
+		// System management
+		setupAdminRoutes(protected, cfg)
+		setupSettingsRoutes(protected, cfg)
+		setupSecurityRoutes(protected, cfg)
+		setupObservabilityRoutes(protected, cfg)
+		
+		// Content and platform
+		setupContentRoutes(protected, cfg)
+		setupComponentsRoutes(protected, cfg)
+		setupPlatformRoutes(protected, cfg)
+		setupSearchRoutes(protected, cfg)
+		setupWebhookRoutes(protected, cfg)
+		
+		// Utility
+		setupAddressRoutes(protected, cfg)
 	}
 
 	// Public routes (for storefront)
@@ -197,6 +206,9 @@ func SetupRoutes(r *gin.Engine, cfg *RouteConfig) {
 	{
 		// Public product routes (no auth needed for browsing)
 		setupPublicProductRoutes(storefront, cfg)
+		
+		// Public category routes (no auth needed for browsing)
+		setupPublicCategoryRoutes(storefront, cfg)
 	}
 
 }
@@ -235,11 +247,8 @@ func setupPublicProductRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 		public.GET("/products/:id", productModule.Handler.GetPublicProduct)
 		public.GET("/products/:id/variants", productModule.Handler.GetProductVariants)
 		
-		// Public category browsing
-		public.GET("/categories", productModule.Handler.GetPublicCategories)
-		public.GET("/categories/root", productModule.Handler.GetRootCategories)
-		public.GET("/categories/:id", productModule.Handler.GetCategory)
-		public.GET("/categories/:id/children", productModule.Handler.GetCategoryChildren)
+		// Public category browsing - handled by category module
+	setupPublicCategoryRoutes(public, cfg)
 		
 		// TODO: Public order tracking (no auth required) - requires order module
 		// public.GET("/orders/track/:number", orderModule.Handler.TrackOrder)
@@ -477,7 +486,29 @@ func setupSecurityRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 func setupPlatformRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 	// Initialize platform module
 	platformModule := platform.NewModule(cfg.DB)
-	
+
+	// Create platform route group with proper prefix
+	platformGroup := v1.Group("/platform")
+
 	// Register platform routes
-	platformModule.RegisterRoutes(v1)
+	platformModule.RegisterRoutes(platformGroup)
+}
+
+func setupCategoryRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
+	categoryModule := category.NewModule(cfg.DB)
+	categoryModule.RegisterRoutes(v1)
+}
+
+func setupPublicCategoryRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
+	categoryModule := category.NewModule(cfg.DB)
+	handler := categoryModule.GetHandler()
+	
+	// Public category browsing routes
+	v1.GET("/categories", handler.ListCategories)
+	v1.GET("/categories/tree", handler.GetCategoryTree)
+	v1.GET("/categories/featured", handler.GetFeaturedCategories)
+	v1.GET("/categories/popular", handler.GetPopularCategories)
+	v1.GET("/categories/slug/:slug", handler.GetCategoryBySlug)
+	v1.GET("/categories/:id", handler.GetCategory)
+	v1.GET("/categories/:id/products", handler.GetCategoryProducts)
 }

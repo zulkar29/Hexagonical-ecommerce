@@ -6,8 +6,11 @@ import (
 	"gorm.io/gorm"
 )
 
-// Repository defines user repository interface
-type Repository interface {
+// Repository is an alias for RepositoryInterface for backward compatibility
+type Repository = RepositoryInterface
+
+// RepositoryInterface defines user repository interface
+type RepositoryInterface interface {
 	// User CRUD operations
 	CreateUser(ctx context.Context, user *User) (*User, error)
 	GetUserByID(ctx context.Context, userID uuid.UUID) (*User, error)
@@ -23,10 +26,10 @@ type Repository interface {
 
 	// Session operations
 	CreateSession(session *UserSession) error
-	GetSessionByToken(token string) (*UserSession, error)
+	GetSessionByToken(tenantID *uuid.UUID, token string) (*UserSession, error)
 	UpdateSession(session *UserSession) error
-	InvalidateUserSessions(ctx context.Context, userID uuid.UUID) error
-	CleanupExpiredSessions() error
+	InvalidateUserSessions(ctx context.Context, tenantID *uuid.UUID, userID uuid.UUID) error
+	CleanupExpiredSessions(tenantID *uuid.UUID) error
 
 	// Permission operations
 	GetUserPermissions(userID uuid.UUID) ([]*Permission, error)
@@ -177,9 +180,13 @@ func (r *repository) CreateSession(session *UserSession) error {
 	return r.db.Create(session).Error
 }
 
-func (r *repository) GetSessionByToken(token string) (*UserSession, error) {
+func (r *repository) GetSessionByToken(tenantID *uuid.UUID, token string) (*UserSession, error) {
 	var session UserSession
-	err := r.db.Where("token = ? AND is_active = true", token).First(&session).Error
+	query := r.db.Where("token = ? AND is_active = true", token)
+	if tenantID != nil {
+		query = query.Where("tenant_id = ?", *tenantID)
+	}
+	err := query.First(&session).Error
 	if err != nil {
 		return nil, err
 	}
@@ -190,15 +197,20 @@ func (r *repository) UpdateSession(session *UserSession) error {
 	return r.db.Save(session).Error
 }
 
-func (r *repository) InvalidateUserSessions(ctx context.Context, userID uuid.UUID) error {
-	return r.db.WithContext(ctx).Model(&UserSession{}).
-		Where("user_id = ?", userID).
-		Update("is_active", false).Error
+func (r *repository) InvalidateUserSessions(ctx context.Context, tenantID *uuid.UUID, userID uuid.UUID) error {
+	query := r.db.WithContext(ctx).Model(&UserSession{}).Where("user_id = ?", userID)
+	if tenantID != nil {
+		query = query.Where("tenant_id = ?", *tenantID)
+	}
+	return query.Update("is_active", false).Error
 }
 
-func (r *repository) CleanupExpiredSessions() error {
-	return r.db.Where("expires_at < NOW() OR is_active = false").
-		Delete(&UserSession{}).Error
+func (r *repository) CleanupExpiredSessions(tenantID *uuid.UUID) error {
+	query := r.db.Where("expires_at < NOW() OR is_active = false")
+	if tenantID != nil {
+		query = query.Where("tenant_id = ?", *tenantID)
+	}
+	return query.Delete(&UserSession{}).Error
 }
 
 // Permission operations

@@ -67,9 +67,10 @@ type User struct {
 
 // UserSession represents an active user session
 type UserSession struct {
-	ID        uuid.UUID `json:"id" gorm:"primarykey"`
-	UserID    uuid.UUID `json:"user_id" gorm:"not null;index"`
-	Token     string    `json:"token" gorm:"unique;not null"`
+	ID        uuid.UUID  `json:"id" gorm:"primarykey"`
+	TenantID  *uuid.UUID `json:"tenant_id,omitempty" gorm:"index"`
+	UserID    uuid.UUID  `json:"user_id" gorm:"not null;index"`
+	Token     string     `json:"token" gorm:"unique;not null"`
 	ExpiresAt time.Time `json:"expires_at" gorm:"not null"`
 	IPAddress string    `json:"ip_address,omitempty"`
 	UserAgent string    `json:"user_agent,omitempty"`

@@ -87,6 +87,7 @@ type Product struct {
 // ProductVariant represents product variations (size, color, etc.)
 type ProductVariant struct {
 	ID           uuid.UUID `json:"id" gorm:"primarykey"`
+	TenantID     uuid.UUID `json:"tenant_id" gorm:"not null;index"`
 	ProductID    uuid.UUID `json:"product_id" gorm:"not null;index"`
 	Name         string    `json:"name" gorm:"not null"` // e.g., "Size: Large, Color: Red"
 	SKU          string    `json:"sku,omitempty" gorm:"index"`

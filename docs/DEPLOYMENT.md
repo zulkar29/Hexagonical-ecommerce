@@ -234,20 +234,19 @@ sudo apt install docker-compose-plugin -y
 sudo apt install git -y
 
 # Create application directory
-sudo mkdir -p /opt/ecommerce-saas
-sudo chown $USER:$USER /opt/ecommerce-saas
-cd /opt/ecommerce-saas
+sudo mkdir -p /opt/esass
+sudo chown $USER:$USER /opt/esass
+cd /opt/esass
 ```
 
 ### 2. Clone Repository
 
 ```bash
 # Clone your repository
-git clone https://github.com/yourusername/hexagonal-ecommerce.git .
+git clone <your-repository-url> .
 
 # Make scripts executable
-chmod +x scripts/deploy.sh
-chmod +x scripts/backup.sh
+chmod +x scripts/*.sh
 ```
 
 ### 3. Environment Configuration
@@ -691,29 +690,14 @@ curl -I https://yourdomain.com
 
 ### Automated Backup Script
 
-Create `/opt/ecommerce-saas/scripts/backup.sh`:
+Use the provided backup script at `scripts/backup.sh`:
 
 ```bash
-#!/bin/bash
-BACKUP_DIR="/opt/backups"
-DATE=$(date +%Y%m%d_%H%M%S)
-COMPOSE_FILE="docker-compose.prod.yml"
+# Run manual backup
+./scripts/backup.sh
 
-mkdir -p $BACKUP_DIR
-
-# Database backup
-docker-compose -f $COMPOSE_FILE exec -T postgres pg_dump -U $POSTGRES_USER $POSTGRES_DB | gzip > $BACKUP_DIR/db_$DATE.sql.gz
-
-# Redis backup
-docker-compose -f $COMPOSE_FILE exec -T redis redis-cli --rdb - | gzip > $BACKUP_DIR/redis_$DATE.rdb.gz
-
-# Application files backup
-tar -czf $BACKUP_DIR/uploads_$DATE.tar.gz uploads/
-
-# Keep only last 7 days
-find $BACKUP_DIR -name "*.gz" -mtime +7 -delete
-
-echo "Backup completed: $DATE"
+# Check backup status
+ls -la /opt/backups/
 ```
 
 ### Recovery Process
@@ -881,6 +865,76 @@ curl https://yourdomain.com/api/v1/admin/metrics/system
 - **Admin Panel**: https://admin.yourdomain.com (SaaS management)
 - **API Documentation**: https://yourdomain.com/api/docs
 - **First Tenant**: https://demo.yourdomain.com (if created)
+
+## 🎯 **Quick Production Deployment**
+
+### **To Deploy:**
+
+1. **Copy environment template:**
+   ```bash
+   cp .env.production.example .env.production
+   ```
+
+2. **Configure your domain and credentials:**
+   ```bash
+   nano .env.production
+   ```
+
+   **Required variables:**
+   - `DOMAIN=yourdomain.com`
+   - `POSTGRES_PASSWORD=your-secure-password`
+   - `REDIS_PASSWORD=your-redis-password`
+   - `JWT_SECRET=your-256-bit-secret`
+   - `SSLCOMMERZ_STORE_ID=your-store-id`
+   - `SSLCOMMERZ_STORE_PASSWORD=your-store-password`
+
+3. **Run automated deployment:**
+
+   **Local deployment:**
+   ```bash
+   ./scripts/deploy.sh
+   ```
+
+   **Remote server deployment:**
+   ```bash
+   ./scripts/deploy.sh --remote --host YOUR_SERVER_IP --user root --password YOUR_PASSWORD
+   ```
+
+   **Available options:**
+   - `--remote`: Enable remote deployment mode
+   - `--host HOST`: Remote server IP address or hostname
+   - `--user USER`: SSH username (usually 'root' or 'ubuntu')
+   - `--password PASS`: SSH password
+   - `--path PATH`: Remote deployment path (default: /opt/esass)
+   - `--help`: Show usage information
+
+4. **Access your platform:**
+   - **Main Site**: https://yourdomain.com
+   - **Admin Panel**: https://admin.yourdomain.com
+   - **API**: https://yourdomain.com/api/v1
+
+### **Post-Deployment:**
+
+**Management Commands:**
+```bash
+# View logs
+docker-compose -f docker-compose.prod.yml logs -f
+
+# Check status
+docker-compose -f docker-compose.prod.yml ps
+
+# Stop services
+docker-compose -f docker-compose.prod.yml down
+
+# Update application
+git pull && docker-compose -f docker-compose.prod.yml build --no-cache && docker-compose -f docker-compose.prod.yml up -d
+```
+
+**Create First Tenant:**
+1. Visit https://admin.yourdomain.com
+2. Create admin account
+3. Go to "Tenants" → "Create New"
+4. Set subdomain: `demo` → Instantly creates https://demo.yourdomain.com
 
 **Next Steps:**
 1. Configure subscription plans and pricing

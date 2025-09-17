@@ -23,33 +23,38 @@ services:
 
   # Backend API Server
   backend:
-    build: 
+    build:
       context: ./backend
       dockerfile: Dockerfile.prod
     restart: unless-stopped
     container_name: ecommerce-backend
     environment:
-      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST:-postgres}:${DB_PORT:-5432}/${DB_NAME}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${DB_HOST:-postgres}:${DB_PORT:-5432}/${POSTGRES_DB}
       - DB_HOST=${DB_HOST:-postgres}
       - DB_PORT=${DB_PORT:-5432}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME}
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_NAME=${POSTGRES_DB}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRY=${JWT_EXPIRY:-24h}
-      - REDIS_URL=redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}
       - REDIS_HOST=${REDIS_HOST:-redis}
       - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
       - PORT=${PORT:-8080}
       - ENVIRONMENT=${ENVIRONMENT:-production}
+      - BASE_DOMAIN=${DOMAIN:-yourdomain.com}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
-      - LOG_LEVEL=${LOG_LEVEL:-warn}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
       - LOG_FORMAT=${LOG_FORMAT:-json}
       - SMTP_HOST=${SMTP_HOST}
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_USER=${SMTP_USER}
       - SMTP_PASSWORD=${SMTP_PASSWORD}
       - SMTP_FROM=${SMTP_FROM}
+      - SSLCOMMERZ_STORE_ID=${SSLCOMMERZ_STORE_ID}
+      - SSLCOMMERZ_STORE_PASSWORD=${SSLCOMMERZ_STORE_PASSWORD}
+      - SSLCOMMERZ_SANDBOX=${SSLCOMMERZ_SANDBOX:-false}
     depends_on:
       postgres:
         condition: service_healthy
@@ -62,14 +67,14 @@ services:
 
   # Customer Storefront (Next.js)
   storefront:
-    build: 
+    build:
       context: ./storefront
       dockerfile: Dockerfile.prod
     restart: unless-stopped
     container_name: ecommerce-storefront
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=https://${DOMAIN:-yourdomain.com}/api
+      - NEXT_PUBLIC_API_URL=https://${DOMAIN:-yourdomain.com}/api/v1
       - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
     depends_on:
       - backend
@@ -78,14 +83,14 @@ services:
 
   # Admin Panel (React + Vite)
   admin-panel:
-    build: 
+    build:
       context: ./sass-admin-panel
       dockerfile: Dockerfile.prod
     restart: unless-stopped
     container_name: ecommerce-admin
     environment:
       - NODE_ENV=production
-      - VITE_API_URL=https://${DOMAIN:-yourdomain.com}/api
+      - VITE_API_URL=https://${DOMAIN:-yourdomain.com}/api/v1
     depends_on:
       - backend
     networks:
@@ -97,13 +102,12 @@ services:
     restart: unless-stopped
     container_name: ecommerce-postgres
     environment:
-      - POSTGRES_DB=${DB_NAME}
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/migrations:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
     healthcheck:
@@ -127,7 +131,7 @@ services:
     ports:
       - "6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5

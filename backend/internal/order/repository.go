@@ -9,8 +9,11 @@ import (
 	"gorm.io/gorm"
 )
 
-// Repository defines the order repository interface
-type Repository interface {
+// Repository is an alias for RepositoryInterface for backward compatibility
+type Repository = RepositoryInterface
+
+// RepositoryInterface defines the order repository interface
+type RepositoryInterface interface {
 	// Order operations
 	CreateOrder(order *Order) (*Order, error)
 	GetOrderByID(tenantID, orderID uuid.UUID) (*Order, error)
@@ -31,7 +34,7 @@ type Repository interface {
 	// Order item operations
 	CreateOrderItem(item *OrderItem) (*OrderItem, error)
 	UpdateOrderItem(item *OrderItem) (*OrderItem, error)
-	DeleteOrderItem(orderID, itemID uuid.UUID) error
+	DeleteOrderItem(tenantID, orderID, itemID uuid.UUID) error
 
 	// Order dispute operations
 	CreateOrderDispute(dispute *OrderDispute) (*OrderDispute, error)
@@ -357,8 +360,8 @@ func (r *repository) UpdateOrderItem(item *OrderItem) (*OrderItem, error) {
 }
 
 // DeleteOrderItem removes an item from an order
-func (r *repository) DeleteOrderItem(orderID, itemID uuid.UUID) error {
-	result := r.db.Where("order_id = ? AND id = ?", orderID, itemID).Delete(&OrderItem{})
+func (r *repository) DeleteOrderItem(tenantID, orderID, itemID uuid.UUID) error {
+	result := r.db.Where("tenant_id = ? AND order_id = ? AND id = ?", tenantID, orderID, itemID).Delete(&OrderItem{})
 	if result.Error != nil {
 		return fmt.Errorf("failed to delete order item: %w", result.Error)
 	}
@@ -409,10 +412,8 @@ func (r *repository) CreateOrderHistory(history *OrderHistory) (*OrderHistory, e
 // GetOrderHistory retrieves all history entries for an order
 func (r *repository) GetOrderHistory(tenantID, orderID uuid.UUID) ([]*OrderHistory, error) {
 	var history []*OrderHistory
-	historyErr := r.db.Where("order_id = ?", orderID).
-		Joins("JOIN orders ON order_histories.order_id = orders.id").
-		Where("orders.tenant_id = ?", tenantID).
-		Order("order_histories.created_at ASC").
+	historyErr := r.db.Where("tenant_id = ? AND order_id = ?", tenantID, orderID).
+		Order("created_at ASC").
 		Find(&history).Error
 
 	if historyErr != nil {

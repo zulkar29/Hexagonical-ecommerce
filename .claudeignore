@@ -1,0 +1,214 @@
+# Claude Ignore File
+# This file tells Claude which files and directories to ignore during analysis
+
+# Node.js dependencies
+**/node_modules/
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/.npm
+**/.yarn/
+
+# Package manager lock files (analyze package.json but ignore locks)
+**/package-lock.json
+**/yarn.lock
+**/pnpm-lock.yaml
+
+# Build outputs and artifacts
+**/dist/
+**/build/
+**/out/
+**/.next/
+**/.nuxt/
+**/.output/
+**/.vercel/
+**/.netlify/
+
+# Go build artifacts
+**/bin/
+**/tmp/
+**/*.exe
+**/*.exe~
+**/*.dll
+**/*.so
+**/*.dylib
+**/main
+**/api
+
+# Test coverage and reports
+**/coverage/
+**/.nyc_output/
+**/test-results/
+**/*.cover
+**/*.out
+
+# Database files
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+**/dump.sql
+**/backup.sql
+
+# Cache directories
+**/.cache/
+**/.parcel-cache/
+**/.vite/
+**/.swc/
+**/.turbo/
+**/.eslintcache
+**/.stylelintcache
+
+# Log files
+**/*.log
+**/logs/
+**/.pnpm-debug.log*
+
+# Environment and configuration files (keep examples)
+**/.env
+**/.env.local
+**/.env.development.local
+**/.env.test.local
+**/.env.production.local
+
+# IDE and editor files
+**/.vscode/
+**/.idea/
+**/*.swp
+**/*.swo
+**/*~
+
+# Git files
+**/.git/
+**/.gitignore
+
+# Dependency directories (specific frameworks)
+**/vendor/
+**/bower_components/
+
+# Generated files
+**/generated/
+**/auto-generated/
+**/__generated__/
+**/proto/
+**/*.pb.go
+
+# Documentation build artifacts
+**/site/
+**/_site/
+**/public/
+
+# Temporary files
+**/temp/
+**/*.tmp
+**/*.temp
+**/.temporary/
+
+# OS generated files
+**/.DS_Store
+**/.DS_Store?
+**/._*
+**/.Spotlight-V100
+**/.Trashes
+**/ehthumbs.db
+**/Thumbs.db
+
+# Security and certificates
+**/*.pem
+**/*.key
+**/*.cert
+**/*.p12
+**/*.pfx
+
+# Large media files (focus on code)
+**/*.jpg
+**/*.jpeg
+**/*.png
+**/*.gif
+**/*.bmp
+**/*.tiff
+**/*.svg
+**/*.ico
+**/*.mp3
+**/*.mp4
+**/*.avi
+**/*.mov
+**/*.pdf
+**/*.zip
+**/*.tar.gz
+**/*.rar
+
+# Migration files (focus on schema, not data)
+**/migrations/**/data/
+**/seeds/
+
+# Monitoring and observability
+**/metrics/
+**/traces/
+**/.prometheus/
+
+# Docker artifacts
+**/Dockerfile*
+**/docker-compose*.yml
+**/.dockerignore
+
+# Kubernetes manifests
+**/k8s/
+**/kubernetes/
+**/*.yaml
+**/*.yml
+
+# Infrastructure as Code
+**/terraform/
+**/pulumi/
+**/cloudformation/
+
+# AI/ML model files
+**/*.model
+**/*.pkl
+**/*.h5
+**/*.pb
+
+# Mobile development
+**/android/
+**/ios/
+**/platforms/
+
+# Game development
+**/Assets/
+**/Library/
+**/ProjectSettings/
+
+# WebAssembly
+**/*.wasm
+
+# Localization files (analyze structure, not translations)
+**/locales/**/
+**/i18n/**/
+
+# Analytics and tracking
+**/analytics/
+**/tracking/
+
+# Third-party libraries (focus on your code)
+**/libs/
+**/3rdparty/
+**/third-party/
+**/external/
+
+# Backup files
+**/*.bak
+**/*.backup
+**/*.old
+**/*.orig
+
+# Archive files
+**/*.tar
+**/*.gz
+**/*.7z
+
+# Windows
+**/desktop.ini
+
+# Exclude specific file patterns that are not useful for code analysis
+**/*test.go
+**/*_test.go

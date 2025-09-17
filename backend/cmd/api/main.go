@@ -36,6 +36,6 @@ func main() {
 
 	// Start server
 	if parseErr := srv.Start(); parseErr != nil {
-		log.Fatalf("Failed to start server: %v", err)
+		log.Fatalf("Failed to start server: %v", parseErr)
 	}
 }
