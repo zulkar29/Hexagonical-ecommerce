@@ -20,6 +20,7 @@ import (
 	"ecommerce-saas/internal/observability"
 	"ecommerce-saas/internal/order"
 	"ecommerce-saas/internal/payment"
+	"ecommerce-saas/internal/platform"
 	"ecommerce-saas/internal/product"
 	"ecommerce-saas/internal/returns"
 	"ecommerce-saas/internal/reviews"
@@ -176,6 +177,7 @@ func SetupRoutes(r *gin.Engine, cfg *RouteConfig) {
 		setupDiscountRoutes(protected, cfg, services)
 		setupMarketingRoutes(protected, cfg)
 		setupObservabilityRoutes(protected, cfg)
+		setupPlatformRoutes(protected, cfg)
 		setupReviewsRoutes(protected, cfg)
 		setupSearchRoutes(protected, cfg)
 		setupSecurityRoutes(protected, cfg)
@@ -469,4 +471,13 @@ func setupSecurityRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 	
 	// Register security routes
 	securityModule.RegisterRoutes(v1)
+}
+
+// Setup platform routes
+func setupPlatformRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
+	// Initialize platform module
+	platformModule := platform.NewModule(cfg.DB)
+	
+	// Register platform routes
+	platformModule.RegisterRoutes(v1)
 }

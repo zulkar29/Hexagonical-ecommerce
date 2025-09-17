@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -682,7 +683,191 @@ func (s *Service) BulkImportUsers(ctx context.Context, adminUserID uuid.UUID, us
 	}, nil
 }
 
-// Removed ExportUsers - GDPR data export functionality not needed
+// BulkOperations handles bulk user operations
+func (s *Service) BulkOperations(ctx context.Context, adminUserID uuid.UUID, operation string, userIDs []uuid.UUID, data interface{}) (map[string]interface{}, error) {
+	// Validate admin permissions
+	if err := s.validateAdminPermissions(ctx, adminUserID); err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]interface{})
+	successCount := 0
+	errorCount := 0
+	errors := make([]string, 0)
+
+	switch operation {
+	case "activate":
+		for _, userID := range userIDs {
+			if err := s.repo.UpdateUserStatus(ctx, userID, "active"); err != nil {
+				errorCount++
+				errors = append(errors, fmt.Sprintf("Failed to activate user %s: %v", userID, err))
+			} else {
+				successCount++
+			}
+		}
+	case "deactivate":
+		for _, userID := range userIDs {
+			if err := s.repo.UpdateUserStatus(ctx, userID, "inactive"); err != nil {
+				errorCount++
+				errors = append(errors, fmt.Sprintf("Failed to deactivate user %s: %v", userID, err))
+			} else {
+				successCount++
+			}
+		}
+	case "delete":
+		for _, userID := range userIDs {
+			if err := s.repo.DeleteUser(ctx, userID); err != nil {
+				errorCount++
+				errors = append(errors, fmt.Sprintf("Failed to delete user %s: %v", userID, err))
+			} else {
+				successCount++
+			}
+		}
+	default:
+		return nil, fmt.Errorf("unsupported operation: %s", operation)
+	}
+
+	result["success_count"] = successCount
+	result["error_count"] = errorCount
+	result["errors"] = errors
+
+	// Log activity
+	s.logActivity(ctx, adminUserID, "bulk_operation", fmt.Sprintf("Operation: %s, Users: %d, Success: %d, Errors: %d", operation, len(userIDs), successCount, errorCount))
+
+	return result, nil
+}
+
+// ExportUsers handles user data export
+func (s *Service) ExportUsers(ctx context.Context, adminUserID uuid.UUID, format string, userIDs []uuid.UUID, filters interface{}) (map[string]interface{}, error) {
+	// Validate admin permissions
+	if err := s.validateAdminPermissions(ctx, adminUserID); err != nil {
+		return nil, err
+	}
+
+	// Get users based on filters or IDs
+	var users []User
+	var err error
+
+	if len(userIDs) > 0 {
+		users, err = s.repo.GetUsersByIDs(ctx, userIDs)
+	} else {
+		users, err = s.repo.GetUsersWithFilters(ctx, filters)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get users: %w", err)
+	}
+
+	result := make(map[string]interface{})
+
+	switch format {
+	case "json":
+		result["data"] = users
+		result["format"] = "json"
+	case "csv":
+		// Convert to CSV format
+		csvData := s.convertUsersToCSV(users)
+		result["data"] = csvData
+		result["format"] = "csv"
+	default:
+		return nil, fmt.Errorf("unsupported format: %s", format)
+	}
+
+	result["count"] = len(users)
+	result["exported_at"] = time.Now()
+
+	// Log activity
+	s.logActivity(ctx, adminUserID, "export_users", fmt.Sprintf("Format: %s, Count: %d", format, len(users)))
+
+	return result, nil
+}
+
+// ManageAccount handles account management operations
+func (s *Service) ManageAccount(ctx context.Context, userID uuid.UUID, action string, data interface{}) (map[string]interface{}, error) {
+	result := make(map[string]interface{})
+
+	switch action {
+	case "close":
+		// Close account
+		if err := s.repo.UpdateUserStatus(ctx, userID, "closed"); err != nil {
+			return nil, fmt.Errorf("failed to close account: %w", err)
+		}
+		result["status"] = "closed"
+	case "suspend":
+		// Suspend account
+		if err := s.repo.UpdateUserStatus(ctx, userID, "suspended"); err != nil {
+			return nil, fmt.Errorf("failed to suspend account: %w", err)
+		}
+		result["status"] = "suspended"
+	case "reactivate":
+		// Reactivate account
+		if err := s.repo.UpdateUserStatus(ctx, userID, "active"); err != nil {
+			return nil, fmt.Errorf("failed to reactivate account: %w", err)
+		}
+		result["status"] = "active"
+	default:
+		return nil, fmt.Errorf("unsupported action: %s", action)
+	}
+
+	// Log activity
+	s.logActivity(ctx, userID, "account_management", fmt.Sprintf("Action: %s", action))
+
+	return result, nil
+}
+
+// VerifyPhone handles phone number verification
+func (s *Service) VerifyPhone(ctx context.Context, phone, otp string) (map[string]interface{}, error) {
+	// Verify OTP
+	if err := s.verifyOTP(ctx, phone, otp, "phone"); err != nil {
+		return nil, fmt.Errorf("invalid OTP: %w", err)
+	}
+
+	// Update phone verification status
+	if err := s.repo.UpdatePhoneVerification(ctx, phone, true); err != nil {
+		return nil, fmt.Errorf("failed to update phone verification: %w", err)
+	}
+
+	result := map[string]interface{}{
+		"phone_verified": true,
+		"verified_at":    time.Now(),
+	}
+
+	return result, nil
+}
+
+// ResendPhoneOTP handles resending phone OTP
+func (s *Service) ResendPhoneOTP(ctx context.Context, phone string) error {
+	// Generate and send OTP
+	otp := s.generateOTP()
+	if err := s.sendSMS(ctx, phone, fmt.Sprintf("Your verification code is: %s", otp)); err != nil {
+		return fmt.Errorf("failed to send SMS: %w", err)
+	}
+
+	// Store OTP for verification
+	if err := s.storeOTP(ctx, phone, otp, "phone", 10*time.Minute); err != nil {
+		return fmt.Errorf("failed to store OTP: %w", err)
+	}
+
+	return nil
+}
+
+// Helper methods
+func (s *Service) convertUsersToCSV(users []User) string {
+	// Simple CSV conversion - in production, use proper CSV library
+	var csv strings.Builder
+	csv.WriteString("ID,Email,FirstName,LastName,Status,CreatedAt\n")
+	for _, user := range users {
+		csv.WriteString(fmt.Sprintf("%s,%s,%s,%s,%s,%s\n",
+			user.ID, user.Email, user.FirstName, user.LastName, user.Status, user.CreatedAt.Format(time.RFC3339)))
+	}
+	return csv.String()
+}
+
+func (s *Service) sendSMS(ctx context.Context, phone, message string) error {
+	// Implement SMS sending logic
+	// This is a placeholder - integrate with SMS provider
+	return nil
+}
 
 // GetUserOrders gets user's orders
 func (s *Service) GetUserOrders(userID uuid.UUID, status string, page, limit int) ([]interface{}, int64, error) {
@@ -887,4 +1072,49 @@ func (s *Service) UpdateSecuritySettings(ctx context.Context, userID uuid.UUID, 
 // GetSecurityLogs gets user security logs
 func (s *Service) GetSecurityLogs(ctx context.Context, userID uuid.UUID, limit int) ([]UserSecurityLog, error) {
 	return s.securityService.GetSecurityLogs(ctx, userID, limit)
+}
+
+// Helper methods
+
+// validateAdminPermissions validates admin permissions
+func (s *Service) validateAdminPermissions(ctx context.Context, adminUserID uuid.UUID) error {
+	admin, err := s.repo.GetUserByID(ctx, adminUserID)
+	if err != nil {
+		return err
+	}
+
+	if !admin.IsAdmin() {
+		return errors.New("insufficient permissions")
+	}
+
+	return nil
+}
+
+// logActivity logs user activity
+func (s *Service) logActivity(ctx context.Context, userID uuid.UUID, activityType, description string) {
+	// Log user activity (activity service integration needed)
+	log.Printf("User %s activity: %s - %s", userID, activityType, description)
+}
+
+// generateOTP generates a random OTP
+func (s *Service) generateOTP() string {
+	// Generate 6-digit OTP
+	return fmt.Sprintf("%06d", time.Now().UnixNano()%1000000)
+}
+
+// verifyOTP verifies an OTP
+func (s *Service) verifyOTP(ctx context.Context, identifier, otp, otpType string) error {
+	// Verify OTP (OTP service integration needed)
+	// This is a placeholder implementation
+	if otp == "" {
+		return errors.New("OTP is required")
+	}
+	return nil
+}
+
+// storeOTP stores an OTP for verification
+func (s *Service) storeOTP(ctx context.Context, identifier, otp, otpType string, expiry time.Duration) error {
+	// Store OTP (OTP service integration needed)
+	// This is a placeholder implementation
+	return nil
 }

@@ -192,11 +192,12 @@ func (m *Module) RegisterRoutes(router *gin.RouterGroup) {
 	m.Handler.RegisterRoutes(router)
 }
 
-// Migrate runs database migrations for order module
+// Migrate runs database migrations for the order module
 func (m *Module) Migrate(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&Order{},
 		&OrderItem{},
+		&OrderDispute{},
 	)
 }
 

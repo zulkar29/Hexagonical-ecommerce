@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -134,6 +135,12 @@ func (h *Handler) GetOrderByNumber(c *gin.Context) {
 // @Param customer_email query string false "Customer email filter"
 // @Param order_number query string false "Order number filter"
 // @Param search query string false "General search term"
+// @Param from_date query string false "Filter orders from date (YYYY-MM-DD)"
+// @Param to_date query string false "Filter orders to date (YYYY-MM-DD)"
+// @Param include_items query bool false "Include order items in response"
+// @Param include_customer query bool false "Include customer details in response"
+// @Param include_payments query bool false "Include payment information in response"
+// @Param include_history query bool false "Include order history/timeline in response"
 // @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Router /orders [get]
@@ -272,21 +279,47 @@ func (h *Handler) ListOrders(c *gin.Context) {
 		filter.FulfillmentStatus = &fulStatus
 	}
 
-	orders, total, err := h.service.ListOrders(tenantID.(uuid.UUID), filter, page, limit)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list orders"})
-		return
+	// Parse date range filters
+	if fromDate := c.Query("from_date"); fromDate != "" {
+		filter.FromDate = fromDate
+	}
+	if toDate := c.Query("to_date"); toDate != "" {
+		filter.ToDate = toDate
 	}
 
-	response := map[string]interface{}{
-		"orders":      orders,
-		"total":       total,
-		"page":        page,
-		"limit":       limit,
-		"total_pages": (total + int64(limit) - 1) / int64(limit),
-	}
+	// Parse include options
+	includeItems := c.Query("include_items") == "true"
+	includeCustomer := c.Query("include_customer") == "true"
+	includePayments := c.Query("include_payments") == "true"
+	includeHistory := c.Query("include_history") == "true"
 
-	c.JSON(http.StatusOK, response)
+	// Check if any include options are requested
+	if includeItems || includeCustomer || includePayments || includeHistory {
+		// Use enhanced service method with includes
+		response, err := h.service.ListOrdersWithIncludes(tenantID.(uuid.UUID), filter, page, limit, includeItems, includeCustomer, includePayments, includeHistory)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list orders"})
+			return
+		}
+		c.JSON(http.StatusOK, response)
+	} else {
+		// Use standard service method
+		orders, total, err := h.service.ListOrders(tenantID.(uuid.UUID), filter, page, limit)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list orders"})
+			return
+		}
+
+		response := map[string]interface{}{
+			"orders":      orders,
+			"total":       total,
+			"page":        page,
+			"limit":       limit,
+			"total_pages": (total + int64(limit) - 1) / int64(limit),
+		}
+
+		c.JSON(http.StatusOK, response)
+	}
 }
 
 // UpdateOrder updates an existing order or performs status operations
@@ -540,8 +573,114 @@ func (h *Handler) HandleOrderOperations(c *gin.Context) {
 		})
 		return
 
+	case "export":
+		// Handle order export
+		format := c.DefaultQuery("format", "csv")
+		if format != "csv" && format != "excel" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid format. Supported: csv, excel"})
+			return
+		}
+
+		// Parse optional filters
+		var req struct {
+			OrderIDs   []string `json:"order_ids,omitempty"`
+			DateFrom   string   `json:"date_from,omitempty"`
+			DateTo     string   `json:"date_to,omitempty"`
+			Status     string   `json:"status,omitempty"`
+			CustomerID string   `json:"customer_id,omitempty"`
+		}
+
+		if c.Request.ContentLength > 0 {
+			if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid export request data"})
+				return
+			}
+		}
+
+		// Build filters for export
+		filters := make(map[string]interface{})
+		if len(req.OrderIDs) > 0 {
+			filters["order_ids"] = req.OrderIDs
+		}
+		if req.DateFrom != "" {
+			filters["date_from"] = req.DateFrom
+		}
+		if req.DateTo != "" {
+			filters["date_to"] = req.DateTo
+		}
+		if req.Status != "" {
+			filters["status"] = req.Status
+		}
+		if req.CustomerID != "" {
+			filters["customer_id"] = req.CustomerID
+		}
+
+		// Export orders
+		fileData, filename, exportErr := h.service.ExportOrders(tenantID.(uuid.UUID), format, filters)
+		if exportErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": exportErr.Error()})
+			return
+		}
+
+		// Set appropriate headers for file download
+		contentType := "text/csv"
+		if format == "excel" {
+			contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+		}
+
+		c.Header("Content-Type", contentType)
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+		c.Data(http.StatusOK, contentType, fileData)
+		return
+
+	case "assign_fulfillment":
+		// Handle fulfillment assignment
+		var req struct {
+			OrderIDs         []string `json:"order_ids" binding:"required"`
+			FulfillmentID    string   `json:"fulfillment_id" binding:"required"`
+			WarehouseID      string   `json:"warehouse_id,omitempty"`
+			ShippingMethodID string   `json:"shipping_method_id,omitempty"`
+			Notes            string   `json:"notes,omitempty"`
+		}
+
+		if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid fulfillment assignment request data"})
+			return
+		}
+
+		// Convert string IDs to UUIDs
+		orderIDs := make([]uuid.UUID, len(req.OrderIDs))
+		for i, idStr := range req.OrderIDs {
+			id, parseErr := uuid.Parse(idStr)
+			if parseErr != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Invalid order ID: %s", idStr)})
+				return
+			}
+			orderIDs[i] = id
+		}
+
+		fulfillmentID, parseErr := uuid.Parse(req.FulfillmentID)
+		if parseErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid fulfillment ID"})
+			return
+		}
+
+		// Assign fulfillment
+		successful, failed, errors, assignErr := h.service.AssignOrderFulfillment(c.Request.Context(), tenantID.(uuid.UUID), orderIDs, fulfillmentID, req.WarehouseID, req.ShippingMethodID, req.Notes)
+		if assignErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": assignErr.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"successful": successful,
+			"failed":     failed,
+			"errors":     errors,
+		})
+		return
+
 	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid operation type"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid operation type. Supported: bulk-update, bulk-delete, import, export, assign_fulfillment"})
 	}
 }
 
@@ -623,31 +762,260 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Order deleted successfully"})
 }
 
-// TrackOrder tracks an order by ID
+// TrackOrder handles order tracking with public access support
 // @Summary Track order
-// @Description Get order tracking information
+// @Description Get order tracking information with optional timeline
 // @Tags orders
+// @Produce json
 // @Param id path string true "Order ID"
-// @Param public query bool false "Public access (no auth required)"
+// @Param include_history query bool false "Include order timeline"
 // @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 404 {object} map[string]interface{}
 // @Router /orders/{id}/tracking [get]
 func (h *Handler) TrackOrder(c *gin.Context) {
+	orderID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid order ID"})
+		return
+	}
+
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant context required"})
 		return
 	}
 
-	orderID := c.Param("id")
-	tracking, err := h.service.TrackOrder(tenantID.(uuid.UUID), orderID)
+	// Parse query parameters
+	includeHistory := c.Query("include_history") == "true"
+
+	// Get tracking information
+	tracking, err := h.service.GetOrderTracking(c.Request.Context(), tenantID.(uuid.UUID), orderID, includeHistory)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, tracking)
+}
+
+// CreateOrderDispute creates a new dispute for an order
+// @Summary Create order dispute
+// @Description Create a new dispute for an order
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param id path string true "Order ID"
+// @Param dispute body CreateDisputeRequest true "Dispute data"
+// @Success 201 {object} OrderDispute
+// @Failure 400 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /orders/{id}/disputes [post]
+func (h *Handler) CreateOrderDispute(c *gin.Context) {
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant context required"})
+		return
+	}
+
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
+	orderID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid order ID"})
+		return
+	}
+
+	var req CreateDisputeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	dispute, err := h.service.CreateOrderDispute(c.Request.Context(), tenantID.(uuid.UUID), orderID, userID.(uuid.UUID), req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, dispute)
+}
+
+// ListOrderDisputes lists all disputes with filtering
+// @Summary List order disputes
+// @Description List all order disputes with filtering options
+// @Tags orders
+// @Produce json
+// @Param status query string false "Filter by status"
+// @Param customer_id query string false "Filter by customer ID"
+// @Param order_id query string false "Filter by order ID"
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Router /orders/disputes [get]
+func (h *Handler) ListOrderDisputes(c *gin.Context) {
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant context required"})
+		return
+	}
+
+	filter := DisputeFilter{}
+
+	// Parse query parameters
+	if status := c.Query("status"); status != "" {
+		filter.Status = status
+	}
+
+	if customerIDStr := c.Query("customer_id"); customerIDStr != "" {
+		if customerID, err := uuid.Parse(customerIDStr); err == nil {
+			filter.CustomerID = customerID
+		}
+	}
+
+	if orderIDStr := c.Query("order_id"); orderIDStr != "" {
+		if orderID, err := uuid.Parse(orderIDStr); err == nil {
+			filter.OrderID = orderID
+		}
+	}
+
+	if pageStr := c.Query("page"); pageStr != "" {
+		if page, err := strconv.Atoi(pageStr); err == nil && page > 0 {
+			filter.Page = page
+		}
+	}
+
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 {
+			filter.Limit = limit
+		}
+	}
+
+	disputes, total, err := h.service.ListOrderDisputes(c.Request.Context(), tenantID.(uuid.UUID), filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"disputes": disputes,
+		"total":    total,
+		"page":     filter.Page,
+		"limit":    filter.Limit,
+	})
+}
+
+// GetOrderDispute retrieves a specific dispute
+// @Summary Get order dispute
+// @Description Get details of a specific order dispute
+// @Tags orders
+// @Produce json
+// @Param id path string true "Dispute ID"
+// @Success 200 {object} OrderDispute
+// @Failure 400 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /orders/disputes/{id} [get]
+func (h *Handler) GetOrderDispute(c *gin.Context) {
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant context required"})
+		return
+	}
+
+	disputeID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid dispute ID"})
+		return
+	}
+
+	dispute, err := h.service.GetOrderDispute(c.Request.Context(), tenantID.(uuid.UUID), disputeID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, tracking)
+	c.JSON(http.StatusOK, dispute)
+}
+
+// UpdateOrderDispute updates a dispute
+// @Summary Update order dispute
+// @Description Update an order dispute (resolve, escalate, close, add evidence)
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param id path string true "Dispute ID"
+// @Param update body UpdateDisputeRequest true "Update data"
+// @Success 200 {object} OrderDispute
+// @Failure 400 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /orders/disputes/{id} [patch]
+func (h *Handler) UpdateOrderDispute(c *gin.Context) {
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant context required"})
+		return
+	}
+
+	disputeID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid dispute ID"})
+		return
+	}
+
+	var req UpdateDisputeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	dispute, err := h.service.UpdateOrderDispute(c.Request.Context(), tenantID.(uuid.UUID), disputeID, req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, dispute)
+}
+
+// LookupOrder handles order lookup by order number
+func (h *Handler) LookupOrder(c *gin.Context) {
+	orderNumber := c.Param("number")
+	if orderNumber == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Order number is required"})
+		return
+	}
+
+	// Get tenant ID from context
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant context required"})
+		return
+	}
+
+	// Parse query parameters
+	includeItems := c.Query("include_items") == "true"
+
+	// Lookup order
+	order, err := h.service.LookupOrder(c.Request.Context(), tenantID.(uuid.UUID), orderNumber, includeItems)
+	if err != nil {
+		if err.Error() == "order not found" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, order)
 }
 
 // RegisterRoutes registers all order routes
@@ -669,8 +1037,14 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		orders.DELETE("/:id", h.DeleteOrder) // Added missing DELETE endpoint
 
 		// Order lookup and tracking
-		orders.GET("/lookup/:number", h.GetOrderByNumber) // Changed from /number/ to /lookup/ to match API spec
-		orders.GET("/:id/tracking", h.TrackOrder)         // Added missing tracking endpoint
+		orders.GET("/lookup/:number", h.LookupOrder) // Order lookup by number with public access support
+		orders.GET("/:id/tracking", h.TrackOrder)    // Added missing tracking endpoint
+
+		// Order disputes
+		orders.POST("/:id/disputes", h.CreateOrderDispute) // Create dispute for specific order
+		orders.GET("/disputes", h.ListOrderDisputes)       // List all disputes
+		orders.GET("/disputes/:id", h.GetOrderDispute)     // Get specific dispute
+		orders.PATCH("/disputes/:id", h.UpdateOrderDispute) // Update dispute
 	}
 }
 

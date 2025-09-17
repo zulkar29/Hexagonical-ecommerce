@@ -16,6 +16,10 @@ type Repository interface {
 	DeleteUser(ctx context.Context, userID uuid.UUID) error
 	ListUsers(ctx context.Context, tenantID *uuid.UUID, filter UserFilter, offset, limit int) ([]*User, int64, error)
 	UpdateUserByAdmin(ctx context.Context, userID uuid.UUID, updates map[string]interface{}) (*User, error)
+	GetUsersByIDs(ctx context.Context, userIDs []uuid.UUID) ([]User, error)
+	GetUsersWithFilters(ctx context.Context, filters interface{}) ([]User, error)
+	UpdateUserStatus(ctx context.Context, userID uuid.UUID, status string) error
+	UpdatePhoneVerification(ctx context.Context, phone string, verified bool) error
 
 	// Session operations
 	CreateSession(session *UserSession) error
@@ -45,9 +49,25 @@ func NewRepository(db *gorm.DB) Repository {
 
 // User CRUD operations
 
+func (r *repository) CreateUser(ctx context.Context, user *User) (*User, error) {
+	if err := r.db.WithContext(ctx).Create(user).Error; err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
 func (r *repository) GetUserByID(ctx context.Context, userID uuid.UUID) (*User, error) {
 	var user User
 	err := r.db.WithContext(ctx).Where("id = ?", userID).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *repository) GetUserByEmail(ctx context.Context, email string) (*User, error) {
+	var user User
+	err := r.db.WithContext(ctx).Where("email = ?", email).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
@@ -59,6 +79,10 @@ func (r *repository) UpdateUser(ctx context.Context, user *User) (*User, error) 
 		return nil, err
 	}
 	return user, nil
+}
+
+func (r *repository) DeleteUser(ctx context.Context, userID uuid.UUID) error {
+	return r.db.WithContext(ctx).Delete(&User{}, userID).Error
 }
 
 func (r *repository) ListUsers(ctx context.Context, tenantID *uuid.UUID, filter UserFilter, offset, limit int) ([]*User, int64, error) {
@@ -98,6 +122,55 @@ func (r *repository) ListUsers(ctx context.Context, tenantID *uuid.UUID, filter 
 	return users, total, err
 }
 
+func (r *repository) UpdateUserByAdmin(ctx context.Context, userID uuid.UUID, updates map[string]interface{}) (*User, error) {
+	if err := r.db.WithContext(ctx).Model(&User{}).Where("id = ?", userID).Updates(updates).Error; err != nil {
+		return nil, err
+	}
+	
+	var user User
+	if err := r.db.WithContext(ctx).Where("id = ?", userID).First(&user).Error; err != nil {
+		return nil, err
+	}
+	
+	return &user, nil
+}
+
+func (r *repository) GetUsersByIDs(ctx context.Context, userIDs []uuid.UUID) ([]User, error) {
+	var users []User
+	err := r.db.WithContext(ctx).Where("id IN ?", userIDs).Find(&users).Error
+	return users, err
+}
+
+func (r *repository) GetUsersWithFilters(ctx context.Context, filters interface{}) ([]User, error) {
+	var users []User
+	query := r.db.WithContext(ctx)
+	
+	// Apply filters based on the filters interface
+	if filterMap, ok := filters.(map[string]interface{}); ok {
+		for key, value := range filterMap {
+			switch key {
+			case "status":
+				query = query.Where("status = ?", value)
+			case "created_after":
+				query = query.Where("created_at > ?", value)
+			case "created_before":
+				query = query.Where("created_at < ?", value)
+			}
+		}
+	}
+	
+	err := query.Find(&users).Error
+	return users, err
+}
+
+func (r *repository) UpdateUserStatus(ctx context.Context, userID uuid.UUID, status string) error {
+	return r.db.WithContext(ctx).Model(&User{}).Where("id = ?", userID).Update("status", status).Error
+}
+
+func (r *repository) UpdatePhoneVerification(ctx context.Context, phone string, verified bool) error {
+	return r.db.WithContext(ctx).Model(&User{}).Where("phone = ?", phone).Update("phone_verified", verified).Error
+}
+
 // Session operations
 
 func (r *repository) CreateSession(session *UserSession) error {
@@ -117,7 +190,11 @@ func (r *repository) UpdateSession(session *UserSession) error {
 	return r.db.Save(session).Error
 }
 
-// Removed duplicate method - using context-aware version below
+func (r *repository) InvalidateUserSessions(ctx context.Context, userID uuid.UUID) error {
+	return r.db.WithContext(ctx).Model(&UserSession{}).
+		Where("user_id = ?", userID).
+		Update("is_active", false).Error
+}
 
 func (r *repository) CleanupExpiredSessions() error {
 	return r.db.Where("expires_at < NOW() OR is_active = false").
@@ -163,51 +240,8 @@ func (r *repository) CheckUserPermission(userID uuid.UUID, resource, action stri
 	return count > 0, err
 }
 
-// CreateUser creates a new user
-func (r *repository) CreateUser(ctx context.Context, user *User) (*User, error) {
-	if err := r.db.WithContext(ctx).Create(user).Error; err != nil {
-		return nil, err
-	}
-	return user, nil
-}
-
-// GetUserByEmail retrieves a user by email
-func (r *repository) GetUserByEmail(ctx context.Context, email string) (*User, error) {
-	var user User
-	err := r.db.WithContext(ctx).Where("email = ?", email).First(&user).Error
-	if err != nil {
-		return nil, err
-	}
-	return &user, nil
-}
-
-func (r *repository) DeleteUser(ctx context.Context, userID uuid.UUID) error {
-	return r.db.WithContext(ctx).Delete(&User{}, userID).Error
-}
-
-func (r *repository) UpdateUserByAdmin(ctx context.Context, userID uuid.UUID, updates map[string]interface{}) (*User, error) {
-	if err := r.db.WithContext(ctx).Model(&User{}).Where("id = ?", userID).Updates(updates).Error; err != nil {
-		return nil, err
-	}
-	
-	var user User
-	if err := r.db.WithContext(ctx).Where("id = ?", userID).First(&user).Error; err != nil {
-		return nil, err
-	}
-	
-	return &user, nil
-}
-
-// Removed GetUsersForExport - GDPR data export functionality not needed
-
-// Context-aware session invalidation
-func (r *repository) InvalidateUserSessions(ctx context.Context, userID uuid.UUID) error {
-	return r.db.WithContext(ctx).Model(&UserSession{}).
-		Where("user_id = ?", userID).
-		Update("is_active", false).Error
-}
-
 // Preferences operations
+
 func (r *repository) GetUserPreferences(ctx context.Context, userID uuid.UUID) (map[string]interface{}, error) {
 	var user User
 	if err := r.db.WithContext(ctx).Select("preferences").Where("id = ?", userID).First(&user).Error; err != nil {

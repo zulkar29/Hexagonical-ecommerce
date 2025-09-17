@@ -184,6 +184,135 @@ func (s *Service) CreateOrder(ctx context.Context, tenantID uuid.UUID, order *Or
 	return order, nil
 }
 
+// GetOrderTracking retrieves order tracking information with public access support
+func (s *Service) GetOrderTracking(ctx context.Context, tenantID uuid.UUID, orderID uuid.UUID, includeHistory bool) (map[string]interface{}, error) {
+	// Get order to validate it exists
+	order, err := s.repository.GetOrderByID(tenantID, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get order for tracking: %w", err)
+	}
+
+	// Build tracking response
+	tracking := map[string]interface{}{
+		"order_id":           order.ID,
+		"order_number":       order.OrderNumber,
+		"status":             order.Status,
+		"fulfillment_status": order.FulfillmentStatus,
+		"payment_status":     order.PaymentStatus,
+		"created_at":         order.CreatedAt,
+		"updated_at":         order.UpdatedAt,
+	}
+
+	// Add shipping information if available
+	tracking["shipping_address"] = order.ShippingAddress
+
+	// Add tracking number if available
+	if order.TrackingNumber != "" {
+		tracking["tracking_number"] = order.TrackingNumber
+	}
+
+	// Add tracking URL if available
+	if order.TrackingURL != "" {
+		tracking["tracking_url"] = order.TrackingURL
+	}
+
+	// Add estimated delivery if available (based on shipped date + estimated days)
+	if order.ShippedAt != nil {
+		// Estimate 3-5 business days for delivery
+		estimatedDelivery := order.ShippedAt.AddDate(0, 0, 5)
+		tracking["estimated_delivery"] = estimatedDelivery
+	}
+
+	// Include order history/timeline if requested
+	if includeHistory {
+		history, err := s.repository.GetOrderTimeline(tenantID, orderID)
+		if err != nil {
+			// Don't fail the request if history can't be retrieved
+			log.Printf("Failed to get order timeline: %v", err)
+		} else {
+			tracking["timeline"] = history
+		}
+	}
+
+	return tracking, nil
+}
+
+// ListOrdersWithIncludes retrieves orders with optional related data inclusion
+func (s *Service) ListOrdersWithIncludes(tenantID uuid.UUID, filter OrderFilter, page, limit int, includeItems, includeCustomer, includePayments, includeHistory bool) (map[string]interface{}, error) {
+	offset := (page - 1) * limit
+	orders, total, err := s.repository.ListOrders(tenantID, filter, offset, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list orders: %w", err)
+	}
+
+	// Process orders based on include options
+	processedOrders := make([]map[string]interface{}, len(orders))
+	for i, order := range orders {
+		orderData := map[string]interface{}{
+			"id":                 order.ID,
+			"order_number":       order.OrderNumber,
+			"status":             order.Status,
+			"payment_status":     order.PaymentStatus,
+			"fulfillment_status": order.FulfillmentStatus,
+			"total_amount":       order.TotalAmount,
+			"currency":           order.Currency,
+			"customer_email":     order.CustomerEmail,
+			"created_at":         order.CreatedAt,
+			"updated_at":         order.UpdatedAt,
+		}
+
+		// Include items if requested
+		if includeItems {
+			orderData["items"] = order.Items
+		}
+
+		// Include customer details if requested
+		if includeCustomer {
+			customerData := map[string]interface{}{
+				"email":      order.CustomerEmail,
+				"first_name": order.ShippingFirstName,
+				"last_name":  order.ShippingLastName,
+				"phone":      order.ShippingPhone,
+			}
+			customerData["shipping_address"] = order.ShippingAddress
+			customerData["billing_address"] = order.BillingAddress
+			orderData["customer"] = customerData
+		}
+
+		// Include payment information if requested
+		if includePayments {
+			paymentData := map[string]interface{}{
+				"status":         order.PaymentStatus,
+				"method":         order.PaymentMethod,
+				"total_amount":   order.TotalAmount,
+				"currency":       order.Currency,
+				"tax_amount":     order.TaxAmount,
+				"shipping_amount": order.ShippingAmount,
+				"discount_amount": order.DiscountAmount,
+			}
+			orderData["payment"] = paymentData
+		}
+
+		// Include order history if requested
+		if includeHistory {
+			history, histErr := s.repository.GetOrderTimeline(tenantID, order.ID)
+			if histErr == nil {
+				orderData["history"] = history
+			}
+		}
+
+		processedOrders[i] = orderData
+	}
+
+	return map[string]interface{}{
+		"orders":      processedOrders,
+		"total":       total,
+		"page":        page,
+		"limit":       limit,
+		"total_pages": (total + int64(limit) - 1) / int64(limit),
+	}, nil
+}
+
 // GetOrder retrieves an order by ID
 func (s *Service) GetOrder(tenantID uuid.UUID, orderID string) (*Order, error) {
 	id, err := uuid.Parse(orderID)
@@ -632,6 +761,8 @@ func (s *Service) exportOrdersToCSV(orders []Order) ([]byte, string, error) {
 	filename := fmt.Sprintf("orders_export_%s.csv", time.Now().Format("20060102_150405"))
 	return buf.Bytes(), filename, nil
 }
+
+
 
 // exportOrdersToExcel exports orders to Excel format
 func (s *Service) exportOrdersToExcel(orders []Order) ([]byte, string, error) {
@@ -1259,4 +1390,220 @@ func (s *Service) BulkDeleteOrders(ctx context.Context, tenantID uuid.UUID, orde
 	}
 	
 	return successfulDeletes, failedDeletes, errors, nil
+}
+
+// CreateOrderDispute creates a new dispute for an order
+func (s *Service) CreateOrderDispute(ctx context.Context, tenantID, orderID, customerID uuid.UUID, req CreateDisputeRequest) (*OrderDispute, error) {
+	// Verify order exists and belongs to customer
+	order, err := s.repository.GetOrderByID(tenantID, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("order not found: %w", err)
+	}
+
+	if order.UserID != customerID {
+		return nil, fmt.Errorf("order does not belong to customer")
+	}
+
+	// Check if order can have disputes (e.g., must be completed or shipped)
+	if order.Status != StatusCompleted && order.Status != StatusShipped {
+		return nil, fmt.Errorf("disputes can only be created for completed or shipped orders")
+	}
+
+	dispute := &OrderDispute{
+		ID:          uuid.New(),
+		TenantID:    tenantID,
+		OrderID:     orderID,
+		CustomerID:  customerID,
+		Reason:      req.Reason,
+		Description: req.Description,
+		Status:      "pending",
+		Evidence:    req.Evidence,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	createdDispute, err := s.repository.CreateOrderDispute(dispute)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create dispute: %w", err)
+	}
+
+	// Add order history entry
+	history := &OrderHistory{
+		ID:          uuid.New(),
+		OrderID:     orderID,
+		TenantID:    tenantID,
+		Action:      "dispute_created",
+		Description: fmt.Sprintf("Dispute created: %s", req.Reason),
+		ChangedBy:   &customerID,
+		ChangedByType: "customer",
+	}
+	if _, err := s.repository.CreateOrderHistory(history); err != nil {
+		log.Printf("Failed to create order history for dispute creation: %v", err)
+	}
+
+	return createdDispute, nil
+}
+
+// GetOrderDispute retrieves a dispute by ID
+func (s *Service) GetOrderDispute(ctx context.Context, tenantID, disputeID uuid.UUID) (*OrderDispute, error) {
+	return s.repository.GetOrderDispute(tenantID, disputeID)
+}
+
+// ListOrderDisputes retrieves disputes with filtering
+func (s *Service) ListOrderDisputes(ctx context.Context, tenantID uuid.UUID, filter DisputeFilter) ([]*OrderDispute, int64, error) {
+	return s.repository.ListOrderDisputes(tenantID, filter)
+}
+
+// UpdateOrderDispute updates a dispute based on action
+func (s *Service) UpdateOrderDispute(ctx context.Context, tenantID, disputeID uuid.UUID, req UpdateDisputeRequest) (*OrderDispute, error) {
+	dispute, err := s.repository.GetOrderDispute(tenantID, disputeID)
+	if err != nil {
+		return nil, fmt.Errorf("dispute not found: %w", err)
+	}
+
+	switch req.Action {
+	case "resolve":
+		dispute.Status = "resolved"
+		dispute.Resolution = req.Resolution
+		now := time.Now()
+		dispute.ResolvedAt = &now
+		dispute.UpdatedAt = now
+	case "escalate":
+		dispute.Status = "escalated"
+		dispute.UpdatedAt = time.Now()
+	case "close":
+		dispute.Status = "closed"
+		dispute.UpdatedAt = time.Now()
+	case "add_evidence":
+		if req.Evidence != nil {
+			if dispute.Evidence == nil {
+				dispute.Evidence = make(map[string]interface{})
+			}
+			for k, v := range req.Evidence {
+				dispute.Evidence[k] = v
+			}
+			dispute.UpdatedAt = time.Now()
+		}
+	default:
+		return nil, fmt.Errorf("invalid action: %s", req.Action)
+	}
+
+	updatedDispute, err := s.repository.UpdateOrderDispute(dispute)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update dispute: %w", err)
+	}
+
+	// Add order history entry
+	history := &OrderHistory{
+		ID:          uuid.New(),
+		OrderID:     dispute.OrderID,
+		TenantID:    dispute.TenantID,
+		Action:      fmt.Sprintf("dispute_%s", req.Action),
+		Description: fmt.Sprintf("Dispute %s", req.Action),
+		ChangedBy:   nil, // Could be admin or system
+		ChangedByType: "admin",
+	}
+	if _, err := s.repository.CreateOrderHistory(history); err != nil {
+		log.Printf("Failed to create order history for dispute update: %v", err)
+	}
+
+	return updatedDispute, nil
+}
+
+
+
+// AssignOrderFulfillment assigns fulfillment to multiple orders
+func (s *Service) AssignOrderFulfillment(ctx context.Context, tenantID uuid.UUID, orderIDs []uuid.UUID, fulfillmentID uuid.UUID, warehouseID, shippingMethodID, notes string) (int, int, []string, error) {
+	if len(orderIDs) == 0 {
+		return 0, 0, nil, fmt.Errorf("no order IDs provided")
+	}
+
+	var successful, failed int
+	var errors []string
+
+	// Process each order
+	for _, orderID := range orderIDs {
+		// Get order to validate it exists and belongs to tenant
+		order, err := s.repository.GetOrderByID(tenantID, orderID)
+		if err != nil {
+			failed++
+			errors = append(errors, fmt.Sprintf("Order %s: %v", orderID, err))
+			continue
+		}
+
+		// Check if order can be assigned fulfillment (must be confirmed or processing)
+		if order.Status != OrderStatusConfirmed && order.Status != OrderStatusProcessing {
+			failed++
+			errors = append(errors, fmt.Sprintf("Order %s: cannot assign fulfillment to order in status %s", orderID, order.Status))
+			continue
+		}
+
+		// Update order with fulfillment information
+		updateData := map[string]interface{}{
+			"fulfillment_id": fulfillmentID,
+			"status":         OrderStatusProcessing,
+			"updated_at":     time.Now(),
+		}
+
+		if warehouseID != "" {
+			if warehouseUUID, parseErr := uuid.Parse(warehouseID); parseErr == nil {
+				updateData["warehouse_id"] = warehouseUUID
+			}
+		}
+
+		if shippingMethodID != "" {
+			if shippingUUID, parseErr := uuid.Parse(shippingMethodID); parseErr == nil {
+				updateData["shipping_method_id"] = shippingUUID
+			}
+		}
+
+		if notes != "" {
+			updateData["fulfillment_notes"] = notes
+		}
+
+		// Update order in database
+		if err := s.repository.UpdateOrderFields(tenantID, orderID, updateData); err != nil {
+			failed++
+			errors = append(errors, fmt.Sprintf("Order %s: failed to assign fulfillment: %v", orderID, err))
+			continue
+		}
+
+		// Add history entry
+		history := &OrderHistory{
+			ID:          uuid.New(),
+			OrderID:     orderID,
+			TenantID:    tenantID,
+			Action:      "fulfillment_assigned",
+			Description: fmt.Sprintf("Fulfillment assigned: %s", fulfillmentID),
+			ChangedBy:   nil, // Could be admin or system
+			ChangedByType: "admin",
+		}
+		if _, err := s.repository.CreateOrderHistory(history); err != nil {
+			log.Printf("Failed to create order history for fulfillment assignment: %v", err)
+		}
+
+		successful++
+	}
+
+	return successful, failed, errors, nil
+}
+
+// LookupOrder retrieves order by order number with public access support
+func (s *Service) LookupOrder(ctx context.Context, tenantID uuid.UUID, orderNumber string, includeItems bool) (*Order, error) {
+	if orderNumber == "" {
+		return nil, fmt.Errorf("order number is required")
+	}
+
+	// Get order by number
+	order, err := s.repository.GetOrderByNumber(tenantID, orderNumber)
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup order: %w", err)
+	}
+
+	// If items are not requested, clear them to reduce response size
+	if !includeItems {
+		order.Items = nil
+	}
+
+	return order, nil
 }

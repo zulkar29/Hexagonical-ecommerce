@@ -71,6 +71,15 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		// User related data
 		users.GET("/:id/orders", h.GetUserOrders)
 		users.GET("/:id/addresses", h.GetUserAddresses)
+		
+		// Missing endpoints from documentation
+		users.POST("/bulk", h.BulkOperations)
+		users.POST("/export", h.ExportUsers)
+		users.PATCH("/account", h.ManageAccount)
+		
+		// Phone verification endpoints
+		auth.POST("/verify-phone", h.VerifyPhone)
+		auth.POST("/resend-phone-otp", h.ResendPhoneOTP)
 	}
 }
 
@@ -575,7 +584,143 @@ func (h *Handler) BulkImportUsers(c *gin.Context) {
 	})
 }
 
-// Removed ExportUsers - GDPR data export functionality not needed
+// BulkOperations handles bulk user operations (admin only)
+func (h *Handler) BulkOperations(c *gin.Context) {
+	adminUserID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var req struct {
+		Operation string      `json:"operation" binding:"required"`
+		UserIDs   []uuid.UUID `json:"user_ids" binding:"required"`
+		Data      interface{} `json:"data,omitempty"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	result, err := h.service.BulkOperations(c.Request.Context(), adminUserID.(uuid.UUID), req.Operation, req.UserIDs, req.Data)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Bulk operation completed",
+		"result":  result,
+	})
+}
+
+// ExportUsers handles user data export (admin only)
+func (h *Handler) ExportUsers(c *gin.Context) {
+	adminUserID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var req struct {
+		Format  string      `json:"format" binding:"required"`
+		UserIDs []uuid.UUID `json:"user_ids,omitempty"`
+		Filters interface{} `json:"filters,omitempty"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	result, err := h.service.ExportUsers(c.Request.Context(), adminUserID.(uuid.UUID), req.Format, req.UserIDs, req.Filters)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Export completed",
+		"result":  result,
+	})
+}
+
+// ManageAccount handles account management operations
+func (h *Handler) ManageAccount(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var req struct {
+		Action string      `json:"action" binding:"required"`
+		Data   interface{} `json:"data,omitempty"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	result, err := h.service.ManageAccount(c.Request.Context(), userID.(uuid.UUID), req.Action, req.Data)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Account operation completed",
+		"result":  result,
+	})
+}
+
+// VerifyPhone handles phone number verification
+func (h *Handler) VerifyPhone(c *gin.Context) {
+	var req struct {
+		Phone string `json:"phone" binding:"required"`
+		OTP   string `json:"otp" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	result, err := h.service.VerifyPhone(c.Request.Context(), req.Phone, req.OTP)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Phone verified successfully",
+		"result":  result,
+	})
+}
+
+// ResendPhoneOTP handles resending phone OTP
+func (h *Handler) ResendPhoneOTP(c *gin.Context) {
+	var req struct {
+		Phone string `json:"phone" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := h.service.ResendPhoneOTP(c.Request.Context(), req.Phone)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "OTP sent successfully",
+	})
+}
 
 // GetUserOrders gets user's orders (admin only)
 func (h *Handler) GetUserOrders(c *gin.Context) {

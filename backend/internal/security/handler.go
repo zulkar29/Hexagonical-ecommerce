@@ -78,6 +78,24 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		analytics.GET("/report", h.GetSecurityReport)         // GetSecurityReport
 		analytics.GET("/risk-score/:user_id", h.GetRiskScore) // GetRiskScore
 	}
+
+	// 🔐 AUDIT LOG ENDPOINTS
+	audit := router.Group("/audit")
+	{
+		audit.GET("/logs", h.GetAuditLogs)                    // Get audit logs
+		audit.POST("/logs", h.CreateAuditLog)                 // Create audit log
+		audit.GET("/logs/:log_id", h.GetAuditLogDetails)      // Get audit log details
+		audit.POST("/logs/export", h.ExportAuditLogs)         // Export audit logs
+	}
+
+	// 🔐 FRAUD DETECTION ENDPOINTS
+	fraud := router.Group("/fraud")
+	{
+		fraud.POST("/detect", h.DetectFraud)                  // Detect fraud
+		fraud.GET("/alerts", h.GetFraudAlerts)               // Get fraud alerts
+		fraud.PUT("/alerts/:alert_id", h.UpdateFraudAlert)   // Update fraud alert
+		fraud.GET("/patterns", h.GetFraudPatterns)           // Get fraud patterns
+	}
 }
 
 // Password Management Handlers
@@ -101,7 +119,7 @@ func (h *Handler) ValidatePassword(c *gin.Context) {
 		return
 	}
 
-	result, err := h.service.ValidatePassword(ctx, req.Password, req.UserID, tenantID)
+	result, err := h.service.ValidatePassword(ctx, req.Password, req.UserID, &tenantID)
 	if err != nil {
 		h.handleServiceError(c, err)
 		return
@@ -467,7 +485,7 @@ func (h *Handler) GetSecurityDashboard(c *gin.Context) {
 		return
 	}
 
-	dashboard, err := h.service.GetSecurityDashboard(ctx, tenantID, period)
+	dashboard, err := h.service.GetSecurityDashboard(ctx, &tenantID, period)
 	if err != nil {
 		h.handleServiceError(c, err)
 		return
@@ -503,26 +521,26 @@ func (h *Handler) GetRiskScore(c *gin.Context) {
 // Helper methods
 
 // getTenantID extracts tenant ID from context or headers
-func (h *Handler) getTenantID(c *gin.Context) (*uuid.UUID, error) {
+func (h *Handler) getTenantID(c *gin.Context) (uuid.UUID, error) {
 	// Try to get from context first (set by middleware)
 	if tenantID, exists := c.Get("tenant_id"); exists {
 		if id, ok := tenantID.(uuid.UUID); ok {
-			return &id, nil
+			return id, nil
 		}
 	}
 
 	// Try to get from header
 	tenantIDStr := c.GetHeader("X-Tenant-ID")
 	if tenantIDStr == "" {
-		return nil, nil // Optional tenant ID
+		return uuid.Nil, nil // Return nil UUID for optional tenant ID
 	}
 
 	tenantID, err := uuid.Parse(tenantIDStr)
 	if err != nil {
-		return nil, err
+		return uuid.Nil, err
 	}
 
-	return &tenantID, nil
+	return tenantID, nil
 }
 
 // getUUIDParam extracts UUID parameter from URL
@@ -535,4 +553,218 @@ func (h *Handler) getUUIDParam(c *gin.Context, param string) (uuid.UUID, error) 
 func (h *Handler) handleServiceError(c *gin.Context, err error) {
 	// TODO: Implement proper error handling based on error types
 	c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+}
+
+// Audit Log Handlers
+
+// GetAuditLogs gets audit logs
+func (h *Handler) GetAuditLogs(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+		return
+	}
+
+	// Parse query parameters
+	userID := c.Query("user_id")
+	action := c.Query("action")
+	resource := c.Query("resource")
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+	page := c.DefaultQuery("page", "1")
+	limit := c.DefaultQuery("limit", "50")
+
+	logs, total, err := h.service.GetAuditLogs(ctx, tenantID, userID, action, resource, startDate, endDate, page, limit)
+	if err != nil {
+		h.handleServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"logs":  logs,
+		"total": total,
+		"page":  page,
+		"limit": limit,
+	})
+}
+
+// CreateAuditLog creates an audit log
+func (h *Handler) CreateAuditLog(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	var req struct {
+		UserID     uuid.UUID   `json:"user_id" binding:"required"`
+		Action     string      `json:"action" binding:"required"`
+		Resource   string      `json:"resource" binding:"required"`
+		ResourceID *uuid.UUID  `json:"resource_id,omitempty"`
+		Details    interface{} `json:"details,omitempty"`
+		IPAddress  string      `json:"ip_address,omitempty"`
+		UserAgent  string      `json:"user_agent,omitempty"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+		return
+	}
+
+	log, err := h.service.CreateAuditLog(ctx, &req)
+	if err != nil {
+		h.handleServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, log)
+}
+
+// GetAuditLogDetails gets audit log details
+func (h *Handler) GetAuditLogDetails(c *gin.Context) {
+	ctx := c.Request.Context()
+	logID, err := h.getUUIDParam(c, "log_id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid log ID", "details": err.Error()})
+		return
+	}
+
+	log, err := h.service.GetAuditLogDetails(ctx, logID)
+	if err != nil {
+		h.handleServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, log)
+}
+
+// ExportAuditLogs exports audit logs
+func (h *Handler) ExportAuditLogs(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+		return
+	}
+
+	var req struct {
+		Format    string `json:"format" binding:"required"`
+		StartDate string `json:"start_date,omitempty"`
+		EndDate   string `json:"end_date,omitempty"`
+		Filters   map[string]interface{} `json:"filters,omitempty"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+		return
+	}
+
+	result, err := h.service.ExportAuditLogs(ctx, tenantID, req.Format, req.StartDate, req.EndDate, req.Filters)
+	if err != nil {
+		h.handleServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+// Fraud Detection Handlers
+
+// DetectFraud detects fraud
+func (h *Handler) DetectFraud(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	var req struct {
+		UserID      uuid.UUID   `json:"user_id" binding:"required"`
+		Transaction interface{} `json:"transaction" binding:"required"`
+		Context     interface{} `json:"context,omitempty"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+		return
+	}
+
+	result, err := h.service.DetectFraud(ctx, req.UserID, req.Transaction, req.Context)
+	if err != nil {
+		h.handleServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+// GetFraudAlerts gets fraud alerts
+func (h *Handler) GetFraudAlerts(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+		return
+	}
+
+	status := c.Query("status")
+	severity := c.Query("severity")
+	page := c.DefaultQuery("page", "1")
+	limit := c.DefaultQuery("limit", "50")
+
+	alerts, total, err := h.service.GetFraudAlerts(ctx, tenantID, status, severity, page, limit)
+	if err != nil {
+		h.handleServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"alerts": alerts,
+		"total":  total,
+		"page":   page,
+		"limit":  limit,
+	})
+}
+
+// UpdateFraudAlert updates a fraud alert
+func (h *Handler) UpdateFraudAlert(c *gin.Context) {
+	ctx := c.Request.Context()
+	alertID, err := h.getUUIDParam(c, "alert_id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid alert ID", "details": err.Error()})
+		return
+	}
+
+	var req struct {
+		Status     string     `json:"status" binding:"required"`
+		Resolution string     `json:"resolution,omitempty"`
+		AdminID    *uuid.UUID `json:"admin_id,omitempty"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+		return
+	}
+
+	alert, err := h.service.UpdateFraudAlert(ctx, alertID, req.Status, req.Resolution, req.AdminID)
+	if err != nil {
+		h.handleServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, alert)
+}
+
+// GetFraudPatterns gets fraud patterns
+func (h *Handler) GetFraudPatterns(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+		return
+	}
+
+	patternType := c.Query("type")
+	period := c.DefaultQuery("period", "30d")
+
+	patterns, err := h.service.GetFraudPatterns(ctx, tenantID, patternType, period)
+	if err != nil {
+		h.handleServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, patterns)
 }

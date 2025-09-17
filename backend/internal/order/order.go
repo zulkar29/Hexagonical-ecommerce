@@ -6,6 +6,7 @@ import (
 	"mime/multipart"
 
 	"github.com/google/uuid"
+	"ecommerce-saas/internal/user"
 )
 
 // OrderStatus represents the status of an order
@@ -24,6 +25,7 @@ const (
 	StatusProcessing OrderStatus = "processing"
 	StatusShipped   OrderStatus = "shipped"
 	StatusDelivered OrderStatus = "delivered"
+	StatusCompleted OrderStatus = "completed"
 	StatusCancelled OrderStatus = "cancelled"
 	StatusReturned  OrderStatus = "returned"
 	
@@ -34,6 +36,7 @@ const (
 	OrderStatusProcessing = StatusProcessing
 	OrderStatusShipped = StatusShipped
 	OrderStatusDelivered = StatusDelivered
+	OrderStatusCompleted = StatusCompleted
 	OrderStatusCancelled = StatusCancelled
 	OrderStatusReturned = StatusReturned
 )
@@ -69,6 +72,11 @@ type Order struct {
 	CustomerEmail string `json:"customer_email" gorm:"not null"`
 	CustomerPhone string `json:"customer_phone,omitempty"`
 	
+	// Shipping information (for backward compatibility)
+	ShippingFirstName string `json:"shipping_first_name,omitempty"`
+	ShippingLastName  string `json:"shipping_last_name,omitempty"`
+	ShippingPhone     string `json:"shipping_phone,omitempty"`
+	
 	// Shipping address
 	ShippingAddress Address `json:"shipping_address" gorm:"embedded;embeddedPrefix:shipping_"`
 	
@@ -79,6 +87,7 @@ type Order struct {
 	SubtotalAmount float64 `json:"subtotal_amount" gorm:"not null"`
 	ShippingAmount float64 `json:"shipping_amount" gorm:"default:0"`
 	DiscountAmount float64 `json:"discount_amount" gorm:"default:0"`
+	TaxAmount      float64 `json:"tax_amount" gorm:"default:0"`
 	TotalAmount    float64 `json:"total_amount" gorm:"not null"`
 	Currency       string  `json:"currency" gorm:"default:BDT"`
 	
@@ -177,6 +186,26 @@ type OrderHistory struct {
 	
 	// Relations
 	Order *Order `json:"order,omitempty" gorm:"foreignKey:OrderID"`
+}
+
+// OrderDispute represents customer disputes for orders
+type OrderDispute struct {
+	ID          uuid.UUID `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
+	TenantID    uuid.UUID `json:"tenant_id" gorm:"type:uuid;not null;index"`
+	OrderID     uuid.UUID `json:"order_id" gorm:"type:uuid;not null;index"`
+	CustomerID  uuid.UUID `json:"customer_id" gorm:"type:uuid;not null;index"`
+	Reason      string    `json:"reason" gorm:"not null"`
+	Description string    `json:"description" gorm:"type:text"`
+	Status      string    `json:"status" gorm:"not null;default:'pending'"`
+	Resolution  string    `json:"resolution" gorm:"type:text"`
+	Evidence    map[string]interface{} `json:"evidence" gorm:"type:jsonb"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	ResolvedAt  *time.Time `json:"resolved_at"`
+
+	// Relationships
+	Order    *Order `json:"order,omitempty" gorm:"foreignKey:OrderID"`
+	Customer *user.User  `json:"customer,omitempty" gorm:"foreignKey:CustomerID"`
 }
 
 // Business Logic Methods for Order
@@ -529,6 +558,46 @@ func (oh *OrderHistory) GetChangeSummary() map[string]interface{} {
 	return summary
 }
 
+// Business Logic Methods for OrderDispute
+func (od *OrderDispute) CanBeResolved() bool {
+	return od.Status == "pending" || od.Status == "escalated"
+}
+
+func (od *OrderDispute) IsResolved() bool {
+	return od.Status == "resolved" || od.Status == "closed"
+}
+
+func (od *OrderDispute) GetAge() time.Duration {
+	return time.Since(od.CreatedAt)
+}
+
+func (od *OrderDispute) AddEvidence(key string, value interface{}) {
+	if od.Evidence == nil {
+		od.Evidence = make(map[string]interface{})
+	}
+	od.Evidence[key] = value
+}
+
+func (od *OrderDispute) Resolve(resolution string) {
+	od.Status = "resolved"
+	od.Resolution = resolution
+	now := time.Now()
+	od.ResolvedAt = &now
+	od.UpdatedAt = now
+}
+
+func (od *OrderDispute) Escalate() {
+	od.Status = "escalated"
+	od.UpdatedAt = time.Now()
+}
+
+func (od *OrderDispute) Close() {
+	od.Status = "closed"
+	now := time.Now()
+	od.ResolvedAt = &now
+	od.UpdatedAt = now
+}
+
 // Request/Response Types for API handlers
 
 // UpdateOrderRequest represents a request to update an order
@@ -572,4 +641,27 @@ type ImportOrdersRequest struct {
 type BulkDeleteOrdersRequest struct {
 	OrderIDs []string `json:"order_ids" validate:"required,min=1"`
 	Reason   string   `json:"reason,omitempty"`
+}
+
+// Dispute Request/Response Types
+type CreateDisputeRequest struct {
+	Reason      string                 `json:"reason" binding:"required"`
+	Description string                 `json:"description" binding:"required"`
+	Evidence    map[string]interface{} `json:"evidence,omitempty"`
+}
+
+type UpdateDisputeRequest struct {
+	Action     string                 `json:"action" binding:"required"` // resolve, escalate, close, add_evidence
+	Resolution string                 `json:"resolution,omitempty"`
+	Evidence   map[string]interface{} `json:"evidence,omitempty"`
+}
+
+type DisputeFilter struct {
+	Status     string    `json:"status,omitempty"`
+	CustomerID uuid.UUID `json:"customer_id,omitempty"`
+	OrderID    uuid.UUID `json:"order_id,omitempty"`
+	DateFrom   time.Time `json:"date_from,omitempty"`
+	DateTo     time.Time `json:"date_to,omitempty"`
+	Page       int       `json:"page,omitempty"`
+	Limit      int       `json:"limit,omitempty"`
 }

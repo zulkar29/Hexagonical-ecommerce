@@ -62,6 +62,18 @@ type SecurityService interface {
 	GetSecurityDashboard(ctx context.Context, tenantID *uuid.UUID, period time.Duration) (*SecurityDashboard, error)
 	GetSecurityReport(ctx context.Context, filter SecurityReportFilter) (*SecurityReport, error)
 	GetRiskScore(ctx context.Context, userID uuid.UUID) (*RiskScore, error)
+
+	// Audit Logs
+	GetAuditLogs(ctx context.Context, tenantID uuid.UUID, userID, action, resource, startDate, endDate, page, limit string) ([]*AuditLog, int64, error)
+	CreateAuditLog(ctx context.Context, req interface{}) (*AuditLog, error)
+	GetAuditLogDetails(ctx context.Context, logID uuid.UUID) (*AuditLog, error)
+	ExportAuditLogs(ctx context.Context, tenantID uuid.UUID, format, startDate, endDate string, filters map[string]interface{}) (interface{}, error)
+
+	// Fraud Detection
+	DetectFraud(ctx context.Context, userID uuid.UUID, transaction, context interface{}) (interface{}, error)
+	GetFraudAlerts(ctx context.Context, tenantID uuid.UUID, status, severity, page, limit string) ([]*FraudAlert, int64, error)
+	UpdateFraudAlert(ctx context.Context, alertID uuid.UUID, status, resolution string, adminID *uuid.UUID) (*FraudAlert, error)
+	GetFraudPatterns(ctx context.Context, tenantID uuid.UUID, patternType, period string) (interface{}, error)
 }
 
 // Request/Response types
@@ -198,6 +210,37 @@ type SecurityReport struct {
 	Trends          []TrendData          `json:"trends"`
 	Recommendations []string             `json:"recommendations"`
 	GeneratedAt     time.Time            `json:"generated_at"`
+}
+
+type AuditLog struct {
+	ID         uuid.UUID              `json:"id"`
+	TenantID   *uuid.UUID             `json:"tenant_id,omitempty"`
+	UserID     uuid.UUID              `json:"user_id"`
+	Action     string                 `json:"action"`
+	Resource   string                 `json:"resource"`
+	ResourceID *uuid.UUID             `json:"resource_id,omitempty"`
+	Details    map[string]interface{} `json:"details,omitempty"`
+	IPAddress  string                 `json:"ip_address,omitempty"`
+	UserAgent  string                 `json:"user_agent,omitempty"`
+	Timestamp  time.Time              `json:"timestamp"`
+	CreatedAt  time.Time              `json:"created_at"`
+}
+
+type FraudAlert struct {
+	ID          uuid.UUID              `json:"id"`
+	TenantID    *uuid.UUID             `json:"tenant_id,omitempty"`
+	UserID      uuid.UUID              `json:"user_id"`
+	AlertType   string                 `json:"alert_type"`
+	Severity    string                 `json:"severity"`
+	Status      string                 `json:"status"`
+	Description string                 `json:"description"`
+	RiskScore   float64                `json:"risk_score"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	Resolution  string                 `json:"resolution,omitempty"`
+	AdminID     *uuid.UUID             `json:"admin_id,omitempty"`
+	CreatedAt   time.Time              `json:"created_at"`
+	UpdatedAt   time.Time              `json:"updated_at"`
+	ResolvedAt  *time.Time             `json:"resolved_at,omitempty"`
 }
 
 type TrendData struct {
@@ -783,6 +826,83 @@ func (s *securityService) GetSecurityReport(ctx context.Context, filter Security
 func (s *securityService) GetRiskScore(ctx context.Context, userID uuid.UUID) (*RiskScore, error) {
 	// Implementation would calculate user risk score
 	return nil, nil
+}
+
+// Audit Log Methods
+func (s *securityService) GetAuditLogs(ctx context.Context, tenantID uuid.UUID, userID, action, resource, startDate, endDate, page, limit string) ([]*AuditLog, int64, error) {
+	// Implementation would fetch audit logs with filters
+	return nil, 0, nil
+}
+
+func (s *securityService) CreateAuditLog(ctx context.Context, req interface{}) (*AuditLog, error) {
+	// Implementation would create a new audit log entry
+	log := &AuditLog{
+		ID:        uuid.New(),
+		Timestamp: time.Now(),
+		CreatedAt: time.Now(),
+	}
+	return log, nil
+}
+
+func (s *securityService) GetAuditLogDetails(ctx context.Context, logID uuid.UUID) (*AuditLog, error) {
+	// Implementation would fetch specific audit log details
+	return nil, nil
+}
+
+func (s *securityService) ExportAuditLogs(ctx context.Context, tenantID uuid.UUID, format, startDate, endDate string, filters map[string]interface{}) (interface{}, error) {
+	// Implementation would export audit logs in specified format
+	return map[string]interface{}{
+		"export_id": uuid.New(),
+		"status":    "processing",
+		"format":    format,
+	}, nil
+}
+
+// Fraud Detection Methods
+func (s *securityService) DetectFraud(ctx context.Context, userID uuid.UUID, transaction, context interface{}) (interface{}, error) {
+	// Implementation would analyze transaction for fraud
+	return map[string]interface{}{
+		"fraud_score":   0.2,
+		"risk_level":    "low",
+		"recommendation": "allow",
+		"factors":       []string{"normal_pattern", "trusted_device"},
+	}, nil
+}
+
+func (s *securityService) GetFraudAlerts(ctx context.Context, tenantID uuid.UUID, status, severity, page, limit string) ([]*FraudAlert, int64, error) {
+	// Implementation would fetch fraud alerts with filters
+	return nil, 0, nil
+}
+
+func (s *securityService) UpdateFraudAlert(ctx context.Context, alertID uuid.UUID, status, resolution string, adminID *uuid.UUID) (*FraudAlert, error) {
+	// Implementation would update fraud alert status
+	alert := &FraudAlert{
+		ID:         alertID,
+		Status:     status,
+		Resolution: resolution,
+		AdminID:    adminID,
+		UpdatedAt:  time.Now(),
+	}
+	if status == "resolved" {
+		now := time.Now()
+		alert.ResolvedAt = &now
+	}
+	return alert, nil
+}
+
+func (s *securityService) GetFraudPatterns(ctx context.Context, tenantID uuid.UUID, patternType, period string) (interface{}, error) {
+	// Implementation would analyze fraud patterns
+	return map[string]interface{}{
+		"patterns": []map[string]interface{}{
+			{
+				"type":        "velocity_check",
+				"frequency":   "high",
+				"risk_score":  0.7,
+				"occurrences": 15,
+			},
+		},
+		"period": period,
+	}, nil
 }
 
 // Helper functions

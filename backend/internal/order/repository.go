@@ -16,6 +16,7 @@ type Repository interface {
 	GetOrderByID(tenantID, orderID uuid.UUID) (*Order, error)
 	GetOrderByNumber(tenantID uuid.UUID, orderNumber string) (*Order, error)
 	UpdateOrder(order *Order) (*Order, error)
+	UpdateOrderFields(tenantID, orderID uuid.UUID, fields map[string]interface{}) error
 	ListOrders(tenantID uuid.UUID, filter OrderFilter, offset, limit int) ([]*Order, int64, error)
 	OrderExists(tenantID, orderID uuid.UUID) (bool, error)
 	UpdateOrderStatus(tenantID, orderID uuid.UUID, status OrderStatus) error
@@ -31,6 +32,13 @@ type Repository interface {
 	CreateOrderItem(item *OrderItem) (*OrderItem, error)
 	UpdateOrderItem(item *OrderItem) (*OrderItem, error)
 	DeleteOrderItem(orderID, itemID uuid.UUID) error
+
+	// Order dispute operations
+	CreateOrderDispute(dispute *OrderDispute) (*OrderDispute, error)
+	GetOrderDispute(tenantID, disputeID uuid.UUID) (*OrderDispute, error)
+	ListOrderDisputes(tenantID uuid.UUID, filter DisputeFilter) ([]*OrderDispute, int64, error)
+	UpdateOrderDispute(dispute *OrderDispute) (*OrderDispute, error)
+	DeleteOrderDispute(tenantID, disputeID uuid.UUID) error
 
 	// Order history operations
 	CreateOrderHistory(history *OrderHistory) (*OrderHistory, error)
@@ -60,6 +68,8 @@ type OrderFilter struct {
 	OrderNumber       string             `json:"order_number,omitempty"`
 	DateFrom          *time.Time         `json:"date_from,omitempty"`
 	DateTo            *time.Time         `json:"date_to,omitempty"`
+	FromDate          string             `json:"from_date,omitempty"`
+	ToDate            string             `json:"to_date,omitempty"`
 	MinAmount         *float64           `json:"min_amount,omitempty"`
 	MaxAmount         *float64           `json:"max_amount,omitempty"`
 	Search            string             `json:"search,omitempty"`
@@ -115,6 +125,18 @@ func (r *repository) UpdateOrder(order *Order) (*Order, error) {
 	return order, nil
 }
 
+// UpdateOrderFields updates specific fields of an order
+func (r *repository) UpdateOrderFields(tenantID, orderID uuid.UUID, fields map[string]interface{}) error {
+	result := r.db.Model(&Order{}).Where("tenant_id = ? AND id = ?", tenantID, orderID).Updates(fields)
+	if result.Error != nil {
+		return fmt.Errorf("failed to update order fields: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("order not found")
+	}
+	return nil
+}
+
 // ListOrders retrieves orders with filtering and pagination
 func (r *repository) ListOrders(tenantID uuid.UUID, filter OrderFilter, offset, limit int) ([]*Order, int64, error) {
 	query := r.db.Where("tenant_id = ?", tenantID)
@@ -146,6 +168,21 @@ func (r *repository) ListOrders(tenantID uuid.UUID, filter OrderFilter, offset, 
 
 	if filter.DateTo != nil {
 		query = query.Where("created_at <= ?", *filter.DateTo)
+	}
+
+	// Handle string date filters
+	if filter.FromDate != "" {
+		if fromTime, err := time.Parse("2006-01-02", filter.FromDate); err == nil {
+			query = query.Where("created_at >= ?", fromTime)
+		}
+	}
+
+	if filter.ToDate != "" {
+		if toTime, err := time.Parse("2006-01-02", filter.ToDate); err == nil {
+			// Add 24 hours to include the entire day
+			toTime = toTime.Add(24 * time.Hour)
+			query = query.Where("created_at <= ?", toTime)
+		}
 	}
 
 	if filter.MinAmount != nil {
@@ -388,4 +425,108 @@ func (r *repository) GetOrderHistory(tenantID, orderID uuid.UUID) ([]*OrderHisto
 // GetOrderTimeline retrieves order timeline (same as history but with different semantic meaning)
 func (r *repository) GetOrderTimeline(tenantID, orderID uuid.UUID) ([]*OrderHistory, error) {
 	return r.GetOrderHistory(tenantID, orderID)
+}
+
+// CreateOrderDispute creates a new order dispute
+func (r *repository) CreateOrderDispute(dispute *OrderDispute) (*OrderDispute, error) {
+	if createErr := r.db.Create(dispute).Error; createErr != nil {
+		return nil, fmt.Errorf("failed to create order dispute: %w", createErr)
+	}
+	return dispute, nil
+}
+
+// GetOrderDispute retrieves a dispute by ID
+func (r *repository) GetOrderDispute(tenantID, disputeID uuid.UUID) (*OrderDispute, error) {
+	var dispute OrderDispute
+	err := r.db.Where("tenant_id = ? AND id = ?", tenantID, disputeID).
+		Preload("Order").
+		First(&dispute).Error
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("dispute not found")
+		}
+		return nil, fmt.Errorf("failed to get dispute: %w", err)
+	}
+
+	return &dispute, nil
+}
+
+// ListOrderDisputes retrieves disputes with filtering and pagination
+func (r *repository) ListOrderDisputes(tenantID uuid.UUID, filter DisputeFilter) ([]*OrderDispute, int64, error) {
+	query := r.db.Where("tenant_id = ?", tenantID)
+
+	// Apply filters
+	if filter.Status != "" {
+		query = query.Where("status = ?", filter.Status)
+	}
+
+	if filter.CustomerID != uuid.Nil {
+		query = query.Where("customer_id = ?", filter.CustomerID)
+	}
+
+	if filter.OrderID != uuid.Nil {
+		query = query.Where("order_id = ?", filter.OrderID)
+	}
+
+	if !filter.DateFrom.IsZero() {
+		query = query.Where("created_at >= ?", filter.DateFrom)
+	}
+
+	if !filter.DateTo.IsZero() {
+		query = query.Where("created_at <= ?", filter.DateTo)
+	}
+
+	// Count total records
+	var total int64
+	if countErr := query.Model(&OrderDispute{}).Count(&total).Error; countErr != nil {
+		return nil, 0, fmt.Errorf("failed to count disputes: %w", countErr)
+	}
+
+	// Apply pagination
+	limit := filter.Limit
+	if limit <= 0 {
+		limit = 20 // default limit
+	}
+
+	offset := 0
+	if filter.Page > 1 {
+		offset = (filter.Page - 1) * limit
+	}
+
+	// Get disputes with pagination
+	var disputes []*OrderDispute
+	listErr := query.Preload("Order").
+		Order("created_at DESC").
+		Offset(offset).
+		Limit(limit).
+		Find(&disputes).Error
+
+	if listErr != nil {
+		return nil, 0, fmt.Errorf("failed to list disputes: %w", listErr)
+	}
+
+	return disputes, total, nil
+}
+
+// UpdateOrderDispute updates an existing dispute
+func (r *repository) UpdateOrderDispute(dispute *OrderDispute) (*OrderDispute, error) {
+	if saveErr := r.db.Save(dispute).Error; saveErr != nil {
+		return nil, fmt.Errorf("failed to update dispute: %w", saveErr)
+	}
+	return dispute, nil
+}
+
+// DeleteOrderDispute soft deletes a dispute
+func (r *repository) DeleteOrderDispute(tenantID, disputeID uuid.UUID) error {
+	result := r.db.Where("tenant_id = ? AND id = ?", tenantID, disputeID).Delete(&OrderDispute{})
+	if result.Error != nil {
+		return fmt.Errorf("failed to delete dispute: %w", result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("dispute not found")
+	}
+
+	return nil
 }
