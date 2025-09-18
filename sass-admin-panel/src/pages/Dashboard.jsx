@@ -87,6 +87,25 @@ const SaaSAdminDashboard = () => {
   const [showAddTenantDialog, setShowAddTenantDialog] = useState(false);
   const [showMessageDialog, setShowMessageDialog] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState(null);
+  const [sortBy, setSortBy] = useState('name');
+  const [sortOrder, setSortOrder] = useState('asc');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [planFilter, setPlanFilter] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedTenants, setSelectedTenants] = useState([]);
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [confirmMessage, setConfirmMessage] = useState('');
+  const [newTenantData, setNewTenantData] = useState({
+    name: '',
+    owner: '',
+    email: '',
+    phone: '',
+    location: '',
+    plan: 'Starter'
+  });
+  const [formErrors, setFormErrors] = useState({});
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -442,14 +461,161 @@ const SaaSAdminDashboard = () => {
     }
   };
 
-  const filteredTenants = recentTenants.filter(tenant =>
-    tenant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    tenant.owner.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    tenant.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredTenants = recentTenants
+    .filter(tenant => {
+      const matchesSearch = searchQuery === '' || 
+        tenant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        tenant.owner.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        tenant.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        tenant.location.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesStatus = statusFilter === 'all' || tenant.status === statusFilter;
+      const matchesPlan = planFilter === 'all' || tenant.plan === planFilter;
+      
+      return matchesSearch && matchesStatus && matchesPlan;
+    })
+    .sort((a, b) => {
+      let aValue = a[sortBy];
+      let bValue = b[sortBy];
+      
+      if (sortBy === 'revenue') {
+        aValue = parseFloat(a.revenue);
+        bValue = parseFloat(b.revenue);
+      } else if (sortBy === 'joinDate' || sortBy === 'lastLogin') {
+        aValue = new Date(a[sortBy]);
+        bValue = new Date(b[sortBy]);
+      } else if (typeof aValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+    });
+
+  const handleSelectTenant = (tenantId) => {
+    setSelectedTenants(prev => 
+      prev.includes(tenantId) 
+        ? prev.filter(id => id !== tenantId)
+        : [...prev, tenantId]
+    );
+  };
+
+  const handleSelectAllTenants = () => {
+    if (selectedTenants.length === filteredTenants.length) {
+      setSelectedTenants([]);
+    } else {
+      setSelectedTenants(filteredTenants.map(t => t.id));
+    }
+  };
+
+  const handleBulkAction = (action) => {
+    if (action === 'delete' || action === 'suspend') {
+      setConfirmAction(() => () => {
+        console.log(`Bulk ${action} for tenants:`, selectedTenants);
+        // Implement bulk actions here
+        setSelectedTenants([]);
+        setShowBulkActions(false);
+        setShowConfirmDialog(false);
+      });
+      setConfirmMessage(
+        action === 'delete' 
+          ? `Are you sure you want to delete ${selectedTenants.length} selected tenant(s)? This action cannot be undone.`
+          : `Are you sure you want to suspend ${selectedTenants.length} selected tenant(s)?`
+      );
+      setShowConfirmDialog(true);
+    } else {
+      console.log(`Bulk ${action} for tenants:`, selectedTenants);
+      setSelectedTenants([]);
+      setShowBulkActions(false);
+    }
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!newTenantData.name.trim()) {
+      errors.name = 'Shop name is required';
+    }
+    
+    if (!newTenantData.owner.trim()) {
+      errors.owner = 'Owner name is required';
+    }
+    
+    if (!newTenantData.email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(newTenantData.email)) {
+      errors.email = 'Email is invalid';
+    }
+    
+    if (!newTenantData.phone.trim()) {
+      errors.phone = 'Phone number is required';
+    }
+    
+    if (!newTenantData.location.trim()) {
+      errors.location = 'Location is required';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleAddTenant = () => {
+    if (validateForm()) {
+      console.log('Adding new tenant:', newTenantData);
+      // Implement add tenant logic here
+      setShowAddTenantDialog(false);
+      setNewTenantData({
+        name: '',
+        owner: '',
+        email: '',
+        phone: '',
+        location: '',
+        plan: 'Starter'
+      });
+      setFormErrors({});
+    }
+  };
+
+  const handleDeleteTenant = (tenant) => {
+    setConfirmAction(() => () => {
+      console.log('Deleting tenant:', tenant.id);
+      // Implement delete logic here
+      setShowConfirmDialog(false);
+    });
+    setConfirmMessage(`Are you sure you want to delete "${tenant.name}"? This action cannot be undone.`);
+    setShowConfirmDialog(true);
+  };
+
+  const handleSuspendTenant = (tenant) => {
+    setConfirmAction(() => () => {
+      console.log('Suspending tenant:', tenant.id);
+      // Implement suspend logic here
+      setShowConfirmDialog(false);
+    });
+    setConfirmMessage(`Are you sure you want to suspend "${tenant.name}"?`);
+    setShowConfirmDialog(true);
+  };
+
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const getSortIcon = (field) => {
+    if (sortBy !== field) return null;
+    return sortOrder === 'asc' ? '↑' : '↓';
+  };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="w-full max-w-none min-h-screen bg-background">
       {/* Main Content */}
       <div className="p-6 space-y-6">
         {/* Welcome Section */}
@@ -658,63 +824,6 @@ const SaaSAdminDashboard = () => {
           </Card>
         </div>
 
-        {/* Top Performers & System Alerts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Top Performing Tenants */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Top Performing Tenants</CardTitle>
-              <CardDescription>Highest revenue generators this month</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {topPerformingTenants.map((tenant, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="flex items-center justify-center w-8 h-8 bg-primary/10 text-primary rounded-full text-sm font-semibold">
-                        {index + 1}
-                      </div>
-                      <div>
-                        <p className="font-medium">{tenant.name}</p>
-                        <p className="text-xs text-muted-foreground">Monthly Revenue</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold">{formatCurrency(tenant.revenue)}</p>
-                      <p className="text-xs text-green-600">{tenant.growth}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* System Alerts */}
-          <Card>
-            <CardHeader>
-              <CardTitle>System Alerts</CardTitle>
-              <CardDescription>Recent system notifications and alerts</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {systemAlerts.map((alert) => (
-                  <div key={alert.id} className={`p-4 border-l-4 rounded-r-lg ${getAlertColor(alert.type)}`}>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-medium text-sm">{alert.title}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{alert.message}</p>
-                      </div>
-                      <span className="text-xs text-muted-foreground">{alert.time}</span>
-                    </div>
-                  </div>
-                ))}
-                <Button variant="outline" size="sm" className="w-full mt-3">
-                  View All Alerts
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
 
         {/* Data Tables Section */}
         <Tabs defaultValue="tenants" className="space-y-4">
@@ -752,10 +861,45 @@ const SaaSAdminDashboard = () => {
                         className="pl-10 w-64"
                       />
                     </div>
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowFilters(!showFilters)}
+                    >
                       <Filter className="h-4 w-4 mr-2" />
                       Filter
                     </Button>
+                    {selectedTenants.length > 0 && (
+                      <DropdownMenu open={showBulkActions} onOpenChange={setShowBulkActions}>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            Bulk Actions ({selectedTenants.length})
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem onClick={() => handleBulkAction('suspend')}>
+                            <Clock className="h-4 w-4 mr-2" />
+                            Suspend Selected
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleBulkAction('activate')}>
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Activate Selected
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleBulkAction('message')}>
+                            <Mail className="h-4 w-4 mr-2" />
+                            Send Message
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => handleBulkAction('delete')}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete Selected
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                     <Button size="sm" onClick={() => setShowAddTenantDialog(true)}>
                       <Plus className="h-4 w-4 mr-2" />
                       Add Tenant
@@ -764,20 +908,146 @@ const SaaSAdminDashboard = () => {
                 </div>
               </CardHeader>
               <CardContent>
+                {showFilters && (
+                  <div className="mb-4 p-4 bg-muted/30 rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="status-filter" className="text-sm font-medium">Status</Label>
+                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                          <SelectTrigger id="status-filter">
+                            <SelectValue placeholder="All Statuses" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Statuses</SelectItem>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="trial">Trial</SelectItem>
+                            <SelectItem value="suspended">Suspended</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="plan-filter" className="text-sm font-medium">Plan</Label>
+                        <Select value={planFilter} onValueChange={setPlanFilter}>
+                          <SelectTrigger id="plan-filter">
+                            <SelectValue placeholder="All Plans" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Plans</SelectItem>
+                            <SelectItem value="Starter">Starter</SelectItem>
+                            <SelectItem value="Business">Business</SelectItem>
+                            <SelectItem value="Enterprise">Enterprise</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="sort-by" className="text-sm font-medium">Sort By</Label>
+                        <Select value={sortBy} onValueChange={setSortBy}>
+                          <SelectTrigger id="sort-by">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="name">Name</SelectItem>
+                            <SelectItem value="owner">Owner</SelectItem>
+                            <SelectItem value="revenue">Revenue</SelectItem>
+                            <SelectItem value="joinDate">Join Date</SelectItem>
+                            <SelectItem value="lastLogin">Last Login</SelectItem>
+                            <SelectItem value="status">Status</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="text-sm text-muted-foreground">
+                        Showing {filteredTenants.length} of {recentTenants.length} tenants
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                        >
+                          {sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            setSearchQuery('');
+                            setStatusFilter('all');
+                            setPlanFilter('all');
+                            setSortBy('name');
+                            setSortOrder('asc');
+                          }}
+                        >
+                          Clear Filters
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Shop Details</TableHead>
-                      <TableHead>Owner Info</TableHead>
+                      <TableHead className="w-12">
+                        <input
+                          type="checkbox"
+                          checked={selectedTenants.length === filteredTenants.length && filteredTenants.length > 0}
+                          onChange={handleSelectAllTenants}
+                          className="rounded"
+                        />
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => handleSort('name')}
+                      >
+                        <div className="flex items-center space-x-1">
+                          <span>Shop Details</span>
+                          <span className="text-xs">{getSortIcon('name')}</span>
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => handleSort('owner')}
+                      >
+                        <div className="flex items-center space-x-1">
+                          <span>Owner Info</span>
+                          <span className="text-xs">{getSortIcon('owner')}</span>
+                        </div>
+                      </TableHead>
                       <TableHead>Plan & Status</TableHead>
-                      <TableHead>Performance</TableHead>
-                      <TableHead>Last Activity</TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => handleSort('revenue')}
+                      >
+                        <div className="flex items-center space-x-1">
+                          <span>Performance</span>
+                          <span className="text-xs">{getSortIcon('revenue')}</span>
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => handleSort('lastLogin')}
+                      >
+                        <div className="flex items-center space-x-1">
+                          <span>Last Activity</span>
+                          <span className="text-xs">{getSortIcon('lastLogin')}</span>
+                        </div>
+                      </TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredTenants.map((tenant) => (
-                      <TableRow key={tenant.id}>
+                      <TableRow key={tenant.id} className={selectedTenants.includes(tenant.id) ? 'bg-muted/30' : ''}>
+                        <TableCell>
+                          <input
+                            type="checkbox"
+                            checked={selectedTenants.includes(tenant.id)}
+                            onChange={() => handleSelectTenant(tenant.id)}
+                            className="rounded"
+                          />
+                        </TableCell>
                         <TableCell>
                           <div className="space-y-1">
                             <p className="font-medium">{tenant.name}</p>
@@ -880,11 +1150,17 @@ const SaaSAdminDashboard = () => {
                                 <CreditCard className="h-4 w-4 mr-2" />
                                 Billing History
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="text-orange-600">
+                              <DropdownMenuItem 
+                                className="text-orange-600"
+                                onClick={() => handleSuspendTenant(tenant)}
+                              >
                                 <Clock className="h-4 w-4 mr-2" />
                                 Suspend Account
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="text-red-600">
+                              <DropdownMenuItem 
+                                className="text-red-600"
+                                onClick={() => handleDeleteTenant(tenant)}
+                              >
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 Delete Account
                               </DropdownMenuItem>
@@ -1165,35 +1441,71 @@ const SaaSAdminDashboard = () => {
             </DialogHeader>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="shopName">Shop Name</Label>
-                <Input id="shopName" placeholder="Enter shop name" />
+                <Label htmlFor="shopName">Shop Name *</Label>
+                <Input 
+                  id="shopName" 
+                  placeholder="Enter shop name" 
+                  value={newTenantData.name}
+                  onChange={(e) => setNewTenantData({...newTenantData, name: e.target.value})}
+                  className={formErrors.name ? 'border-red-500' : ''}
+                />
+                {formErrors.name && <p className="text-red-500 text-xs">{formErrors.name}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ownerName">Owner Name</Label>
-                <Input id="ownerName" placeholder="Enter owner name" />
+                <Label htmlFor="ownerName">Owner Name *</Label>
+                <Input 
+                  id="ownerName" 
+                  placeholder="Enter owner name" 
+                  value={newTenantData.owner}
+                  onChange={(e) => setNewTenantData({...newTenantData, owner: e.target.value})}
+                  className={formErrors.owner ? 'border-red-500' : ''}
+                />
+                {formErrors.owner && <p className="text-red-500 text-xs">{formErrors.owner}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input id="email" type="email" placeholder="Enter email" />
+                <Label htmlFor="email">Email Address *</Label>
+                <Input 
+                  id="email" 
+                  type="email" 
+                  placeholder="Enter email" 
+                  value={newTenantData.email}
+                  onChange={(e) => setNewTenantData({...newTenantData, email: e.target.value})}
+                  className={formErrors.email ? 'border-red-500' : ''}
+                />
+                {formErrors.email && <p className="text-red-500 text-xs">{formErrors.email}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input id="phone" placeholder="Enter phone number" />
+                <Label htmlFor="phone">Phone Number *</Label>
+                <Input 
+                  id="phone" 
+                  placeholder="Enter phone number" 
+                  value={newTenantData.phone}
+                  onChange={(e) => setNewTenantData({...newTenantData, phone: e.target.value})}
+                  className={formErrors.phone ? 'border-red-500' : ''}
+                />
+                {formErrors.phone && <p className="text-red-500 text-xs">{formErrors.phone}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="location">Location</Label>
-                <Input id="location" placeholder="Enter location" />
+                <Label htmlFor="location">Location *</Label>
+                <Input 
+                  id="location" 
+                  placeholder="Enter location" 
+                  value={newTenantData.location}
+                  onChange={(e) => setNewTenantData({...newTenantData, location: e.target.value})}
+                  className={formErrors.location ? 'border-red-500' : ''}
+                />
+                {formErrors.location && <p className="text-red-500 text-xs">{formErrors.location}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="plan">Subscription Plan</Label>
-                <Select>
+                <Select value={newTenantData.plan} onValueChange={(value) => setNewTenantData({...newTenantData, plan: value})}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select plan" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="starter">Starter - ৳2,000/month</SelectItem>
-                    <SelectItem value="business">Business - ৳5,000/month</SelectItem>
-                    <SelectItem value="enterprise">Enterprise - ৳10,000/month</SelectItem>
+                    <SelectItem value="Starter">Starter - ৳2,000/month</SelectItem>
+                    <SelectItem value="Business">Business - ৳5,000/month</SelectItem>
+                    <SelectItem value="Enterprise">Enterprise - ৳10,000/month</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1203,10 +1515,21 @@ const SaaSAdminDashboard = () => {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowAddTenantDialog(false)}>
+              <Button variant="outline" onClick={() => {
+                setShowAddTenantDialog(false);
+                setFormErrors({});
+                setNewTenantData({
+                  name: '',
+                  owner: '',
+                  email: '',
+                  phone: '',
+                  location: '',
+                  plan: 'Starter'
+                });
+              }}>
                 Cancel
               </Button>
-              <Button onClick={() => setShowAddTenantDialog(false)}>
+              <Button onClick={handleAddTenant}>
                 Create Tenant
               </Button>
             </DialogFooter>
@@ -1247,6 +1570,29 @@ const SaaSAdminDashboard = () => {
               <Button onClick={() => setShowMessageDialog(false)}>
                 <Mail className="h-4 w-4 mr-2" />
                 Send Message
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Confirmation Dialog */}
+        <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Action</DialogTitle>
+              <DialogDescription>
+                {confirmMessage}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={() => confirmAction && confirmAction()}
+              >
+                Confirm
               </Button>
             </DialogFooter>
           </DialogContent>

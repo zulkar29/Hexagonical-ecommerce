@@ -9,45 +9,27 @@ import {
   BarChart3,
   Settings,
   UserPlus,
-  Receipt,
-  MessageSquare,
   Shield,
   Database,
   Globe,
-  Bell,
   FileText,
   Package,
   TrendingUp,
   Activity,
   AlertTriangle,
-  CheckCircle,
-  Clock,
   PieChart,
   DollarSign,
-  Mail,
-  Phone,
-  Calendar,
-  Archive,
   Download,
-  Upload,
-  Zap,
   Target,
-  Award,
-  BookOpen,
   HelpCircle,
-  ChevronDown,
   ChevronRight,
   Minimize2,
   Maximize2,
-  LogOut,
-  Search,
-  Filter,
   Plus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Collapsible,
@@ -70,7 +52,7 @@ const AdminSidebar = ({
   user = { name: 'Admin User', role: 'Super Admin' }
 }) => {
   const location = useLocation();
-  const [expandedMenus, setExpandedMenus] = useState(['dashboard', 'management']);
+  const [expandedMenus, setExpandedMenus] = useState(['dashboard']);
 
   const toggleMenu = (menuId) => {
     setExpandedMenus(prev => 
@@ -99,43 +81,41 @@ const AdminSidebar = ({
       href: '/dashboard',
     },
     {
+      id: 'tenants',
       title: 'Tenants',
-       href: '/tenants',
-       icon: Store
+      icon: Store,
+      href: '/tenants',
     },
     {
-     title: 'Users and Permissions',
+      id: 'subscriptions',
+      title: 'Subscriptions',
+      icon: Package,
+      href: '/subscriptions',
+    },
+    {
+      id: 'users',
+      title: 'Users & Roles',
       icon: Users,
       subItems: [
-        { id: 'users', title: 'Users', href: '/users', icon: Users },
-        { id: 'permissions', title: 'Permissions', href: '/users/permissions', icon: Shield }
+        { title: 'Users', href: '/users', icon: Users },
+        { title: 'Permissions', href: '/users/permissions', icon: Shield }
       ]
     },
     {
       id: 'billing',
       title: 'Billing & Payments',
       icon: CreditCard,
-      subItems: [
-        { title: 'Payments', href: '/payments', icon: Receipt },
-        { title: 'Invoices', href: '/billing/invoices', icon: FileText },
-        { title: 'Transactions', href: '/billing/transactions', icon: DollarSign },
-        { title: 'Refunds', href: '/billing/refunds', icon: Archive }
-      ]
+      href: '/payments',
     },
     {
       id: 'support',
-      title: 'Support & Help',
+      title: 'Support',
       icon: LifeBuoy,
-      subItems: [
-        { title: 'Support Tickets', href: '/support', icon: MessageSquare },
-        { title: 'Knowledge Base', href: '/support/knowledge-base', icon: BookOpen },
-        { title: 'Communication', href: '/support/communication', icon: Mail },
-        { title: 'Announcements', href: '/support/announcements', icon: Bell }
-      ]
+      href: '/support',
     },
     {
-      id: 'reports',
-      title: 'Reports & Analytics',
+      id: 'analytics',
+      title: 'Analytics',
       icon: BarChart3,
       subItems: [
         { title: 'Revenue Analytics', href: '/analytics/revenue', icon: TrendingUp },
@@ -145,8 +125,8 @@ const AdminSidebar = ({
       ]
     },
     {
-      id: 'system',
-      title: 'System & Settings',
+      id: 'settings',
+      title: 'Settings',
       icon: Settings,
       subItems: [
         { title: 'Platform Settings', href: '/settings', icon: Settings },
@@ -325,9 +305,10 @@ const AdminSidebar = ({
   return (
     <TooltipProvider>
       <div className={cn(
-        "flex h-full flex-col border-r bg-background pt-16",
+        "flex h-screen flex-col border-r bg-background",
         isCollapsed ? "w-16" : "w-64",
         isMobile && "fixed inset-y-0 left-0 z-50 shadow-lg",
+        "hidden md:flex",
         className
       )}>
         {/* Sidebar Header */}
@@ -395,22 +376,7 @@ const AdminSidebar = ({
           ))}
         </nav>
 
-        {/* Quick Actions */}
-        {!isCollapsed && (
-          <div className="border-t p-3 space-y-2">
-            <p className="text-xs font-medium text-muted-foreground mb-2">Quick Actions</p>
-            <div className="space-y-1">
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Tenant
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <Search className="h-4 w-4 mr-2" />
-                Global Search
-              </Button>
-            </div>
-          </div>
-        )}
+  
 
         {/* Footer */}
         <div className={cn(
