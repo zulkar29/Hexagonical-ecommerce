@@ -15,7 +15,7 @@
     "subtitle": "Build a beautiful online store with ready-made templates. No coding needed - start selling today!"
   },
   "themes": {
-    "title": "Beautiful Store Templates",
+    "title": "Templates",
     "description": "Choose from 20+ professionally designed templates. Each template is mobile-friendly and ready to use."
   },
   "cta": {
@@ -42,28 +42,64 @@
   },
   "contact": {
     "title": "Contact Us",
-    "description": "Get in touch with our team for customer support and assistance."
+    "description": "Get in touch with our team for customer support and assistance.",
+    "form": {
+      "title": "Get In Touch",
+      "fullName": "Full Name",
+      "emailAddress": "Email Address",
+      "company": "Company",
+      "phoneNumber": "Phone Number",
+      "serviceInterest": "Service Interest",
+      "subject": "Subject",
+      "message": "Message",
+      "sendMessage": "Send Message",
+      "selectService": "Select a service",
+      "howCanWeHelp": "How can we help?",
+      "tellUsAboutProject": "Tell us about your project or how we can help...",
+      "successMessage": "Thank you! Your message has been sent successfully. We'll get back to you soon.",
+      "placeholders": {
+        "name": "John Doe",
+        "email": "john@company.com",
+        "company": "Your Company",
+        "phone": "(555) 123-4567"
+      }
+    },
+    "info": {
+      "phone": "Phone",
+      "email": "Email",
+      "office": "Office",
+      "hours": "Hours"
+    },
+    "services": {
+      "digitalTransformation": "Digital Transformation",
+      "businessConsulting": "Business Consulting",
+      "technologySolutions": "Technology Solutions",
+      "dataAnalytics": "Data Analytics",
+      "cloudServices": "Cloud Services",
+      "customDevelopment": "Custom Development",
+      "other": "Other"
+    }
   },
   "pricing": {
     "title": "Pricing Plans",
-    "description": "Choose the perfect plan for your business needs."
+    "description": "Choose the perfect plan for your business needs.",
+    "chooseYourPlan": "Choose Your Plan",
+    "subtitle": "Select the perfect plan for your business needs"
   },
   "getStarted": {
     "title": "Create Your Online Store",
-    "subtitle": "Start your dream business in just 4 simple steps",
-    "estimatedTime": "Estimated time: 5-10 minutes",
+    "subtitle": "Start your dream business in just 3 simple steps",
+    "estimatedTime": "Estimated time: 3-5 minutes",
     "successMessage": "🎉 Store is being created!\n\n📱 Business: {{businessName}}\n🌐 Domain: {{domain}}\n🎨 Template: {{template}}\n💳 Plan: {{plan}}\n\nSetup guide will be sent to your email.",
     "steps": {
       "step": "Step",
-      "businessInfo": "Business Info",
       "domain": "Choose Domain",
-      "template": "Select Template",
+      "template": "Choose Design",
       "plan": "Choose Plan"
     },
     "stepDescriptions": {
-      "businessInfo": "Tell us about your business",
       "domain": "Choose website address",
-      "template": "Select design",
+      "template": "Pick a template for your store",
       "plan": "Choose subscription"
     },
     "businessInfo": {
@@ -111,6 +147,7 @@
       "subtitle": "All plans include 14-day free trial and upgrade/downgrade anytime",
       "recommended": "Recommended",
       "monthly": "/monthly",
+      "yearly": "/year",
       "freeTrial": "14 days free trial",
       "moreFeatures": "more features",
       "specialOffer": {
@@ -175,6 +212,19 @@
       }
     },
     "plans": {
+      "free": {
+        "name": "Free Trial",
+        "description": "Try for 14 days completely free",
+        "features": [
+          "Up to 50 products",
+          "1 staff account",
+          "Basic themes",
+          "Email support",
+          "1GB storage",
+          "Mobile friendly",
+          "14-day trial"
+        ]
+      },
       "starter": {
         "name": "Starter",
         "description": "Perfect for new businesses",
@@ -441,6 +491,12 @@
         "availableValue": "All Days"
       }
     }
+  },
+  "team": {
+    "title": "Meet Our Team",
+    "joinTeam": "Join Our Growing Team",
+    "joinTeamDesc": "We're always looking for talented individuals who share our passion for innovation and excellence. Explore our open positions and become part of our mission.",
+    "viewPositions": "View Open Positions"
   },
   "templatesPage": {
     "title": "Templates",

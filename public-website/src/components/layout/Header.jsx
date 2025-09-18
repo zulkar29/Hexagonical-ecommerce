@@ -13,14 +13,14 @@ import { useTranslations } from '@/hooks/useTranslations';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
 
   return (
     <header className="bg-white/95 backdrop-blur-lg border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
+          <Link href={`/${locale}`} className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
               <ShoppingCart className="w-5 h-5 text-white" />
             </div>
@@ -29,16 +29,16 @@ export default function Header() {
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-6">
-            <Link href="/" className="text-gray-700 hover:text-gray-900 transition-colors font-medium">
+            <Link href={`/${locale}`} className="text-gray-700 hover:text-gray-900 transition-colors font-medium">
               {t('navigation.home')}
             </Link>
-            <Link href="/templates" className="text-gray-700 hover:text-gray-900 transition-colors font-medium">
+            <Link href={`/${locale}/templates`} className="text-gray-700 hover:text-gray-900 transition-colors font-medium">
               {t('themes.title')}
             </Link>
-            <Link href="/pricing" className="text-gray-700 hover:text-gray-900 transition-colors font-medium">
+            <Link href={`/${locale}/pricing`} className="text-gray-700 hover:text-gray-900 transition-colors font-medium">
               {t('navigation.pricing')}
             </Link>
-            <Link href="/contact" className="text-gray-700 hover:text-gray-900 transition-colors font-medium">
+            <Link href={`/${locale}/contact`} className="text-gray-700 hover:text-gray-900 transition-colors font-medium">
               {t('navigation.contact')}
             </Link>
           </nav>
@@ -48,7 +48,7 @@ export default function Header() {
             <LanguageSwitcher />
             
             <Link
-              href="/get-started"
+              href={`/${locale}/get-started`}
               className="inline-flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-all duration-300 font-medium shadow-sm hover:shadow-md"
             >
               {t('navigation.getStarted')}
@@ -71,28 +71,28 @@ export default function Header() {
         <div className="lg:hidden border-t border-gray-200 bg-white/95 backdrop-blur-lg">
           <div className="px-4 py-4 space-y-2">
             <Link
-              href="/"
+              href={`/${locale}`}
               className="block px-3 py-2 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all duration-200 rounded-lg font-medium"
               onClick={() => setMobileMenuOpen(false)}
             >
               {t('navigation.home')}
             </Link>
             <Link
-              href="/templates"
+              href={`/${locale}/templates`}
               className="block px-3 py-2 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all duration-200 rounded-lg font-medium"
               onClick={() => setMobileMenuOpen(false)}
             >
               {t('themes.title')}
             </Link>
             <Link
-              href="/pricing"
+              href={`/${locale}/pricing`}
               className="block px-3 py-2 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all duration-200 rounded-lg font-medium"
               onClick={() => setMobileMenuOpen(false)}
             >
               {t('navigation.pricing')}
             </Link>
             <Link
-              href="/contact"
+              href={`/${locale}/contact`}
               className="block px-3 py-2 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all duration-200 rounded-lg font-medium"
               onClick={() => setMobileMenuOpen(false)}
             >
@@ -100,7 +100,7 @@ export default function Header() {
             </Link>
             <div className="pt-2">
               <Link
-                href="/get-started"
+                href={`/${locale}/get-started`}
                 className="block w-full text-center bg-gray-900 text-white px-4 py-3 rounded-lg font-medium hover:bg-gray-800 transition-all duration-300"
                 onClick={() => setMobileMenuOpen(false)}
               >

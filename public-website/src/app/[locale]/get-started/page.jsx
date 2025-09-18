@@ -1,39 +1,44 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import { ArrowRight, ArrowLeft, Check, Globe, ShoppingCart, CreditCard, Crown, Zap, Star, Clock, User, Store, Palette } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Check, Globe, ShoppingCart, CreditCard, Crown, Zap, Star, Clock, User, Palette } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations } from '@/hooks/useTranslations';
 
 export default function GetStartedPage() {
   const { t } = useTranslations();
+
+  // Helper function to safely get features array
+  const getFeatures = (key) => {
+    try {
+      const features = t(key);
+      return Array.isArray(features) ? features : [];
+    } catch {
+      return [];
+    }
+  };
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDomain, setSelectedDomain] = useState('');
   const [domainType, setDomainType] = useState('subdomain');
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState(null);
-  const [businessInfo, setBusinessInfo] = useState({
-    name: '',
-    description: '',
-    category: ''
-  });
 
   const templateKeys = ['fashion', 'electronics', 'food', 'cosmetics', 'books', 'jewelry'];
-  const planKeys = ['starter', 'professional', 'pro', 'enterprise'];
+  const paidPlanKeys = ['starter', 'professional', 'pro'];
+  const freePlanKey = 'free';
   
   const planPrices = {
+    free: 0,
     starter: 990,
     professional: 2990,
-    pro: 4990,
-    enterprise: 8990
+    pro: 4990
   };
 
   const planColors = {
+    free: 'border-emerald-500',
     starter: 'border-gray-200',
     professional: 'border-orange-500',
-    pro: 'border-gray-200',
-    enterprise: 'border-purple-500'
+    pro: 'border-purple-500'
   };
 
   const templateColors = {
@@ -46,14 +51,13 @@ export default function GetStartedPage() {
   };
 
   const steps = [
-    { id: 1, titleKey: 'getStarted.steps.businessInfo', icon: Store, descriptionKey: 'getStarted.stepDescriptions.businessInfo' },
-    { id: 2, titleKey: 'getStarted.steps.domain', icon: Globe, descriptionKey: 'getStarted.stepDescriptions.domain' },
-    { id: 3, titleKey: 'getStarted.steps.template', icon: Palette, descriptionKey: 'getStarted.stepDescriptions.template' },
-    { id: 4, titleKey: 'getStarted.steps.plan', icon: CreditCard, descriptionKey: 'getStarted.stepDescriptions.plan' }
+    { id: 1, titleKey: 'getStarted.steps.domain', icon: Globe, descriptionKey: 'getStarted.stepDescriptions.domain' },
+    { id: 2, titleKey: 'getStarted.steps.template', icon: Palette, descriptionKey: 'getStarted.stepDescriptions.template' },
+    { id: 3, titleKey: 'getStarted.steps.plan', icon: CreditCard, descriptionKey: 'getStarted.stepDescriptions.plan' }
   ];
 
   const nextStep = () => {
-    if (currentStep < 4) {
+    if (currentStep < 3) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -65,16 +69,15 @@ export default function GetStartedPage() {
   };
 
   const canProceed = () => {
-    if (currentStep === 1) return businessInfo.name.length > 0 && businessInfo.category.length > 0;
-    if (currentStep === 2) return selectedDomain.length > 0;
-    if (currentStep === 3) return selectedTemplate !== null;
-    if (currentStep === 4) return selectedPlan !== null;
+    if (currentStep === 1) return selectedDomain.length > 0;
+    if (currentStep === 2) return selectedTemplate !== null;
+    if (currentStep === 3) return selectedPlan !== null;
     return false;
   };
 
   const handleComplete = () => {
+    // Here you would typically integrate with your backend
     const storeData = {
-      business: businessInfo,
       domain: {
         name: selectedDomain,
         type: domainType
@@ -82,14 +85,14 @@ export default function GetStartedPage() {
       template: selectedTemplate,
       plan: selectedPlan
     };
-    
-    // Here you would typically integrate with your backend
+
     const successMessage = t('getStarted.successMessage')
-      .replace('{{businessName}}', businessInfo.name)
-      .replace('{{domain}}', `${selectedDomain}${domainType === 'subdomain' ? '.ourplatform.com' : '.com'}`)
+      .replace('{{businessName}}', 'Your Store')
+      .replace('{{domain}}', `${selectedDomain}${domainType === 'subdomain' ? '.storebuilder.com' : '.com'}`)
       .replace('{{template}}', t(`getStarted.templates.${selectedTemplate}.name`))
       .replace('{{plan}}', t(`getStarted.plans.${selectedPlan}.name`));
-    
+
+    console.log('Store Data:', storeData);
     alert(successMessage);
   };
 
@@ -108,133 +111,70 @@ export default function GetStartedPage() {
             <Clock className="w-4 h-4" />
             <span>{t('getStarted.estimatedTime')}</span>
           </div>
+          <div className="mt-4 flex items-center justify-center gap-4 text-sm text-gray-500">
+            <div className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-emerald-500" />
+              <span>Free 14-day trial</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-emerald-500" />
+              <span>No credit card required</span>
+            </div>
+          </div>
         </div>
 
         {/* Progress Bar */}
         <div className="mb-12">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-start justify-between mb-4 relative">
             {steps.map((step, index) => {
               const IconComponent = step.icon;
               const isActive = currentStep === step.id;
               const isCompleted = currentStep > step.id;
-              
+
               return (
-                <div key={step.id} className="flex flex-col items-center flex-1">
-                  <div className="flex items-center w-full">
-                    <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-300 ${
-                      isCompleted 
-                        ? 'bg-gray-900 border-gray-900 text-white' 
-                        : isActive 
-                          ? 'border-orange-500 bg-orange-50 text-orange-600' 
-                          : 'border-gray-300 text-gray-400'
-                    }`}>
-                      {isCompleted ? (
-                        <Check className="w-5 h-5" />
-                      ) : (
-                        <IconComponent className="w-5 h-5" />
-                      )}
-                    </div>
-                    {index < steps.length - 1 && (
-                      <div className={`flex-1 h-0.5 mx-4 ${currentStep > step.id ? 'bg-gray-900' : 'bg-gray-300'}`} />
+                <div key={step.id} className="flex flex-col items-center flex-1 relative">
+                  <div className={`flex items-center justify-center w-12 h-12 rounded-full border-2 transition-all duration-300 mb-3 relative z-10 ${
+                    isCompleted
+                      ? 'bg-gray-900 border-gray-900 text-white'
+                      : isActive
+                        ? 'border-orange-500 bg-orange-50 text-orange-600'
+                        : 'border-gray-300 bg-white text-gray-400'
+                  }`}>
+                    {isCompleted ? (
+                      <Check className="w-6 h-6" />
+                    ) : (
+                      <IconComponent className="w-6 h-6" />
                     )}
                   </div>
-                  <div className="mt-2 text-center">
-                    <div className={`text-sm font-medium ${isActive ? 'text-orange-600' : isCompleted ? 'text-gray-900' : 'text-gray-500'}`}>
+
+                  <div className="text-center">
+                    <div className={`text-sm font-medium mb-1 ${isActive ? 'text-orange-600' : isCompleted ? 'text-gray-900' : 'text-gray-500'}`}>
                       {t(step.titleKey)}
                     </div>
-                    <div className="text-xs text-gray-400 mt-1 hidden sm:block">
+                    <div className="text-xs text-gray-400 hidden sm:block">
                       {t(step.descriptionKey)}
                     </div>
                   </div>
                 </div>
               );
             })}
+
+            {/* Connecting Lines */}
+            <div className="absolute top-6 left-0 right-0 flex justify-between px-6 -z-10">
+              <div className={`h-0.5 flex-1 ${currentStep > 1 ? 'bg-gray-900' : 'bg-gray-300'}`} />
+              <div className="w-12" />
+              <div className={`h-0.5 flex-1 ${currentStep > 2 ? 'bg-gray-900' : 'bg-gray-300'}`} />
+            </div>
           </div>
         </div>
 
         {/* Step Content */}
         <div className="bg-white rounded-2xl shadow-sm border p-6 md:p-8">
           <AnimatePresence mode="wait">
-            {/* Step 1: Business Information */}
+            {/* Step 1: Domain Selection */}
             {currentStep === 1 && (
               <motion.div
                 key="step1"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
-              >
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
-                    <Store className="w-6 h-6 text-orange-600" />
-                  </div>
-                  <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
-                    {t('getStarted.businessInfo.title')}
-                  </h2>
-                </div>
-                <p className="text-gray-600 mb-8">
-                  {t('getStarted.businessInfo.subtitle')}
-                </p>
-
-                <div className="space-y-6">
-                  {/* Business Name */}
-                  <div>
-                    <label className="block text-lg font-semibold text-gray-900 mb-3">
-                      {t('getStarted.businessInfo.nameLabel')} <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder={t('getStarted.businessInfo.namePlaceholder')}
-                      value={businessInfo.name}
-                      onChange={(e) => setBusinessInfo({...businessInfo, name: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-lg"
-                    />
-                  </div>
-
-                  {/* Business Category */}
-                  <div>
-                    <label className="block text-lg font-semibold text-gray-900 mb-3">
-                      {t('getStarted.businessInfo.categoryLabel')} <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={businessInfo.category}
-                      onChange={(e) => setBusinessInfo({...businessInfo, category: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-lg"
-                    >
-                      <option value="">{t('getStarted.businessInfo.categoryPlaceholder')}</option>
-                      <option value="fashion">{t('getStarted.businessInfo.categories.fashion')}</option>
-                      <option value="electronics">{t('getStarted.businessInfo.categories.electronics')}</option>
-                      <option value="food">{t('getStarted.businessInfo.categories.food')}</option>
-                      <option value="cosmetics">{t('getStarted.businessInfo.categories.cosmetics')}</option>
-                      <option value="books">{t('getStarted.businessInfo.categories.books')}</option>
-                      <option value="jewelry">{t('getStarted.businessInfo.categories.jewelry')}</option>
-                      <option value="health">{t('getStarted.businessInfo.categories.health')}</option>
-                      <option value="home">{t('getStarted.businessInfo.categories.home')}</option>
-                      <option value="other">{t('getStarted.businessInfo.categories.other')}</option>
-                    </select>
-                  </div>
-
-                  {/* Business Description */}
-                  <div>
-                    <label className="block text-lg font-semibold text-gray-900 mb-3">
-                      {t('getStarted.businessInfo.descriptionLabel')}
-                    </label>
-                    <textarea
-                      placeholder={t('getStarted.businessInfo.descriptionPlaceholder')}
-                      value={businessInfo.description}
-                      onChange={(e) => setBusinessInfo({...businessInfo, description: e.target.value})}
-                      rows={3}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none resize-none"
-                    />
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Step 2: Domain Selection */}
-            {currentStep === 2 && (
-              <motion.div
-                key="step2"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -261,8 +201,8 @@ export default function GetStartedPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div
                         className={`p-6 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
-                          domainType === 'subdomain' 
-                            ? 'border-orange-500 bg-orange-50' 
+                          domainType === 'subdomain'
+                            ? 'border-orange-500 bg-orange-50'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                         onClick={() => setDomainType('subdomain')}
@@ -279,8 +219,8 @@ export default function GetStartedPage() {
 
                       <div
                         className={`p-6 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
-                          domainType === 'custom' 
-                            ? 'border-orange-500 bg-orange-50' 
+                          domainType === 'custom'
+                            ? 'border-orange-500 bg-orange-50'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                         onClick={() => setDomainType('custom')}
@@ -335,10 +275,10 @@ export default function GetStartedPage() {
               </motion.div>
             )}
 
-            {/* Step 3: Template Selection */}
-            {currentStep === 3 && (
+            {/* Step 2: Template Selection */}
+            {currentStep === 2 && (
               <motion.div
-                key="step3"
+                key="step2"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -349,28 +289,28 @@ export default function GetStartedPage() {
                     <Palette className="w-6 h-6 text-orange-600" />
                   </div>
                   <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
-                    {t('getStarted.template.title')}
+                    Choose Your Store Design
                   </h2>
                 </div>
                 <p className="text-gray-600 mb-8">
-                  {t('getStarted.template.subtitle')}
+                  Select a beautiful template that matches your business style. You can customize it later.
                 </p>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {templateKeys.map((templateKey) => (
                     <div
                       key={templateKey}
-                      className={`cursor-pointer transition-all duration-300 ${
+                      className={`cursor-pointer transition-all duration-200 ${
                         selectedTemplate === templateKey
-                          ? 'transform scale-105'
-                          : 'hover:transform hover:scale-102'
+                          ? 'transform scale-[1.02]'
+                          : 'hover:transform hover:scale-[1.01]'
                       }`}
                       onClick={() => setSelectedTemplate(templateKey)}
                     >
-                      <div className={`bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border-2 ${
-                        selectedTemplate === templateKey 
-                          ? 'border-orange-500 ring-2 ring-orange-100' 
-                          : 'border-gray-100'
+                      <div className={`bg-white rounded-xl border-2 overflow-hidden transition-all duration-200 ${
+                        selectedTemplate === templateKey
+                          ? 'border-orange-500 ring-2 ring-orange-100'
+                          : 'border-gray-200 hover:border-gray-300'
                       }`}>
                         {/* Template Preview */}
                         <div className={`h-32 ${templateColors[templateKey]} flex items-center justify-center relative`}>
@@ -390,19 +330,21 @@ export default function GetStartedPage() {
                         {/* Template Details */}
                         <div className="p-4">
                           <div className="flex items-center justify-between mb-2">
-                            <h3 className="font-bold text-gray-900 text-sm">{t(`getStarted.templates.${templateKey}.name`)}</h3>
+                            <h3 className="font-bold text-gray-900">{t(`getStarted.templates.${templateKey}.name`)}</h3>
                             <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded-full font-medium">
                               {t(`getStarted.templates.${templateKey}.category`)}
                             </span>
                           </div>
-                          <p className="text-gray-600 text-xs mb-3 line-clamp-2">{t(`getStarted.templates.${templateKey}.description`)}</p>
+                          <p className="text-gray-600 text-sm mb-3">{t(`getStarted.templates.${templateKey}.description`)}</p>
                           <div className="space-y-1">
-                            {t(`getStarted.templates.${templateKey}.features`).slice(0, 2).map((feature, index) => (
-                              <div key={index} className="flex items-center gap-1">
-                                <Check className="w-3 h-3 text-emerald-500" />
-                                <span className="text-xs text-gray-600">{feature}</span>
-                              </div>
-                            ))}
+                            <div className="flex items-center gap-2">
+                              <Check className="w-3 h-3 text-emerald-500" />
+                              <span className="text-xs text-gray-600">Mobile Responsive</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Check className="w-3 h-3 text-emerald-500" />
+                              <span className="text-xs text-gray-600">SEO Optimized</span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -412,10 +354,11 @@ export default function GetStartedPage() {
               </motion.div>
             )}
 
-            {/* Step 4: Plan Selection */}
-            {currentStep === 4 && (
+
+            {/* Step 3: Plan Selection */}
+            {currentStep === 3 && (
               <motion.div
-                key="step4"
+                key="step3"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -433,8 +376,9 @@ export default function GetStartedPage() {
                   {t('getStarted.plan.subtitle')}
                 </p>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {planKeys.slice(0, 2).map((planKey) => (
+                {/* Paid Plans Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                  {paidPlanKeys.map((planKey) => (
                     <div
                       key={planKey}
                       className={`cursor-pointer transition-all duration-300 ${
@@ -445,8 +389,8 @@ export default function GetStartedPage() {
                       onClick={() => setSelectedPlan(planKey)}
                     >
                       <div className={`bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 p-6 border-2 relative ${
-                        selectedPlan === planKey 
-                          ? 'border-orange-500 ring-2 ring-orange-100' 
+                        selectedPlan === planKey
+                          ? 'border-orange-500 ring-2 ring-orange-100'
                           : planColors[planKey]
                       }`}>
                         {planKey === 'professional' && (
@@ -475,21 +419,87 @@ export default function GetStartedPage() {
                         </div>
 
                         <div className="space-y-2 mb-4">
-                          {t(`getStarted.plans.${planKey}.features`).slice(0, 4).map((feature, index) => (
+                          {getFeatures(`getStarted.plans.${planKey}.features`).slice(0, 4).map((feature, index) => (
                             <div key={index} className="flex items-start gap-2">
                               <Check className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
                               <span className="text-sm text-gray-700">{feature}</span>
                             </div>
                           ))}
-                          {t(`getStarted.plans.${planKey}.features`).length > 4 && (
+                          {getFeatures(`getStarted.plans.${planKey}.features`).length > 4 && (
                             <div className="text-sm text-gray-500">
-                              +{t(`getStarted.plans.${planKey}.features`).length - 4} {t('getStarted.plan.moreFeatures')}
+                              +{getFeatures(`getStarted.plans.${planKey}.features`).length - 4} {t('getStarted.plan.moreFeatures')}
                             </div>
                           )}
                         </div>
                       </div>
                     </div>
                   ))}
+                </div>
+
+                {/* Free Trial Option - Full Width */}
+                <div className="border-t pt-6">
+                  <div className="text-center mb-4">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">Or start with our free trial</h4>
+                    <p className="text-gray-600">No credit card required • Cancel anytime</p>
+                  </div>
+
+                  <div
+                    className={`cursor-pointer transition-all duration-300 ${
+                      selectedPlan === freePlanKey
+                        ? 'transform scale-[1.02]'
+                        : 'hover:transform hover:scale-[1.01]'
+                    }`}
+                    onClick={() => setSelectedPlan(freePlanKey)}
+                  >
+                    <div className={`bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 p-6 border-2 relative ${
+                      selectedPlan === freePlanKey
+                        ? 'border-emerald-500 ring-2 ring-emerald-100 bg-emerald-50'
+                        : 'border-emerald-200 hover:border-emerald-300'
+                    }`}>
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div className="flex items-center gap-4 flex-1">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                              <Star className="w-6 h-6 text-emerald-600" />
+                            </div>
+                            <div>
+                              <h3 className="text-xl font-bold text-gray-900">{t(`getStarted.plans.${freePlanKey}.name`)}</h3>
+                              <p className="text-gray-600 text-sm">{t(`getStarted.plans.${freePlanKey}.description`)}</p>
+                            </div>
+                          </div>
+                          <div className="text-right md:ml-auto">
+                            <div className="text-2xl font-bold text-emerald-600">FREE</div>
+                            <div className="text-sm text-emerald-600 font-medium">14 days trial</div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between md:justify-end gap-6">
+                          <div className="flex md:hidden items-center gap-4 text-sm text-gray-600">
+                            {getFeatures(`getStarted.plans.${freePlanKey}.features`).slice(0, 2).map((feature, index) => (
+                              <div key={index} className="flex items-center gap-1">
+                                <Check className="w-3 h-3 text-emerald-500" />
+                                <span>{feature}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="hidden md:flex items-center gap-4 text-sm text-gray-600">
+                            {getFeatures(`getStarted.plans.${freePlanKey}.features`).slice(0, 3).map((feature, index) => (
+                              <div key={index} className="flex items-center gap-1">
+                                <Check className="w-3 h-3 text-emerald-500" />
+                                <span>{feature}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          {selectedPlan === freePlanKey && (
+                            <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
+                              <Check className="w-5 h-5 text-white" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="mt-6 p-4 bg-amber-50 rounded-lg border border-amber-200">
@@ -517,7 +527,7 @@ export default function GetStartedPage() {
             {t('getStarted.navigation.previous')}
           </button>
 
-          {currentStep < 4 ? (
+          {currentStep < 3 ? (
             <button
               onClick={nextStep}
               disabled={!canProceed()}
@@ -546,15 +556,6 @@ export default function GetStartedPage() {
               {t('getStarted.summary.title')}
             </h4>
             <div className="space-y-3 text-sm">
-              {businessInfo.name && (
-                <div className="flex items-start gap-2">
-                  <Store className="w-4 h-4 text-orange-600 mt-0.5" />
-                  <div>
-                    <span className="font-medium">{t('getStarted.summary.business')}</span> {businessInfo.name}
-                    {businessInfo.category && <div className="text-gray-500">{t('getStarted.summary.businessType')} {businessInfo.category}</div>}
-                  </div>
-                </div>
-              )}
               {selectedDomain && (
                 <div className="flex items-center gap-2">
                   <Globe className="w-4 h-4 text-orange-600" />
@@ -570,18 +571,26 @@ export default function GetStartedPage() {
               {selectedPlan && (
                 <div className="flex items-center gap-2">
                   <CreditCard className="w-4 h-4 text-purple-600" />
-                  <span><strong>{t('getStarted.summary.plan')}</strong> {t(`getStarted.plans.${selectedPlan}.name`)} - ৳{planPrices[selectedPlan].toLocaleString()}{t('getStarted.summary.monthly')}</span>
+                  <span><strong>{t('getStarted.summary.plan')}</strong> {t(`getStarted.plans.${selectedPlan}.name`)} - {selectedPlan === 'free' ? 'FREE' : `৳${planPrices[selectedPlan].toLocaleString()}${t('getStarted.summary.monthly')}`}</span>
                 </div>
               )}
             </div>
-            {currentStep === 4 && (
+            {currentStep === 3 && selectedPlan && (
               <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="text-lg font-bold text-gray-900">
-                  {t('getStarted.summary.firstMonthPrice')} <span className="text-orange-600">৳০ ({t('getStarted.summary.freeTrial')})</span>
-                </div>
-                <div className="text-sm text-gray-500 mt-1">
-                  {t('getStarted.summary.thenMonthly')} ৳{selectedPlan ? planPrices[selectedPlan].toLocaleString() : '0'} {t('getStarted.summary.perMonth')}
-                </div>
+                {selectedPlan === 'free' ? (
+                  <div className="text-lg font-bold text-emerald-600">
+                    Free for 14 days - No credit card required
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-lg font-bold text-gray-900">
+                      {t('getStarted.summary.firstMonthPrice')} <span className="text-orange-600">৳০ ({t('getStarted.summary.freeTrial')})</span>
+                    </div>
+                    <div className="text-sm text-gray-500 mt-1">
+                      {t('getStarted.summary.thenMonthly')} ৳{planPrices[selectedPlan].toLocaleString()} {t('getStarted.summary.perMonth')}
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>

@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 import { useTranslations } from '@/hooks/useTranslations';
 
 export default function HomePage() {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
 
   const [animatedStats, setAnimatedStats] = useState({
     customers: 0,
@@ -91,7 +91,7 @@ export default function HomePage() {
               
               <div className="flex flex-col sm:flex-row gap-4 mb-8">
                 <Link
-                  href="/get-started"
+                  href={`/${locale}/get-started`}
                   className="bg-gray-900 text-white px-8 py-4 rounded-lg font-semibold hover:bg-gray-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 inline-flex items-center justify-center"
                 >
                   {t('common.getStarted')}
@@ -405,7 +405,7 @@ export default function HomePage() {
           
           <div className="text-center">
             <Link
-              href="/templates"
+              href={`/${locale}/templates`}
               className="inline-flex items-center gap-2 bg-gray-900 text-white px-8 py-4 rounded-lg hover:bg-gray-800 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
             >
               {t('homepage.templates.viewAllTemplates')}

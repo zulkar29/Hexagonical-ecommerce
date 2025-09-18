@@ -3,14 +3,16 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Send, Phone, Mail, MapPin, Clock } from 'lucide-react';
+import { useTranslations } from '@/hooks/useTranslations';
 
-const ContactForm = ({ 
-  title = "Get In Touch",
+const ContactForm = ({
+  title,
   subtitle,
   description,
   showContactInfo = true,
   variant = 'default'
 }) => {
+  const { t } = useTranslations();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -54,41 +56,44 @@ const ContactForm = ({
     }, 1000);
   };
 
+  // Use translation if no title is provided
+  const formTitle = title || t('contact.form.title');
+
   const contactInfo = [
     {
       icon: Phone,
-      title: 'Phone',
+      title: t('contact.info.phone'),
       details: ['1-800-HEXAGON', '+1 (555) 123-4567'],
       action: 'tel:1-800-HEXAGON'
     },
     {
       icon: Mail,
-      title: 'Email',
+      title: t('contact.info.email'),
       details: ['hello@storebuilder.com', 'support@storebuilder.com'],
       action: 'mailto:hello@storebuilder.com'
     },
     {
       icon: MapPin,
-      title: 'Office',
+      title: t('contact.info.office'),
       details: ['123 Business Ave', 'San Francisco, CA 94105'],
       action: 'https://maps.google.com'
     },
     {
       icon: Clock,
-      title: 'Hours',
+      title: t('contact.info.hours'),
       details: ['Mon - Fri: 9:00 AM - 6:00 PM', 'Sat: 10:00 AM - 4:00 PM'],
       action: null
     }
   ];
 
   const services = [
-    'Digital Transformation',
-    'Business Consulting',
-    'Technology Solutions',
-    'Data Analytics',
-    'Cloud Services',
-    'Custom Development',
-    'Other'
+    t('contact.services.digitalTransformation'),
+    t('contact.services.businessConsulting'),
+    t('contact.services.technologySolutions'),
+    t('contact.services.dataAnalytics'),
+    t('contact.services.cloudServices'),
+    t('contact.services.customDevelopment'),
+    t('contact.services.other')
   ];
 
   return (
@@ -115,7 +120,7 @@ const ContactForm = ({
             viewport={{ once: true }}
             className="text-3xl md:text-4xl font-bold text-gray-900 mb-4"
           >
-            {title}
+            {formTitle}
           </motion.h2>
           
           {description && (
@@ -146,7 +151,7 @@ const ContactForm = ({
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                      Full Name *
+                      {t('contact.form.fullName')} *
                     </label>
                     <input
                       type="text"
@@ -156,12 +161,12 @@ const ContactForm = ({
                       onChange={handleChange}
                       required
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                      placeholder="John Doe"
+                      placeholder={t('contact.form.placeholders.name')}
                     />
                   </div>
                   <div>
                     <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                      Email Address *
+                      {t('contact.form.emailAddress')} *
                     </label>
                     <input
                       type="email"
@@ -171,7 +176,7 @@ const ContactForm = ({
                       onChange={handleChange}
                       required
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                      placeholder="john@company.com"
+                      placeholder={t('contact.form.placeholders.email')}
                     />
                   </div>
                 </div>
@@ -180,7 +185,7 @@ const ContactForm = ({
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-2">
-                      Company
+                      {t('contact.form.company')}
                     </label>
                     <input
                       type="text"
@@ -189,12 +194,12 @@ const ContactForm = ({
                       value={formData.company}
                       onChange={handleChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                      placeholder="Your Company"
+                      placeholder={t('contact.form.placeholders.company')}
                     />
                   </div>
                   <div>
                     <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                      Phone Number
+                      {t('contact.form.phoneNumber')}
                     </label>
                     <input
                       type="tel"
@@ -203,7 +208,7 @@ const ContactForm = ({
                       value={formData.phone}
                       onChange={handleChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                      placeholder="(555) 123-4567"
+                      placeholder={t('contact.form.placeholders.phone')}
                     />
                   </div>
                 </div>
@@ -212,7 +217,7 @@ const ContactForm = ({
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <label htmlFor="service" className="block text-sm font-medium text-gray-700 mb-2">
-                      Service Interest
+                      {t('contact.form.serviceInterest')}
                     </label>
                     <select
                       id="service"
@@ -221,7 +226,7 @@ const ContactForm = ({
                       onChange={handleChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                     >
-                      <option value="">Select a service</option>
+                      <option value="">{t('contact.form.selectService')}</option>
                       {services.map((service) => (
                         <option key={service} value={service}>
                           {service}
@@ -231,7 +236,7 @@ const ContactForm = ({
                   </div>
                   <div>
                     <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
-                      Subject *
+                      {t('contact.form.subject')} *
                     </label>
                     <input
                       type="text"
@@ -241,7 +246,7 @@ const ContactForm = ({
                       onChange={handleChange}
                       required
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                      placeholder="How can we help?"
+                      placeholder={t('contact.form.howCanWeHelp')}
                     />
                   </div>
                 </div>
@@ -249,7 +254,7 @@ const ContactForm = ({
                 {/* Message */}
                 <div>
                   <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
-                    Message *
+                    {t('contact.form.message')} *
                   </label>
                   <textarea
                     id="message"
@@ -259,7 +264,7 @@ const ContactForm = ({
                     required
                     rows={6}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors resize-none"
-                    placeholder="Tell us about your project or how we can help..."
+                    placeholder={t('contact.form.tellUsAboutProject')}
                   />
                 </div>
 
@@ -274,7 +279,7 @@ const ContactForm = ({
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <>
-                        Send Message
+                        {t('contact.form.sendMessage')}
                         <Send className="w-4 h-4 ml-2" />
                       </>
                     )}
@@ -289,7 +294,7 @@ const ContactForm = ({
                     className="p-4 bg-green-50 border border-green-200 rounded-lg"
                   >
                     <p className="text-green-800 text-sm">
-                      Thank you! Your message has been sent successfully. We'll get back to you soon.
+                      {t('contact.form.successMessage')}
                     </p>
                   </motion.div>
                 )}

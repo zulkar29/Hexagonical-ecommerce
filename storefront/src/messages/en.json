@@ -1,0 +1,97 @@
+{
+  "navigation": {
+    "home": "Home",
+    "categories": "Categories",
+    "products": "Products",
+    "deals": "Deals",
+    "about": "About",
+    "help": "Help",
+    "contact": "Contact",
+    "myAccount": "My Account"
+  },
+  "categories": {
+    "electronics": "Electronics",
+    "clothing": "Clothing",
+    "accessories": "Accessories",
+    "homeKitchen": "Home & Kitchen",
+    "sports": "Sports & Outdoors",
+    "beauty": "Beauty & Health"
+  },
+  "header": {
+    "freeShipping": "Free shipping on orders over $50",
+    "support24h": "24/7 Support Available",
+    "storefront": "Storefront",
+    "premiumShopping": "Premium Shopping"
+  },
+  "hero": {
+    "summerCollection": "Summer Collection 2024",
+    "discoverTrends": "Discover the latest trends",
+    "summerDescription": "Elevate your style with our curated summer collection featuring premium fabrics and contemporary designs.",
+    "shopCollection": "Shop Collection",
+    "techEssentials": "Tech Essentials",
+    "innovationStyle": "Innovation meets style",
+    "techDescription": "Upgrade your digital lifestyle with cutting-edge technology and sleek accessories designed for modern living.",
+    "exploreTech": "Explore Tech",
+    "homeLiving": "Home & Living",
+    "transformSpace": "Transform your space",
+    "homeDescription": "Create the perfect ambiance with our carefully selected home decor and lifestyle products.",
+    "shopHome": "Shop Home",
+    "viewAllProducts": "View All Products"
+  },
+  "features": {
+    "freeShipping": "Free Shipping",
+    "freeShippingDesc": "Free shipping on orders over $50 with fast delivery",
+    "qualityGuarantee": "Quality Guarantee",
+    "qualityGuaranteeDesc": "Premium quality products with satisfaction guarantee",
+    "support247": "24/7 Support",
+    "support247Desc": "Round-the-clock customer support and assistance",
+    "trendingProducts": "Trending Products",
+    "trendingProductsDesc": "Discover the latest trends and bestselling items",
+    "securePayment": "Secure Payment",
+    "securePaymentDesc": "100% secure transactions",
+    "easyReturns": "Easy Returns",
+    "easyReturnsDesc": "30-day return policy"
+  },
+  "sections": {
+    "shopByCategory": "Shop by Category",
+    "shopByCategoryDesc": "Discover our curated collection across different lifestyle categories",
+    "featuredProducts": "Featured Products",
+    "featuredProductsDesc": "Handpicked products that our customers love most",
+    "exploreCollection": "Explore Collection"
+  },
+  "newsletter": {
+    "stayInLoop": "Stay in the Loop",
+    "newsletterDesc": "Subscribe to our newsletter and be the first to know about new products, exclusive offers, and style tips.",
+    "enterEmail": "Enter your email",
+    "subscribe": "Subscribe",
+    "privacyNotice": "By subscribing, you agree to our Privacy Policy and Terms of Service.",
+    "stayUpdated": "Stay Updated",
+    "stayUpdatedDesc": "Subscribe to our newsletter for the latest deals and updates"
+  },
+  "reviews": {
+    "whatCustomersSay": "What Our Customers Say",
+    "review1": "Amazing quality and fast shipping! The products exceeded my expectations.",
+    "review2": "Great customer service and the tech products are top-notch. Highly recommended!",
+    "review3": "Love the home decor items! They transformed my living space completely.",
+    "purchased": "Purchased"
+  },
+  "footer": {
+    "companyDesc": "Your trusted online destination for quality products at great prices. We're committed to providing exceptional customer service and fast shipping.",
+    "quickLinks": "Quick Links",
+    "allProducts": "All Products",
+    "dealsOffers": "Deals & Offers",
+    "aboutUs": "About Us",
+    "blog": "Blog",
+    "customerService": "Customer Service",
+    "helpCenter": "Help Center",
+    "shippingInfo": "Shipping Info",
+    "returnsExchanges": "Returns & Exchanges",
+    "sizeGuide": "Size Guide",
+    "trackOrder": "Track Your Order",
+    "allRightsReserved": "All rights reserved",
+    "privacyPolicy": "Privacy Policy",
+    "termsService": "Terms of Service",
+    "cookiePolicy": "Cookie Policy",
+    "weAccept": "We accept"
+  }
+}

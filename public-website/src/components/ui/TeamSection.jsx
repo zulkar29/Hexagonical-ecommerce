@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { Linkedin, Twitter, Mail } from 'lucide-react';
 import Image from 'next/image';
+import { useTranslations } from '@/hooks/useTranslations';
 
 const TeamMember = ({ member, index }) => {
   return (
@@ -88,8 +89,8 @@ const TeamMember = ({ member, index }) => {
   );
 };
 
-const TeamSection = ({ 
-  title = "Meet Our Team",
+const TeamSection = ({
+  title,
   subtitle,
   description,
   members = [],
@@ -97,7 +98,11 @@ const TeamSection = ({
   showAll = true,
   maxMembers = 8
 }) => {
+  const { t, locale } = useTranslations();
   const displayMembers = showAll ? members : members.slice(0, maxMembers);
+
+  // Use translation if no title is provided
+  const sectionTitle = title || t('team.title');
   
   const gridCols = {
     grid: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
@@ -129,7 +134,7 @@ const TeamSection = ({
             viewport={{ once: true }}
             className="text-3xl md:text-4xl font-bold text-gray-900 mb-4"
           >
-            {title}
+            {sectionTitle}
           </motion.h2>
           
           {description && (
@@ -222,17 +227,16 @@ const TeamSection = ({
         >
           <div className="bg-gray-50 rounded-2xl p-8">
             <h3 className="text-2xl font-bold text-gray-900 mb-4">
-              Join Our Growing Team
+              {t('team.joinTeam')}
             </h3>
             <p className="text-gray-600 mb-6 max-w-2xl mx-auto">
-              We're always looking for talented individuals who share our passion for innovation and excellence. 
-              Explore our open positions and become part of our mission.
+              {t('team.joinTeamDesc')}
             </p>
             <a
-              href="/careers"
+              href={`/${locale}/careers`}
               className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
             >
-              View Open Positions
+              {t('team.viewPositions')}
             </a>
           </div>
         </motion.div>

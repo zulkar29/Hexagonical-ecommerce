@@ -7,81 +7,39 @@ import { useState } from 'react'
 import { useTranslations } from '@/hooks/useTranslations'
 
 export default function PricingPage() {
-  const { t } = useTranslations()
+  const { t, locale } = useTranslations()
   const [billingCycle, setBillingCycle] = useState('monthly')
 
   const pricingPlans = [
     {
-      name: 'starter',
-      price: 990,
-      description: 'নতুন ব্যবসার জন্য উপযুক্ত'
+      name: 'free',
+      price: 0,
+      isFree: true
     },
     {
-      name: 'professional', 
+      name: 'starter',
+      price: 990
+    },
+    {
+      name: 'professional',
       price: 2990,
-      description: 'ক্রমবর্ধমান ব্যবসার জন্য',
       popular: true
     },
     {
       name: 'pro',
-      price: 4990,
-      description: 'প্রতিষ্ঠিত ব্যবসার জন্য'
-    },
-    {
-      name: 'enterprise',
-      price: null,
-      description: 'বড় কোম্পানির জন্য'
+      price: 4990
     }
   ]
 
-  const features = {
-    starter: [
-      '৫০০টি পর্যন্ত পণ্য',
-      '৫জিবি স্টোরেজ',
-      'বেসিক অ্যানালিটিক্স',
-      'ইমেইল সাপোর্ট',
-      'এসএসএল সার্টিফিকেট',
-      'মোবাইল ফ্রেন্ডলি',
-      'কাস্টম ডোমেইন',
-      'বেসিক এসইও টুলস'
-    ],
-    professional: [
-      '২০০০টি পর্যন্ত পণ্য',
-      '২০জিবি স্টোরেজ',
-      'অ্যাডভান্সড অ্যানালিটিক্স',
-      'অগ্রাধিকার সাপোর্ট',
-      'কাস্টম ডোমেইন',
-      'অ্যাডভান্সড এসইও',
-      'মাল্টি-কারেন্সি সাপোর্ট',
-      'পরিত্যক্ত কার্ট রিকভারি',
-      'পেমেন্ট গেটওয়ে',
-      'ইনভেন্টরি ব্যবস্থাপনা'
-    ],
-    pro: [
-      '১০০০০টি পর্যন্ত পণ্য',
-      '১০০জিবি স্টোরেজ',
-      'অ্যাডভান্সড রিপোর্ট',
-      'অগ্রাধিকার সাপোর্ট',
-      'মাল্টি-স্টোর ব্যবস্থাপনা',
-      'ইন্টিগ্রেশন সাপোর্ট',
-      'অ্যাডভান্সড ইন্টিগ্রেশন',
-      'কাস্টম থিম',
-      'মার্কেটিং অটোমেশন',
-      'অ্যাডভান্সড নিরাপত্তা'
-    ],
-    enterprise: [
-      'আনলিমিটেড পণ্য',
-      'আনলিমিটেড স্টোরেজ',
-      'কাস্টম ড্যাশবোর্ড',
-      '২৪/৭ ডেডিকেটেড সাপোর্ট',
-      'হোয়াইট-লেবেল সমাধান',
-      'কাস্টম ইন্টিগ্রেশন',
-      'অ্যাডভান্সড নিরাপত্তা',
-      'এসএলএ গ্যারান্টি',
-      'মাল্টি-স্টোর ব্যবস্থাপনা',
-      'কাস্টম ডেভেলপমেন্ট'
-    ]
-  }
+  // Helper function to safely get features array
+  const getFeatures = (key) => {
+    try {
+      const features = t(key);
+      return Array.isArray(features) ? features : [];
+    } catch {
+      return [];
+    }
+  };
 
   const addOns = [
     {
@@ -120,13 +78,13 @@ export default function PricingPage() {
             >
               {t('pricing.title')}
             </motion.h1>
-            <motion.p 
+            <motion.p
               className="text-xl text-gray-600 max-w-3xl mx-auto mb-12"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
-              আপনার ব্যবসার জন্য সেরা প্ল্যান বেছে নিন। সব প্ল্যানে ১৪ দিন ফ্রি ট্রায়াল এবং কোনো সেটআপ ফি নেই।
+              {t('pricing.description')}
             </motion.p>
 
             {/* Billing Toggle */}
@@ -161,11 +119,12 @@ export default function PricingPage() {
       {/* Pricing Plans */}
       <section className="py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {pricingPlans.map((plan, index) => {
-              const planFeatures = features[plan.name] || []
+          {/* Paid Plans Grid */}
+          <div className="grid md:grid-cols-3 gap-8 mb-16">
+            {pricingPlans.filter(plan => !plan.isFree).map((plan, index) => {
+              const planFeatures = getFeatures(`getStarted.plans.${plan.name}.features`)
               const isPopular = plan.popular
-              
+
               return (
                 <motion.div
                   key={plan.name}
@@ -180,7 +139,7 @@ export default function PricingPage() {
                     <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                       <span className="bg-orange-600 text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center">
                         <Crown className="w-4 h-4 mr-1" />
-                        জনপ্রিয়
+                        {t('getStarted.plan.recommended')}
                       </span>
                     </div>
                   )}
@@ -189,24 +148,20 @@ export default function PricingPage() {
                     <h3 className="text-2xl font-bold text-gray-900 mb-4">{t(`getStarted.plans.${plan.name}.name`)}</h3>
                     <div className="mb-4">
                       <span className="text-4xl font-bold text-gray-900">
-                        {plan.price === null 
-                          ? 'যোগাযোগ করুন'
-                          : billingCycle === 'yearly' 
-                            ? `৳${Math.round(plan.price * 0.8)}`
-                            : `৳${plan.price}`
+                        {billingCycle === 'yearly'
+                          ? `৳${Math.round(plan.price * 0.8)}`
+                          : `৳${plan.price}`
                         }
                       </span>
-                      {plan.price !== null && (
-                        <span className="text-gray-600 ml-1">
-                          /{billingCycle === 'yearly' ? 'মাস (বার্ষিক বিলিং)' : 'মাস'}
-                        </span>
-                      )}
+                      <span className="text-gray-600 ml-1">
+                        /{billingCycle === 'yearly' ? t('getStarted.plan.yearly') : t('getStarted.plan.monthly')}
+                      </span>
                     </div>
-                    <p className="text-gray-600">{plan.description}</p>
+                    <p className="text-gray-600">{t(`getStarted.plans.${plan.name}.description`)}</p>
                   </div>
 
                   <ul className="space-y-3 mb-8">
-                    {planFeatures.map((feature, idx) => (
+                    {planFeatures.slice(0, 8).map((feature, idx) => (
                       <li key={idx} className="flex items-start">
                         <Check className="w-4 h-4 text-emerald-500 mr-3 flex-shrink-0 mt-0.5" />
                         <span className="text-gray-700 text-sm">{feature}</span>
@@ -214,16 +169,74 @@ export default function PricingPage() {
                     ))}
                   </ul>
 
-                  <Link 
-                    href="/get-started"
+                  <Link
+                    href={`/${locale}/get-started`}
                     className={`block w-full py-3 px-6 rounded-lg font-semibold text-center transition-colors duration-200 ${
                       isPopular
                         ? 'bg-orange-600 text-white hover:bg-orange-700'
                         : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
                     }`}
                   >
-                    শুরু করুন
+                    {t('common.getStarted')}
                   </Link>
+                </motion.div>
+              )
+            })}
+          </div>
+
+          {/* Free Trial Option - Full Width */}
+          <div className="border-t pt-12">
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">Or start with our free trial</h3>
+              <p className="text-gray-600">No credit card required • Cancel anytime</p>
+            </div>
+
+            {pricingPlans.filter(plan => plan.isFree).map((plan) => {
+              const planFeatures = getFeatures(`getStarted.plans.${plan.name}.features`)
+
+              return (
+                <motion.div
+                  key={plan.name}
+                  className="bg-white rounded-2xl shadow-sm border-2 border-emerald-200 p-8"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                    <div className="flex items-center gap-6 flex-1">
+                      <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center">
+                          <Star className="w-8 h-8 text-emerald-600" />
+                        </div>
+                        <div>
+                          <h3 className="text-3xl font-bold text-gray-900 mb-2">{t(`getStarted.plans.${plan.name}.name`)}</h3>
+                          <p className="text-gray-600">{t(`getStarted.plans.${plan.name}.description`)}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-4xl font-bold text-emerald-600 mb-1">FREE</div>
+                        <div className="text-emerald-600 font-medium">14 days trial</div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-8">
+                      <div className="hidden lg:flex items-center gap-6 text-sm text-gray-600">
+                        {planFeatures.slice(0, 4).map((feature, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-emerald-500" />
+                            <span>{feature}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <Link
+                        href={`/${locale}/get-started`}
+                        className="bg-emerald-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-emerald-700 transition-colors duration-200 whitespace-nowrap"
+                      >
+                        Start Free Trial
+                      </Link>
+                    </div>
+                  </div>
                 </motion.div>
               )
             })}
@@ -248,35 +261,46 @@ export default function PricingPage() {
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">ফিচার</th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">স্টার্টার</th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">প্রফেশনাল</th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">প্রো</th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">এন্টারপ্রাইজ</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Feature</th>
+                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">{t('getStarted.plans.free.name')}</th>
+                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">{t('getStarted.plans.starter.name')}</th>
+                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">{t('getStarted.plans.professional.name')}</th>
+                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">{t('getStarted.plans.pro.name')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {[
-                    { feature: 'পণ্য সংখ্যা', basic: '৫০০', professional: '২০০০', pro: '১০০০০', enterprise: 'আনলিমিটেড' },
-                    { feature: 'স্টোরেজ', basic: '৫ জিবি', professional: '২০ জিবি', pro: '১০০ জিবি', enterprise: 'আনলিমিটেড' },
-                    { feature: 'সাপোর্ট', basic: 'ইমেইল', professional: 'অগ্রাধিকার', pro: 'অগ্রাধিকার', enterprise: '২৪/৭ ডেডিকেটেড' },
-                    { feature: 'উন্নত অ্যানালিটিক্স', basic: false, professional: true, pro: true, enterprise: true },
-                    { feature: 'মাল্টি-স্টোর ব্যবস্থাপনা', basic: false, professional: false, pro: true, enterprise: true },
-                    { feature: 'ইন্টিগ্রেশন সাপোর্ট', basic: false, professional: false, pro: true, enterprise: true },
-                    { feature: 'হোয়াইট-লেবেল', basic: false, professional: false, pro: false, enterprise: true },
-                    { feature: 'কাস্টম ডেভেলপমেন্ট', basic: false, professional: false, pro: false, enterprise: true }
+                    { feature: 'Products', free: '50', starter: '500', professional: '2000', pro: '10000' },
+                    { feature: 'Storage', free: '1 GB', starter: '5 GB', professional: '20 GB', pro: '100 GB' },
+                    { feature: 'Staff Accounts', free: '1', starter: '1', professional: '3', pro: '10' },
+                    { feature: 'Support', free: 'Email', starter: 'Email', professional: 'Priority', pro: 'Priority' },
+                    { feature: 'Custom Domain', free: false, starter: true, professional: true, pro: true },
+                    { feature: 'Advanced Analytics', free: false, starter: false, professional: true, pro: true },
+                    { feature: 'Email Marketing', free: false, starter: false, professional: false, pro: true },
+                    { feature: 'API Access', free: false, starter: false, professional: false, pro: true }
                   ].map((row, index) => (
                     <tr key={index} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">{row.feature}</td>
                       <td className="px-6 py-4 text-center">
-                        {typeof row.basic === 'boolean' ? (
-                          row.basic ? (
+                        {typeof row.free === 'boolean' ? (
+                          row.free ? (
                             <Check className="w-5 h-5 text-emerald-500 mx-auto" />
                           ) : (
                             <X className="w-5 h-5 text-gray-300 mx-auto" />
                           )
                         ) : (
-                          <span className="text-sm text-gray-700">{row.basic}</span>
+                          <span className="text-sm text-gray-700">{row.free}</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        {typeof row.starter === 'boolean' ? (
+                          row.starter ? (
+                            <Check className="w-5 h-5 text-emerald-500 mx-auto" />
+                          ) : (
+                            <X className="w-5 h-5 text-gray-300 mx-auto" />
+                          )
+                        ) : (
+                          <span className="text-sm text-gray-700">{row.starter}</span>
                         )}
                       </td>
                       <td className="px-6 py-4 text-center">
@@ -299,17 +323,6 @@ export default function PricingPage() {
                           )
                         ) : (
                           <span className="text-sm text-gray-700">{row.pro}</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        {typeof row.enterprise === 'boolean' ? (
-                          row.enterprise ? (
-                            <Check className="w-5 h-5 text-emerald-500 mx-auto" />
-                          ) : (
-                            <X className="w-5 h-5 text-gray-300 mx-auto" />
-                          )
-                        ) : (
-                          <span className="text-sm text-gray-700">{row.enterprise}</span>
                         )}
                       </td>
                     </tr>
@@ -400,32 +413,6 @@ export default function PricingPage() {
                 <p className="text-gray-600">{faq.answer}</p>
               </motion.div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="py-20 bg-gray-900">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-            আপনার স্টোর চালু করতে প্রস্তুত?
-          </h2>
-          <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-            হাজারো ব্যবসায়ীর সাথে যোগ দিন যারা আমাদের বিশ্বাস করেন। আজই ফ্রি ট্রায়াল শুরু করুন।
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/get-started"
-              className="bg-orange-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-orange-700 transition-colors duration-200"
-            >
-              ফ্রি ট্রায়াল শুরু করুন
-            </Link>
-            <Link
-              href="/contact"
-              className="border-2 border-gray-600 text-gray-300 px-8 py-4 rounded-lg font-semibold hover:bg-gray-800 hover:border-gray-500 transition-colors duration-200"
-            >
-              যোগাযোগ করুন
-            </Link>
           </div>
         </div>
       </section>

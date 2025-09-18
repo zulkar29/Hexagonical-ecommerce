@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { Check, X, Star } from 'lucide-react';
 import Link from 'next/link';
+import { useTranslations } from '@/hooks/useTranslations';
 
 const PricingCard = ({ plan, index, isPopular = false }) => {
   return (
@@ -79,14 +80,19 @@ const PricingCard = ({ plan, index, isPopular = false }) => {
   );
 };
 
-const PricingTable = ({ 
-  plans, 
-  title = "Choose Your Plan", 
-  subtitle = "Select the perfect plan for your business needs",
+const PricingTable = ({
+  plans,
+  title,
+  subtitle,
   showBillingToggle = false,
   billingCycle = 'monthly',
   onBillingChange
 }) => {
+  const { t, locale } = useTranslations();
+
+  // Use translation if no title/subtitle is provided
+  const sectionTitle = title || t('pricing.chooseYourPlan');
+  const sectionSubtitle = subtitle || t('pricing.subtitle');
   return (
     <section className="py-16 bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -98,10 +104,10 @@ const PricingTable = ({
           className="text-center mb-12"
         >
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            {title}
+            {sectionTitle}
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-            {subtitle}
+            {sectionSubtitle}
           </p>
           
           {showBillingToggle && (
@@ -151,7 +157,7 @@ const PricingTable = ({
             Need a custom solution? We can create a plan tailored to your specific needs.
           </p>
           <Link
-            href="/contact"
+            href={`/${locale}/contact`}
             className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium"
           >
             Contact us for enterprise pricing

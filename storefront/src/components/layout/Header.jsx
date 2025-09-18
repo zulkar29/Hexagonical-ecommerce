@@ -3,27 +3,29 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useAtom } from 'jotai';
-import { 
-  Search, 
-  ShoppingCart, 
-  Heart, 
-  User, 
-  Menu, 
-  X, 
+import {
+  Search,
+  ShoppingCart,
+  Heart,
+  User,
+  Menu,
+  X,
   GitCompare,
   ChevronDown,
   Truck
 } from 'lucide-react';
-import { 
-  cartCountAtom, 
-  wishlistCountAtom, 
+import {
+  cartCountAtom,
+  wishlistCountAtom,
   comparisonCountAtom,
   mobileMenuOpenAtom,
   searchOpenAtom
 } from '@/store/atoms';
 import SearchBar from '@/components/search/SearchBar';
+import { useTranslations } from '@/hooks/useTranslations';
 
 export default function Header() {
+  const { t } = useTranslations();
   const [cartCount] = useAtom(cartCountAtom);
   const [wishlistCount] = useAtom(wishlistCountAtom);
   const [comparisonCount] = useAtom(comparisonCountAtom);
@@ -32,10 +34,10 @@ export default function Header() {
   const [showCategories, setShowCategories] = useState(false);
 
   const categories = [
-    { name: 'Electronics', href: '/category/electronics' },
-    { name: 'Clothing', href: '/category/clothing' },
-    { name: 'Accessories', href: '/category/accessories' },
-    { name: 'Home & Kitchen', href: '/category/home-kitchen' }
+    { name: t('categories.electronics'), href: '/category/electronics' },
+    { name: t('categories.clothing'), href: '/category/clothing' },
+    { name: t('categories.accessories'), href: '/category/accessories' },
+    { name: t('categories.homeKitchen'), href: '/category/home-kitchen' }
   ];
 
   return (
@@ -47,18 +49,18 @@ export default function Header() {
             <div className="flex items-center space-x-6">
               <span className="flex items-center gap-2">
                 <Truck className="w-4 h-4" />
-                Free shipping on orders over $50
+                {t('header.freeShipping')}
               </span>
             </div>
             <div className="flex items-center space-x-6">
               <Link href="/help" className="hover:text-blue-300 transition-colors duration-200 font-medium">
-                Help
+                {t('navigation.help')}
               </Link>
               <Link href="/contact" className="hover:text-blue-300 transition-colors duration-200 font-medium">
-                Contact
+                {t('navigation.contact')}
               </Link>
               <div className="border-l border-gray-600 pl-4">
-                <span className="text-xs opacity-90">24/7 Support Available</span>
+                <span className="text-xs opacity-90">{t('header.support24h')}</span>
               </div>
             </div>
           </div>
@@ -75,8 +77,8 @@ export default function Header() {
                 <span className="text-white font-bold text-xl">S</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Storefront</span>
-                <span className="text-xs text-gray-500 -mt-1">Premium Shopping</span>
+                <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{t('header.storefront')}</span>
+                <span className="text-xs text-gray-500 -mt-1">{t('header.premiumShopping')}</span>
               </div>
             </Link>
           </div>
@@ -84,17 +86,17 @@ export default function Header() {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
             <Link href="/" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium relative group">
-              Home
+              {t('navigation.home')}
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-600 to-purple-600 transition-all duration-200 group-hover:w-full"></span>
             </Link>
-            
-            <div 
+
+            <div
               className="relative"
               onMouseEnter={() => setShowCategories(true)}
               onMouseLeave={() => setShowCategories(false)}
             >
               <button className="flex items-center text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium relative group">
-                Categories
+                {t('navigation.categories')}
                 <ChevronDown className={`ml-1 w-4 h-4 transition-transform duration-200 ${showCategories ? 'rotate-180' : ''}`} />
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-600 to-purple-600 transition-all duration-200 group-hover:w-full"></span>
               </button>
@@ -115,15 +117,15 @@ export default function Header() {
             </div>
             
             <Link href="/products" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium relative group">
-              Products
+              {t('navigation.products')}
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-600 to-purple-600 transition-all duration-200 group-hover:w-full"></span>
             </Link>
             <Link href="/deals" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium relative group">
-              Deals
+              {t('navigation.deals')}
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-600 to-purple-600 transition-all duration-200 group-hover:w-full"></span>
             </Link>
             <Link href="/about" className="text-gray-700 hover:text-blue-600 transition-all duration-200 font-medium relative group">
-              About
+              {t('navigation.about')}
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-600 to-purple-600 transition-all duration-200 group-hover:w-full"></span>
             </Link>
           </nav>
@@ -217,11 +219,11 @@ export default function Header() {
               className="block px-3 py-2 text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors rounded-md"
               onClick={() => setMobileMenuOpen(false)}
             >
-              Home
+              {t('navigation.home')}
             </Link>
-            
+
             <div className="px-3 py-2">
-              <div className="text-gray-700 font-medium mb-2">Categories</div>
+              <div className="text-gray-700 font-medium mb-2">{t('navigation.categories')}</div>
               <div className="pl-4 space-y-1">
                 {categories.map((category) => (
                   <Link
@@ -235,50 +237,50 @@ export default function Header() {
                 ))}
               </div>
             </div>
-            
+
             <Link
               href="/products"
               className="block px-3 py-2 text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors rounded-md"
               onClick={() => setMobileMenuOpen(false)}
             >
-              Products
+              {t('navigation.products')}
             </Link>
             <Link
               href="/deals"
               className="block px-3 py-2 text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors rounded-md"
               onClick={() => setMobileMenuOpen(false)}
             >
-              Deals
+              {t('navigation.deals')}
             </Link>
             <Link
               href="/about"
               className="block px-3 py-2 text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors rounded-md"
               onClick={() => setMobileMenuOpen(false)}
             >
-              About
+              {t('navigation.about')}
             </Link>
-            
+
             <div className="border-t border-gray-200 pt-2 mt-2">
               <Link
                 href="/account"
                 className="block px-3 py-2 text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors rounded-md"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                My Account
+                {t('navigation.myAccount')}
               </Link>
               <Link
                 href="/help"
                 className="block px-3 py-2 text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors rounded-md"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Help
+                {t('navigation.help')}
               </Link>
               <Link
                 href="/contact"
                 className="block px-3 py-2 text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors rounded-md"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Contact
+                {t('navigation.contact')}
               </Link>
             </div>
           </div>
