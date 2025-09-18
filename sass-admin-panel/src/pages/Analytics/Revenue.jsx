@@ -15,6 +15,14 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 const summary = [
   { label: 'MRR', value: '৳245,000', icon: TrendingUp, color: 'text-green-600', change: '+12.5%' },
@@ -103,23 +111,23 @@ export default function RevenueAnalytics() {
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm border">
-                <thead>
-                  <tr className="bg-muted/50">
-                    <th className="p-2 text-left font-medium">Tenant</th>
-                    <th className="p-2 text-left font-medium">Amount</th>
-                    <th className="p-2 text-left font-medium">Method</th>
-                    <th className="p-2 text-left font-medium">Status</th>
-                    <th className="p-2 text-left font-medium">Date</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="p-2">Tenant</TableHead>
+                    <TableHead className="p-2">Amount</TableHead>
+                    <TableHead className="p-2">Method</TableHead>
+                    <TableHead className="p-2">Status</TableHead>
+                    <TableHead className="p-2">Date</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {recentPayments.map((p) => (
-                    <tr key={p.id} className="border-t">
-                      <td className="p-2">{p.tenant}</td>
-                      <td className="p-2">৳{p.amount.toLocaleString()}</td>
-                      <td className="p-2">{p.method}</td>
-                      <td className="p-2">
+                    <TableRow key={p.id} className="border-t">
+                      <TableCell className="p-2">{p.tenant}</TableCell>
+                      <TableCell className="p-2">৳{p.amount.toLocaleString()}</TableCell>
+                      <TableCell className="p-2">{p.method}</TableCell>
+                      <TableCell className="p-2">
                         {p.status === 'Completed' ? (
                           <Badge variant="success">Completed</Badge>
                         ) : p.status === 'Pending' ? (
@@ -127,12 +135,12 @@ export default function RevenueAnalytics() {
                         ) : (
                           <Badge variant="destructive">Failed</Badge>
                         )}
-                      </td>
-                      <td className="p-2">{p.date}</td>
-                    </tr>
+                      </TableCell>
+                      <TableCell className="p-2">{p.date}</TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>

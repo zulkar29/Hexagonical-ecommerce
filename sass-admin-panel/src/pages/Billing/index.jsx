@@ -61,7 +61,8 @@ const invoices = [
     dueDate: '2024-01-15',
     paidDate: '2024-01-14',
     plan: 'Enterprise',
-    billingPeriod: 'Jan 2024'
+    billingPeriod: 'Jan 2024',
+    subscriptionId: 'sub_001'
   },
   {
     id: 'INV-2024-002',
@@ -71,7 +72,8 @@ const invoices = [
     dueDate: '2024-01-20',
     paidDate: null,
     plan: 'Professional',
-    billingPeriod: 'Jan 2024'
+    billingPeriod: 'Jan 2024',
+    subscriptionId: 'sub_002'
   },
   {
     id: 'INV-2024-003',
@@ -81,7 +83,8 @@ const invoices = [
     dueDate: '2024-01-10',
     paidDate: null,
     plan: 'Basic',
-    billingPeriod: 'Jan 2024'
+    billingPeriod: 'Jan 2024',
+    subscriptionId: 'sub_003'
   },
   {
     id: 'INV-2024-004',
@@ -91,13 +94,15 @@ const invoices = [
     dueDate: '2024-01-12',
     paidDate: '2024-01-11',
     plan: 'Enterprise Annual',
-    billingPeriod: 'Jan 2024 - Dec 2024'
+    billingPeriod: 'Jan 2024 - Dec 2024',
+    subscriptionId: 'sub_004'
   },
   {
     id: 'INV-2024-005',
     tenant: 'EcoFriendly Co',
     amount: 99.00,
     status: 'Processing',
+    subscriptionId: 'sub_005',
     dueDate: '2024-01-25',
     paidDate: null,
     plan: 'Professional',
@@ -178,6 +183,10 @@ export default function BillingHome() {
               </p>
             </div>
             <div className="flex items-center space-x-3">
+              <Link to="/subscriptions" className="text-primary hover:underline flex items-center">
+                <CreditCard className="h-4 w-4 mr-1" />
+                Manage Subscriptions
+              </Link>
               <Button variant="outline">
                 <Download className="h-4 w-4 mr-2" />
                 Export
@@ -277,6 +286,7 @@ export default function BillingHome() {
                         <TableHead>Status</TableHead>
                         <TableHead>Due Date</TableHead>
                         <TableHead>Plan</TableHead>
+                        <TableHead>Subscription</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -290,6 +300,14 @@ export default function BillingHome() {
                           <TableCell>{formatDate(invoice.dueDate)}</TableCell>
                           <TableCell>
                             <Badge variant="outline">{invoice.plan}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Link 
+                              to={`/subscriptions/${invoice.subscriptionId}`}
+                              className="text-primary hover:underline text-sm"
+                            >
+                              {invoice.subscriptionId}
+                            </Link>
                           </TableCell>
                           <TableCell>
                             <DropdownMenu>

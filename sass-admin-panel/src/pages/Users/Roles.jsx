@@ -8,6 +8,14 @@ import {
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 
@@ -66,38 +74,38 @@ export default function RoleManagement() {
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm border">
-                <thead>
-                  <tr className="bg-muted/50">
-                    <th className="p-2 text-left font-medium">Role Name</th>
-                    <th className="p-2 text-left font-medium">Description</th>
-                    <th className="p-2 text-left font-medium">Status</th>
-                    <th className="p-2 text-left font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="p-2">Role Name</TableHead>
+                    <TableHead className="p-2">Description</TableHead>
+                    <TableHead className="p-2">Status</TableHead>
+                    <TableHead className="p-2">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {roles.map((r) => (
-                    <tr key={r.id} className="border-t">
-                      <td className="p-2">
+                    <TableRow key={r.id} className="border-t">
+                      <TableCell className="p-2">
                         <Link to={`/users/permissions/role/edit/${r.id}`} className="text-primary underline hover:opacity-80">{r.name}</Link>
-                      </td>
-                      <td className="p-2">{r.description}</td>
-                      <td className="p-2">
+                      </TableCell>
+                      <TableCell className="p-2">{r.description}</TableCell>
+                      <TableCell className="p-2">
                         {r.status === 'Active' ? (
                           <Badge variant="success">Active</Badge>
                         ) : (
                           <Badge variant="destructive">Inactive</Badge>
                         )}
-                      </td>
-                      <td className="p-2">
+                      </TableCell>
+                      <TableCell className="p-2">
                         <Button size="icon" variant="outline">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Search,
   Filter,
@@ -104,6 +104,7 @@ import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 
 const TenantsPage = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedPlan, setSelectedPlan] = useState('all');
@@ -112,7 +113,6 @@ const TenantsPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedTenants, setSelectedTenants] = useState([]);
-  const [showAddDialog, setShowAddDialog] = useState(false);
   const [showBulkActionsDialog, setShowBulkActionsDialog] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
 
@@ -432,7 +432,7 @@ const TenantsPage = () => {
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
-          <Button onClick={() => setShowAddDialog(true)}>
+          <Button onClick={() => navigate('/tenants/onboard')}>
             <Plus className="h-4 w-4 mr-2" />
             Add Tenant
           </Button>
@@ -854,109 +854,6 @@ const TenantsPage = () => {
           </div>
         </TabsContent>
       </Tabs>
-
-      {/* Add Tenant Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add New Tenant</DialogTitle>
-            <DialogDescription>
-              Register a new shop to the platform with their business details
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="shopName">Shop Name *</Label>
-              <Input id="shopName" placeholder="Enter shop name" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="businessType">Business Type</Label>
-              <Select>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select business type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="electronics">Electronics</SelectItem>
-                  <SelectItem value="fashion">Fashion & Apparel</SelectItem>
-                  <SelectItem value="grocery">Grocery & Food</SelectItem>
-                  <SelectItem value="pharmacy">Healthcare & Pharmacy</SelectItem>
-                  <SelectItem value="books">Books & Education</SelectItem>
-                  <SelectItem value="technology">Technology & Services</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="ownerName">Owner Name *</Label>
-              <Input id="ownerName" placeholder="Enter owner name" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address *</Label>
-              <Input id="email" type="email" placeholder="Enter email address" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number *</Label>
-              <Input id="phone" placeholder="Enter phone number" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="website">Website (Optional)</Label>
-              <Input id="website" placeholder="https://example.com" />
-            </div>
-            <div className="md:col-span-2 space-y-2">
-              <Label htmlFor="address">Address *</Label>
-              <Input id="address" placeholder="Enter full business address" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="plan">Subscription Plan *</Label>
-              <Select>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select subscription plan" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="starter">Starter - ৳2,000/month</SelectItem>
-                  <SelectItem value="business">Business - ৳5,000/month</SelectItem>
-                  <SelectItem value="enterprise">Enterprise - ৳10,000/month</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="status">Initial Status</Label>
-              <Select defaultValue="trial">
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="trial">Trial (14 days)</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="md:col-span-2 space-y-2">
-              <Label htmlFor="notes">Notes (Optional)</Label>
-              <Textarea 
-                id="notes" 
-                placeholder="Additional notes about the tenant or business" 
-                rows={3}
-              />
-            </div>
-            <div className="md:col-span-2 flex items-center space-x-2">
-              <Checkbox id="sendWelcome" defaultChecked />
-              <Label htmlFor="sendWelcome" className="text-sm">
-                Send welcome email with account setup instructions
-              </Label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={() => setShowAddDialog(false)}>
-              <UserPlus className="h-4 w-4 mr-2" />
-              Create Tenant
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Bulk Actions Dialog */}
       <Dialog open={showBulkActionsDialog} onOpenChange={setShowBulkActionsDialog}>

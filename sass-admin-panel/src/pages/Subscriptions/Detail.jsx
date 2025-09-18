@@ -16,6 +16,14 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Link, useParams } from 'react-router-dom';
 
 // Mock subscription data
@@ -198,47 +206,47 @@ export default function SubscriptionDetail() {
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-4 font-medium">Date</th>
-                    <th className="text-left p-4 font-medium">Amount</th>
-                    <th className="text-left p-4 font-medium">Status</th>
-                    <th className="text-left p-4 font-medium">Invoice</th>
-                    <th className="text-left p-4 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-b">
+                    <TableHead className="text-left p-4 font-medium">Date</TableHead>
+                    <TableHead className="text-left p-4 font-medium">Amount</TableHead>
+                    <TableHead className="text-left p-4 font-medium">Status</TableHead>
+                    <TableHead className="text-left p-4 font-medium">Invoice</TableHead>
+                    <TableHead className="text-left p-4 font-medium">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {subscription.billingHistory.map((bill, index) => (
-                    <tr key={index} className="border-b hover:bg-muted/50">
-                      <td className="p-4">
+                    <TableRow key={index} className="border-b hover:bg-muted/50">
+                      <TableCell className="p-4">
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-muted-foreground" />
                           {bill.date}
                         </div>
-                      </td>
-                      <td className="p-4">
+                      </TableCell>
+                      <TableCell className="p-4">
                         <div className="flex items-center gap-1">
                           <DollarSign className="h-4 w-4 text-muted-foreground" />
                           {bill.amount}
                         </div>
-                      </td>
-                      <td className="p-4">
+                      </TableCell>
+                      <TableCell className="p-4">
                         <Badge variant="default" className="bg-green-600">{bill.status}</Badge>
-                      </td>
-                      <td className="p-4">
+                      </TableCell>
+                      <TableCell className="p-4">
                         <span className="font-mono text-sm">{bill.invoice}</span>
-                      </td>
-                      <td className="p-4">
+                      </TableCell>
+                      <TableCell className="p-4">
                         <Button size="sm" variant="outline">
                           <Download className="h-4 w-4 mr-2" />
                           Download
                         </Button>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>

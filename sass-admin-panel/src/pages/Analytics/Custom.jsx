@@ -27,6 +27,14 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -305,37 +313,37 @@ export default function CustomReports() {
                 </CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left p-4 font-medium">Report Name</th>
-                          <th className="text-left p-4 font-medium">Template</th>
-                          <th className="text-left p-4 font-medium">Status</th>
-                          <th className="text-left p-4 font-medium">Schedule</th>
-                          <th className="text-left p-4 font-medium">Last Run</th>
-                          <th className="text-left p-4 font-medium">Created By</th>
-                          <th className="text-left p-4 font-medium">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Report Name</TableHead>
+                          <TableHead>Template</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Schedule</TableHead>
+                          <TableHead>Last Run</TableHead>
+                          <TableHead>Created By</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
                         {filteredReports.map((report) => (
-                          <tr key={report.id} className="border-b hover:bg-muted/50">
-                            <td className="p-4">
+                          <TableRow key={report.id}>
+                            <TableCell>
                               <div>
                                 <p className="font-medium">{report.name}</p>
                                 <p className="text-sm text-muted-foreground">{report.id}</p>
                               </div>
-                            </td>
-                            <td className="p-4">
+                            </TableCell>
+                            <TableCell>
                               <Badge variant="outline">{report.template}</Badge>
-                            </td>
-                            <td className="p-4">{getStatusBadge(report.status)}</td>
-                            <td className="p-4">
+                            </TableCell>
+                            <TableCell>{getStatusBadge(report.status)}</TableCell>
+                            <TableCell>
                               <Badge variant="secondary">{report.schedule}</Badge>
-                            </td>
-                            <td className="p-4 text-sm">{formatDateTime(report.lastRun)}</td>
-                            <td className="p-4 text-sm">{report.createdBy}</td>
-                            <td className="p-4">
+                            </TableCell>
+                            <TableCell className="text-sm">{formatDateTime(report.lastRun)}</TableCell>
+                            <TableCell className="text-sm">{report.createdBy}</TableCell>
+                            <TableCell>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="sm">
@@ -365,11 +373,11 @@ export default function CustomReports() {
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         ))}
-                      </tbody>
-                    </table>
+                      </TableBody>
+                    </Table>
                   </div>
                 </CardContent>
               </Card>

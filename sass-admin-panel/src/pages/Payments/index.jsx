@@ -29,6 +29,14 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -300,32 +308,32 @@ export default function PaymentsHome() {
                 </CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left p-4 font-medium">Payment ID</th>
-                          <th className="text-left p-4 font-medium">Tenant</th>
-                          <th className="text-left p-4 font-medium">Amount</th>
-                          <th className="text-left p-4 font-medium">Status</th>
-                          <th className="text-left p-4 font-medium">Method</th>
-                          <th className="text-left p-4 font-medium">Gateway</th>
-                          <th className="text-left p-4 font-medium">Date</th>
-                          <th className="text-left p-4 font-medium">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-b">
+                          <TableHead className="text-left p-4">Payment ID</TableHead>
+                          <TableHead className="text-left p-4">Tenant</TableHead>
+                          <TableHead className="text-left p-4">Amount</TableHead>
+                          <TableHead className="text-left p-4">Status</TableHead>
+                          <TableHead className="text-left p-4">Method</TableHead>
+                          <TableHead className="text-left p-4">Gateway</TableHead>
+                          <TableHead className="text-left p-4">Date</TableHead>
+                          <TableHead className="text-left p-4">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
                         {filteredPayments.map((payment) => (
-                          <tr key={payment.id} className="border-b hover:bg-muted/50">
-                            <td className="p-4 font-mono text-sm">{payment.id}</td>
-                            <td className="p-4">{payment.tenant}</td>
-                            <td className="p-4 font-semibold">{formatCurrency(payment.amount)}</td>
-                            <td className="p-4">{getStatusBadge(payment.status)}</td>
-                            <td className="p-4">
+                          <TableRow key={payment.id} className="border-b hover:bg-muted/50">
+                            <TableCell className="p-4 font-mono text-sm">{payment.id}</TableCell>
+                            <TableCell className="p-4">{payment.tenant}</TableCell>
+                            <TableCell className="p-4 font-semibold">{formatCurrency(payment.amount)}</TableCell>
+                            <TableCell className="p-4">{getStatusBadge(payment.status)}</TableCell>
+                            <TableCell className="p-4">
                               <Badge variant="outline">{payment.method}</Badge>
-                            </td>
-                            <td className="p-4 text-sm text-muted-foreground">{payment.gateway}</td>
-                            <td className="p-4 text-sm">{formatDateTime(payment.date)}</td>
-                            <td className="p-4">
+                            </TableCell>
+                            <TableCell className="p-4 text-sm text-muted-foreground">{payment.gateway}</TableCell>
+                            <TableCell className="p-4 text-sm">{formatDateTime(payment.date)}</TableCell>
+                            <TableCell className="p-4">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="sm">
@@ -355,11 +363,11 @@ export default function PaymentsHome() {
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         ))}
-                      </tbody>
-                    </table>
+                      </TableBody>
+                    </Table>
                   </div>
                 </CardContent>
               </Card>
@@ -404,28 +412,28 @@ export default function PaymentsHome() {
                 </CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left p-4 font-medium">Alert ID</th>
-                          <th className="text-left p-4 font-medium">Tenant</th>
-                          <th className="text-left p-4 font-medium">Amount</th>
-                          <th className="text-left p-4 font-medium">Reason</th>
-                          <th className="text-left p-4 font-medium">Severity</th>
-                          <th className="text-left p-4 font-medium">Date</th>
-                          <th className="text-left p-4 font-medium">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-b">
+                          <TableHead className="text-left p-4">Alert ID</TableHead>
+                          <TableHead className="text-left p-4">Tenant</TableHead>
+                          <TableHead className="text-left p-4">Amount</TableHead>
+                          <TableHead className="text-left p-4">Reason</TableHead>
+                          <TableHead className="text-left p-4">Severity</TableHead>
+                          <TableHead className="text-left p-4">Date</TableHead>
+                          <TableHead className="text-left p-4">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
                         {fraudAlerts.map((alert) => (
-                          <tr key={alert.id} className="border-b hover:bg-muted/50">
-                            <td className="p-4 font-mono text-sm">{alert.id}</td>
-                            <td className="p-4">{alert.tenant}</td>
-                            <td className="p-4 font-semibold">{formatCurrency(alert.amount)}</td>
-                            <td className="p-4">{alert.reason}</td>
-                            <td className="p-4">{getSeverityBadge(alert.severity)}</td>
-                            <td className="p-4">{formatDate(alert.date)}</td>
-                            <td className="p-4">
+                          <TableRow key={alert.id} className="border-b hover:bg-muted/50">
+                            <TableCell className="p-4 font-mono text-sm">{alert.id}</TableCell>
+                            <TableCell className="p-4">{alert.tenant}</TableCell>
+                            <TableCell className="p-4 font-semibold">{formatCurrency(alert.amount)}</TableCell>
+                            <TableCell className="p-4">{alert.reason}</TableCell>
+                            <TableCell className="p-4">test</TableCell>
+                            <TableCell className="p-4">{formatDate(alert.date)}</TableCell>
+                            <TableCell className="p-4">
                               <div className="flex gap-2">
                                 <Button variant="outline" size="sm">
                                   <Eye className="h-4 w-4" />
@@ -434,11 +442,11 @@ export default function PaymentsHome() {
                                   <Ban className="h-4 w-4" />
                                 </Button>
                               </div>
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         ))}
-                      </tbody>
-                    </table>
+                      </TableBody>
+                    </Table>
                   </div>
                 </CardContent>
               </Card>

@@ -12,6 +12,14 @@ import {
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 const summary = [
   { label: 'Active Tenants', value: 156, icon: Users, color: 'text-green-600' },
@@ -98,23 +106,23 @@ export default function TenantAnalytics() {
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm border">
-                <thead>
-                  <tr className="bg-muted/50">
-                    <th className="p-2 text-left font-medium">Name</th>
-                    <th className="p-2 text-left font-medium">Owner</th>
-                    <th className="p-2 text-left font-medium">Plan</th>
-                    <th className="p-2 text-left font-medium">Status</th>
-                    <th className="p-2 text-left font-medium">Joined</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="p-2">Name</TableHead>
+                    <TableHead className="p-2">Owner</TableHead>
+                    <TableHead className="p-2">Plan</TableHead>
+                    <TableHead className="p-2">Status</TableHead>
+                    <TableHead className="p-2">Joined</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {recentTenants.map((t) => (
-                    <tr key={t.id} className="border-t">
-                      <td className="p-2">{t.name}</td>
-                      <td className="p-2">{t.owner}</td>
-                      <td className="p-2">{t.plan}</td>
-                      <td className="p-2">
+                    <TableRow key={t.id} className="border-t">
+                      <TableCell className="p-2">{t.name}</TableCell>
+                      <TableCell className="p-2">{t.owner}</TableCell>
+                      <TableCell className="p-2">{t.plan}</TableCell>
+                      <TableCell className="p-2">
                         {t.status === 'Active' ? (
                           <Badge variant="success">Active</Badge>
                         ) : t.status === 'Trial' ? (
@@ -124,12 +132,12 @@ export default function TenantAnalytics() {
                         ) : (
                           <Badge>{t.status}</Badge>
                         )}
-                      </td>
-                      <td className="p-2">{t.joined}</td>
-                    </tr>
+                      </TableCell>
+                      <TableCell className="p-2">{t.joined}</TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>

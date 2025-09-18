@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Users,
   Store,
@@ -81,10 +82,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart as RechartsPieChart, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Pie } from 'recharts';
 
 const SaaSAdminDashboard = () => {
+  const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedPeriod, setSelectedPeriod] = useState('30d');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showAddTenantDialog, setShowAddTenantDialog] = useState(false);
   const [showMessageDialog, setShowMessageDialog] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState(null);
   const [sortBy, setSortBy] = useState('name');
@@ -97,15 +98,6 @@ const SaaSAdminDashboard = () => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
   const [confirmMessage, setConfirmMessage] = useState('');
-  const [newTenantData, setNewTenantData] = useState({
-    name: '',
-    owner: '',
-    email: '',
-    phone: '',
-    location: '',
-    plan: 'Starter'
-  });
-  const [formErrors, setFormErrors] = useState({});
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -534,51 +526,7 @@ const SaaSAdminDashboard = () => {
     }
   };
 
-  const validateForm = () => {
-    const errors = {};
-    
-    if (!newTenantData.name.trim()) {
-      errors.name = 'Shop name is required';
-    }
-    
-    if (!newTenantData.owner.trim()) {
-      errors.owner = 'Owner name is required';
-    }
-    
-    if (!newTenantData.email.trim()) {
-      errors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(newTenantData.email)) {
-      errors.email = 'Email is invalid';
-    }
-    
-    if (!newTenantData.phone.trim()) {
-      errors.phone = 'Phone number is required';
-    }
-    
-    if (!newTenantData.location.trim()) {
-      errors.location = 'Location is required';
-    }
-    
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleAddTenant = () => {
-    if (validateForm()) {
-      console.log('Adding new tenant:', newTenantData);
-      // Implement add tenant logic here
-      setShowAddTenantDialog(false);
-      setNewTenantData({
-        name: '',
-        owner: '',
-        email: '',
-        phone: '',
-        location: '',
-        plan: 'Starter'
-      });
-      setFormErrors({});
-    }
-  };
+  // Add tenant functionality moved to dedicated page
 
   const handleDeleteTenant = (tenant) => {
     setConfirmAction(() => () => {
@@ -696,7 +644,7 @@ const SaaSAdminDashboard = () => {
                   variant="outline"
                   className={`h-auto p-4 justify-start ${action.color}`}
                   onClick={() => {
-                    if (action.id === 1) setShowAddTenantDialog(true);
+                    if (action.id === 1) navigate('/tenants/onboard');
                   }}
                 >
                   <div className="flex items-center space-x-3">
@@ -900,7 +848,7 @@ const SaaSAdminDashboard = () => {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}
-                    <Button size="sm" onClick={() => setShowAddTenantDialog(true)}>
+                    <Button size="sm" onClick={() => navigate('/tenants/onboard')}>
                       <Plus className="h-4 w-4 mr-2" />
                       Add Tenant
                     </Button>
@@ -1429,112 +1377,6 @@ const SaaSAdminDashboard = () => {
             </Card>
           </TabsContent>
         </Tabs>
-
-        {/* Add Tenant Dialog */}
-        <Dialog open={showAddTenantDialog} onOpenChange={setShowAddTenantDialog}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Add New Tenant</DialogTitle>
-              <DialogDescription>
-                Register a new shop to the platform
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="shopName">Shop Name *</Label>
-                <Input 
-                  id="shopName" 
-                  placeholder="Enter shop name" 
-                  value={newTenantData.name}
-                  onChange={(e) => setNewTenantData({...newTenantData, name: e.target.value})}
-                  className={formErrors.name ? 'border-red-500' : ''}
-                />
-                {formErrors.name && <p className="text-red-500 text-xs">{formErrors.name}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ownerName">Owner Name *</Label>
-                <Input 
-                  id="ownerName" 
-                  placeholder="Enter owner name" 
-                  value={newTenantData.owner}
-                  onChange={(e) => setNewTenantData({...newTenantData, owner: e.target.value})}
-                  className={formErrors.owner ? 'border-red-500' : ''}
-                />
-                {formErrors.owner && <p className="text-red-500 text-xs">{formErrors.owner}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address *</Label>
-                <Input 
-                  id="email" 
-                  type="email" 
-                  placeholder="Enter email" 
-                  value={newTenantData.email}
-                  onChange={(e) => setNewTenantData({...newTenantData, email: e.target.value})}
-                  className={formErrors.email ? 'border-red-500' : ''}
-                />
-                {formErrors.email && <p className="text-red-500 text-xs">{formErrors.email}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number *</Label>
-                <Input 
-                  id="phone" 
-                  placeholder="Enter phone number" 
-                  value={newTenantData.phone}
-                  onChange={(e) => setNewTenantData({...newTenantData, phone: e.target.value})}
-                  className={formErrors.phone ? 'border-red-500' : ''}
-                />
-                {formErrors.phone && <p className="text-red-500 text-xs">{formErrors.phone}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="location">Location *</Label>
-                <Input 
-                  id="location" 
-                  placeholder="Enter location" 
-                  value={newTenantData.location}
-                  onChange={(e) => setNewTenantData({...newTenantData, location: e.target.value})}
-                  className={formErrors.location ? 'border-red-500' : ''}
-                />
-                {formErrors.location && <p className="text-red-500 text-xs">{formErrors.location}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="plan">Subscription Plan</Label>
-                <Select value={newTenantData.plan} onValueChange={(value) => setNewTenantData({...newTenantData, plan: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select plan" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Starter">Starter - ৳2,000/month</SelectItem>
-                    <SelectItem value="Business">Business - ৳5,000/month</SelectItem>
-                    <SelectItem value="Enterprise">Enterprise - ৳10,000/month</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="md:col-span-2 space-y-2">
-                <Label htmlFor="notes">Notes (Optional)</Label>
-                <Textarea id="notes" placeholder="Additional notes about the tenant" />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => {
-                setShowAddTenantDialog(false);
-                setFormErrors({});
-                setNewTenantData({
-                  name: '',
-                  owner: '',
-                  email: '',
-                  phone: '',
-                  location: '',
-                  plan: 'Starter'
-                });
-              }}>
-                Cancel
-              </Button>
-              <Button onClick={handleAddTenant}>
-                Create Tenant
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
         {/* Send Message Dialog */}
         <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>

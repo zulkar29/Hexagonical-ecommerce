@@ -138,8 +138,8 @@ export default function CreateTicket() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-6">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex-1 overflow-auto p-4 md:p-6">
+        <div className="max-w-7xl mx-auto space-y-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Ticket Information */}
             <Card>

@@ -18,6 +18,14 @@ import {
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -202,47 +210,47 @@ export default function BackupsSettings() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm border">
-                <thead>
-                  <tr className="bg-muted/50">
-                    <th className="p-2 text-left font-medium">Date</th>
-                    <th className="p-2 text-left font-medium">Size</th>
-                    <th className="p-2 text-left font-medium">Status</th>
-                    <th className="p-2 text-left font-medium">Location</th>
-                    <th className="p-2 text-left font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="p-2">Date</TableHead>
+                    <TableHead className="p-2">Size</TableHead>
+                    <TableHead className="p-2">Status</TableHead>
+                    <TableHead className="p-2">Location</TableHead>
+                    <TableHead className="p-2">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {history.map((item) => (
-                    <tr key={item.id} className="border-t">
-                      <td className="p-2">{item.date}</td>
-                      <td className="p-2">{item.size}</td>
-                      <td className="p-2">
+                    <TableRow key={item.id} className="border-t">
+                      <TableCell className="p-2">{item.date}</TableCell>
+                      <TableCell className="p-2">{item.size}</TableCell>
+                      <TableCell className="p-2">
                         {item.status === 'Success' ? (
                           <Badge variant="success">Success</Badge>
                         ) : (
                           <Badge variant="destructive">Failed</Badge>
                         )}
-                      </td>
-                      <td className="p-2 flex items-center gap-2">
+                      </TableCell>
+                      <TableCell className="p-2 flex items-center gap-2">
                         <span>{item.location}</span>
                         <Button size="icon" variant="outline" onClick={() => handleCopy(item.location)}>
                           <Copy className="h-4 w-4" />
                         </Button>
                         {copied && <Badge variant="success">Copied!</Badge>}
-                      </td>
-                      <td className="p-2 flex gap-2">
+                      </TableCell>
+                      <TableCell className="p-2 flex gap-2">
                         <Button size="icon" variant="outline">
                           <Download className="h-4 w-4" />
                         </Button>
                         <Button size="icon" variant="outline">
                           <Trash2 className="h-4 w-4" />
                         </Button>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>

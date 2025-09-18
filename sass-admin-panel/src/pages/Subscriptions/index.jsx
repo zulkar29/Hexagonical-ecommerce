@@ -13,7 +13,11 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  Package
+  Package,
+  Eye,
+  FileText,
+  Edit,
+  RefreshCw
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,12 +33,20 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'; 
 
 const subscriptionStats = [
   { label: 'Total Subscriptions', value: 1247, icon: CreditCard, color: 'text-blue-600', change: '+12%' },
   { label: 'Active', value: 1089, icon: CheckCircle, color: 'text-green-600', change: '+8%' },
   { label: 'Pending', value: 98, icon: Clock, color: 'text-yellow-600', change: '+15%' },
-  { label: 'Cancelled', value: 60, icon: XCircle, color: 'text-red-600', change: '-5%' }
+  { label: 'Cancelled', value: 60, icon: XCircle, color: 'text-red-600', change: '-5%' },
+  { label: 'Monthly Revenue', value: '$124,350', icon: DollarSign, color: 'text-emerald-600', change: '+10.5%' }
 ];
 
 const subscriptions = [
@@ -47,6 +59,7 @@ const subscriptions = [
     billingCycle: 'Monthly',
     nextBilling: '2024-02-15',
     startDate: '2023-08-15',
+    paymentStatus: 'Current',
     features: ['Unlimited Users', 'Advanced Analytics', 'Priority Support']
   },
   {
@@ -58,17 +71,19 @@ const subscriptions = [
     billingCycle: 'Monthly',
     nextBilling: '2024-02-20',
     startDate: '2024-01-20',
+    paymentStatus: 'Current',
     features: ['Up to 50 Users', 'Basic Analytics', 'Email Support']
   },
   {
     id: 'sub_003',
     tenant: 'RetailMax',
     plan: 'Basic',
-    status: 'Pending',
+    status: 'Trial',
     amount: 29,
     billingCycle: 'Monthly',
     nextBilling: '2024-02-10',
     startDate: '2024-02-01',
+    paymentStatus: 'Current',
     features: ['Up to 10 Users', 'Basic Features']
   },
   {
@@ -80,6 +95,7 @@ const subscriptions = [
     billingCycle: 'Annual',
     nextBilling: null,
     startDate: '2023-05-10',
+    paymentStatus: 'Cancelled',
     features: ['Unlimited Users', 'Advanced Analytics', 'Priority Support']
   },
   {
@@ -91,6 +107,7 @@ const subscriptions = [
     billingCycle: 'Monthly',
     nextBilling: '2024-02-25',
     startDate: '2023-11-25',
+    paymentStatus: 'Overdue',
     features: ['Up to 50 Users', 'Basic Analytics', 'Email Support']
   }
 ];
@@ -108,14 +125,31 @@ export default function SubscriptionsHome() {
     return matchesSearch && matchesStatus && matchesPlan;
   });
 
-  const getStatusBadge = (status) => {
+    const getStatusBadge = (status) => {
     switch (status) {
       case 'Active':
-        return <Badge variant="default" className="bg-green-600">Active</Badge>;
-      case 'Pending':
-        return <Badge variant="secondary">Pending</Badge>;
+        return <Badge variant="success">Active</Badge>;
+      case 'Trial':
+        return <Badge variant="secondary">Trial</Badge>;
       case 'Cancelled':
         return <Badge variant="destructive">Cancelled</Badge>;
+      case 'Expired':
+        return <Badge variant="outline">Expired</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+  
+  const getPaymentStatusBadge = (status) => {
+    switch (status) {
+      case 'Current':
+        return <Badge variant="success">Current</Badge>;
+      case 'Pending':
+        return <Badge variant="secondary">Pending</Badge>;
+      case 'Overdue':
+        return <Badge variant="destructive">Overdue</Badge>;
+      case 'Cancelled':
+        return <Badge variant="outline">Cancelled</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -218,9 +252,11 @@ export default function SubscriptionsHome() {
                   <TableHead>Tenant</TableHead>
                   <TableHead>Plan</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Payment Status</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Billing Cycle</TableHead>
                   <TableHead>Next Billing</TableHead>
+                  <TableHead>Payment Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -265,9 +301,39 @@ export default function SubscriptionsHome() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Button size="sm" variant="outline">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
+                      {getPaymentStatusBadge(subscription.paymentStatus)}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" variant="ghost">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <FileText className="h-4 w-4 mr-2" />
+                            View Invoices
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit Subscription
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem>
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Renew Subscription
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive">
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Cancel Subscription
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}
