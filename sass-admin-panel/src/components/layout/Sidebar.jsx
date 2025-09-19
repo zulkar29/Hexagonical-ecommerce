@@ -73,14 +73,18 @@ const AdminSidebar = ({
     { label: 'New Signups', value: '24', icon: UserPlus, color: 'text-purple-500' }
   ];
 
-  // Navigation menu structure
+  // Navigation menu structure - organized by logical groups
   const navigationMenu = [
+    // Overview Section
     {
       id: 'dashboard',
       title: 'Dashboard',
       icon: LayoutDashboard,
       href: '/dashboard',
     },
+    { type: 'separator' },
+
+    // Business Management Section
     {
       id: 'tenants',
       title: 'Tenants',
@@ -93,20 +97,14 @@ const AdminSidebar = ({
       icon: Package,
       href: '/subscriptions',
     },
-    {
-      id: 'users',
-      title: 'Users & Roles',
-      icon: Users,
-      subItems: [
-        { title: 'Users', href: '/users', icon: Users },
-        { title: 'Permissions', href: '/users/permissions', icon: Shield }
-      ]
-    },
+    { type: 'separator' },
+
+    // Financial Operations Section
     {
       id: 'billing',
       title: 'Billing & Payments',
       icon: CreditCard,
-      href: '/payments',
+      href: '/billing',
     },
     {
       id: 'referrals',
@@ -114,33 +112,54 @@ const AdminSidebar = ({
       icon: Share2,
       href: '/referrals',
     },
+    { type: 'separator' },
+
+    // User Management Section
+    {
+      id: 'users',
+      title: 'Users & Roles',
+      icon: Users,
+      subItems: [
+        { title: 'All Users', href: '/users', icon: Users },
+        { title: 'Roles & Permissions', href: '/users/permissions', icon: Shield }
+      ]
+    },
+    { type: 'separator' },
+
+    // Customer Support Section
     {
       id: 'support',
       title: 'Support',
       icon: LifeBuoy,
       href: '/support',
     },
+    { type: 'separator' },
+
+    // Analytics & Reporting Section
     {
       id: 'analytics',
-      title: 'Analytics',
+      title: 'Analytics & Reports',
       icon: BarChart3,
       subItems: [
         { title: 'Revenue Analytics', href: '/analytics/revenue', icon: TrendingUp },
         { title: 'Tenant Analytics', href: '/analytics/tenants', icon: PieChart },
-        { title: 'Performance', href: '/analytics/performance', icon: Activity },
+        { title: 'Performance Metrics', href: '/analytics/performance', icon: Activity },
         { title: 'Custom Reports', href: '/analytics/custom', icon: Target }
       ]
     },
+    { type: 'separator' },
+
+    // System Administration Section
     {
       id: 'settings',
-      title: 'Settings',
+      title: 'System Settings',
       icon: Settings,
       subItems: [
         { title: 'Platform Settings', href: '/settings', icon: Settings },
-        { title: 'System Health', href: '/settings/system-health', icon: Shield },
-        { title: 'Database', href: '/settings/database', icon: Database },
+        { title: 'System Health', href: '/settings/system-health', icon: Activity },
+        { title: 'Database Management', href: '/settings/database', icon: Database },
         { title: 'API Management', href: '/settings/api', icon: Globe },
-        { title: 'Backups', href: '/settings/backups', icon: Download },
+        { title: 'Backups & Recovery', href: '/settings/backups', icon: Download },
         { title: 'Audit Logs', href: '/settings/logs', icon: FileText }
       ]
     }
@@ -377,10 +396,15 @@ const AdminSidebar = ({
         )}
 
         {/* Navigation Menu */}
-        <nav className="flex-1 overflow-y-auto p-3 space-y-2">
-          {navigationMenu.map((item) => (
-            item.isSection ? renderSection(item) : renderMenuItem(item)
-          ))}
+        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+          {navigationMenu.map((item, index) => {
+            if (item.type === 'separator') {
+              return !isCollapsed ? (
+                <div key={`separator-${index}`} className="border-t border-border my-2" />
+              ) : null;
+            }
+            return item.isSection ? renderSection(item) : renderMenuItem(item);
+          })}
         </nav>
 
   

@@ -686,6 +686,9 @@ const SaaSAdminDashboard = () => {
                   className={`h-auto p-4 justify-start ${action.color}`}
                   onClick={() => {
                     if (action.id === 1) navigate('/tenants/onboard');
+                    if (action.id === 2) navigate('/analytics');
+                    if (action.id === 3) navigate('/support');
+                    if (action.id === 4) navigate('/settings/system-health');
                   }}
                 >
                   <div className="flex items-center space-x-3">
@@ -1115,11 +1118,11 @@ const SaaSAdminDashboard = () => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => navigate(`/tenants/${tenant.id}`)}>
                                 <Eye className="h-4 w-4 mr-2" />
-                                View Dashboard
+                                View Details
                               </DropdownMenuItem>
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => navigate(`/tenants/${tenant.id}/manage`)}>
                                 <Edit className="h-4 w-4 mr-2" />
                                 Edit Details
                               </DropdownMenuItem>
@@ -1130,12 +1133,12 @@ const SaaSAdminDashboard = () => {
                                 <Mail className="h-4 w-4 mr-2" />
                                 Send Message
                               </DropdownMenuItem>
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => navigate('/analytics/tenants')}>
                                 <BarChart3 className="h-4 w-4 mr-2" />
                                 View Analytics
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => navigate('/billing')}>
                                 <CreditCard className="h-4 w-4 mr-2" />
                                 Billing History
                               </DropdownMenuItem>
@@ -1254,8 +1257,7 @@ const SaaSAdminDashboard = () => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
-                                <Eye className="h-4 w-4 mr-2" />
+                              <DropdownMenuItem onClick={() => navigate(`/billing/${payment.id}`)}>                               <Eye className="h-4 w-4 mr-2" />
                                 View Receipt
                               </DropdownMenuItem>
                               <DropdownMenuItem>
@@ -1273,8 +1275,7 @@ const SaaSAdminDashboard = () => {
                                 Send Receipt
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem>
-                                <Edit className="h-4 w-4 mr-2" />
+                              <DropdownMenuItem onClick={() => navigate(`/billing/${payment.id}/edit`)}>                               <Edit className="h-4 w-4 mr-2" />
                                 Update Status
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -1305,8 +1306,7 @@ const SaaSAdminDashboard = () => {
                     <Badge variant="secondary">
                       3 Open Tickets
                     </Badge>
-                    <Button size="sm">
-                      <Plus className="h-4 w-4 mr-2" />
+                    <Button size="sm" onClick={() => navigate('/support/create')}>                     <Plus className="h-4 w-4 mr-2" />
                       New Ticket
                     </Button>
                   </div>
@@ -1382,20 +1382,24 @@ const SaaSAdminDashboard = () => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => navigate(`/support/${ticket.id}`)}>
                                 <Eye className="h-4 w-4 mr-2" />
                                 View Details
                               </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Edit className="h-4 w-4 mr-2" />
+                              <DropdownMenuItem onClick={() => navigate(`/support/${ticket.id}/edit`)}>                               <Edit className="h-4 w-4 mr-2" />
                                 Update Status
                               </DropdownMenuItem>
                               <DropdownMenuItem>
                                 <Users className="h-4 w-4 mr-2" />
                                 Reassign
                               </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Mail className="h-4 w-4 mr-2" />
+                              <DropdownMenuItem onClick={() => {
+                                const tenant = recentTenants.find(t => t.name === ticket.tenant);
+                                if (tenant) {
+                                  setSelectedTenant(tenant);
+                                  setShowMessageDialog(true);
+                                }
+                              }}>                               <Mail className="h-4 w-4 mr-2" />
                                 Contact Customer
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />

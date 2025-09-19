@@ -13,7 +13,6 @@ import UsersHome from './pages/Users';
 import AnalyticsHome from './pages/Analytics';
 import SupportHome from './pages/Support';
 import SettingsHome from './pages/Settings';
-import PaymentsHome from './pages/Payments';
 import Dashboard from './pages/Dashboard';
 import TenantDetail from './pages/Tenants/Detail';
 import UserCreate from './pages/Users/create';
@@ -22,11 +21,11 @@ import SupportCreate from './pages/Support/Create';
 import SupportEdit from './pages/Support/Edit';
 import BillingCreate from './pages/Billing/Create';
 import BillingEdit from './pages/Billing/Edit';
-import PaymentDetail from './pages/Payments/Detail';
+import BillingDetail from './pages/Billing/Detail';
 import SubscriptionDetail from './pages/Subscriptions/Detail';
 import CreateSubscription from './pages/Subscriptions/Create';
 import ModifySubscription from './pages/Subscriptions/Modify';
-import SupportDetail from './pages/Support/Detail';
+import TicketDetail from './pages/Support/TicketDetail';
 import TenantOnboard from './pages/Tenants/Onboard';
 import TenantManage from './pages/Tenants/Manage';
 import SystemHealth from './pages/Settings/SystemHealth';
@@ -77,9 +76,10 @@ function App() {
               {/* Billing & Payments Routes */}
               <Route path="billing" element={<BillingHome />} />
               <Route path="billing/create" element={<BillingCreate />} />
+              <Route path="billing/:id" element={<BillingDetail />} />
               <Route path="billing/:id/edit" element={<BillingEdit />} />
-              <Route path="payments" element={<PaymentsHome />} />
-              <Route path="payments/:id" element={<PaymentDetail />} />
+              <Route path="payments" element={<BillingHome />} />
+              <Route path="payments/:id" element={<BillingHome />} />
               
               {/* User & Permission Management Routes */}
               <Route path="users" element={<UsersHome />} />
@@ -106,7 +106,7 @@ function App() {
               <Route path="support/knowledge-base" element={<KnowledgeBase />} />
               <Route path="support/communication" element={<Communication />} />
               <Route path="support/announcements" element={<Announcements />} />
-              <Route path="support/:id" element={<SupportDetail />} />
+              <Route path="support/:id" element={<TicketDetail />} />
               
               {/* Settings Routes */}
               <Route path="settings" element={<SettingsHome />} />

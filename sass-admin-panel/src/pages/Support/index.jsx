@@ -1,126 +1,230 @@
 import React, { useState } from 'react';
 import {
-  MessageSquare,
+  MessageCircle,
   Users,
+  AlertCircle,
+  CheckCircle2,
   Clock,
-  CheckCircle,
-  AlertTriangle,
-  Plus,
   Search,
   Filter,
+  Plus,
   MoreHorizontal,
-  Calendar,
-  User,
-  Mail,
-  Phone,
-  Tag
+  UserRound,
+  Eye,
+  ArchiveIcon,
+  BellOff,
+  Tag,
+  ArrowUpRight
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Link } from 'react-router-dom';
 
-const supportStats = [
-  { label: 'Total Tickets', value: 342, icon: MessageSquare, color: 'text-blue-600', change: '+8%' },
-  { label: 'Open', value: 89, icon: Clock, color: 'text-yellow-600', change: '+12%' },
-  { label: 'In Progress', value: 156, icon: AlertTriangle, color: 'text-orange-600', change: '+5%' },
-  { label: 'Resolved', value: 97, icon: CheckCircle, color: 'text-green-600', change: '+15%' }
-];
-
-const supportTickets = [
+// Mock data for support tickets
+const mockTickets = [
   {
-    id: 'TKT-001',
-    title: 'Unable to access billing dashboard',
+    id: 'TKT-1001',
+    subject: 'Cannot access dashboard after upgrade',
     customer: 'John Smith',
-    tenant: 'TechCorp Solutions',
-    priority: 'High',
+    customerEmail: 'john.smith@acme.com',
     status: 'Open',
-    category: 'Billing',
-    created: '2024-01-15',
-    lastUpdate: '2024-01-15',
-    assignee: 'Sarah Johnson'
-  },
-  {
-    id: 'TKT-002',
-    title: 'API integration issues',
-    customer: 'Mike Chen',
-    tenant: 'StartupHub',
-    priority: 'Medium',
-    status: 'In Progress',
+    priority: 'High',
     category: 'Technical',
-    created: '2024-01-14',
-    lastUpdate: '2024-01-15',
-    assignee: 'David Wilson'
+    assignedTo: 'Sarah Johnson',
+    createdAt: '2024-09-15T14:30:00Z',
+    updatedAt: '2024-09-16T09:15:00Z',
+    responseTime: '45m',
+    tenant: 'Acme Corp'
   },
   {
-    id: 'TKT-003',
-    title: 'Feature request: Custom reports',
-    customer: 'Emma Davis',
-    tenant: 'RetailMax',
-    priority: 'Low',
-    status: 'Open',
-    category: 'Feature Request',
-    created: '2024-01-13',
-    lastUpdate: '2024-01-14',
-    assignee: 'Unassigned'
+    id: 'TKT-1002',
+    subject: 'Billing issue with last month\'s invoice',
+    customer: 'Emily Rogers',
+    customerEmail: 'emily@globex.net',
+    status: 'In Progress',
+    priority: 'Medium',
+    category: 'Billing',
+    assignedTo: 'Mike Wilson',
+    createdAt: '2024-09-14T11:20:00Z',
+    updatedAt: '2024-09-16T10:45:00Z',
+    responseTime: '2h 15m',
+    tenant: 'Globex Industries'
   },
   {
-    id: 'TKT-004',
-    title: 'Password reset not working',
-    customer: 'Alex Rodriguez',
-    tenant: 'GlobalTrade Inc',
-    priority: 'High',
+    id: 'TKT-1003',
+    subject: 'How to configure custom notifications',
+    customer: 'David Lee',
+    customerEmail: 'david.lee@startechco.com',
     status: 'Resolved',
+    priority: 'Low',
+    category: 'Help',
+    assignedTo: 'Sarah Johnson',
+    createdAt: '2024-09-10T09:00:00Z',
+    updatedAt: '2024-09-12T16:30:00Z',
+    responseTime: '1h 45m',
+    tenant: 'StarTech Co'
+  },
+  {
+    id: 'TKT-1004',
+    subject: 'Need to add additional users to our account',
+    customer: 'Lisa Wang',
+    customerEmail: 'lwang@abctech.com',
+    status: 'Open',
+    priority: 'Medium',
     category: 'Account',
-    created: '2024-01-12',
-    lastUpdate: '2024-01-13',
-    assignee: 'Sarah Johnson'
+    assignedTo: 'Unassigned',
+    createdAt: '2024-09-17T08:45:00Z',
+    updatedAt: '2024-09-17T08:45:00Z',
+    responseTime: '-',
+    tenant: 'ABC Tech'
+  },
+  {
+    id: 'TKT-1005',
+    subject: 'API integration not working after latest update',
+    customer: 'Robert Chen',
+    customerEmail: 'robert@megacorp.com',
+    status: 'In Progress',
+    priority: 'Critical',
+    category: 'Technical',
+    assignedTo: 'Mike Wilson',
+    createdAt: '2024-09-16T16:10:00Z',
+    updatedAt: '2024-09-17T09:30:00Z',
+    responseTime: '30m',
+    tenant: 'MegaCorp'
+  },
+  {
+    id: 'TKT-1006',
+    subject: 'Request for extended trial period',
+    customer: 'Sophie Martin',
+    customerEmail: 'sophie@newstartup.co',
+    status: 'Waiting on Customer',
+    priority: 'Low',
+    category: 'Sales',
+    assignedTo: 'Alex Peterson',
+    createdAt: '2024-09-15T11:45:00Z',
+    updatedAt: '2024-09-16T14:20:00Z',
+    responseTime: '1h 10m',
+    tenant: 'NewStartup Inc.'
+  },
+  {
+    id: 'TKT-1007',
+    subject: 'Security concern regarding user permissions',
+    customer: 'Thomas Brown',
+    customerEmail: 'tbrown@securedata.org',
+    status: 'Open',
+    priority: 'High',
+    category: 'Security',
+    assignedTo: 'Sarah Johnson',
+    createdAt: '2024-09-17T07:20:00Z',
+    updatedAt: '2024-09-17T09:15:00Z',
+    responseTime: '1h 55m',
+    tenant: 'SecureData Solutions'
   }
 ];
 
-const recentActivity = [
-  { type: 'ticket_created', message: 'New ticket TKT-005 created by Lisa Wang', time: '5 minutes ago' },
-  { type: 'ticket_resolved', message: 'Ticket TKT-004 resolved by Sarah Johnson', time: '1 hour ago' },
-  { type: 'ticket_assigned', message: 'Ticket TKT-002 assigned to David Wilson', time: '2 hours ago' },
-  { type: 'ticket_updated', message: 'Ticket TKT-001 priority changed to High', time: '3 hours ago' }
-];
+// Helper function to calculate support statistics
+const calculateSupportStats = (tickets) => {
+  const totalTickets = tickets.length;
+  const openTickets = tickets.filter(ticket => ticket.status === 'Open').length;
+  const inProgressTickets = tickets.filter(ticket => ticket.status === 'In Progress').length;
+  const resolvedTickets = tickets.filter(ticket => ticket.status === 'Resolved').length;
+  
+  return [
+    { 
+      label: 'Total Tickets', 
+      value: totalTickets, 
+      icon: MessageCircle, 
+      color: 'text-blue-600',
+      change: '+12%' 
+    },
+    { 
+      label: 'Open', 
+      value: openTickets, 
+      icon: AlertCircle, 
+      color: 'text-amber-600',
+      change: '+5%' 
+    },
+    { 
+      label: 'In Progress', 
+      value: inProgressTickets, 
+      icon: Clock, 
+      color: 'text-indigo-600',
+      change: '-2%' 
+    },
+    { 
+      label: 'Resolved', 
+      value: resolvedTickets, 
+      icon: CheckCircle2, 
+      color: 'text-green-600',
+      change: '+8%' 
+    }
+  ];
+};
 
-export default function SupportHome() {
-  const [searchTerm, setSearchTerm] = useState('');
+const formatDate = (dateString) => {
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+};
+
+const formatDateTime = (dateString) => {
+  return new Date(dateString).toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+export default function CustomerSupport() {
+  const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
-  const [activeTab, setActiveTab] = useState('tickets');
-
-  const filteredTickets = supportTickets.filter(ticket => {
-    const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         ticket.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         ticket.id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || ticket.status.toLowerCase() === statusFilter;
-    const matchesPriority = priorityFilter === 'all' || ticket.priority.toLowerCase() === priorityFilter;
-    return matchesSearch && matchesStatus && matchesPriority;
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  
+  // Calculate support statistics
+  const supportStats = calculateSupportStats(mockTickets);
+  
+  // Filter tickets based on search query and filters
+  const filteredTickets = mockTickets.filter(ticket => {
+    const matchesSearch = 
+      ticket.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ticket.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ticket.customerEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ticket.id.toLowerCase().includes(searchQuery.toLowerCase());
+      
+    const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
+    const matchesPriority = priorityFilter === 'all' || ticket.priority === priorityFilter;
+    const matchesCategory = categoryFilter === 'all' || ticket.category === categoryFilter;
+    
+    return matchesSearch && matchesStatus && matchesPriority && matchesCategory;
   });
 
   const getStatusBadge = (status) => {
     switch (status) {
       case 'Open':
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Open</Badge>;
+        return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Open</Badge>;
       case 'In Progress':
         return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">In Progress</Badge>;
       case 'Resolved':
         return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Resolved</Badge>;
-      case 'Closed':
-        return <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">Closed</Badge>;
+      case 'Waiting on Customer':
+        return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">Waiting on Customer</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -128,12 +232,14 @@ export default function SupportHome() {
 
   const getPriorityBadge = (priority) => {
     switch (priority) {
+      case 'Critical':
+        return <Badge variant="destructive">Critical</Badge>;
       case 'High':
-        return <Badge variant="destructive">High</Badge>;
+        return <Badge className="bg-orange-500">High</Badge>;
       case 'Medium':
-        return <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">Medium</Badge>;
+        return <Badge variant="secondary">Medium</Badge>;
       case 'Low':
-        return <Badge variant="secondary">Low</Badge>;
+        return <Badge variant="outline">Low</Badge>;
       default:
         return <Badge variant="outline">{priority}</Badge>;
     }
@@ -144,222 +250,189 @@ export default function SupportHome() {
       <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex h-16 items-center justify-between px-6">
           <div className="flex items-center gap-4">
-            <MessageSquare className="h-5 w-5 text-primary" />
+            <MessageCircle className="h-5 w-5 text-primary" />
             <h1 className="text-xl font-semibold">Customer Support</h1>
-            <Badge variant="outline" className="ml-2">Admin Panel</Badge>
+            <Badge variant="outline" className="ml-2">Tickets</Badge>
           </div>
-          <Link to="/support/create">
-            <Button className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
+          <div className="flex items-center space-x-2">
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
               New Ticket
             </Button>
-          </Link>
+          </div>
         </div>
       </div>
-
+      
       <div className="flex-1 overflow-auto p-6 space-y-6">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Stats Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
           {supportStats.map((stat) => (
-            <Card key={stat.label}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <stat.icon className={`h-8 w-8 ${stat.color}`} />
-                    <div>
-                      <p className="text-sm text-muted-foreground">{stat.label}</p>
-                      <p className="text-2xl font-bold">{stat.value}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className={`text-sm font-medium ${
-                      stat.change.startsWith('+') ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {stat.change}
-                    </p>
-                    <p className="text-xs text-muted-foreground">vs last week</p>
-                  </div>
+            <div key={stat.label} className="flex items-center gap-3 bg-card p-3 rounded-lg border">
+              <div className={`p-2 rounded-md ${stat.color} bg-opacity-10 shrink-0`}>
+                <stat.icon className={`h-5 w-5 ${stat.color}`} />
+              </div>
+              <div className="flex-grow">
+                <p className="text-sm text-muted-foreground">{stat.label}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-lg font-semibold">{stat.value}</p>
+                  <span className={`text-xs ${stat.change.startsWith('+') ? 'text-green-600' : 'text-red-600'} font-medium`}>
+                    {stat.change}
+                  </span>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ))}
         </div>
-
-        {/* Main Content Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="tickets">Support Tickets</TabsTrigger>
-            <TabsTrigger value="activity">Recent Activity</TabsTrigger>
-            <TabsTrigger value="knowledge">Knowledge Base</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="tickets" className="space-y-6">
-            {/* Filters and Search */}
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="text"
-                      placeholder="Search tickets..."
-                      className="pl-10"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="w-[140px]">
-                        <SelectValue placeholder="Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="open">Open</SelectItem>
-                        <SelectItem value="in progress">In Progress</SelectItem>
-                        <SelectItem value="resolved">Resolved</SelectItem>
-                        <SelectItem value="closed">Closed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                      <SelectTrigger className="w-[140px]">
-                        <SelectValue placeholder="Priority" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Priority</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="low">Low</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Tickets Table */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Support Tickets</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Ticket ID</TableHead>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Priority</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Assignee</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredTickets.map((ticket) => (
-                      <TableRow key={ticket.id}>
-                        <TableCell>
-                          <Link 
-                            to={`/support/${ticket.id}`} 
-                            className="text-primary hover:underline font-medium"
-                          >
-                            {ticket.id}
-                          </Link>
-                        </TableCell>
-                        <TableCell>
+        
+        {/* Tickets Table */}
+        <Card>
+          <CardHeader className="py-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  type="text"
+                  placeholder="Search tickets by ID, subject, customer..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 w-full"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="Open">Open</SelectItem>
+                  <SelectItem value="In Progress">In Progress</SelectItem>
+                  <SelectItem value="Resolved">Resolved</SelectItem>
+                  <SelectItem value="Waiting on Customer">Waiting</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue placeholder="Priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priorities</SelectItem>
+                  <SelectItem value="Critical">Critical</SelectItem>
+                  <SelectItem value="High">High</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="Low">Low</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="Technical">Technical</SelectItem>
+                  <SelectItem value="Billing">Billing</SelectItem>
+                  <SelectItem value="Account">Account</SelectItem>
+                  <SelectItem value="Security">Security</SelectItem>
+                  <SelectItem value="Sales">Sales</SelectItem>
+                  <SelectItem value="Help">Help</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Ticket ID</TableHead>
+                    <TableHead>Subject</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Priority</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredTickets.map((ticket) => (
+                    <TableRow key={ticket.id}>
+                      <TableCell className="font-mono text-xs">
+                        {ticket.id}
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium max-w-[200px] truncate">
+                          {ticket.subject}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {ticket.tenant}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 bg-primary/10 rounded-full flex items-center justify-center">
+                            <span className="text-xs font-medium">{ticket.customer.charAt(0)}</span>
+                          </div>
                           <div>
-                            <p className="font-medium">{ticket.title}</p>
-                            <p className="text-xs text-muted-foreground">{ticket.category}</p>
+                            <div className="text-sm">{ticket.customer}</div>
+                            <div className="text-xs text-muted-foreground">{ticket.customerEmail}</div>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <p className="font-medium">{ticket.customer}</p>
-                              <p className="text-xs text-muted-foreground">{ticket.tenant}</p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {getPriorityBadge(ticket.priority)}
-                        </TableCell>
-                        <TableCell>
-                          {getStatusBadge(ticket.status)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-muted-foreground" />
-                            {ticket.assignee}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                            {ticket.created}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Link to={`/support/${ticket.id}/edit`}>
-                              <Button size="sm" variant="outline">
-                                Edit
-                              </Button>
-                            </Link>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {getStatusBadge(ticket.status)}
+                      </TableCell>
+                      <TableCell>
+                        {getPriorityBadge(ticket.priority)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Tag className="h-3 w-3" />
+                          <span className="text-sm">{ticket.category}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">{formatDate(ticket.createdAt)}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {ticket.assignedTo !== 'Unassigned' ? `Assigned to ${ticket.assignedTo}` : 'Unassigned'}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
                             <Button size="sm" variant="ghost">
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="activity" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {recentActivity.map((activity, index) => (
-                    <div key={index} className="flex items-start gap-4 p-4 border rounded-lg">
-                      <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
-                      <div className="flex-1">
-                        <p className="text-sm">{activity.message}</p>
-                        <p className="text-xs text-muted-foreground">{activity.time}</p>
-                      </div>
-                    </div>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem asChild>
+                              <Link to={`/support/tickets/${ticket.id}`}>
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Ticket
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>
+                              <ArrowUpRight className="h-4 w-4 mr-2" />
+                              Escalate
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem>
+                              <ArchiveIcon className="h-4 w-4 mr-2" />
+                              Archive
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-amber-600">
+                              <BellOff className="h-4 w-4 mr-2" />
+                              Mute Notifications
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="knowledge" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Knowledge Base Management</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8">
-                  <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Knowledge Base</h3>
-                  <p className="text-muted-foreground mb-4">Manage articles, FAQs, and documentation for customer self-service.</p>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Article
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

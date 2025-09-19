@@ -19,7 +19,6 @@ import {
   Wallet
 } from 'lucide-react';
 import { toast } from 'sonner';
-import referralService from '@/services/referralService';
 import ReferralCodeGenerator from './ReferralCodeGenerator';
 import ReferralStatistics from './ReferralStatistics';
 import CommissionTracking from './CommissionTracking';

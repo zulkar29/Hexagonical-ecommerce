@@ -2,60 +2,37 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Search,
-  Filter,
-  Plus,
-  Download,
-  Upload,
   MoreHorizontal,
   Eye,
   Edit,
   Trash2,
+  Calendar,
+  DollarSign,
+  Store,
+  Clock,
+  CheckCircle,
+  XCircle,
+  CreditCard,
   Mail,
   Phone,
   MapPin,
   Package,
-  Calendar,
-  DollarSign,
   Users,
-  Store,
-  Activity,
-  Clock,
-  CheckCircle,
-  AlertTriangle,
-  XCircle,
-  TrendingUp,
-  TrendingDown,
-  RefreshCw,
-  Settings,
-  BarChart3,
-  CreditCard,
-  Shield,
-  UserPlus,
-  Building,
-  Globe,
   Star,
-  AlertCircle,
-  Info,
-  ChevronLeft,
-  ChevronRight,
-  ArrowUpDown,
-  SortAsc,
-  SortDesc
+  Settings,
+  BarChart3
 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Separator } from '@/components/ui/separator';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuCheckboxItem,
 } from '@/components/ui/dropdown-menu';
 import {
   Table,
@@ -66,55 +43,18 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { Checkbox } from '@/components/ui/checkbox';
 
 const TenantsPage = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedPlan, setSelectedPlan] = useState('all');
-  const [sortBy, setSortBy] = useState('name');
-  const [sortOrder, setSortOrder] = useState('asc');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [selectedTenants, setSelectedTenants] = useState([]);
-  const [showBulkActionsDialog, setShowBulkActionsDialog] = useState(false);
-  const [activeTab, setActiveTab] = useState('all');
 
   // Mock tenant data
   const [tenants, setTenants] = useState([
@@ -269,7 +209,7 @@ const TenantsPage = () => {
     const now = new Date();
     const loginDate = new Date(dateString);
     const diffInHours = Math.floor((now - loginDate) / (1000 * 60 * 60));
-    
+
     if (diffInHours < 1) return 'Online now';
     if (diffInHours < 24) return `${diffInHours}h ago`;
     const diffInDays = Math.floor(diffInHours / 24);
@@ -300,8 +240,8 @@ const TenantsPage = () => {
       <Star
         key={i}
         className={`h-3 w-3 ${
-          i < Math.floor(rating) 
-            ? 'text-yellow-400 fill-current' 
+          i < Math.floor(rating)
+            ? 'text-yellow-400 fill-current'
             : 'text-gray-300'
         }`}
       />
@@ -318,34 +258,9 @@ const TenantsPage = () => {
     
     const matchesStatus = selectedStatus === 'all' || tenant.status === selectedStatus;
     const matchesPlan = selectedPlan === 'all' || tenant.plan === selectedPlan;
-    const matchesTab = activeTab === 'all' || tenant.status === activeTab;
     
-    return matchesSearch && matchesStatus && matchesPlan && matchesTab;
-  }).sort((a, b) => {
-    let aValue = a[sortBy];
-    let bValue = b[sortBy];
-    
-    if (sortBy === 'joinDate' || sortBy === 'lastLogin') {
-      aValue = new Date(aValue);
-      bValue = new Date(bValue);
-    }
-    
-    if (typeof aValue === 'string') {
-      aValue = aValue.toLowerCase();
-      bValue = bValue.toLowerCase();
-    }
-    
-    if (sortOrder === 'asc') {
-      return aValue > bValue ? 1 : -1;
-    } else {
-      return aValue < bValue ? 1 : -1;
-    }
+    return matchesSearch && matchesStatus && matchesPlan;
   });
-
-  // Pagination
-  const totalPages = Math.ceil(filteredTenants.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedTenants = filteredTenants.slice(startIndex, startIndex + itemsPerPage);
 
   // Stats calculation
   const stats = {
@@ -357,124 +272,114 @@ const TenantsPage = () => {
     avgRevenue: tenants.reduce((sum, t) => sum + t.monthlyRevenue, 0) / tenants.length
   };
 
-  const handleSort = (column) => {
-    if (sortBy === column) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(column);
-      setSortOrder('asc');
-    }
-  };
-
-  const handleSelectTenant = (tenantId) => {
-    setSelectedTenants(prev => 
-      prev.includes(tenantId) 
-        ? prev.filter(id => id !== tenantId)
-        : [...prev, tenantId]
-    );
-  };
-
-  const handleSelectAll = () => {
-    if (selectedTenants.length === paginatedTenants.length) {
-      setSelectedTenants([]);
-    } else {
-      setSelectedTenants(paginatedTenants.map(t => t.id));
-    }
-  };
-
-  const handleBulkAction = (action) => {
-    console.log(`Bulk action: ${action} on tenants:`, selectedTenants);
-    // Implement bulk actions here
-    setSelectedTenants([]);
-    setShowBulkActionsDialog(false);
-  };
-
-  const handleDeleteTenant = (tenantId) => {
-    setTenants(prev => prev.filter(t => t.id !== tenantId));
-  };
-
-  const SortButton = ({ column, children }) => (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="h-8 p-0 font-medium"
-      onClick={() => handleSort(column)}
-    >
-      {children}
-      {sortBy === column ? (
-        sortOrder === 'asc' ? (
-          <SortAsc className="ml-1 h-3 w-3" />
-        ) : (
-          <SortDesc className="ml-1 h-3 w-3" />
-        )
-      ) : (
-        <ArrowUpDown className="ml-1 h-3 w-3" />
-      )}
-    </Button>
-  );
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Tenant Management</h1>
-          <p className="text-muted-foreground">
-            Manage shop registrations, subscriptions, and tenant accounts
-          </p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button variant="outline" size="sm">
-            <Upload className="h-4 w-4 mr-2" />
-            Import
-          </Button>
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-          <Button onClick={() => navigate('/tenants/onboard')}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Tenant
-          </Button>
+    <div className="flex flex-col h-full bg-background">
+      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex h-16 items-center px-6">
+          <div className="flex items-center gap-4">
+            <Store className="h-5 w-5 text-primary" />
+            <h1 className="text-xl font-semibold">Tenant Management</h1>
+            <Badge variant="outline" className="ml-2">Admin Panel</Badge>
+          </div>
         </div>
       </div>
 
+      <div className="flex-1 overflow-auto p-6 space-y-6">
+        {/* Stats Row */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 w-full">
+          <div className="flex items-center gap-3 bg-card p-3 rounded-lg border">
+            <div className="p-2 rounded-md text-blue-600 bg-opacity-10 shrink-0">
+              <Store className="h-5 w-5 text-blue-600" />
+            </div>
+            <div className="flex-grow">
+              <p className="text-sm text-muted-foreground">Total Tenants</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-lg font-semibold">{stats.total}</p>
+                <span className="text-xs text-green-600 font-medium">+12%</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 bg-card p-3 rounded-lg border">
+            <div className="p-2 rounded-md text-green-600 bg-opacity-10 shrink-0">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+            </div>
+            <div className="flex-grow">
+              <p className="text-sm text-muted-foreground">Active</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-lg font-semibold">{stats.active}</p>
+                <span className="text-xs text-green-600 font-medium">+8%</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 bg-card p-3 rounded-lg border">
+            <div className="p-2 rounded-md text-yellow-600 bg-opacity-10 shrink-0">
+              <Clock className="h-5 w-5 text-yellow-600" />
+            </div>
+            <div className="flex-grow">
+              <p className="text-sm text-muted-foreground">Trial</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-lg font-semibold">{stats.trial}</p>
+                <span className="text-xs text-yellow-600 font-medium">+15%</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 bg-card p-3 rounded-lg border">
+            <div className="p-2 rounded-md text-red-600 bg-opacity-10 shrink-0">
+              <XCircle className="h-5 w-5 text-red-600" />
+            </div>
+            <div className="flex-grow">
+              <p className="text-sm text-muted-foreground">Suspended</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-lg font-semibold">{stats.suspended}</p>
+                <span className="text-xs text-red-600 font-medium">-5%</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 bg-card p-3 rounded-lg border">
+            <div className="p-2 rounded-md text-emerald-600 bg-opacity-10 shrink-0">
+              <DollarSign className="h-5 w-5 text-emerald-600" />
+            </div>
+            <div className="flex-grow">
+              <p className="text-sm text-muted-foreground">Total Revenue</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-lg font-semibold">{formatCurrency(stats.totalRevenue)}</p>
+                <span className="text-xs text-emerald-600 font-medium">+18.2%</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
-      {/* Filters and Search */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-col lg:flex-row gap-4">
-            {/* Search */}
-            <div className="flex-1">
-              <div className="relative">
+        {/* Tenants Table */}
+        <Card>
+          <CardHeader className="py-4">
+            {/* Filters and Search */}
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
+                  type="text"
                   placeholder="Search tenants by name, owner, email, or location..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 w-full"
                 />
               </div>
-            </div>
-
-            {/* Filters */}
-            <div className="flex flex-wrap gap-2">
               <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Status" />
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="trial">Trial</SelectItem>
                   <SelectItem value="suspended">Suspended</SelectItem>
                   <SelectItem value="expired">Expired</SelectItem>
                 </SelectContent>
               </Select>
-
               <Select value={selectedPlan} onValueChange={setSelectedPlan}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Plan" />
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by Plan" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Plans</SelectItem>
@@ -483,439 +388,195 @@ const TenantsPage = () => {
                   <SelectItem value="Enterprise">Enterprise</SelectItem>
                 </SelectContent>
               </Select>
-
-              <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(parseInt(value))}>
-                <SelectTrigger className="w-20">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="25">25</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                  <SelectItem value="100">100</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Button variant="outline" size="sm">
-                <Filter className="h-4 w-4 mr-2" />
-                More Filters
-              </Button>
-
-              <Button variant="outline" size="sm">
-                <RefreshCw className="h-4 w-4" />
-              </Button>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="all">All ({stats.total})</TabsTrigger>
-          <TabsTrigger value="active">Active ({stats.active})</TabsTrigger>
-          <TabsTrigger value="trial">Trial ({stats.trial})</TabsTrigger>
-          <TabsTrigger value="suspended">Suspended ({stats.suspended})</TabsTrigger>
-          <TabsTrigger value="expired">Expired (0)</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value={activeTab} className="space-y-4">
-          {/* Bulk Actions */}
-          {selectedTenants.length > 0 && (
-            <Card className="border-primary/20 bg-primary/5">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      checked={selectedTenants.length === paginatedTenants.length}
-                      onCheckedChange={handleSelectAll}
-                    />
-                    <span className="text-sm font-medium">
-                      {selectedTenants.length} tenant{selectedTenants.length !== 1 ? 's' : ''} selected
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button variant="outline" size="sm" onClick={() => setShowBulkActionsDialog(true)}>
-                      Bulk Actions
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => setSelectedTenants([])}>
-                      Clear Selection
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Tenants Table */}
-          <Card>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">
-                        <Checkbox
-                          checked={selectedTenants.length === paginatedTenants.length && paginatedTenants.length > 0}
-                          onCheckedChange={handleSelectAll}
-                        />
-                      </TableHead>
-                      <TableHead>
-                        <SortButton column="name">Tenant Details</SortButton>
-                      </TableHead>
-                      <TableHead>
-                        <SortButton column="owner">Owner Info</SortButton>
-                      </TableHead>
-                      <TableHead>
-                        <SortButton column="plan">Plan & Status</SortButton>
-                      </TableHead>
-                      <TableHead>
-                        <SortButton column="monthlyRevenue">Performance</SortButton>
-                      </TableHead>
-                      <TableHead>
-                        <SortButton column="joinDate">Dates</SortButton>
-                      </TableHead>
-                      <TableHead>
-                        <SortButton column="lastLogin">Activity</SortButton>
-                      </TableHead>
-                      <TableHead className="w-12">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paginatedTenants.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8">
-                          <div className="flex flex-col items-center space-y-2">
-                            <Store className="h-8 w-8 text-muted-foreground" />
-                            <p className="text-muted-foreground">No tenants found</p>
-                            <Button variant="outline" size="sm" onClick={() => setSearchQuery('')}>
-                              Clear filters
-                            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tenant Details</TableHead>
+                    <TableHead>Owner Info</TableHead>
+                    <TableHead>Plan & Status</TableHead>
+                    <TableHead>Performance</TableHead>
+                    <TableHead>Dates</TableHead>
+                    <TableHead>Activity</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredTenants.map((tenant) => (
+                    <TableRow key={tenant.id} className="hover:bg-muted/50">
+                      {/* Tenant Details */}
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback className="text-xs">
+                                {tenant.name.split(' ').map(n => n[0]).join('')}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium text-sm">
+                                <Link to={`/tenants/${tenant.id}`} className="text-primary hover:underline">
+                                  {tenant.name}
+                                </Link>
+                              </p>
+                              <p className="text-xs text-muted-foreground">{tenant.businessType}</p>
+                            </div>
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      paginatedTenants.map((tenant) => (
-                        <TableRow key={tenant.id} className="hover:bg-muted/50">
-                          <TableCell>
-                            <Checkbox
-                              checked={selectedTenants.includes(tenant.id)}
-                              onCheckedChange={() => handleSelectTenant(tenant.id)}
-                            />
-                          </TableCell>
-                          
-                          {/* Tenant Details */}
-                          <TableCell>
-                            <div className="space-y-1">
-                              <div className="flex items-center space-x-2">
-                                <Avatar className="h-8 w-8">
-                                  <AvatarFallback className="text-xs">
-                                    {tenant.name.split(' ').map(n => n[0]).join('')}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div>
-                                  <p className="font-medium text-sm"><Link to={`/tenants/${tenant.id}`} className="text-primary underline hover:opacity-80">{tenant.name}</Link></p>
-                                  <p className="text-xs text-muted-foreground">{tenant.businessType}</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-                                <MapPin className="h-3 w-3" />
-                                <span>{tenant.location}</span>
-                              </div>
-                              <div className="flex items-center space-x-1">
-                                {getRatingStars(tenant.rating)}
-                                <span className="text-xs text-muted-foreground ml-1">{tenant.rating}</span>
-                              </div>
+                          <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                            <MapPin className="h-3 w-3" />
+                            <span>{tenant.location}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            {getRatingStars(tenant.rating)}
+                            <span className="text-xs text-muted-foreground ml-1">{tenant.rating}</span>
+                          </div>
+                        </div>
+                      </TableCell>
+
+                      {/* Owner Info */}
+                      <TableCell>
+                        <div className="space-y-1">
+                          <p className="font-medium text-sm">{tenant.owner}</p>
+                          <div className="flex items-center space-x-1 text-xs text-muted-foreground">
+                            <Mail className="h-3 w-3" />
+                            <span>{tenant.email}</span>
+                          </div>
+                          <div className="flex items-center space-x-1 text-xs text-muted-foreground">
+                            <Phone className="h-3 w-3" />
+                            <span>{tenant.phone}</span>
+                          </div>
+                        </div>
+                      </TableCell>
+
+                      {/* Plan & Status */}
+                      <TableCell>
+                        <div className="space-y-2">
+                          <Badge className={getPlanColor(tenant.plan) + ' text-xs'}>
+                            {tenant.plan}
+                          </Badge>
+                          <Badge className={getStatusColor(tenant.status) + ' text-xs block w-fit'}>
+                            {tenant.status}
+                          </Badge>
+                        </div>
+                      </TableCell>
+
+                      {/* Performance */}
+                      <TableCell>
+                        <div className="space-y-1">
+                          <p className="font-semibold text-sm">
+                            {formatCurrency(tenant.monthlyRevenue)}<span className="text-xs text-muted-foreground">/mo</span>
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Total: {formatCurrency(tenant.totalRevenue)}
+                          </p>
+                          <div className="flex items-center space-x-3 text-xs text-muted-foreground">
+                            <div className="flex items-center space-x-1">
+                              <Package className="h-3 w-3" />
+                              <span>{tenant.productsCount}</span>
                             </div>
-                          </TableCell>
-
-                          {/* Owner Info */}
-                          <TableCell>
-                            <div className="space-y-1">
-                              <p className="font-medium text-sm">{tenant.owner}</p>
-                              <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                                <Mail className="h-3 w-3" />
-                                <span>{tenant.email}</span>
-                              </div>
-                              <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                                <Phone className="h-3 w-3" />
-                                <span>{tenant.phone}</span>
-                              </div>
+                            <div className="flex items-center space-x-1">
+                              <Users className="h-3 w-3" />
+                              <span>{tenant.customersCount}</span>
                             </div>
-                          </TableCell>
+                          </div>
+                        </div>
+                      </TableCell>
 
-                          {/* Plan & Status */}
-                          <TableCell>
-                            <div className="space-y-2">
-                              <Badge className={getPlanColor(tenant.plan) + ' text-xs'}>
-                                {tenant.plan}
-                              </Badge>
-                              <Badge className={getStatusColor(tenant.status) + ' text-xs block w-fit'}>
-                                {tenant.status}
-                              </Badge>
-                            </div>
-                          </TableCell>
+                      {/* Dates */}
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="text-xs">
+                            <span className="text-muted-foreground">Joined: </span>
+                            <span className="font-medium">{formatDate(tenant.joinDate)}</span>
+                          </div>
+                          <div className="text-xs">
+                            <span className="text-muted-foreground">Expires: </span>
+                            <span className="font-medium">{formatDate(tenant.subscriptionEnd)}</span>
+                          </div>
+                        </div>
+                      </TableCell>
 
-                          {/* Performance */}
-                          <TableCell>
-                            <div className="space-y-1">
-                              <p className="font-semibold text-sm">
-                                {formatCurrency(tenant.monthlyRevenue)}<span className="text-xs text-muted-foreground">/mo</span>
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                Total: {formatCurrency(tenant.totalRevenue)}
-                              </p>
-                              <div className="flex items-center space-x-3 text-xs text-muted-foreground">
-                                <div className="flex items-center space-x-1">
-                                  <Package className="h-3 w-3" />
-                                  <span>{tenant.productsCount}</span>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                  <Users className="h-3 w-3" />
-                                  <span>{tenant.customersCount}</span>
-                                </div>
-                              </div>
-                            </div>
-                          </TableCell>
+                      {/* Activity */}
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-2">
+                            <div className={`w-2 h-2 rounded-full ${
+                              formatLastLogin(tenant.lastLogin) === 'Online now' ? 'bg-green-500' :
+                              formatLastLogin(tenant.lastLogin).includes('h ago') ? 'bg-yellow-500' : 'bg-gray-400'
+                            }`} />
+                            <span className="text-xs">{formatLastLogin(tenant.lastLogin)}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {tenant.ordersCount} orders total
+                          </p>
+                        </div>
+                      </TableCell>
 
-                          {/* Dates */}
-                          <TableCell>
-                            <div className="space-y-1">
-                              <div className="text-xs">
-                                <span className="text-muted-foreground">Joined: </span>
-                                <span className="font-medium">{formatDate(tenant.joinDate)}</span>
-                              </div>
-                              <div className="text-xs">
-                                <span className="text-muted-foreground">Expires: </span>
-                                <span className="font-medium">{formatDate(tenant.subscriptionEnd)}</span>
-                              </div>
-                            </div>
-                          </TableCell>
-
-                          {/* Activity */}
-                          <TableCell>
-                            <div className="space-y-1">
-                              <div className="flex items-center space-x-2">
-                                <div className={`w-2 h-2 rounded-full ${
-                                  formatLastLogin(tenant.lastLogin) === 'Online now' ? 'bg-green-500' :
-                                  formatLastLogin(tenant.lastLogin).includes('h ago') ? 'bg-yellow-500' : 'bg-gray-400'
-                                }`} />
-                                <span className="text-xs">{formatLastLogin(tenant.lastLogin)}</span>
-                              </div>
-                              <p className="text-xs text-muted-foreground">
-                                {tenant.ordersCount} orders total
-                              </p>
-                            </div>
-                          </TableCell>
-
-                          {/* Actions */}
-                          <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuItem onClick={() => {}}>
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  View Details
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <Edit className="h-4 w-4 mr-2" />
-                                  Edit Tenant
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <BarChart3 className="h-4 w-4 mr-2" />
-                                  View Analytics
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem>
-                                  <Mail className="h-4 w-4 mr-2" />
-                                  Send Message
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <CreditCard className="h-4 w-4 mr-2" />
-                                  Billing History
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <Settings className="h-4 w-4 mr-2" />
-                                  Account Settings
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                {tenant.status === 'active' && (
-                                  <DropdownMenuItem className="text-orange-600">
-                                    <Clock className="h-4 w-4 mr-2" />
-                                    Suspend Account
-                                  </DropdownMenuItem>
-                                )}
-                                {tenant.status === 'suspended' && (
-                                  <DropdownMenuItem className="text-green-600">
-                                    <CheckCircle className="h-4 w-4 mr-2" />
-                                    Reactivate Account
-                                  </DropdownMenuItem>
-                                )}
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem 
-                                      className="text-red-600"
-                                      onSelect={(e) => e.preventDefault()}
-                                    >
-                                      <Trash2 className="h-4 w-4 mr-2" />
-                                      Delete Account
-                                    </DropdownMenuItem>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Delete Tenant Account</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Are you sure you want to delete {tenant.name}? This action cannot be undone and will permanently remove all tenant data.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction 
-                                        className="bg-red-600 hover:bg-red-700"
-                                        onClick={() => handleDeleteTenant(tenant.id)}
-                                      >
-                                        Delete Account
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Pagination */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <p className="text-sm text-muted-foreground">
-                Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredTenants.length)} of {filteredTenants.length} tenants
-              </p>
+                      {/* Actions */}
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem onClick={() => navigate(`/tenants/${tenant.id}`)}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(`/tenants/${tenant.id}/manage`)}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit Tenant
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate('/analytics/tenants')}>
+                              <BarChart3 className="h-4 w-4 mr-2" />
+                              View Analytics
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem>
+                              <Mail className="h-4 w-4 mr-2" />
+                              Send Message
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate('/billing')}>
+                              <CreditCard className="h-4 w-4 mr-2" />
+                              Billing History
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(`/tenants/${tenant.id}/manage`)}>
+                              <Settings className="h-4 w-4 mr-2" />
+                              Account Settings
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {tenant.status === 'active' && (
+                              <DropdownMenuItem className="text-orange-600">
+                                <Clock className="h-4 w-4 mr-2" />
+                                Suspend Account
+                              </DropdownMenuItem>
+                            )}
+                            {tenant.status === 'suspended' && (
+                              <DropdownMenuItem className="text-green-600">
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Reactivate Account
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem className="text-destructive">
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Account
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </Button>
-              <div className="flex items-center space-x-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  const page = i + 1;
-                  return (
-                    <Button
-                      key={page}
-                      variant={currentPage === page ? "default" : "outline"}
-                      size="sm"
-                      className="w-8"
-                      onClick={() => setCurrentPage(page)}
-                    >
-                      {page}
-                    </Button>
-                  );
-                })}
-                {totalPages > 5 && (
-                  <>
-                    <span className="text-muted-foreground">...</span>
-                    <Button
-                      variant={currentPage === totalPages ? "default" : "outline"}
-                      size="sm"
-                      className="w-8"
-                      onClick={() => setCurrentPage(totalPages)}
-                    >
-                      {totalPages}
-                    </Button>
-                  </>
-                )}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-              >
-                Next
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      {/* Bulk Actions Dialog */}
-      <Dialog open={showBulkActionsDialog} onOpenChange={setShowBulkActionsDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Bulk Actions</DialogTitle>
-            <DialogDescription>
-              Apply actions to {selectedTenants.length} selected tenant{selectedTenants.length !== 1 ? 's' : ''}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => handleBulkAction('suspend')}
-                className="justify-start"
-              >
-                <Clock className="h-4 w-4 mr-2" />
-                Suspend Accounts
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => handleBulkAction('activate')}
-                className="justify-start"
-              >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Activate Accounts
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => handleBulkAction('message')}
-                className="justify-start"
-              >
-                <Mail className="h-4 w-4 mr-2" />
-                Send Message
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => handleBulkAction('export')}
-                className="justify-start"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Export Data
-              </Button>
-            </div>
-            <Separator />
-            <Button 
-              variant="destructive" 
-              onClick={() => handleBulkAction('delete')}
-              className="w-full justify-start"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete Selected Tenants
-            </Button>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowBulkActionsDialog(false)}>
-              Cancel
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
