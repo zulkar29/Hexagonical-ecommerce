@@ -25,7 +25,8 @@ import {
   ChevronRight,
   Minimize2,
   Maximize2,
-  Plus
+  Plus,
+  Share2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -106,6 +107,12 @@ const AdminSidebar = ({
       title: 'Billing & Payments',
       icon: CreditCard,
       href: '/payments',
+    },
+    {
+      id: 'referrals',
+      title: 'Referrals',
+      icon: Share2,
+      href: '/referrals',
     },
     {
       id: 'support',

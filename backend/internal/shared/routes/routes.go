@@ -22,6 +22,7 @@ import (
 	"ecommerce-saas/internal/payment"
 	"ecommerce-saas/internal/platform"
 	"ecommerce-saas/internal/product"
+	"ecommerce-saas/internal/referral"
 	"ecommerce-saas/internal/returns"
 	"ecommerce-saas/internal/reviews"
 	"ecommerce-saas/internal/search"
@@ -54,6 +55,7 @@ type ServiceContainer struct {
 	AnalyticsRepo analytics.Repository
 	ShippingRepo  *shipping.Repository
 	PaymentRepo   payment.Repository
+	ReferralRepo  referral.Repository
 
 	// Services
 	ProductService   *product.Service
@@ -62,6 +64,7 @@ type ServiceContainer struct {
 	AnalyticsService analytics.Service
 	ShippingService  *shipping.Service
 	PaymentService   payment.Service
+	ReferralService  referral.Service
 }
 
 // NewServiceContainer creates and initializes shared services
@@ -73,6 +76,7 @@ func NewServiceContainer(cfg *RouteConfig) *ServiceContainer {
 	analyticsRepo := analytics.NewRepository(cfg.DB)
 	shippingRepo := shipping.NewRepository(cfg.DB)
 	paymentRepo := payment.NewRepository(cfg.DB)
+	referralRepo := referral.NewGormRepository(cfg.DB)
 
 	// Initialize services
 	productService := product.NewService(productRepo)
@@ -81,6 +85,7 @@ func NewServiceContainer(cfg *RouteConfig) *ServiceContainer {
 	analyticsService := analytics.NewService(analyticsRepo)
 	shippingService := shipping.NewService(shippingRepo)
 	paymentService := payment.NewService(paymentRepo, cfg.Config)
+	referralService := referral.NewService(referralRepo)
 
 	return &ServiceContainer{
 		ProductRepo:      productRepo,
@@ -89,12 +94,14 @@ func NewServiceContainer(cfg *RouteConfig) *ServiceContainer {
 		AnalyticsRepo:    analyticsRepo,
 		ShippingRepo:     shippingRepo,
 		PaymentRepo:      paymentRepo,
+		ReferralRepo:     referralRepo,
 		ProductService:   productService,
 		DiscountService:  discountService,
 		ContactService:   contactService,
 		AnalyticsService: analyticsService,
 		ShippingService:  shippingService,
 		PaymentService:   paymentService,
+		ReferralService:  referralService,
 	}
 }
 
@@ -174,6 +181,7 @@ func SetupRoutes(r *gin.Engine, cfg *RouteConfig) {
 		// Business operations
 		setupFinanceRoutes(protected, cfg)
 		setupBillingRoutes(protected, cfg, services)
+		setupReferralRoutes(protected, cfg, services)
 		setupAnalyticsRoutes(protected, cfg, services)
 
 		// Customer service
@@ -394,10 +402,19 @@ func setupAdminRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 // Setup billing routes
 func setupBillingRoutes(v1 *gin.RouterGroup, cfg *RouteConfig, services *ServiceContainer) {
 	// Initialize billing module using shared services
-	billingModule := billing.NewModule(cfg.DB, services.PaymentService, services.ContactService, services.AnalyticsService)
+	billingModule := billing.NewModule(cfg.DB, services.PaymentService, services.ContactService, services.AnalyticsService, services.ReferralService)
 
 	// Register billing routes
 	billingModule.RegisterRoutes(v1)
+}
+
+// Setup referral routes
+func setupReferralRoutes(v1 *gin.RouterGroup, cfg *RouteConfig, services *ServiceContainer) {
+	// Initialize referral module using shared services
+	referralModule := referral.NewModule(cfg.DB)
+
+	// Register referral routes
+	referralModule.RegisterRoutes(v1)
 }
 
 // Setup cart routes

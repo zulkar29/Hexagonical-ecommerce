@@ -7,6 +7,7 @@ import (
 	"ecommerce-saas/internal/analytics"
 	"ecommerce-saas/internal/contact"
 	"ecommerce-saas/internal/payment"
+	"ecommerce-saas/internal/referral"
 )
 
 // Module represents the billing module
@@ -17,9 +18,9 @@ type Module struct {
 }
 
 // NewModule creates a new billing module instance
-func NewModule(db *gorm.DB, paymentService payment.Service, contactService contact.Service, analyticsService analytics.Service) *Module {
+func NewModule(db *gorm.DB, paymentService payment.Service, contactService contact.Service, analyticsService analytics.Service, referralService referral.Service) *Module {
 	repo := NewBillingRepository(db)
-	service := NewBillingService(repo, paymentService, contactService, analyticsService)
+	service := NewBillingService(repo, paymentService, contactService, analyticsService, referralService)
 	handler := NewHandler(service)
 
 	return &Module{

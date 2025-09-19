@@ -152,6 +152,8 @@ func TestOrderIntegration_OrderItems(t *testing.T) {
 			Items: []OrderItem{
 				{
 					ID:          uuid.New(),
+					TenantID:    testTenant.ID,
+					OrderID:     uuid.New(), // Will be set by repository
 					ProductID:   uuid.New(),
 					ProductName: "Test Product 1",
 					ProductSKU:  "TEST-001",
@@ -161,6 +163,8 @@ func TestOrderIntegration_OrderItems(t *testing.T) {
 				},
 				{
 					ID:          uuid.New(),
+					TenantID:    testTenant.ID,
+					OrderID:     uuid.New(), // Will be set by repository
 					ProductID:   uuid.New(),
 					ProductName: "Test Product 2",
 					ProductSKU:  "TEST-002",

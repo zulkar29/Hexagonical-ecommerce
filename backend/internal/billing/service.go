@@ -9,6 +9,7 @@ import (
 	"ecommerce-saas/internal/analytics"
 	"ecommerce-saas/internal/contact"
 	"ecommerce-saas/internal/payment"
+	"ecommerce-saas/internal/referral"
 
 	"github.com/google/uuid"
 )
@@ -24,6 +25,7 @@ type BillingService interface {
 
 	// Subscription management
 	CreateSubscription(ctx context.Context, tenantID, planID uuid.UUID, paymentMethodID *string) (*TenantSubscription, error)
+	CreateSubscriptionWithReferral(ctx context.Context, tenantID, planID uuid.UUID, paymentMethodID *string, referralCode *string) (*TenantSubscription, error)
 	GetSubscription(ctx context.Context, tenantID uuid.UUID) (*TenantSubscription, error)
 	UpdateSubscription(ctx context.Context, tenantID uuid.UUID, updates SubscriptionUpdate) (*TenantSubscription, error)
 	CancelSubscription(ctx context.Context, tenantID uuid.UUID, reason string, cancelImmediately bool) error
@@ -190,18 +192,20 @@ type service struct {
 	paymentService   payment.Service
 	contactService   contact.Service
 	analyticsService analytics.Service
+	referralService  referral.Service
 }
 
 // Service is an alias for BillingService
 type Service = BillingService
 
 // NewBillingService creates a new billing service
-func NewBillingService(repo BillingRepository, paymentService payment.Service, contactService contact.Service, analyticsService analytics.Service) BillingService {
+func NewBillingService(repo BillingRepository, paymentService payment.Service, contactService contact.Service, analyticsService analytics.Service, referralService referral.Service) BillingService {
 	return &service{
 		repo:             repo,
 		paymentService:   paymentService,
 		contactService:   contactService,
 		analyticsService: analyticsService,
+		referralService:  referralService,
 	}
 }
 
@@ -247,6 +251,11 @@ func (s *service) DeleteUsageTier(ctx context.Context, tierID uuid.UUID) error {
 
 // Subscription management implementations
 func (s *service) CreateSubscription(ctx context.Context, tenantID, planID uuid.UUID, paymentMethodID *string) (*TenantSubscription, error) {
+	return s.CreateSubscriptionWithReferral(ctx, tenantID, planID, paymentMethodID, nil)
+}
+
+// CreateSubscriptionWithReferral creates a subscription with optional referral code
+func (s *service) CreateSubscriptionWithReferral(ctx context.Context, tenantID, planID uuid.UUID, paymentMethodID *string, referralCode *string) (*TenantSubscription, error) {
 	// 1. Get billing plan details and validate
 	plan, err := s.repo.GetBillingPlan(ctx, planID)
 	if err != nil {
@@ -301,6 +310,25 @@ func (s *service) CreateSubscription(ctx context.Context, tenantID, planID uuid.
 	err = s.repo.CreateSubscription(ctx, subscription)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create subscription: %w", err)
+	}
+
+	// 4.5. Process referral if referral code is provided
+	if referralCode != nil && *referralCode != "" && s.referralService != nil {
+		go func() {
+			ctx := context.Background()
+			// Apply referral code and create commission
+			referralData, err := s.referralService.ApplyReferralCode(ctx, tenantID, *referralCode, tenantID)
+			if err != nil {
+				log.Printf("Failed to apply referral code %s for tenant %s: %v", *referralCode, tenantID, err)
+				return
+			}
+
+			// Create commission for the referrer
+			_, err = s.referralService.CreateCommission(ctx, tenantID, referralData.ID, subscription.ID, plan.BasePrice)
+			if err != nil {
+				log.Printf("Failed to create commission for referral %s: %v", referralData.ID, err)
+			}
+		}()
 	}
 
 	// Send welcome email using contact service

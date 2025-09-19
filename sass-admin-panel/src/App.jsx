@@ -44,6 +44,7 @@ import CustomReports from './pages/Analytics/Custom';
 import RoleManagement from './pages/Users/Roles';
 import EditRole from './pages/Users/EditRole';
 import CreateRole from './pages/Users/CreateRole';
+import ReferralsHome from './pages/Referrals';
 
 function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useAtom(sidebarCollapsedAtom);
@@ -94,6 +95,9 @@ function App() {
               <Route path="analytics/tenants" element={<TenantAnalytics />} />
               <Route path="analytics/performance" element={<PerformanceAnalytics />} />
               <Route path="analytics/custom" element={<CustomReports />} />
+              
+              {/* Referral Routes */}
+              <Route path="referrals" element={<ReferralsHome />} />
               
               {/* Support Routes */}
               <Route path="support" element={<SupportHome />} />
