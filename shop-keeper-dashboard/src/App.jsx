@@ -22,7 +22,7 @@ import Affiliates from './pages/affiliates';
 import Support from './pages/support';
 import Settings from './pages/settings';
 import UserRoles from './pages/user-roles';
-import Logs from './pages/logs';
+// import Logs from './pages/logs'; // TODO: Create logs page
 import Reports from './pages/reports';
 import Discounts from './pages/discounts';
 import Banners from './pages/banners';
@@ -69,7 +69,7 @@ function App() {
                   <Route path="support" element={<Support />} />
                   <Route path="settings" element={<Settings />} />
                   <Route path="user-roles" element={<UserRoles />} />
-                  <Route path="logs" element={<Logs />} />
+                  {/* <Route path="logs" element={<Logs />} /> */}
                   <Route path="reports" element={<Reports />} />
                   <Route path="discounts" element={<Discounts />} />
                   <Route path="banners" element={<Banners />} />

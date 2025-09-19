@@ -50,7 +50,8 @@ import {
 } from "@/components/ui/pagination";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { useNavigate } from "react-router-dom";
-import { useProducts, useDeleteProduct, useCategories } from "@/hooks/useApi";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { shopApi } from '@/lib/api';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -87,17 +88,39 @@ const Products = () => {
     return params;
   }, [searchQuery, selectedCategory, sortBy, sortDirection, currentPage]);
 
+  const queryClient = useQueryClient();
+
   // API calls with debouncing
   const { 
     data: productsResponse, 
     isLoading, 
     isError, 
     error 
-  } = useProducts(queryParams);
+  } = useQuery({
+    queryKey: ['products', queryParams],
+    queryFn: () => shopApi.getProducts(queryParams),
+  });
 
-  const { data: categoriesResponse } = useCategories();
+  const { data: categoriesResponse } = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => shopApi.getCategories(),
+  });
 
-  const deleteProductMutation = useDeleteProduct();
+  const deleteProductMutation = useMutation({
+    mutationFn: (id) => shopApi.deleteProduct(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['products']);
+      toast.success('Product deleted successfully');
+      setDeleteDialogOpen(false);
+      setProductToDelete(null);
+    },
+    onError: (error) => {
+      toast.error('Failed to delete product');
+      console.error('Delete product error:', error);
+    },
+  });
+
+
 
   // Extract data
   const products = Array.isArray(productsResponse?.data) ? productsResponse.data : [];
@@ -121,15 +144,7 @@ const Products = () => {
 
   const confirmDelete = async () => {
     if (!productToDelete) return;
-
-    try {
-      await deleteProductMutation.mutateAsync(productToDelete.id);
-      toast.success("Product deleted successfully");
-      setDeleteDialogOpen(false);
-      setProductToDelete(null);
-    } catch (error) {
-      toast.error(error.message || "Failed to delete product");
-    }
+    deleteProductMutation.mutate(productToDelete.id);
   };
 
   const handleCategoryChange = (value) => {

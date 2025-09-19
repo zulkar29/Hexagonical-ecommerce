@@ -48,7 +48,7 @@ This document outlines all user flows in the system to help plan comprehensive t
 
 ### API Security & Management
 - [ ] **API Key Management**: Key generation → Tenant assignment → Usage tracking → Key rotation → Revocation
-### Multi-tenant Security
+### multi-tenant Security
 - [ ] **Tenant Data Isolation Validation**: Database query execution → Tenant_id filter verification → Access control validation → Query result scoping
 - [ ] **Cross-tenant Security Testing**: Data access attempt → Tenant boundary validation → Unauthorized access prevention → Security violation logging
 - [ ] **API Response Tenant Scoping**: API request processing → Tenant_id validation → Response data filtering → Tenant-specific data only
@@ -261,7 +261,7 @@ This document outlines all user flows in the system to help plan comprehensive t
 - [ ] **Price Display**: Show prices in customer's currency → Real-time conversion → Checkout currency handling
 - [ ] **Payment Processing**: Multi-currency checkout → Currency validation → Settlement currency → Exchange rate tracking
 
-## 11. Additional E-commerce Flows
+## 11. Additional e-commerce Flows
 
 ### Wishlist
 - [ ] **Wishlist Management**: Add to wishlist → View wishlist → Move to cart → Remove items
@@ -330,7 +330,7 @@ This document outlines all user flows in the system to help plan comprehensive t
 
 ### Critical (Must Test) - 🔴
 - Authentication & Authorization Flows
-- Security & Access Control Flows (including Multi-tenant Security & Data Protection)
+- Security & Access Control Flows (including multi-tenant Security & Data Protection)
 - Order Management Flows (including Cart & Checkout validation)
 - Payment & Billing Flows (including error handling)
 - Tenant & Store Management Flows
@@ -346,7 +346,7 @@ This document outlines all user flows in the system to help plan comprehensive t
 ### Nice to Have (Could Test) - 🟢
 - Advanced Analytics & Reporting Flows
 - Webhook Management Flows (including API Security)
-- Additional E-commerce Flows (Wishlist, Reviews, Returns)
+- Additional e-commerce Flows (Wishlist, Reviews, Returns)
 - Contact & Support Flows
 
 ## Test Coverage Goals

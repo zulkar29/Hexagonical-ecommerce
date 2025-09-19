@@ -302,7 +302,7 @@ All API endpoints return standard HTTP status codes and JSON error responses:
 ### Payment Webhooks
 | Method | URL | Description | Auth | Tenant |
 |--------|-----|-------------|------|--------|
-| POST | `/webhooks/payment/:provider` | Payment provider webhook (sslcommerz primary, others as fallback) | ❌ | ❌ |
+| POST | `/webhooks/payment/:provider` | Payment provider webhook (sslcommerz) | ❌ | ❌ |
 
 ## Shipping Module (11 endpoints)
 
@@ -338,7 +338,6 @@ All API endpoints return standard HTTP status codes and JSON error responses:
 | PATCH | `/notifications/templates/:id` | Manage template (?action=create\|update\|delete) | ✅ | ✅ |
 | GET | `/notifications/preferences` | Get notification preferences | ✅ | ✅ |
 | PATCH | `/notifications/preferences` | Update notification preferences | ✅ | ✅ |
-
 
 ## Analytics Module (10 endpoints)
 
@@ -572,7 +571,6 @@ All API endpoints return standard HTTP status codes and JSON error responses:
 | PATCH | `/billing/admin/tenants/:tenant_id` | Update tenant service status | ✅ | ❌ |
 
 ## Tenant Module (7 endpoints)
-
 
 ### Tenant Operations (Tenant Admin APIs)
 | Method | URL | Description | Auth | Tenant |

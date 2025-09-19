@@ -1,7 +1,9 @@
 
 
-import React, { useState } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { useAtom } from 'jotai';
+import { sidebarCollapsedAtom } from './lib/atoms';
 import DashboardHeader from './components/layout/Header';
 import DashboardSidebar from './components/layout/Sidebar';
 import TenantsHome from './pages/Tenants';
@@ -44,7 +46,7 @@ import EditRole from './pages/Users/EditRole';
 import CreateRole from './pages/Users/CreateRole';
 
 function App() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useAtom(sidebarCollapsedAtom);
   return (
     <Router>
       <div className="min-h-screen bg-background flex">

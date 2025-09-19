@@ -1,13 +1,12 @@
 # Development Dockerfile for React Admin Panel
-FROM node:18-alpine
-
-# Install dependencies for development
-RUN apk add --no-cache git
+FROM node:24-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json package-lock.json* ./
+# Copy package files first
+COPY package.json ./
+
+# Install dependencies
 RUN npm install
 
 # Copy source code

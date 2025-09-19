@@ -78,27 +78,44 @@
     }
 }
 
+# Shop Dashboard subdomain
+{$SHOP_SUBDOMAIN:shop}.{$DOMAIN:yourdomain.com} {
+    import security_headers
+    
+    # Rate limit shop dashboard
+    rate_limit {
+        zone static_shop
+        key {remote_host}
+        events 100
+        window 1m
+    }
+    
+    reverse_proxy shop-dashboard:80 {
+        import common_headers
+    }
+}
+
 # Wildcard subdomains for tenants
 *.{$DOMAIN:yourdomain.com} {
     import security_headers
     
-    # Skip admin subdomain
-    @not_admin not host {$ADMIN_SUBDOMAIN:admin}.{$DOMAIN:yourdomain.com}
+    # Skip admin and shop subdomains
+    @not_reserved not host {$ADMIN_SUBDOMAIN:admin}.{$DOMAIN:yourdomain.com} {$SHOP_SUBDOMAIN:shop}.{$DOMAIN:yourdomain.com}
     
     # API routes for tenant subdomains (versioned)
-    handle_path @not_admin /api/v1/* {
+    handle_path @not_reserved /api/v1/* {
         reverse_proxy backend:8080 {
             import common_headers
         }
     }
 
     # Legacy API routes for tenants (redirect to v1)
-    handle_path @not_admin /api/* {
+    handle_path @not_reserved /api/* {
         redir /api/v1{uri} permanent
     }
     
     # Tenant storefronts
-    handle @not_admin {
+    handle @not_reserved {
         reverse_proxy storefront:3000 {
             import common_headers
         }

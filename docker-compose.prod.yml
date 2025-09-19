@@ -96,6 +96,21 @@ services:
     networks:
       - ecommerce-network
 
+  # Shop Keeper Dashboard (React + Vite)
+  shop-dashboard:
+    build:
+      context: ./shop-keeper-dashboard
+      dockerfile: Dockerfile.prod
+    restart: unless-stopped
+    container_name: ecommerce-shop-dashboard
+    environment:
+      - NODE_ENV=production
+      - VITE_API_BASE_URL=https://${DOMAIN:-yourdomain.com}/api/v1
+    depends_on:
+      - backend
+    networks:
+      - ecommerce-network
+
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine

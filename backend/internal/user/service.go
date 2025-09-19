@@ -8,9 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/bcrypt"
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 
+	"ecommerce-saas/internal/security"
 	sharedErrors "ecommerce-saas/internal/shared/errors"
 	"ecommerce-saas/internal/shared/utils"
 )
@@ -23,19 +24,19 @@ type ResetTokenData struct {
 
 // Service handles user business logic
 type Service struct {
-	repo           Repository
-	jwtManager     *utils.JWTManager
-	securityService *SecurityService
-	resetTokens    map[string]ResetTokenData
+	repo            Repository
+	jwtManager      *utils.JWTManager
+	securityService *security.SecurityService
+	resetTokens     map[string]ResetTokenData
 }
 
 // NewService creates a new user service
-func NewService(repo Repository, jwtManager *utils.JWTManager, securityService *SecurityService) *Service {
+func NewService(repo Repository, jwtManager *utils.JWTManager, securityService *security.SecurityService) *Service {
 	return &Service{
-		repo:           repo,
-		jwtManager:     jwtManager,
+		repo:            repo,
+		jwtManager:      jwtManager,
 		securityService: securityService,
-		resetTokens:    make(map[string]ResetTokenData),
+		resetTokens:     make(map[string]ResetTokenData),
 	}
 }
 
@@ -88,7 +89,7 @@ func (s *Service) RegisterUser(ctx context.Context, user *User) (*User, error) {
 	}
 
 	// Log security event
-	s.securityService.LogSecurityEvent(ctx, user.ID, user.TenantID, SecurityEventAccountCreated, "", "", map[string]interface{}{
+	s.securityService.LogSecurityEvent(ctx, user.ID, user.TenantID, security.EventAccountCreated, "", "", map[string]interface{}{
 		"message": "User account created",
 		"email":   user.Email,
 	})
@@ -102,12 +103,12 @@ func (s *Service) RegisterUser(ctx context.Context, user *User) (*User, error) {
 // LoginUser authenticates a user and returns tokens
 func (s *Service) LoginUser(ctx context.Context, email, password string) (*LoginResponse, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
-	
+
 	// Get user by email
 	user, err := s.repo.GetUserByEmail(ctx, email)
 	if err != nil {
 		// Log failed login attempt even if user doesn't exist
-		s.securityService.LogSecurityEvent(ctx, uuid.Nil, nil, SecurityEventFailedLogin, "", "", map[string]interface{}{
+		s.securityService.LogSecurityEvent(ctx, uuid.Nil, nil, security.EventLoginFailed, "", "", map[string]interface{}{
 			"message": "User not found",
 			"email":   email,
 		})
@@ -151,21 +152,6 @@ func (s *Service) LoginUser(ctx context.Context, email, password string) (*Login
 		return nil, err
 	}
 
-	// Create session
-	session := &UserSession{
-		ID:        uuid.New(),
-		UserID:    user.ID,
-		Token:     refreshToken,
-		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
-		IsActive:  true,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-
-	if sessionErr := s.repo.CreateSession(session); sessionErr != nil {
-		return nil, sessionErr
-	}
-
 	// Update last login
 	user.LastLoginAt = &[]time.Time{time.Now()}[0]
 	if _, updateErr := s.repo.UpdateUser(ctx, user); updateErr != nil {
@@ -188,16 +174,14 @@ func (s *Service) RefreshToken(refreshToken string) (*TokenResponse, error) {
 		return nil, sharedErrors.ErrInvalidToken
 	}
 
-	// Check if session exists and is active
-	session, err := s.repo.GetSessionByToken(claims.TenantID, refreshToken)
-	if err != nil || !session.IsActive {
-		return nil, sharedErrors.NewUnauthorizedError("Session not found or inactive")
-	}
-
-	// Get user
+	// Get user to ensure they still exist and are active
 	user, err := s.repo.GetUserByID(context.Background(), claims.UserID)
 	if err != nil {
-		return nil, errors.New("user not found")
+		return nil, sharedErrors.NewUnauthorizedError("User not found")
+	}
+
+	if user.Status != StatusActive {
+		return nil, sharedErrors.NewUnauthorizedError("User account is inactive")
 	}
 
 	// Generate new tokens
@@ -211,14 +195,6 @@ func (s *Service) RefreshToken(refreshToken string) (*TokenResponse, error) {
 		return nil, err
 	}
 
-	// Update session with new refresh token
-	session.Token = newRefreshToken
-	session.ExpiresAt = time.Now().Add(7 * 24 * time.Hour)
-	session.UpdatedAt = time.Now()
-	if updateErr := s.repo.UpdateSession(session); updateErr != nil {
-		log.Printf("Failed to update session: %v", updateErr)
-	}
-
 	return &TokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: newRefreshToken,
@@ -226,26 +202,11 @@ func (s *Service) RefreshToken(refreshToken string) (*TokenResponse, error) {
 	}, nil
 }
 
-// LogoutUser logs out a user by invalidating session
+// LogoutUser logs out a user (pure JWT - no session invalidation needed)
 func (s *Service) LogoutUser(userID uuid.UUID, refreshToken string) error {
-	// Get user to access tenant ID
-	user, userErr := s.repo.GetUserByID(context.Background(), userID)
-	if userErr != nil {
-		return userErr
-	}
-
-	session, err := s.repo.GetSessionByToken(user.TenantID, refreshToken)
-	if err != nil {
-		return nil // Already logged out
-	}
-
-	if session.UserID != userID {
-		return errors.New("unauthorized")
-	}
-
-	session.IsActive = false
-	session.UpdatedAt = time.Now()
-	return s.repo.UpdateSession(session)
+	// With JWT-only approach, logout is handled client-side by deleting tokens
+	// Optional: Could implement token blacklist here if needed
+	return nil
 }
 
 // VerifyEmail verifies user email with token
@@ -315,15 +276,12 @@ func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassw
 	user.UpdatedAt = now
 
 	// Log security event
-		s.securityService.LogSecurityEvent(ctx, userID, user.TenantID, SecurityEventPasswordChange, "", "", map[string]interface{}{
-			"message": "Password changed successfully",
-			"email":   user.Email,
-		})
+	s.securityService.LogSecurityEvent(ctx, userID, user.TenantID, security.EventPasswordChanged, "", "", map[string]interface{}{
+		"message": "Password changed successfully",
+		"email":   user.Email,
+	})
 
-	// Invalidate all existing sessions
-	if invalidateErr := s.repo.InvalidateUserSessions(ctx, user.TenantID, userID); invalidateErr != nil {
-		log.Printf("Failed to invalidate user sessions: %v", invalidateErr)
-	}
+	// Note: With JWT-only approach, existing tokens remain valid until expiry
 
 	_, err = s.repo.UpdateUser(ctx, user)
 	return err
@@ -533,16 +491,13 @@ func (s *Service) DeleteUser(adminUserID, targetUserID uuid.UUID) error {
 		return errors.New("cannot delete your own account")
 	}
 
-	// Get target user to access tenant ID
-	targetUser, err := s.repo.GetUserByID(context.Background(), targetUserID)
+	// Get target user to verify it exists
+	_, err = s.repo.GetUserByID(context.Background(), targetUserID)
 	if err != nil {
 		return err
 	}
 
-	// Invalidate all sessions first
-	if err := s.repo.InvalidateUserSessions(context.Background(), targetUser.TenantID, targetUserID); err != nil {
-		log.Printf("Failed to invalidate user sessions: %v", err)
-	}
+	// Note: With JWT-only approach, no session invalidation needed
 
 	// Delete user
 	if err := s.repo.DeleteUser(context.Background(), targetUserID); err != nil {
@@ -559,11 +514,6 @@ func (s *Service) GetUserPermissions(userID uuid.UUID) ([]*Permission, error) {
 // CheckUserPermission checks if user has specific permission
 func (s *Service) CheckUserPermission(userID uuid.UUID, resource, action string) (bool, error) {
 	return s.repo.CheckUserPermission(userID, resource, action)
-}
-
-// CleanupExpiredSessions removes expired sessions
-func (s *Service) CleanupExpiredSessions(tenantID *uuid.UUID) error {
-	return s.repo.CleanupExpiredSessions(tenantID)
 }
 
 // sendVerificationEmail sends email verification email
@@ -630,16 +580,13 @@ func (s *Service) DeleteAccount(ctx context.Context, userID uuid.UUID) error {
 
 // DeleteUserAccount deletes user account
 func (s *Service) DeleteUserAccount(ctx context.Context, userID uuid.UUID) error {
-	// Get user to access tenant ID
-	user, err := s.repo.GetUserByID(ctx, userID)
+	// Verify user exists
+	_, err := s.repo.GetUserByID(ctx, userID)
 	if err != nil {
 		return err
 	}
 
-	// Invalidate all user sessions
-	if err := s.repo.InvalidateUserSessions(ctx, user.TenantID, userID); err != nil {
-		return err
-	}
+	// Note: With JWT-only approach, no session invalidation needed
 
 	// Delete user account
 	return s.repo.DeleteUser(ctx, userID)
@@ -943,10 +890,10 @@ func (s *Service) Verify2FA(ctx context.Context, userID uuid.UUID, code string) 
 	}
 
 	// Log successful 2FA verification
-	s.securityService.LogSecurityEvent(ctx, userID, user.TenantID, SecurityEvent2FAVerified, "", "", map[string]interface{}{
-			"message": "2FA code verified successfully",
-			"email":   user.Email,
-		})
+	s.securityService.LogSecurityEvent(ctx, userID, user.TenantID, security.Event2FAVerified, "", "", map[string]interface{}{
+		"message": "2FA code verified successfully",
+		"email":   user.Email,
+	})
 
 	return nil
 }
@@ -987,7 +934,7 @@ func (s *Service) Enable2FA(ctx context.Context, userID uuid.UUID, code string) 
 	}
 
 	// Get backup codes from 2FA record
-	var twoFA TwoFactorAuth
+	var twoFA security.TwoFactorAuth
 	query := s.repo.(*repository).db.WithContext(ctx).Where("user_id = ?", userID)
 	if user.TenantID != nil {
 		query = query.Where("tenant_id = ?", *user.TenantID)
@@ -997,7 +944,7 @@ func (s *Service) Enable2FA(ctx context.Context, userID uuid.UUID, code string) 
 	}
 
 	// Log security event
-	s.securityService.LogSecurityEvent(ctx, userID, user.TenantID, SecurityEvent2FAEnabled, "", "", map[string]interface{}{
+	s.securityService.LogSecurityEvent(ctx, userID, user.TenantID, security.Event2FAEnabled, "", "", map[string]interface{}{
 		"message": "Two-factor authentication enabled",
 		"email":   user.Email,
 	})
@@ -1035,15 +982,12 @@ func (s *Service) Disable2FA(ctx context.Context, userID uuid.UUID, password str
 	}
 
 	// Log security event
-		s.securityService.LogSecurityEvent(ctx, userID, user.TenantID, SecurityEvent2FADisabled, "", "", map[string]interface{}{
-			"message": "Two-factor authentication disabled",
-			"email":   user.Email,
-		})
+	s.securityService.LogSecurityEvent(ctx, userID, user.TenantID, security.Event2FADisabled, "", "", map[string]interface{}{
+		"message": "Two-factor authentication disabled",
+		"email":   user.Email,
+	})
 
-	// Invalidate all sessions for security
-	if err := s.repo.InvalidateUserSessions(ctx, user.TenantID, userID); err != nil {
-		log.Printf("Failed to invalidate user sessions: %v", err)
-	}
+	// Note: With JWT-only approach, existing tokens remain valid until expiry
 
 	return nil
 }
@@ -1069,7 +1013,7 @@ func (s *Service) VerifyBackupCode(ctx context.Context, userID uuid.UUID, code s
 	}
 
 	// Log backup code usage
-	s.securityService.LogSecurityEvent(ctx, userID, user.TenantID, SecurityEventBackupCodeUsed, "", "", map[string]interface{}{
+	s.securityService.LogSecurityEvent(ctx, userID, user.TenantID, security.EventBackupCodeUsed, "", "", map[string]interface{}{
 		"message": "2FA backup code used",
 		"email":   user.Email,
 	})
@@ -1078,17 +1022,17 @@ func (s *Service) VerifyBackupCode(ctx context.Context, userID uuid.UUID, code s
 }
 
 // GetSecuritySettings gets user security settings
-func (s *Service) GetSecuritySettings(ctx context.Context, userID uuid.UUID) (SecuritySettings, error) {
+func (s *Service) GetSecuritySettings(ctx context.Context, userID uuid.UUID) (security.SecuritySettings, error) {
 	return s.securityService.GetSecuritySettings(ctx, userID)
 }
 
 // UpdateSecuritySettings updates user security settings
-func (s *Service) UpdateSecuritySettings(ctx context.Context, userID uuid.UUID, settings SecuritySettings) error {
+func (s *Service) UpdateSecuritySettings(ctx context.Context, userID uuid.UUID, settings security.SecuritySettings) error {
 	return s.securityService.UpdateSecuritySettings(ctx, userID, settings)
 }
 
 // GetSecurityLogs gets user security logs
-func (s *Service) GetSecurityLogs(ctx context.Context, userID uuid.UUID, limit int) ([]UserSecurityLog, error) {
+func (s *Service) GetSecurityLogs(ctx context.Context, userID uuid.UUID, limit int) ([]security.UserSecurityLog, error) {
 	return s.securityService.GetSecurityLogs(ctx, userID, limit)
 }
 

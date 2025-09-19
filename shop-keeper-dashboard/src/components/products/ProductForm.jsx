@@ -11,7 +11,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { useCategories, useCreateProduct, useUpdateProduct, useProduct } from "@/hooks/useApi";
+// import { useCategories, useCreateProduct, useUpdateProduct, useProduct } from "@/hooks/useApi";
 
 const ProductForm = ({ productId, mode = "create" }) => {
   const navigate = useNavigate();

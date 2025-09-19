@@ -72,6 +72,28 @@ dashboard-logs: ## Show dashboard logs
 db-migrate: ## Run database migrations
 	docker-compose -f docker-compose.dev.yml exec backend go run cmd/migrate/main.go
 
+db-seed: ## Populate database with comprehensive demo data
+	@echo "$(GREEN)Seeding database with demo data...$(NC)"
+	docker-compose -f docker-compose.dev.yml exec backend go run cmd/migrate/main.go -action=seed
+	@echo "$(GREEN)Database seeded successfully!$(NC)"
+	@echo ""
+	@echo "Demo tenants created:"
+	@echo "- TechHub Electronics (subdomain: techhub)"
+	@echo "- Fashion Forward (subdomain: fashionforward)" 
+	@echo "- Home & Garden (subdomain: homegarden)"
+	@echo ""
+	@echo "Demo users (password: password123):"
+	@echo "- admin@techhub.com (Admin)"
+	@echo "- merchant@techhub.com (Merchant)"
+	@echo "- customer1@example.com (Customer)"
+	@echo "- admin@fashionforward.com (Admin)"
+	@echo "- admin@homegarden.com (Admin)"
+
+db-setup: ## Run migrations and seed data
+	@echo "$(GREEN)Setting up database...$(NC)"
+	$(MAKE) db-migrate
+	$(MAKE) db-seed
+
 db-shell: ## Access PostgreSQL shell
 	docker-compose -f docker-compose.dev.yml exec postgres psql -U postgres -d ecommerce_saas_dev
 
@@ -79,7 +101,15 @@ db-reset: ## Reset database (WARNING: Deletes all data)
 	@echo "$(RED)This will delete all database data. Are you sure? [y/N]$(NC)" && read ans && [ $${ans:-N} = y ]
 	docker-compose -f docker-compose.dev.yml exec postgres psql -U postgres -c "DROP DATABASE IF EXISTS ecommerce_saas_dev;"
 	docker-compose -f docker-compose.dev.yml exec postgres psql -U postgres -c "CREATE DATABASE ecommerce_saas_dev;"
-	$(MAKE) db-migrate
+	$(MAKE) db-setup
+
+db-status: ## Check database status and tables
+	@echo "$(GREEN)Database Status:$(NC)"
+	docker-compose -f docker-compose.dev.yml exec postgres psql -U postgres -d ecommerce_saas_dev -c "\dt"
+
+db-verify: ## Verify seed data in database
+	@echo "$(GREEN)Verifying seed data...$(NC)"
+	./scripts/verify-seed-data.sh
 
 # Development utilities
 install: ## Install dependencies for all projects

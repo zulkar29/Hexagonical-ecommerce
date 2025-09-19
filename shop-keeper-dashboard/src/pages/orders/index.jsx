@@ -37,7 +37,8 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useOrders, useUpdateOrderStatus } from "@/hooks/useApi";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { shopApi } from '@/lib/api';
 import { generateInvoicePDF } from "@/utils/pdfGenerator";
 
 const ITEMS_PER_PAGE = 10;
@@ -78,15 +79,25 @@ const Orders = () => {
     return params;
   }, [searchQuery, statusFilter, sortBy, sortDirection, currentPage]);
 
+  const queryClient = useQueryClient();
+
   // API calls
   const { 
     data: ordersResponse, 
     isLoading, 
     isError, 
     error 
-  } = useOrders(queryParams, true); // isAdmin = true
+  } = useQuery({
+    queryKey: ['orders', queryParams],
+    queryFn: () => shopApi.getOrders(queryParams),
+  });
 
-  const updateOrderStatusMutation = useUpdateOrderStatus();
+  const updateOrderStatusMutation = useMutation({
+    mutationFn: ({ id, status }) => shopApi.updateOrder(id, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['orders']);
+    },
+  });
 
   // Extract data
   const orders = Array.isArray(ordersResponse?.data) ? ordersResponse.data : [];

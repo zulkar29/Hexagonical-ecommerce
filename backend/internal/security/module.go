@@ -7,42 +7,37 @@ import (
 
 // Module represents the security module
 type Module struct {
-	repository SecurityRepository
-	service    SecurityService
-	handler    *Handler
+	service *SecurityService
+	handler *Handler
 }
 
 // NewModule creates a new security module
-func NewModule(db *gorm.DB) *Module {
-	repository := NewSecurityRepository(db)
-	service := NewSecurityService(repository)
+// Note: This is a simplified module. In practice, you'd inject UserRepository from user module
+func NewModule(db *gorm.DB, userRepo UserRepository) *Module {
+	service := NewSecurityService(db, userRepo)
 	handler := NewHandler(service)
 
 	return &Module{
-		repository: repository,
-		service:    service,
-		handler:    handler,
+		service: service,
+		handler: handler,
 	}
 }
 
 // RegisterRoutes registers the security module routes
 func (m *Module) RegisterRoutes(router gin.IRouter) {
 	securityGroup := router.Group("/security")
-	m.handler.RegisterRoutes(securityGroup)
+	m.handler.SetupRoutes(securityGroup)
 }
 
 // Migrate runs the security module migrations
 func (m *Module) Migrate() error {
-	return m.repository.Migrate()
-}
-
-// GetRepository returns the security repository
-func (m *Module) GetRepository() SecurityRepository {
-	return m.repository
+	// For now, return nil. In practice, you'd migrate security tables here
+	// or delegate to the database migration system
+	return nil
 }
 
 // GetService returns the security service
-func (m *Module) GetService() SecurityService {
+func (m *Module) GetService() *SecurityService {
 	return m.service
 }
 

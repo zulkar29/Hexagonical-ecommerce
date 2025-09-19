@@ -156,11 +156,10 @@ func TearDownTestDB(db *gorm.DB) error {
 func Seed(db *gorm.DB) error {
 	log.Println("Seeding database...")
 
-	// TODO: Add seed data
-	// - Default categories
-	// - Sample products
-	// - Admin user
-	// - Default settings
+	// Use the comprehensive seed data implementation
+	if err := SeedData(db); err != nil {
+		return fmt.Errorf("failed to seed database: %w", err)
+	}
 
 	log.Println("Database seeding completed")
 	return nil

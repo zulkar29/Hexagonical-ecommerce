@@ -1,41 +1,73 @@
 # TODO: Implement actual Makefile commands during development
 
-.PHONY: help build run test clean docker-build docker-run migrate
+.PHONY: help build run test clean docker-build docker-run migrate seed setup
 
 help: ## Show help message
 	@echo "Available commands:"
 	@echo "  build        - Build the application"
 	@echo "  run          - Run the application"
-	@echo "  test         - Run tests"
+	@echo "  test         - Run all tests"
+	@echo "  test-unit    - Run unit tests only"
+	@echo "  test-user    - Run user module tests"
+	@echo "  test-product - Run product module tests"
+	@echo "  test-coverage- Run tests with coverage report"
+	@echo "  test-bench   - Run benchmark tests"
+	@echo "  test-race    - Run tests with race detection"
 	@echo "  clean        - Clean build artifacts"
 	@echo "  docker-build - Build Docker image"
 	@echo "  docker-run   - Run Docker container"
 	@echo "  migrate      - Run database migrations"
+	@echo "  seed         - Populate database with demo data"
+	@echo "  setup        - Run migrations and seed data"
+	@echo "  dev          - Run in development mode with hot reload"
 
 build: ## Build the application
-	# TODO: Implement build command
-	# go build -o bin/api ./cmd/api
+	go build -o bin/api ./cmd/api
+	go build -o bin/migrate ./cmd/migrate
 
 run: ## Run the application
-	# TODO: Implement run command
-	# go run ./cmd/api/main.go
+	go run ./cmd/api/main.go
 
 test: ## Run tests
-	# TODO: Implement test command
-	# go test -v ./...
+	go test -v ./...
+
+test-unit: ## Run unit tests only
+	go test -v ./internal/...
+
+test-user: ## Run user module tests
+	go test -v ./internal/user
+
+test-product: ## Run product module tests
+	go test -v ./internal/product
+
+test-coverage: ## Run tests with coverage
+	go test -v -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
+
+test-bench: ## Run benchmark tests
+	go test -bench=. -benchmem ./...
+
+test-race: ## Run tests with race detection
+	go test -race -v ./...
 
 clean: ## Clean build artifacts
-	# TODO: Implement clean command
-	# rm -rf bin/
+	rm -rf bin/
 
 docker-build: ## Build Docker image
-	# TODO: Implement docker build
-	# docker build -t ecommerce-saas:latest .
+	docker build -t ecommerce-saas-backend:latest -f Dockerfile.dev .
 
 docker-run: ## Run Docker container
-	# TODO: Implement docker run
-	# docker run -p 8080:8080 ecommerce-saas:latest
+	docker run -p 8080:8080 ecommerce-saas-backend:latest
 
 migrate: ## Run database migrations
-	# TODO: Implement migration command
-	# go run ./cmd/migrate/main.go
+	go run ./cmd/migrate/main.go -action=up
+
+seed: ## Populate database with demo data
+	go run ./cmd/migrate/main.go -action=seed
+
+setup: ## Run migrations and seed data
+	go run ./cmd/migrate/main.go -action=up
+	go run ./cmd/migrate/main.go -action=seed
+
+dev: ## Run in development mode with hot reload
+	air -c .air.toml

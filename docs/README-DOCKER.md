@@ -5,7 +5,7 @@ Complete Docker setup for the hexagonal e-commerce SaaS platform with all servic
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Docker Desktop 4.0+ or Docker Engine 20.0+
+- Docker Desktop 4.25+ or Docker Engine 25.0+
 - Docker Compose 2.0+
 - At least 4GB RAM available for containers
 - Ports 3000, 3001, 5432, 6379, 8080 available
@@ -244,73 +244,74 @@ docker-compose -f docker-compose.dev.yml exec redis redis-cli ping
 # Should return: PONG
 ```
 
-## 🚀 Production Deployment
+## � Development Performance Optimization
 
-### Production Docker Compose
+### Running Specific Services
 ```bash
-# Use production configuration
-docker-compose -f docker-compose.prod.yml up -d
-
-# Check production status
-docker-compose -f docker-compose.prod.yml ps
-```
-
-### Production Environment Variables
-Set these in production:
-```bash
-# Backend
-DATABASE_URL=postgresql://user:pass@prod-db:5432/ecommerce_saas
-REDIS_URL=redis://prod-redis:6379
-JWT_SECRET=<secure-random-secret>
-
-# Frontend
-NEXT_PUBLIC_API_URL=https://api.yourdomain.com/api/v1
-NEXT_PUBLIC_APP_URL=https://yourdomain.com
-```
-
-## 📈 Performance Optimization
-
-### Development Performance
-```bash
-# Use specific services only
+# Use specific services only for faster startup
 make services-up
-# Then run backend/frontend manually
+# Then run backend/frontend manually for debugging
 
-# Limit log output
+# Limit log output for better performance
 make backend-logs --tail=100
 
-# Clean unused containers
-make dev-clean
+# Run only database for testing
+make db-up
 ```
 
-### Resource Limits
-Add to docker-compose.dev.yml:
-```yaml
-services:
-  backend:
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
+### Development Best Practices
+```bash
+# Use hot reload for faster development
+make dev-up  # All services with hot reload enabled
+
+# Clear Docker cache if needed
+make dev-clean && make dev-rebuild
+
+# Check resource usage
+docker stats
 ```
 
-## 🔐 Security Notes
+## 📋 Troubleshooting
 
-### Development Security
+### Common Issues
+```bash
+# Port conflicts
+netstat -tulpn | grep :8080  # Check if port is in use
+make dev-down  # Stop all services first
+
+# Database connection issues
+make db-status  # Check database health
+make db-reset   # Reset database if corrupted
+
+# Service dependencies
+make dev-logs   # Check for startup errors
+```
+
+## 📚 Related Documentation
+
+For production deployment and infrastructure setup, see:
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Production VPS deployment guide
+- **[INFRASTRUCTURE.md](./INFRASTRUCTURE.md)** - Infrastructure configuration
+- **[MONITORING.md](./MONITORING.md)** - Production monitoring setup
+
+## 🔐 Development Security Notes
+
+### Security Best Practices
 - Default passwords are for development only
-- Change all credentials in production
-- Use environment files for sensitive data
-- Never commit .env files to version control
+- Never commit `.env` files to version control
+- Use different credentials for each environment
+- Regularly update development dependencies
 
-### Network Security
+### Development Environment
 ```yaml
+# Development network isolation
 networks:
-  ecommerce-network:
+  ecommerce-dev:
     driver: bridge
-    internal: true  # For production isolation
+    name: ecommerce-dev
 ```
+
+**⚠️ Important**: This guide covers development setup only. For production deployment, security hardening, and infrastructure management, refer to the related documentation links above.
 
 ## 🎓 Learning Resources
 

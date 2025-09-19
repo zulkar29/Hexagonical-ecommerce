@@ -53,7 +53,7 @@ Custom Metrics:
 - **Active Tenants**: Daily/monthly active stores (tenant_id tracking)
 - **Revenue Processing**: SSLCommerz payment success rates
 - **Feature Adoption**: API endpoint usage by subscription tier
-- **Tenant Isolation**: Multi-tenant data security validation
+- **Tenant Isolation**: multi-tenant data security validation
 
 ## Alerting Strategy
 
@@ -157,7 +157,7 @@ Level 4: Business logic validation (tenant isolation test)
 - Connection pool monitoring
 - Slow query identification (>100ms)
 - Tenant data isolation validation (tenant_id filtering)
-- Multi-tenant query performance by tenant
+- multi-tenant query performance by tenant
 
 ### **API Performance**
 - Endpoint response time percentiles

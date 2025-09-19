@@ -1,9 +1,25 @@
-package user
+package security
 
 import (
-	"github.com/google/uuid"
+	"context"
 	"time"
+
+	"github.com/google/uuid"
 )
+
+// UserRepository interface for user operations needed by security service
+type UserRepository interface {
+	UpdateUser2FA(ctx context.Context, userID uuid.UUID, enabled bool) error
+	GetUserByID(ctx context.Context, userID uuid.UUID) (User, error)
+	GetByID(ctx context.Context, userID uuid.UUID) (User, error) // Alias for consistency
+}
+
+// User interface that security service needs
+type User interface {
+	GetID() uuid.UUID
+	GetTenantID() *uuid.UUID
+	IsTwoFactorEnabled() bool
+}
 
 // SecuritySettings represents security configuration
 type SecuritySettings struct {

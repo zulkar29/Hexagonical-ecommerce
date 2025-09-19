@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { adminApi } from '@/lib/api';
 import {
   Users,
   Store,
@@ -106,8 +108,47 @@ const SaaSAdminDashboard = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Mock data for dashboard
-  const stats = [
+  // Fetch dashboard data using React Query
+  const { 
+    data: dashboardData, 
+    isLoading: dashboardLoading, 
+    error: dashboardError 
+  } = useQuery({
+    queryKey: ['dashboard', 'stats'],
+    queryFn: () => adminApi.getDashboard(),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
+  });
+
+  const { 
+    data: tenantsData, 
+    isLoading: tenantsLoading 
+  } = useQuery({
+    queryKey: ['tenants'],
+    queryFn: () => adminApi.getTenants({ limit: 10, sort: 'created_at', order: 'desc' }),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+
+  const { 
+    data: revenueData, 
+    isLoading: revenueLoading 
+  } = useQuery({
+    queryKey: ['analytics', 'revenue', selectedPeriod],
+    queryFn: () => adminApi.getRevenueAnalytics(selectedPeriod),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  const { 
+    data: usersData, 
+    isLoading: usersLoading 
+  } = useQuery({
+    queryKey: ['users', 'recent'],
+    queryFn: () => adminApi.getUsers({ limit: 10, sort: 'created_at', order: 'desc' }),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+
+  // Fallback to mock data while API is loading or if there's an error
+  const stats = dashboardData?.stats || [
     {
       id: 1,
       title: 'Total Revenue',
@@ -181,7 +222,7 @@ const SaaSAdminDashboard = () => {
     }
   ];
 
-  const revenueData = [
+  const mockRevenueData = [
     { month: 'Jan', revenue: 180000, tenants: 120, newSignups: 15 },
     { month: 'Feb', revenue: 195000, tenants: 128, newSignups: 18 },
     { month: 'Mar', revenue: 210000, tenants: 135, newSignups: 22 },
@@ -679,7 +720,7 @@ const SaaSAdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={350}>
-                <AreaChart data={revenueData}>
+                <AreaChart data={revenueData?.chartData || mockRevenueData}>
                   <defs>
                     <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>

@@ -30,7 +30,7 @@ const (
 type User struct {
 	ID       uuid.UUID  `json:"id" gorm:"primarykey"`
 	TenantID *uuid.UUID `json:"tenant_id,omitempty" gorm:"index"` // Null for super admins
-	
+
 	// Basic information
 	Email     string `json:"email" gorm:"unique;not null" validate:"required,email"`
 	Password  string `json:"-" gorm:"not null" validate:"required,min=8"` // Hidden in JSON
@@ -38,44 +38,26 @@ type User struct {
 	LastName  string `json:"last_name" gorm:"not null" validate:"required"`
 	Phone     string `json:"phone,omitempty"`
 	Avatar    string `json:"avatar,omitempty"`
-	
+
 	// Account details
 	Role   UserRole   `json:"role" gorm:"default:customer"`
 	Status UserStatus `json:"status" gorm:"default:active"`
-	
+
 	// Verification
-	EmailVerified     bool       `json:"email_verified" gorm:"default:false"`
-	EmailVerifiedAt   *time.Time `json:"email_verified_at,omitempty"`
-	PhoneVerified     bool       `json:"phone_verified" gorm:"default:false"`
-	PhoneVerifiedAt   *time.Time `json:"phone_verified_at,omitempty"`
-	
+	EmailVerified   bool       `json:"email_verified" gorm:"default:false"`
+	EmailVerifiedAt *time.Time `json:"email_verified_at,omitempty"`
+	PhoneVerified   bool       `json:"phone_verified" gorm:"default:false"`
+	PhoneVerifiedAt *time.Time `json:"phone_verified_at,omitempty"`
+
 	// Security
 	LastLoginAt       *time.Time `json:"last_login_at,omitempty"`
 	PasswordChangedAt *time.Time `json:"password_changed_at,omitempty"`
 	TwoFactorEnabled  bool       `json:"two_factor_enabled" gorm:"default:false"`
-	
+
 	// User preferences
 	Preferences map[string]interface{} `json:"preferences,omitempty" gorm:"type:jsonb"`
-	
-	// Timestamps
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	
-	// Relations
-	Sessions []UserSession `json:"sessions,omitempty" gorm:"foreignKey:UserID"`
-}
 
-// UserSession represents an active user session
-type UserSession struct {
-	ID        uuid.UUID  `json:"id" gorm:"primarykey"`
-	TenantID  *uuid.UUID `json:"tenant_id,omitempty" gorm:"index"`
-	UserID    uuid.UUID  `json:"user_id" gorm:"not null;index"`
-	Token     string     `json:"token" gorm:"unique;not null"`
-	ExpiresAt time.Time `json:"expires_at" gorm:"not null"`
-	IPAddress string    `json:"ip_address,omitempty"`
-	UserAgent string    `json:"user_agent,omitempty"`
-	IsActive  bool      `json:"is_active" gorm:"default:true"`
-	
+	// Timestamps
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -87,7 +69,7 @@ type Permission struct {
 	Description string    `json:"description,omitempty"`
 	Resource    string    `json:"resource" gorm:"not null"` // e.g., "products", "orders"
 	Action      string    `json:"action" gorm:"not null"`   // e.g., "create", "read", "update", "delete"
-	
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -97,7 +79,7 @@ type RolePermission struct {
 	ID           uuid.UUID `json:"id" gorm:"primarykey"`
 	Role         UserRole  `json:"role" gorm:"not null"`
 	PermissionID uuid.UUID `json:"permission_id" gorm:"not null"`
-	
+
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -139,7 +121,7 @@ func (u *User) CanAccessTenant(tenantID uuid.UUID) bool {
 	if u.IsSuperAdmin() {
 		return true
 	}
-	
+
 	// Users can only access their own tenant
 	return u.TenantID != nil && *u.TenantID == tenantID
 }
@@ -170,21 +152,9 @@ func (u *User) ShouldChangePassword(maxDays int) bool {
 		threshold := time.Now().AddDate(0, 0, -maxDays)
 		return u.CreatedAt.Before(threshold)
 	}
-	
+
 	threshold := time.Now().AddDate(0, 0, -maxDays)
 	return u.PasswordChangedAt.Before(threshold)
-}
-
-// Business Logic Methods for UserSession
-
-// IsExpired checks if the session has expired
-func (s *UserSession) IsExpired() bool {
-	return time.Now().After(s.ExpiresAt)
-}
-
-// IsValid checks if the session is valid (active and not expired)
-func (s *UserSession) IsValid() bool {
-	return s.IsActive && !s.IsExpired()
 }
 
 // Business Logic Methods for Permission
@@ -213,8 +183,8 @@ type TokenResponse struct {
 
 // TwoFactorSetupResponse represents 2FA setup response
 type TwoFactorSetupResponse struct {
-	Secret    string `json:"secret"`
-	QRCodeURL string `json:"qr_code_url"`
+	Secret      string   `json:"secret"`
+	QRCodeURL   string   `json:"qr_code_url"`
 	BackupCodes []string `json:"backup_codes,omitempty"`
 }
 
@@ -222,8 +192,6 @@ type TwoFactorSetupResponse struct {
 type TwoFactorBackupCodes struct {
 	Codes []string `json:"codes"`
 }
-
-
 
 // UserFilter represents user listing filters
 type UserFilter struct {

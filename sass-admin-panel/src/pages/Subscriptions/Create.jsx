@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useForm, useFieldArray } from 'react-hook-form';
 import {
   ArrowLeft,
   Plus,
@@ -17,10 +18,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 
 const subscriptionPlans = [
   {
@@ -61,70 +62,83 @@ const addOns = [
 ];
 
 export default function CreateSubscription() {
-  const [formData, setFormData] = useState({
-    tenantId: '',
-    planId: '',
-    billingCycle: 'monthly',
-    startDate: new Date().toISOString().split('T')[0],
-    customPrice: '',
-    discountPercent: '',
-    notes: '',
-    autoRenew: true,
-    trialDays: '14',
-    selectedAddOns: []
-  });
-
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [customPricing, setCustomPricing] = useState(false);
 
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
+  const { 
+    register, 
+    handleSubmit, 
+    watch, 
+    setValue, 
+    formState: { errors, isSubmitting } 
+  } = useForm({
+    defaultValues: {
+      tenantId: '',
+      planId: '',
+      billingCycle: 'monthly',
+      startDate: new Date().toISOString().split('T')[0],
+      customPrice: '',
+      discountPercent: '',
+      notes: '',
+      autoRenew: true,
+      trialDays: '14',
+      selectedAddOns: []
+    }
+  });
+
+  const watchedValues = watch();
 
   const handlePlanSelect = (planId) => {
     const plan = subscriptionPlans.find(p => p.id === planId);
     setSelectedPlan(plan);
-    handleInputChange('planId', planId);
+    setValue('planId', planId);
   };
 
   const handleAddOnToggle = (addOnId) => {
-    setFormData(prev => ({
-      ...prev,
-      selectedAddOns: prev.selectedAddOns.includes(addOnId)
-        ? prev.selectedAddOns.filter(id => id !== addOnId)
-        : [...prev.selectedAddOns, addOnId]
-    }));
+    const currentAddOns = watchedValues.selectedAddOns || [];
+    const newAddOns = currentAddOns.includes(addOnId)
+      ? currentAddOns.filter(id => id !== addOnId)
+      : [...currentAddOns, addOnId];
+    setValue('selectedAddOns', newAddOns);
   };
 
   const calculateTotalPrice = () => {
     if (!selectedPlan) return 0;
     
-    let basePrice = customPricing && formData.customPrice 
-      ? parseFloat(formData.customPrice) 
+    let basePrice = customPricing && watchedValues.customPrice 
+      ? parseFloat(watchedValues.customPrice) 
       : selectedPlan.basePrice;
     
-    if (formData.billingCycle === 'yearly') {
+    if (watchedValues.billingCycle === 'yearly') {
       basePrice = basePrice * 12 * 0.9; // 10% discount for yearly
     }
     
-    const addOnsPrice = formData.selectedAddOns.reduce((total, addOnId) => {
+    const addOnsPrice = (watchedValues.selectedAddOns || []).reduce((total, addOnId) => {
       const addOn = addOns.find(a => a.id === addOnId);
       return total + (addOn ? addOn.price : 0);
     }, 0);
     
     let total = basePrice + addOnsPrice;
     
-    if (formData.discountPercent) {
-      total = total * (1 - parseFloat(formData.discountPercent) / 100);
+    if (watchedValues.discountPercent) {
+      total = total * (1 - parseFloat(watchedValues.discountPercent) / 100);
     }
     
     return total;
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log('Creating subscription:', formData);
-    // Handle form submission
+  const onSubmit = async (data) => {
+    try {
+      console.log('Creating subscription:', data);
+      // Handle form submission with API call
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+      
+      toast.success('Subscription created successfully!');
+      // navigate('/subscriptions');
+    } catch (error) {
+      console.error('Error creating subscription:', error);
+      toast.error('Failed to create subscription');
+    }
   };
 
   return (
@@ -146,264 +160,285 @@ export default function CreateSubscription() {
               <X className="h-4 w-4 mr-2" />
               Cancel
             </Button>
-            <Button type="submit" form="subscription-form">
+            <Button type="submit" form="subscription-form" disabled={isSubmitting}>
               <Save className="h-4 w-4 mr-2" />
-              Create Subscription
+              {isSubmitting ? 'Creating...' : 'Create Subscription'}
             </Button>
           </div>
         </div>
       </div>
 
-      <div className="space-y-6">
-        <form id="subscription-form" onSubmit={handleSubmit} className="space-y-6">
-          {/* Tenant Selection */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Tenant Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="tenant">Select Tenant</Label>
-                <Select value={formData.tenantId} onValueChange={(value) => handleInputChange('tenantId', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose a tenant" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tenantsList.map((tenant) => (
-                      <SelectItem key={tenant.id} value={tenant.id}>
-                        <div>
-                          <div className="font-medium">{tenant.name}</div>
-                          <div className="text-sm text-muted-foreground">{tenant.email}</div>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Plan Selection */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                Subscription Plan
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {subscriptionPlans.map((plan) => (
-                  <div
-                    key={plan.id}
-                    className={`border rounded-lg p-4 cursor-pointer transition-colors ${
-                      formData.planId === plan.id
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                    onClick={() => handlePlanSelect(plan.id)}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-semibold">{plan.name}</h3>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold">${plan.basePrice}</div>
-                        <div className="text-sm text-muted-foreground">/month</div>
-                      </div>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-3">{plan.description}</p>
-                    <ul className="space-y-1">
-                      {plan.features.map((feature, index) => (
-                        <li key={index} className="text-sm flex items-center gap-2">
-                          <div className="w-1 h-1 bg-primary rounded-full"></div>
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+      <form id="subscription-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {/* Tenant Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Tenant Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="tenantId">Select Tenant *</Label>
+              <select
+                {...register("tenantId", { required: "Tenant is required" })}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.tenantId ? 'border-red-500' : ''}`}
+              >
+                <option value="">Choose a tenant organization</option>
+                {tenantsList.map((tenant) => (
+                  <option key={tenant.id} value={tenant.id}>
+                    {tenant.name} ({tenant.email})
+                  </option>
                 ))}
-              </div>
-            </CardContent>
-          </Card>
+              </select>
+              {errors.tenantId && <p className="text-sm text-red-500">{errors.tenantId.message}</p>}
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Billing Configuration */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5" />
-                Billing Configuration
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="billingCycle">Billing Cycle</Label>
-                  <Select value={formData.billingCycle} onValueChange={(value) => handleInputChange('billingCycle', value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="monthly">Monthly</SelectItem>
-                      <SelectItem value="yearly">Yearly (10% discount)</SelectItem>
-                    </SelectContent>
-                  </Select>
+        {/* Plan Selection */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Select Subscription Plan
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {subscriptionPlans.map((plan) => (
+                <div
+                  key={plan.id}
+                  className={`relative p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                    watchedValues.planId === plan.id
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                  onClick={() => handlePlanSelect(plan.id)}
+                >
+                  {watchedValues.planId === plan.id && (
+                    <div className="absolute -top-2 -right-2">
+                      <Badge className="bg-blue-500">Selected</Badge>
+                    </div>
+                  )}
+                  <h3 className="font-semibold text-lg">{plan.name}</h3>
+                  <p className="text-gray-600 text-sm mb-2">{plan.description}</p>
+                  <div className="text-2xl font-bold text-blue-600 mb-3">${plan.basePrice}/month</div>
+                  <ul className="space-y-1 text-sm">
+                    {plan.features.map((feature, index) => (
+                      <li key={index} className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <div>
-                  <Label htmlFor="startDate">Start Date</Label>
-                  <Input
-                    type="date"
-                    value={formData.startDate}
-                    onChange={(e) => handleInputChange('startDate', e.target.value)}
-                  />
-                </div>
-              </div>
+              ))}
+            </div>
+            {errors.planId && <p className="text-sm text-red-500 mt-2">Please select a plan</p>}
+          </CardContent>
+        </Card>
 
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={customPricing}
-                  onCheckedChange={setCustomPricing}
-                />
-                <Label>Custom Pricing</Label>
-              </div>
-
-              {customPricing && (
+        {selectedPlan && (
+          <>
+            {/* Billing Configuration */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Billing Configuration
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="customPrice">Custom Price ($)</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="billingCycle">Billing Cycle</Label>
+                    <select
+                      {...register("billingCycle")}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="monthly">Monthly</option>
+                      <option value="yearly">Yearly (10% discount)</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="startDate">Start Date</Label>
+                    <Input
+                      type="date"
+                      {...register("startDate", { required: "Start date is required" })}
+                      className={errors.startDate ? 'border-red-500' : ''}
+                    />
+                    {errors.startDate && <p className="text-sm text-red-500">{errors.startDate.message}</p>}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={customPricing}
+                      onCheckedChange={setCustomPricing}
+                    />
+                    <Label>Custom Pricing</Label>
+                  </div>
+                  {customPricing && (
+                    <div className="flex-1 max-w-xs">
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        {...register("customPrice")}
+                        placeholder="Enter custom price"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="trialDays">Trial Period (days)</Label>
                     <Input
                       type="number"
-                      step="0.01"
-                      value={formData.customPrice}
-                      onChange={(e) => handleInputChange('customPrice', e.target.value)}
-                      placeholder="Enter custom price"
+                      min="0"
+                      max="90"
+                      {...register("trialDays")}
                     />
                   </div>
-                  <div>
+                  <div className="space-y-2">
                     <Label htmlFor="discountPercent">Discount (%)</Label>
                     <Input
                       type="number"
                       min="0"
                       max="100"
-                      value={formData.discountPercent}
-                      onChange={(e) => handleInputChange('discountPercent', e.target.value)}
-                      placeholder="Enter discount percentage"
+                      step="0.01"
+                      {...register("discountPercent")}
+                      placeholder="0.00"
                     />
                   </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
 
-          {/* Add-ons */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plus className="h-5 w-5" />
-                Add-ons
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {addOns.map((addOn) => (
-                  <div key={addOn.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <Switch
-                        checked={formData.selectedAddOns.includes(addOn.id)}
-                        onCheckedChange={() => handleAddOnToggle(addOn.id)}
-                      />
-                      <div>
-                        <div className="font-medium">{addOn.name}</div>
-                        <div className="text-sm text-muted-foreground">${addOn.price}/month</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Trial and Auto-renewal */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                Additional Settings
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="trialDays">Trial Period (days)</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={formData.trialDays}
-                    onChange={(e) => handleInputChange('trialDays', e.target.value)}
-                  />
-                </div>
-                <div className="flex items-center space-x-2 pt-6">
+                <div className="flex items-center space-x-2">
                   <Switch
-                    checked={formData.autoRenew}
-                    onCheckedChange={(checked) => handleInputChange('autoRenew', checked)}
+                    {...register("autoRenew")}
+                    defaultChecked={true}
                   />
-                  <Label>Auto-renewal</Label>
+                  <Label>Auto-renewal enabled</Label>
                 </div>
-              </div>
-              <div>
-                <Label htmlFor="notes">Notes</Label>
-                <Textarea
-                  value={formData.notes}
-                  onChange={(e) => handleInputChange('notes', e.target.value)}
-                  placeholder="Add any additional notes or special instructions..."
-                  rows={3}
-                />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          {/* Summary */}
-          {selectedPlan && (
+            {/* Add-ons */}
             <Card>
               <CardHeader>
-                <CardTitle>Subscription Summary</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  Add-on Services
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {addOns.map((addOn) => (
+                    <div
+                      key={addOn.id}
+                      className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                        (watchedValues.selectedAddOns || []).includes(addOn.id)
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      onClick={() => handleAddOnToggle(addOn.id)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-medium">{addOn.name}</h4>
+                          <p className="text-sm text-gray-600">+${addOn.price}/month</p>
+                        </div>
+                        <div className={`w-4 h-4 rounded border-2 ${
+                          (watchedValues.selectedAddOns || []).includes(addOn.id)
+                            ? 'bg-blue-500 border-blue-500'
+                            : 'border-gray-300'
+                        }`}>
+                          {(watchedValues.selectedAddOns || []).includes(addOn.id) && (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <div className="w-2 h-2 bg-white rounded-sm"></div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Notes */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Additional Notes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Textarea
+                  {...register("notes")}
+                  placeholder="Add any special terms, conditions, or notes for this subscription..."
+                  rows={4}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Pricing Summary */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5" />
+                  Pricing Summary
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span>Plan:</span>
-                    <span className="font-medium">{selectedPlan.name}</span>
+                    <span>{selectedPlan.name} ({watchedValues.billingCycle})</span>
+                    <span>
+                      ${customPricing && watchedValues.customPrice 
+                        ? parseFloat(watchedValues.customPrice || 0).toFixed(2) 
+                        : selectedPlan.basePrice.toFixed(2)}
+                      {watchedValues.billingCycle === 'yearly' && !customPricing && (
+                        <span className="text-green-600 ml-2">(10% yearly discount applied)</span>
+                      )}
+                    </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Billing Cycle:</span>
-                    <span className="font-medium capitalize">{formData.billingCycle}</span>
-                  </div>
-                  {formData.selectedAddOns.length > 0 && (
-                    <div>
-                      <div className="font-medium mb-2">Add-ons:</div>
-                      {formData.selectedAddOns.map(addOnId => {
-                        const addOn = addOns.find(a => a.id === addOnId);
-                        return (
-                          <div key={addOnId} className="flex justify-between text-sm ml-4">
-                            <span>{addOn?.name}</span>
-                            <span>${addOn?.price}/month</span>
-                          </div>
-                        );
-                      })}
+                  
+                  {(watchedValues.selectedAddOns || []).map((addOnId) => {
+                    const addOn = addOns.find(a => a.id === addOnId);
+                    return addOn ? (
+                      <div key={addOnId} className="flex justify-between text-sm">
+                        <span>{addOn.name}</span>
+                        <span>+${addOn.price.toFixed(2)}</span>
+                      </div>
+                    ) : null;
+                  })}
+                  
+                  {watchedValues.discountPercent && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Discount ({watchedValues.discountPercent}%)</span>
+                      <span>-${(calculateTotalPrice() * parseFloat(watchedValues.discountPercent) / 100).toFixed(2)}</span>
                     </div>
                   )}
+                  
                   <Separator />
                   <div className="flex justify-between text-lg font-semibold">
-                    <span>Total:</span>
-                    <span>${calculateTotalPrice().toFixed(2)}/{formData.billingCycle === 'yearly' ? 'year' : 'month'}</span>
+                    <span>Total {watchedValues.billingCycle === 'yearly' ? 'Annual' : 'Monthly'} Cost:</span>
+                    <span>${calculateTotalPrice().toFixed(2)}</span>
                   </div>
+                  
+                  {watchedValues.trialDays && parseInt(watchedValues.trialDays) > 0 && (
+                    <p className="text-sm text-blue-600">
+                      *Includes {watchedValues.trialDays}-day free trial
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
-          )}
-        </form>
-      </div>
+          </>
+        )}
+      </form>
     </div>
   );
 }

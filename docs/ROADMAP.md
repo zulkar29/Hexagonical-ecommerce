@@ -4,7 +4,6 @@
 **MVP Timeline**: 18 months for complete e-commerce platform, advanced features through 36 months
 **Team Size**: Solo full-stack developer (Months 1-18), assistant developer (Month 18-24), customer support (Month 24-30)
 **Single Vendor Platform**: Focused on Bangladesh market initially with expansion potential
-**Note**: Lean startup approach optimized for experienced solo developer with hexagonal architecture and expansion mindset
 
 ## Phase 1: Foundation & Core Infrastructure (Months 1-3)
 **Solo Developer Focus**: Core MVP features with local payment integration
@@ -19,7 +18,7 @@
 - **Week 3-4**: Authentication & Authorization
   - JWT-based authentication system
   - Role-based access control (RBAC)
-  - Multi-tenant user management
+  - multi-tenant user management
   - Password reset and email verification
 
 - **Week 5-6**: Core Domain Models
@@ -169,7 +168,7 @@
 ## ✅ 18-Month MVP Deliverables
 
 **Complete E-commerce SaaS Platform Including:**
-- ✅ Multi-tenant architecture with shared database (tenant_id isolation)
+- ✅ multi-tenant architecture with shared database (tenant_id isolation)
 - ✅ Complete product management (catalog, variants, inventory, categories)
 - ✅ Full order management (cart, checkout, processing, fulfillment, tracking)
 - ✅ Payment processing (SSLCommerz, cash on delivery, refunds)
@@ -254,8 +253,6 @@
 - **Full Operations**: ৳11,720 (+ marketing when profitable)
 - **Total Monthly**: ৳3,520 → ৳11,720 (phased approach)
 
-Note: No staging environment initially - deploy directly to production with proper testing
-
 ### Cost Breakdown - Ultra-Lean Startup Approach
 **Development Phase (Months 1-3):**
 - **VPS Hosting**: ৳1,320/month (8GB RAM, 4 vCPU, Hostinger Business)
@@ -274,8 +271,6 @@ Note: No staging environment initially - deploy directly to production with prop
 - **Business Operations**: ৳1,700/month
 - **Marketing & Growth**: ৳6,500/month
 - **Total**: ৳11,720/month
-
-Note: Scalable architecture - can upgrade components as customer base grows
 
 ## Success Metrics & KPIs
 
@@ -382,7 +377,7 @@ Note: Scalable architecture - can upgrade components as customer base grows
 2. **Advanced Analytics** - Integrate with BI tools
 3. **Enhanced Security** - Third-party security services
 4. **Advanced APIs** - Custom development for enterprise
-5. **Multi-tenant Scaling** - Infrastructure optimization
+5. **multi-tenant Scaling** - Infrastructure optimization
 
 ### ⚡ **Quick Implementation Wins** (1-2 weeks each)
 - Product description templates

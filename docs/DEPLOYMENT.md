@@ -83,7 +83,7 @@ Verification Steps:
 ├─────────────────────────────────────────────────────────────┤
 │  🌐 PRESENTATION LAYER (Docker Containers)                 │
 │  ┌─────────────────────────────────────────────────────────┐
-│  │  Caddy Reverse Proxy (Auto SSL + Multi-tenant Routing) │
+│  │  Caddy Reverse Proxy (Auto SSL + multi-tenant Routing) │
 │  │  ├── yourdomain.com → Default Storefront               │
 │  │  ├── admin.yourdomain.com → SaaS Admin Panel           │
 │  │  ├── shop1.yourdomain.com → Tenant 'shop1'             │
@@ -101,7 +101,7 @@ Verification Steps:
 │  │  │   ├── Payment Processing                            │
 │  │  │   └── User Management                               │
 │  │  ├── Application Services (Use Cases)                  │
-│  │  │   ├── Multi-tenant Context Resolution               │
+│  │  │   ├── multi-tenant Context Resolution               │
 │  │  │   ├── Subscription Management                       │
 │  │  │   └── Domain Routing Logic                          │
 │  │  └── Ports (Interfaces)                                │
@@ -113,14 +113,14 @@ Verification Steps:
 │  🔌 ADAPTERS LAYER (Infrastructure)                        │
 │  ┌─────────────────────────────────────────────────────────┐
 │  │  Primary Adapters (Input)                              │
-│  │  ├── HTTP API Handlers (Gin Controllers)               │
+│  │  ├── HTTP API Handlers (Gin HTTP Adapters)            │
 │  │  ├── WebSocket Handlers (Real-time)                    │
 │  │  └── Tenant Context Middleware                         │
 │  │                                                         │
 │  │  Secondary Adapters (Output)                           │
 │  │  ├── PostgreSQL Repository (GORM)                      │
 │  │  ├── Redis Cache Adapter                               │
-│  │  ├── Payment Gateways (SSLCommerz primary, others)    │
+│  │  ├── Payment Gateways (SSLCommerz)                    │
 │  │  ├── Email Service (SMTP)                              │
 │  │  └── File Storage (S3 Compatible)                      │
 │  └─────────────────────────────────────────────────────────┘
@@ -128,7 +128,7 @@ Verification Steps:
 │  🖥️ FRONTEND APPLICATIONS                                   │
 │  ┌─────────────────────────────────────────────────────────┐
 │  │  Customer Storefront (Next.js SSR)                     │
-│  │  ├── Multi-tenant aware routing                        │
+│  │  ├── multi-tenant aware routing                        │
 │  │  ├── Dynamic theme loading per tenant                  │
 │  │  ├── SEO optimization per tenant                       │
 │  │  └── Server-side rendering                             │
@@ -142,7 +142,7 @@ Verification Steps:
 ├─────────────────────────────────────────────────────────────┤
 │  💾 PERSISTENCE LAYER                                      │
 │  ┌─────────────────────────────────────────────────────────┐
-│  │  PostgreSQL (Multi-tenant Database)                    │
+│  │  PostgreSQL (multi-tenant Database)                    │
 │  │  ├── Shared Schema with tenant_id isolation            │
 │  │  ├── Row-level security policies                       │
 │  │  ├── Tenant-aware queries and indexes                  │
@@ -161,7 +161,7 @@ Verification Steps:
 
 **1. Domain-Driven Design:**
 - Business logic isolated from infrastructure
-- Multi-tenant rules enforced at domain level
+- multi-tenant rules enforced at domain level
 - Clear separation of concerns
 
 **2. Testability:**
@@ -209,7 +209,7 @@ Verification Steps:
 - **Ports**: 22 (SSH), 80 (HTTP), 443 (HTTPS)
 
 ### Software Prerequisites
-- Docker Engine 24.0+
+- Docker Engine 25.0+
 - Docker Compose v2
 - Git
 - Basic firewall (UFW recommended)
@@ -341,7 +341,7 @@ docker-compose -f docker-compose.dev.yml up -d
 # - Redis: localhost:6379
 ```
 
-## 🌐 Multi-Tenant Domain Routing (Hexagonal Way)
+## 🌐 multi-tenant Domain Routing (Hexagonal Way)
 
 ### How Hexagonal Multi-tenancy Works
 
@@ -813,9 +813,7 @@ curl -X POST https://yourdomain.com/api/v1/admin/tenants \
 ```
 
 **Payment Gateway Integration:**
-- **SSLCommerz**: Primary payment gateway for Bangladesh (cards, banking)
-- **bKash**: Bangladesh mobile banking (40% market share)  
-- **Nagad**: Bangladesh mobile banking (25% market share)
+- **SSLCommerz**: Primary payment gateway for Bangladesh (cards, banking, mobile payments)
 - **Cash on Delivery**: COD payment method with verification
 
 ### 6. Monitoring Your SaaS

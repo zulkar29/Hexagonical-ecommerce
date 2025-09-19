@@ -2,769 +2,442 @@ package security
 
 import (
 	"net/http"
-	"time"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
-// Handler handles HTTP requests for security operations
+// Handler provides HTTP handlers for security operations
 type Handler struct {
-	service SecurityService
+	service *SecurityService
 }
 
 // NewHandler creates a new security handler
-func NewHandler(service SecurityService) *Handler {
-	return &Handler{
-		service: service,
-	}
+func NewHandler(service *SecurityService) *Handler {
+	return &Handler{service: service}
 }
 
-// RegisterRoutes registers security routes
-func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
-	// 🔐 PASSWORD MANAGEMENT ENDPOINTS
-	passwords := router.Group("/passwords")
-	{
-		passwords.POST("/validate", h.ValidatePassword)          // ValidatePassword
-		passwords.POST("/check-compromised", h.CheckCompromised) // IsPasswordCompromised
-		passwords.GET("/policy", h.GetPasswordPolicy)            // Get password policy
-	}
-
-	// 🔐 LOGIN SECURITY ENDPOINTS
-	logins := router.Group("/login-security")
-	{
-		logins.POST("/attempts", h.RecordLoginAttempt)   // RecordLoginAttempt
-		logins.POST("/validate", h.ValidateLoginAttempt) // ValidateLoginAttempt
-		logins.GET("/attempts", h.GetLoginAttempts)      // Get login attempts
-	}
-
-	// 🔐 ACCOUNT LOCKOUT ENDPOINTS
-	lockouts := router.Group("/lockouts")
-	{
-		lockouts.GET("/status/:user_id", h.GetLockoutStatus) // CheckAccountLockout
-		lockouts.POST("/lock", h.LockAccount)                // LockAccount
-		lockouts.POST("/unlock", h.UnlockAccount)            // UnlockAccount
-		lockouts.GET("", h.GetAccountLockouts)               // Get all lockouts
-	}
-
-	// 🔐 TRUSTED DEVICE ENDPOINTS
-	devices := router.Group("/devices")
-	{
-		devices.POST("/register", h.RegisterTrustedDevice)   // RegisterTrustedDevice
-		devices.POST("/validate", h.ValidateDevice)          // ValidateDevice
-		devices.GET("/user/:user_id", h.GetUserDevices)      // GetUserDevices
-		devices.DELETE("/:device_id", h.RevokeTrustedDevice) // RevokeTrustedDevice
-	}
-
-	// 🔐 SECURITY EVENT ENDPOINTS
-	events := router.Group("/events")
-	{
-		events.POST("", h.LogSecurityEvent)                      // LogSecurityEvent
-		events.GET("", h.GetSecurityEvents)                      // Get security events
-		events.PUT("/:event_id/resolve", h.ResolveSecurityEvent) // ResolveSecurityEvent
-	}
-
-	// 🔐 THREAT DETECTION ENDPOINTS
-	threats := router.Group("/threats")
-	{
-		threats.POST("/analyze", h.AnalyzeThreatLevel)      // AnalyzeThreatLevel
-		threats.POST("/detect", h.DetectSuspiciousActivity) // DetectSuspiciousActivity
-	}
-
-	// 🔐 SECURITY ANALYTICS ENDPOINTS
-	analytics := router.Group("/analytics")
-	{
-		analytics.GET("/dashboard", h.GetSecurityDashboard)   // GetSecurityDashboard
-		analytics.GET("/report", h.GetSecurityReport)         // GetSecurityReport
-		analytics.GET("/risk-score/:user_id", h.GetRiskScore) // GetRiskScore
-	}
-
-	// 🔐 AUDIT LOG ENDPOINTS
-	audit := router.Group("/audit")
-	{
-		audit.GET("/logs", h.GetAuditLogs)                    // Get audit logs
-		audit.POST("/logs", h.CreateAuditLog)                 // Create audit log
-		audit.GET("/logs/:log_id", h.GetAuditLogDetails)      // Get audit log details
-		audit.POST("/logs/export", h.ExportAuditLogs)         // Export audit logs
-	}
-
-	// 🔐 FRAUD DETECTION ENDPOINTS
-	fraud := router.Group("/fraud")
-	{
-		fraud.POST("/detect", h.DetectFraud)                  // Detect fraud
-		fraud.GET("/alerts", h.GetFraudAlerts)               // Get fraud alerts
-		fraud.PUT("/alerts/:alert_id", h.UpdateFraudAlert)   // Update fraud alert
-		fraud.GET("/patterns", h.GetFraudPatterns)           // Get fraud patterns
-	}
+// PasswordValidationRequest represents a password validation request
+type PasswordValidationRequest struct {
+	Password string    `json:"password" binding:"required"`
+	UserID   uuid.UUID `json:"user_id,omitempty"`
 }
 
-// Password Management Handlers
+// SetupRoutes sets up the security routes
+func (h *Handler) SetupRoutes(rg *gin.RouterGroup) {
+	// Password validation
+	rg.POST("/validate-password", h.ValidatePassword)
 
-// ValidatePassword validates a password against policy
+	// Account lockout management
+	rg.GET("/account-lockout/:user_id", h.CheckAccountLockout)
+	rg.POST("/failed-login", h.RecordFailedLogin)
+	rg.POST("/successful-login", h.RecordSuccessfulLogin)
+	rg.DELETE("/failed-logins/:user_id", h.ResetFailedLogins)
+
+	// Two-Factor Authentication
+	rg.POST("/2fa/setup/:user_id", h.Setup2FA)
+	rg.POST("/2fa/verify", h.Verify2FA)
+	rg.POST("/2fa/enable", h.Enable2FA)
+	rg.DELETE("/2fa/:user_id", h.Disable2FA)
+	rg.POST("/2fa/backup-code", h.VerifyBackupCode)
+
+	// Password history
+	rg.POST("/password-history", h.SavePasswordHistory)
+	rg.POST("/check-password-reuse", h.CheckPasswordReuse)
+
+	// Security settings and logs
+	rg.GET("/settings/:user_id", h.GetSecuritySettings)
+	rg.PUT("/settings/:user_id", h.UpdateSecuritySettings)
+	rg.GET("/logs/:user_id", h.GetSecurityLogs)
+}
+
+// ValidatePassword validates a password against security policies
 func (h *Handler) ValidatePassword(c *gin.Context) {
-	ctx := c.Request.Context()
-	tenantID, err := h.getTenantID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+	var req PasswordValidationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	var req struct {
-		Password string    `json:"password" binding:"required"`
-		UserID   uuid.UUID `json:"user_id" binding:"required"`
-	}
-
-	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
-		return
-	}
-
-	result, err := h.service.ValidatePassword(ctx, req.Password, req.UserID, &tenantID)
-	if err != nil {
-		h.handleServiceError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, result)
-}
-
-// CheckCompromised checks if a password is compromised
-func (h *Handler) CheckCompromised(c *gin.Context) {
-	var req struct {
-		Password string `json:"password" binding:"required"`
-	}
-
-	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
-		return
-	}
-
-	isCompromised, err := h.service.IsPasswordCompromised(req.Password)
-	if err != nil {
-		h.handleServiceError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"is_compromised": isCompromised})
-}
-
-// GetPasswordPolicy gets the password policy
-func (h *Handler) GetPasswordPolicy(c *gin.Context) {
-	// TODO: Implement get password policy
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented"})
-}
-
-// Login Security Handlers
-
-// RecordLoginAttempt records a login attempt
-func (h *Handler) RecordLoginAttempt(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	var req LoginAttemptRequest
-	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
-		return
-	}
-
-	attempt, err := h.service.RecordLoginAttempt(ctx, &req)
-	if err != nil {
-		h.handleServiceError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusCreated, attempt)
-}
-
-// ValidateLoginAttempt validates a login attempt
-func (h *Handler) ValidateLoginAttempt(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	var req struct {
-		UserID    uuid.UUID `json:"user_id" binding:"required"`
-		Email     string    `json:"email" binding:"required"`
-		IPAddress string    `json:"ip_address" binding:"required"`
-	}
-
-	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
-		return
-	}
-
-	result, err := h.service.ValidateLoginAttempt(ctx, req.UserID, req.Email, req.IPAddress)
-	if err != nil {
-		h.handleServiceError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, result)
-}
-
-// GetLoginAttempts gets login attempts
-func (h *Handler) GetLoginAttempts(c *gin.Context) {
-	// TODO: Implement get login attempts
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented"})
-}
-
-// Account Lockout Handlers
-
-// GetLockoutStatus gets account lockout status
-func (h *Handler) GetLockoutStatus(c *gin.Context) {
-	ctx := c.Request.Context()
-	userID, err := h.getUUIDParam(c, "user_id")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID", "details": err.Error()})
-		return
-	}
-
-	status, err := h.service.CheckAccountLockout(ctx, userID)
-	if err != nil {
-		h.handleServiceError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, status)
-}
-
-// LockAccount locks an account
-func (h *Handler) LockAccount(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	var req struct {
-		UserID   uuid.UUID      `json:"user_id" binding:"required"`
-		Reason   string         `json:"reason" binding:"required"`
-		Duration *time.Duration `json:"duration,omitempty"`
-	}
-
-	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
-		return
-	}
-
-	if err := h.service.LockAccount(ctx, req.UserID, req.Reason, req.Duration); err != nil {
-		h.handleServiceError(c, err)
-		return
-	}
-
-	c.Status(http.StatusNoContent)
-}
-
-// UnlockAccount unlocks an account
-func (h *Handler) UnlockAccount(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	var req struct {
-		UserID  uuid.UUID  `json:"user_id" binding:"required"`
-		AdminID *uuid.UUID `json:"admin_id,omitempty"`
-	}
-
-	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
-		return
-	}
-
-	if err := h.service.UnlockAccount(ctx, req.UserID, req.AdminID); err != nil {
-		h.handleServiceError(c, err)
-		return
-	}
-
-	c.Status(http.StatusNoContent)
-}
-
-// GetAccountLockouts gets account lockouts
-func (h *Handler) GetAccountLockouts(c *gin.Context) {
-	// TODO: Implement get account lockouts
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented"})
-}
-
-// Trusted Device Handlers
-
-// RegisterTrustedDevice registers a trusted device
-func (h *Handler) RegisterTrustedDevice(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	var req TrustedDeviceRequest
-	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
-		return
-	}
-
-	device, err := h.service.RegisterTrustedDevice(ctx, &req)
-	if err != nil {
-		h.handleServiceError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusCreated, device)
-}
-
-// ValidateDevice validates a device
-func (h *Handler) ValidateDevice(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	var req struct {
-		UserID      uuid.UUID `json:"user_id" binding:"required"`
-		Fingerprint string    `json:"fingerprint" binding:"required"`
-	}
-
-	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
-		return
-	}
-
-	result, err := h.service.ValidateDevice(ctx, req.UserID, req.Fingerprint)
-	if err != nil {
-		h.handleServiceError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, result)
-}
-
-// GetUserDevices gets user devices
-func (h *Handler) GetUserDevices(c *gin.Context) {
-	ctx := c.Request.Context()
-	userID, err := h.getUUIDParam(c, "user_id")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID", "details": err.Error()})
-		return
-	}
-
-	devices, err := h.service.GetUserDevices(ctx, userID)
-	if err != nil {
-		h.handleServiceError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, devices)
-}
-
-// RevokeTrustedDevice revokes a trusted device
-func (h *Handler) RevokeTrustedDevice(c *gin.Context) {
-	ctx := c.Request.Context()
-	deviceID, err := h.getUUIDParam(c, "device_id")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid device ID", "details": err.Error()})
-		return
-	}
-
-	var req struct {
-		Reason string `json:"reason" binding:"required"`
-	}
-
-	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
-		return
-	}
-
-	if err := h.service.RevokeTrustedDevice(ctx, deviceID, req.Reason); err != nil {
-		h.handleServiceError(c, err)
-		return
-	}
-
-	c.Status(http.StatusNoContent)
-}
-
-// Security Event Handlers
-
-// LogSecurityEvent logs a security event
-func (h *Handler) LogSecurityEvent(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	var req SecurityEventRequest
-	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
-		return
-	}
-
-	if err := h.service.LogSecurityEvent(ctx, &req); err != nil {
-		h.handleServiceError(c, err)
-		return
-	}
-
-	c.Status(http.StatusCreated)
-}
-
-// GetSecurityEvents gets security events
-func (h *Handler) GetSecurityEvents(c *gin.Context) {
-	// TODO: Implement get security events
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented"})
-}
-
-// ResolveSecurityEvent resolves a security event
-func (h *Handler) ResolveSecurityEvent(c *gin.Context) {
-	ctx := c.Request.Context()
-	eventID, err := h.getUUIDParam(c, "event_id")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID", "details": err.Error()})
-		return
-	}
-
-	var req struct {
-		Resolution string     `json:"resolution" binding:"required"`
-		AdminID    *uuid.UUID `json:"admin_id,omitempty"`
-	}
-
-	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
-		return
-	}
-
-	if err := h.service.ResolveSecurityEvent(ctx, eventID, req.Resolution, req.AdminID); err != nil {
-		h.handleServiceError(c, err)
-		return
-	}
-
-	c.Status(http.StatusNoContent)
-}
-
-// Threat Detection Handlers
-
-// AnalyzeThreatLevel analyzes threat level
-func (h *Handler) AnalyzeThreatLevel(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	var req struct {
-		UserID    uuid.UUID `json:"user_id" binding:"required"`
-		IPAddress string    `json:"ip_address" binding:"required"`
-		UserAgent string    `json:"user_agent" binding:"required"`
-	}
-
-	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
-		return
-	}
-
-	threatLevel, err := h.service.AnalyzeThreatLevel(ctx, req.UserID, req.IPAddress, req.UserAgent)
-	if err != nil {
-		h.handleServiceError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"threat_level": threatLevel})
-}
-
-// DetectSuspiciousActivity detects suspicious activity
-func (h *Handler) DetectSuspiciousActivity(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	var req struct {
-		UserID   uuid.UUID        `json:"user_id" binding:"required"`
-		Activity *ActivityContext `json:"activity" binding:"required"`
-	}
-
-	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
-		return
-	}
-
-	assessment, err := h.service.DetectSuspiciousActivity(ctx, req.UserID, req.Activity)
-	if err != nil {
-		h.handleServiceError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, assessment)
-}
-
-// Security Analytics Handlers
-
-// GetSecurityDashboard gets security dashboard
-func (h *Handler) GetSecurityDashboard(c *gin.Context) {
-	ctx := c.Request.Context()
-	tenantID, err := h.getTenantID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
-		return
-	}
-
-	// Parse period parameter
-	periodStr := c.DefaultQuery("period", "24h")
-	period, err := time.ParseDuration(periodStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid period format", "details": err.Error()})
-		return
-	}
-
-	dashboard, err := h.service.GetSecurityDashboard(ctx, &tenantID, period)
-	if err != nil {
-		h.handleServiceError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, dashboard)
-}
-
-// GetSecurityReport gets security report
-func (h *Handler) GetSecurityReport(c *gin.Context) {
-	// TODO: Implement get security report
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented"})
-}
-
-// GetRiskScore gets risk score
-func (h *Handler) GetRiskScore(c *gin.Context) {
-	ctx := c.Request.Context()
-	userID, err := h.getUUIDParam(c, "user_id")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID", "details": err.Error()})
-		return
-	}
-
-	riskScore, err := h.service.GetRiskScore(ctx, userID)
-	if err != nil {
-		h.handleServiceError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, riskScore)
-}
-
-// Helper methods
-
-// getTenantID extracts tenant ID from context or headers
-func (h *Handler) getTenantID(c *gin.Context) (uuid.UUID, error) {
-	// Try to get from context first (set by middleware)
-	if tenantID, exists := c.Get("tenant_id"); exists {
-		if id, ok := tenantID.(uuid.UUID); ok {
-			return id, nil
+	// Extract tenant ID from context or headers
+	tenantIDStr := c.GetHeader("X-Tenant-ID")
+	var tenantID *uuid.UUID
+	if tenantIDStr != "" {
+		if parsed, err := uuid.Parse(tenantIDStr); err == nil {
+			tenantID = &parsed
 		}
 	}
 
-	// Try to get from header
+	ctx := c.Request.Context()
+	err := h.service.ValidatePassword(ctx, tenantID, req.Password)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"valid": false, "error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"valid": true})
+}
+
+// GetSecuritySettings retrieves security settings for a user
+func (h *Handler) GetSecuritySettings(c *gin.Context) {
+	userIDStr := c.Param("user_id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	ctx := c.Request.Context()
+	settings, err := h.service.GetSecuritySettings(ctx, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, settings)
+}
+
+// GetSecurityLogs retrieves security logs for a user
+func (h *Handler) GetSecurityLogs(c *gin.Context) {
+	userIDStr := c.Param("user_id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	// Get limit from query parameter, default to 50
+	limit := 50
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil {
+			limit = parsedLimit
+		}
+	}
+
+	ctx := c.Request.Context()
+	logs, err := h.service.GetSecurityLogs(ctx, userID, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, logs)
+}
+
+// CheckAccountLockout checks if an account is currently locked
+func (h *Handler) CheckAccountLockout(c *gin.Context) {
+	userIDStr := c.Param("user_id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	// Extract tenant ID from context or headers
 	tenantIDStr := c.GetHeader("X-Tenant-ID")
-	if tenantIDStr == "" {
-		return uuid.Nil, nil // Return nil UUID for optional tenant ID
+	var tenantID *uuid.UUID
+	if tenantIDStr != "" {
+		if parsed, err := uuid.Parse(tenantIDStr); err == nil {
+			tenantID = &parsed
+		}
 	}
 
-	tenantID, err := uuid.Parse(tenantIDStr)
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	return tenantID, nil
-}
-
-// getUUIDParam extracts UUID parameter from URL
-func (h *Handler) getUUIDParam(c *gin.Context, param string) (uuid.UUID, error) {
-	idStr := c.Param(param)
-	return uuid.Parse(idStr)
-}
-
-// handleServiceError handles service layer errors
-func (h *Handler) handleServiceError(c *gin.Context, err error) {
-	// TODO: Implement proper error handling based on error types
-	c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-}
-
-// Audit Log Handlers
-
-// GetAuditLogs gets audit logs
-func (h *Handler) GetAuditLogs(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID, err := h.getTenantID(c)
+	isLocked, err := h.service.IsAccountLocked(ctx, userID, tenantID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Parse query parameters
-	userID := c.Query("user_id")
-	action := c.Query("action")
-	resource := c.Query("resource")
-	startDate := c.Query("start_date")
-	endDate := c.Query("end_date")
-	page := c.DefaultQuery("page", "1")
-	limit := c.DefaultQuery("limit", "50")
+	c.JSON(http.StatusOK, gin.H{"locked": isLocked})
+}
 
-	logs, total, err := h.service.GetAuditLogs(ctx, tenantID, userID, action, resource, startDate, endDate, page, limit)
+// LoginAttemptRequest represents a login attempt request
+type LoginAttemptRequest struct {
+	UserID    uuid.UUID  `json:"user_id" binding:"required"`
+	TenantID  *uuid.UUID `json:"tenant_id,omitempty"`
+	IPAddress string     `json:"ip_address" binding:"required"`
+	UserAgent string     `json:"user_agent" binding:"required"`
+}
+
+// RecordFailedLogin records a failed login attempt
+func (h *Handler) RecordFailedLogin(c *gin.Context) {
+	var req LoginAttemptRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx := c.Request.Context()
+	err := h.service.RecordFailedLogin(ctx, req.UserID, req.TenantID, req.IPAddress, req.UserAgent)
 	if err != nil {
-		h.handleServiceError(c, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Failed login recorded"})
+}
+
+// RecordSuccessfulLogin records a successful login attempt
+func (h *Handler) RecordSuccessfulLogin(c *gin.Context) {
+	var req LoginAttemptRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx := c.Request.Context()
+	err := h.service.RecordSuccessfulLogin(ctx, req.UserID, req.TenantID, req.IPAddress, req.UserAgent)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Successful login recorded"})
+}
+
+// ResetFailedLogins resets failed login attempts for a user
+func (h *Handler) ResetFailedLogins(c *gin.Context) {
+	userIDStr := c.Param("user_id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	ctx := c.Request.Context()
+	err = h.service.ResetFailedLogins(ctx, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Failed logins reset"})
+}
+
+// Setup2FARequest represents a 2FA setup request
+type Setup2FARequest struct {
+	Issuer      string `json:"issuer" binding:"required"`
+	AccountName string `json:"account_name" binding:"required"`
+}
+
+// Setup2FA sets up 2FA for a user
+func (h *Handler) Setup2FA(c *gin.Context) {
+	userIDStr := c.Param("user_id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	var req Setup2FARequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Extract tenant ID from context or headers
+	tenantIDStr := c.GetHeader("X-Tenant-ID")
+	var tenantID *uuid.UUID
+	if tenantIDStr != "" {
+		if parsed, err := uuid.Parse(tenantIDStr); err == nil {
+			tenantID = &parsed
+		}
+	}
+
+	ctx := c.Request.Context()
+	twoFA, qrURL, err := h.service.Setup2FA(ctx, userID, tenantID, req.Issuer, req.AccountName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"logs":  logs,
-		"total": total,
-		"page":  page,
-		"limit": limit,
+		"two_factor_auth": twoFA,
+		"qr_url":          qrURL,
 	})
 }
 
-// CreateAuditLog creates an audit log
-func (h *Handler) CreateAuditLog(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	var req struct {
-		UserID     uuid.UUID   `json:"user_id" binding:"required"`
-		Action     string      `json:"action" binding:"required"`
-		Resource   string      `json:"resource" binding:"required"`
-		ResourceID *uuid.UUID  `json:"resource_id,omitempty"`
-		Details    interface{} `json:"details,omitempty"`
-		IPAddress  string      `json:"ip_address,omitempty"`
-		UserAgent  string      `json:"user_agent,omitempty"`
-	}
-
-	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
-		return
-	}
-
-	log, err := h.service.CreateAuditLog(ctx, &req)
-	if err != nil {
-		h.handleServiceError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusCreated, log)
+// Verify2FARequest represents a 2FA verification request
+type Verify2FARequest struct {
+	UserID   uuid.UUID  `json:"user_id" binding:"required"`
+	TenantID *uuid.UUID `json:"tenant_id,omitempty"`
+	Token    string     `json:"token" binding:"required"`
 }
 
-// GetAuditLogDetails gets audit log details
-func (h *Handler) GetAuditLogDetails(c *gin.Context) {
+// Verify2FA verifies a 2FA token
+func (h *Handler) Verify2FA(c *gin.Context) {
+	var req Verify2FARequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
 	ctx := c.Request.Context()
-	logID, err := h.getUUIDParam(c, "log_id")
+	valid, err := h.service.Verify2FA(ctx, req.UserID, req.TenantID, req.Token)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid log ID", "details": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	log, err := h.service.GetAuditLogDetails(ctx, logID)
-	if err != nil {
-		h.handleServiceError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, log)
+	c.JSON(http.StatusOK, gin.H{"valid": valid})
 }
 
-// ExportAuditLogs exports audit logs
-func (h *Handler) ExportAuditLogs(c *gin.Context) {
+// Enable2FA enables 2FA for a user after verification
+func (h *Handler) Enable2FA(c *gin.Context) {
+	var req Verify2FARequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
 	ctx := c.Request.Context()
-	tenantID, err := h.getTenantID(c)
+	err := h.service.Enable2FA(ctx, req.UserID, req.TenantID, req.Token)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	var req struct {
-		Format    string `json:"format" binding:"required"`
-		StartDate string `json:"start_date,omitempty"`
-		EndDate   string `json:"end_date,omitempty"`
-		Filters   map[string]interface{} `json:"filters,omitempty"`
-	}
-
-	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
-		return
-	}
-
-	result, err := h.service.ExportAuditLogs(ctx, tenantID, req.Format, req.StartDate, req.EndDate, req.Filters)
-	if err != nil {
-		h.handleServiceError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, result)
+	c.JSON(http.StatusOK, gin.H{"message": "2FA enabled successfully"})
 }
 
-// Fraud Detection Handlers
-
-// DetectFraud detects fraud
-func (h *Handler) DetectFraud(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	var req struct {
-		UserID      uuid.UUID   `json:"user_id" binding:"required"`
-		Transaction interface{} `json:"transaction" binding:"required"`
-		Context     interface{} `json:"context,omitempty"`
-	}
-
-	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
-		return
-	}
-
-	result, err := h.service.DetectFraud(ctx, req.UserID, req.Transaction, req.Context)
+// Disable2FA disables 2FA for a user
+func (h *Handler) Disable2FA(c *gin.Context) {
+	userIDStr := c.Param("user_id")
+	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		h.handleServiceError(c, err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
-	c.JSON(http.StatusOK, result)
+	ctx := c.Request.Context()
+	err = h.service.Disable2FA(ctx, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "2FA disabled successfully"})
 }
 
-// GetFraudAlerts gets fraud alerts
-func (h *Handler) GetFraudAlerts(c *gin.Context) {
-	ctx := c.Request.Context()
-	tenantID, err := h.getTenantID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
-		return
-	}
-
-	status := c.Query("status")
-	severity := c.Query("severity")
-	page := c.DefaultQuery("page", "1")
-	limit := c.DefaultQuery("limit", "50")
-
-	alerts, total, err := h.service.GetFraudAlerts(ctx, tenantID, status, severity, page, limit)
-	if err != nil {
-		h.handleServiceError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"alerts": alerts,
-		"total":  total,
-		"page":   page,
-		"limit":  limit,
-	})
+// VerifyBackupCodeRequest represents a backup code verification request
+type VerifyBackupCodeRequest struct {
+	UserID uuid.UUID `json:"user_id" binding:"required"`
+	Code   string    `json:"code" binding:"required"`
 }
 
-// UpdateFraudAlert updates a fraud alert
-func (h *Handler) UpdateFraudAlert(c *gin.Context) {
+// VerifyBackupCode verifies a 2FA backup code
+func (h *Handler) VerifyBackupCode(c *gin.Context) {
+	var req VerifyBackupCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
 	ctx := c.Request.Context()
-	alertID, err := h.getUUIDParam(c, "alert_id")
+	valid, err := h.service.VerifyBackupCode(ctx, req.UserID, req.Code)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid alert ID", "details": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	var req struct {
-		Status     string     `json:"status" binding:"required"`
-		Resolution string     `json:"resolution,omitempty"`
-		AdminID    *uuid.UUID `json:"admin_id,omitempty"`
-	}
-
-	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
-		return
-	}
-
-	alert, err := h.service.UpdateFraudAlert(ctx, alertID, req.Status, req.Resolution, req.AdminID)
-	if err != nil {
-		h.handleServiceError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, alert)
+	c.JSON(http.StatusOK, gin.H{"valid": valid})
 }
 
-// GetFraudPatterns gets fraud patterns
-func (h *Handler) GetFraudPatterns(c *gin.Context) {
+// SavePasswordHistoryRequest represents a password history save request
+type SavePasswordHistoryRequest struct {
+	UserID       uuid.UUID `json:"user_id" binding:"required"`
+	PasswordHash string    `json:"password_hash" binding:"required"`
+}
+
+// SavePasswordHistory saves password to history
+func (h *Handler) SavePasswordHistory(c *gin.Context) {
+	var req SavePasswordHistoryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
 	ctx := c.Request.Context()
-	tenantID, err := h.getTenantID(c)
+	err := h.service.SavePasswordHistory(ctx, req.UserID, req.PasswordHash)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	patternType := c.Query("type")
-	period := c.DefaultQuery("period", "30d")
+	c.JSON(http.StatusOK, gin.H{"message": "Password history saved"})
+}
 
-	patterns, err := h.service.GetFraudPatterns(ctx, tenantID, patternType, period)
-	if err != nil {
-		h.handleServiceError(c, err)
+// CheckPasswordReuseRequest represents a password reuse check request
+type CheckPasswordReuseRequest struct {
+	UserID   uuid.UUID  `json:"user_id" binding:"required"`
+	TenantID *uuid.UUID `json:"tenant_id,omitempty"`
+	Password string     `json:"password" binding:"required"`
+}
+
+// CheckPasswordReuse checks if password has been used recently
+func (h *Handler) CheckPasswordReuse(c *gin.Context) {
+	var req CheckPasswordReuseRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, patterns)
+	ctx := c.Request.Context()
+	reused, err := h.service.IsPasswordReused(ctx, req.UserID, req.TenantID, req.Password)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"reused": reused})
+}
+
+// UpdateSecuritySettingsRequest represents a security settings update request
+type UpdateSecuritySettingsRequest struct {
+	MaxFailedAttempts      int  `json:"max_failed_attempts,omitempty"`
+	PasswordMinLength      int  `json:"password_min_length,omitempty"`
+	PasswordRequireUpper   bool `json:"password_require_upper"`
+	PasswordRequireLower   bool `json:"password_require_lower"`
+	PasswordRequireDigit   bool `json:"password_require_digit"`
+	PasswordRequireSpecial bool `json:"password_require_special"`
+	Require2FA             bool `json:"require_2fa"`
+}
+
+// UpdateSecuritySettings updates security settings for a user
+func (h *Handler) UpdateSecuritySettings(c *gin.Context) {
+	userIDStr := c.Param("user_id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	var req UpdateSecuritySettingsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Convert request to SecuritySettings - in a real implementation,
+	// you'd want to only update the provided fields
+	settings := SecuritySettings{
+		MaxFailedAttempts:      req.MaxFailedAttempts,
+		PasswordMinLength:      req.PasswordMinLength,
+		PasswordRequireUpper:   req.PasswordRequireUpper,
+		PasswordRequireLower:   req.PasswordRequireLower,
+		PasswordRequireDigit:   req.PasswordRequireDigit,
+		PasswordRequireSpecial: req.PasswordRequireSpecial,
+		Require2FA:             req.Require2FA,
+	}
+
+	ctx := c.Request.Context()
+	err = h.service.UpdateSecuritySettings(ctx, userID, settings)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Security settings updated successfully"})
 }

@@ -1,6 +1,5 @@
 # Infrastructure & CI/CD Strategy
 
-
 ## Infrastructure Overview
 
 Production-ready infrastructure strategy for multi-tenant e-commerce SaaS platform using PostgreSQL shared database with tenant_id isolation, Redis caching, and SSLCommerz payments.
@@ -34,7 +33,7 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_DIR="/backups"
 
 # 1. Database backup with tenant isolation verification
-pg_dump ecommerce_db > "$BACKUP_DIR/db_backup_$TIMESTAMP.sql"
+pg_dump ecommerce_saas > "$BACKUP_DIR/db_backup_$TIMESTAMP.sql"
 
 # 2. Redis backup
 redis-cli --rdb "$BACKUP_DIR/redis_backup_$TIMESTAMP.rdb"
@@ -134,7 +133,7 @@ Stages:
 2. Integration Tests
    - Database connectivity
    - API endpoint validation
-   - Multi-tenant isolation
+   - multi-tenant isolation
 
 3. Security Tests
    - Dependency vulnerability scan
@@ -177,7 +176,7 @@ Service Updates:
 ### **Docker Configuration**
 ```dockerfile
 # Multi-stage production build
-FROM golang:1.21-alpine AS builder
+FROM golang:1.23-alpine AS builder
 # Build optimized binary
 
 FROM alpine:latest AS production

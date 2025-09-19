@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -14,6 +15,7 @@ type RepositoryInterface interface {
 	// User CRUD operations
 	CreateUser(ctx context.Context, user *User) (*User, error)
 	GetUserByID(ctx context.Context, userID uuid.UUID) (*User, error)
+	GetByID(ctx context.Context, userID uuid.UUID) (*User, error) // Alias for GetUserByID
 	GetUserByEmail(ctx context.Context, email string) (*User, error)
 	UpdateUser(ctx context.Context, user *User) (*User, error)
 	DeleteUser(ctx context.Context, userID uuid.UUID) error
@@ -23,13 +25,7 @@ type RepositoryInterface interface {
 	GetUsersWithFilters(ctx context.Context, filters interface{}) ([]User, error)
 	UpdateUserStatus(ctx context.Context, userID uuid.UUID, status string) error
 	UpdatePhoneVerification(ctx context.Context, phone string, verified bool) error
-
-	// Session operations
-	CreateSession(session *UserSession) error
-	GetSessionByToken(tenantID *uuid.UUID, token string) (*UserSession, error)
-	UpdateSession(session *UserSession) error
-	InvalidateUserSessions(ctx context.Context, tenantID *uuid.UUID, userID uuid.UUID) error
-	CleanupExpiredSessions(tenantID *uuid.UUID) error
+	UpdateUser2FA(ctx context.Context, userID uuid.UUID, enabled bool) error
 
 	// Permission operations
 	GetUserPermissions(userID uuid.UUID) ([]*Permission, error)
@@ -129,12 +125,12 @@ func (r *repository) UpdateUserByAdmin(ctx context.Context, userID uuid.UUID, up
 	if err := r.db.WithContext(ctx).Model(&User{}).Where("id = ?", userID).Updates(updates).Error; err != nil {
 		return nil, err
 	}
-	
+
 	var user User
 	if err := r.db.WithContext(ctx).Where("id = ?", userID).First(&user).Error; err != nil {
 		return nil, err
 	}
-	
+
 	return &user, nil
 }
 
@@ -147,7 +143,7 @@ func (r *repository) GetUsersByIDs(ctx context.Context, userIDs []uuid.UUID) ([]
 func (r *repository) GetUsersWithFilters(ctx context.Context, filters interface{}) ([]User, error) {
 	var users []User
 	query := r.db.WithContext(ctx)
-	
+
 	// Apply filters based on the filters interface
 	if filterMap, ok := filters.(map[string]interface{}); ok {
 		for key, value := range filterMap {
@@ -161,7 +157,7 @@ func (r *repository) GetUsersWithFilters(ctx context.Context, filters interface{
 			}
 		}
 	}
-	
+
 	err := query.Find(&users).Error
 	return users, err
 }
@@ -174,50 +170,11 @@ func (r *repository) UpdatePhoneVerification(ctx context.Context, phone string, 
 	return r.db.WithContext(ctx).Model(&User{}).Where("phone = ?", phone).Update("phone_verified", verified).Error
 }
 
-// Session operations
-
-func (r *repository) CreateSession(session *UserSession) error {
-	return r.db.Create(session).Error
-}
-
-func (r *repository) GetSessionByToken(tenantID *uuid.UUID, token string) (*UserSession, error) {
-	var session UserSession
-	query := r.db.Where("token = ? AND is_active = true", token)
-	if tenantID != nil {
-		query = query.Where("tenant_id = ?", *tenantID)
-	}
-	err := query.First(&session).Error
-	if err != nil {
-		return nil, err
-	}
-	return &session, nil
-}
-
-func (r *repository) UpdateSession(session *UserSession) error {
-	return r.db.Save(session).Error
-}
-
-func (r *repository) InvalidateUserSessions(ctx context.Context, tenantID *uuid.UUID, userID uuid.UUID) error {
-	query := r.db.WithContext(ctx).Model(&UserSession{}).Where("user_id = ?", userID)
-	if tenantID != nil {
-		query = query.Where("tenant_id = ?", *tenantID)
-	}
-	return query.Update("is_active", false).Error
-}
-
-func (r *repository) CleanupExpiredSessions(tenantID *uuid.UUID) error {
-	query := r.db.Where("expires_at < NOW() OR is_active = false")
-	if tenantID != nil {
-		query = query.Where("tenant_id = ?", *tenantID)
-	}
-	return query.Delete(&UserSession{}).Error
-}
-
 // Permission operations
 
 func (r *repository) GetUserPermissions(userID uuid.UUID) ([]*Permission, error) {
 	var permissions []*Permission
-	
+
 	// Get user role
 	var user User
 	if err := r.db.Select("role").Where("id = ?", userID).First(&user).Error; err != nil {
@@ -235,7 +192,7 @@ func (r *repository) GetUserPermissions(userID uuid.UUID) ([]*Permission, error)
 
 func (r *repository) CheckUserPermission(userID uuid.UUID, resource, action string) (bool, error) {
 	var count int64
-	
+
 	// Get user role
 	var user User
 	if err := r.db.Select("role").Where("id = ?", userID).First(&user).Error; err != nil {
@@ -245,7 +202,7 @@ func (r *repository) CheckUserPermission(userID uuid.UUID, resource, action stri
 	// Check if role has permission
 	err := r.db.Table("permissions").
 		Joins("JOIN role_permissions ON permissions.id = role_permissions.permission_id").
-		Where("role_permissions.role = ? AND permissions.resource = ? AND permissions.action = ?", 
+		Where("role_permissions.role = ? AND permissions.resource = ? AND permissions.action = ?",
 			user.Role, resource, action).
 		Count(&count).Error
 
@@ -259,11 +216,11 @@ func (r *repository) GetUserPreferences(ctx context.Context, userID uuid.UUID) (
 	if err := r.db.WithContext(ctx).Select("preferences").Where("id = ?", userID).First(&user).Error; err != nil {
 		return nil, err
 	}
-	
+
 	if user.Preferences == nil {
 		return make(map[string]interface{}), nil
 	}
-	
+
 	return user.Preferences, nil
 }
 
@@ -271,6 +228,16 @@ func (r *repository) UpdateUserPreferences(ctx context.Context, userID uuid.UUID
 	if err := r.db.WithContext(ctx).Model(&User{}).Where("id = ?", userID).Update("preferences", preferences).Error; err != nil {
 		return nil, err
 	}
-	
+
 	return preferences, nil
+}
+
+// GetByID is an alias for GetUserByID for compatibility
+func (r *repository) GetByID(ctx context.Context, userID uuid.UUID) (*User, error) {
+	return r.GetUserByID(ctx, userID)
+}
+
+// UpdateUser2FA updates the two-factor authentication status for a user
+func (r *repository) UpdateUser2FA(ctx context.Context, userID uuid.UUID, enabled bool) error {
+	return r.db.WithContext(ctx).Model(&User{}).Where("id = ?", userID).Update("two_factor_enabled", enabled).Error
 }

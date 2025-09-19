@@ -32,15 +32,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { 
-  useAdminDashboard, 
-  useRecentOrders, 
-  useProducts, 
-  useRevenueAnalytics,
-  useRecentActivity,
-  useLowStockProducts,
-  useQuickActionsData
-} from "@/hooks/useApi";
+import { useQuery } from '@tanstack/react-query';
+import { shopApi } from '@/lib/api';
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -237,42 +230,66 @@ const Dashboard = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
   const navigate = useNavigate();
   
-  // API calls
+  // API calls using React Query directly
   const { 
     data: dashboardData, 
     isLoading: isDashboardLoading, 
     isError: isDashboardError 
-  } = useAdminDashboard();
+  } = useQuery({
+    queryKey: ['dashboard', 'stats'],
+    queryFn: () => shopApi.getDashboard(),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
+  });
   
   const { 
     data: recentOrdersData, 
     isLoading: isOrdersLoading 
-  } = useRecentOrders();
+  } = useQuery({
+    queryKey: ['orders', 'recent'],
+    queryFn: () => shopApi.getRecentOrders(5),
+    staleTime: 1 * 60 * 1000, // 1 minute
+  });
   
   const { 
     data: productsData, 
     isLoading: isProductsLoading 
-  } = useProducts({ per_page: 4, sort_by: 'created_at', sort_direction: 'desc' });
+  } = useQuery({
+    queryKey: ['products', 'recent'],
+    queryFn: () => shopApi.getProducts({ per_page: 4, sort_by: 'created_at', sort_direction: 'desc' }),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
   
   const { 
     data: revenueData, 
     isLoading: isRevenueLoading 
-  } = useRevenueAnalytics(selectedPeriod);
+  } = useQuery({
+    queryKey: ['analytics', 'revenue', selectedPeriod],
+    queryFn: () => shopApi.getRevenueAnalytics(selectedPeriod),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
   
   const { 
     data: recentActivityData, 
     isLoading: isActivityLoading 
-  } = useRecentActivity();
+  } = useQuery({
+    queryKey: ['dashboard', 'activity'],
+    queryFn: () => shopApi.getDashboard(), // Assuming activity data comes from dashboard
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
   
   const { 
     data: lowStockData, 
     isLoading: isLowStockLoading 
-  } = useLowStockProducts();
+  } = useQuery({
+    queryKey: ['products', 'low-stock'],
+    queryFn: () => shopApi.getLowStock(10),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
   
-  const { 
-    data: quickActionsData, 
-    isLoading: isQuickActionsLoading 
-  } = useQuickActionsData();
+  // Quick actions data can be derived from dashboard data
+  const quickActionsData = dashboardData?.data || {};
+  const isQuickActionsLoading = isDashboardLoading;
 
   // Loading state
   if (isDashboardLoading) {

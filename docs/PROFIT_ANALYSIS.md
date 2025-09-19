@@ -2,15 +2,15 @@
 
 ## Executive Summary
 
-Conservative financial model for hexagonal e-commerce SaaS platform in emerging market with realistic assumptions based on 2024 market data and industry benchmarks.
+Conservative financial model for hexagonal e-commerce SaaS platform in emerging market with realistic assumptions based on 2025 market data and industry benchmarks.
 
 ## Key Assumptions
 
 ### Market Context
-- **Local E-commerce Growth**: 12.84% CAGR (2024-2029)
-- **Market Size**: ৳9,90,000 crore in 2024, growing to ৳13,64,000 crore by 2029
-- **User Penetration**: 10.5% in 2024 (only 3 out of 10 people shop online)
-- **ARPU**: ৳35,880/year or ৳2,990/month (local SME average)
+- **Local E-commerce Growth**: 12.84% CAGR (2025-2030)
+- **Market Size**: ৳11,20,000 crore in 2025, growing to ৳15,40,000 crore by 2030
+- **User Penetration**: 12.1% in 2025 (improved digital adoption)
+- **ARPU**: ৳38,500/year or ৳3,200/month (local SME average)
 
 ### SaaS Industry Benchmarks
 - **Local SaaS CAC**: ৳3,200 (realistic for emerging market)
@@ -43,8 +43,6 @@ Total Marketing: ৳6,500/month
 
 TOTAL LEAN STARTUP COSTS: ৳3,520/month (development phase)
 TOTAL FULL OPERATION COSTS: ৳11,720/month (after scale)
-
-Note: Solo founder handles development, but professional marketing is essential
 ```
 
 ### Variable Costs (Per Customer)
@@ -64,8 +62,6 @@ Total Support: ৳200/month per customer
 TOTAL VARIABLE COST: ৳600/month per customer
 ```
 
-Note: Realistic costing includes founder's time valuation and proper infrastructure
-
 ### Customer Acquisition Cost (CAC)
 ```
 Digital Marketing CAC Breakdown:
@@ -80,8 +76,6 @@ Target CAC by Year 2: ৳1,500 per customer
 
 Freemium Conversion CAC: ৳500 per customer (organic signups)
 ```
-
-Note: Realistic CAC based on local digital marketing costs and multi-channel approach.
 
 ## Revenue Model (Freemium + Competitive Pricing)
 
@@ -287,9 +281,7 @@ Our Advantage: Built for local market from Day 1
 
 ### 2. **Financial Ecosystem Mastery** 💳
 ```
-✅ bKash API Integration (40% market share) - FIRST-CLASS
-✅ Nagad Advanced Integration (25% market share)
-✅ Rocket & Dutch-Bangla Integration
+✅ SSLCommerz Payment Gateway Integration - FIRST-CLASS
 ✅ Cash-on-Delivery Logistics (87% BD preference)
 ✅ Micro-Credit Integration (Grameen Bank, BRAC partnerships)
 ✅ NBR Automated VAT Compliance
@@ -330,7 +322,7 @@ Our Advantage: Transparent, affordable, all-inclusive pricing
 ✅ 15-Minute Store Setup (vs 2-3 hours competitors)
 ✅ One-Click Facebook Store Migration
 ✅ Pre-Built BD Business Templates
-✅ Instant bKash/Nagad Integration
+✅ Instant SSLCommerz Payment Integration
 ✅ Auto Product Import from Facebook
 ✅ Smart Inventory Sync Across Channels
 
@@ -492,7 +484,7 @@ Our Pro Plan: ৳7,990/month
 | **Base Pricing** | ৳3,200-44,000/month | ৳1,990-12,990/month | 38-55% cheaper |
 | **Transaction Fees** | 2.9% + ৳30 per transaction | 0% | Save ৳50,000+/month for active stores |
 | **Language Support** | English only | Bengali + English | Local market fit |
-| **Payment Gateways** | Credit card focus | SSLCommerz/bKash priority | 87% of BD market |
+| **Payment Gateways** | Credit card focus | SSLCommerz priority | 87% of BD market |
 | **Setup Complexity** | 2-3 hours | 15 minutes | 90% time reduction |
 | **Local Compliance** | Manual/third-party | Built-in NBR/VAT | Compliance included |
 
@@ -542,9 +534,7 @@ Our Pro Plan: ৳7,990/month
 
 #### 6. **Local Financial Ecosystem Integration** 💳
 **Primary Integration Priority:**
-- **bKash** (40% market share) - first-class support
-- **Nagad** (25% market share) - native integration  
-- **Rocket** (15% market share) - seamless checkout
+- **SSLCommerz** - comprehensive payment gateway with card and mobile banking support
 - **Cash on Delivery** - advanced logistics management
 
 **Additional Financial Services:**
@@ -720,7 +710,7 @@ This competitive analysis demonstrates our strong positioning to survive and thr
 ✅ Basic store setup
 ✅ 500 products limit
 ✅ Basic themes (3-5 options)
-✅ Essential integrations (bKash, Nagad)
+✅ Essential integrations (SSLCommerz)
 ✅ Basic analytics
 ✅ Email support
 ✅ 5GB storage
@@ -902,7 +892,7 @@ Year 3: Premium positioning
    - Predictive analytics
    
 3. Integration Lock-in (Months 18-24):
-   - Deep bKash/Nagad partnerships
+   - SSLCommerz payment integration
    - Government compliance tools
    - Local supplier networks
 ```

@@ -47,7 +47,7 @@ Risk Levels:
   High Risk:
     - Architecture changes
     - SSLCommerz payment system updates
-    - Multi-tenant isolation changes (tenant_id logic)
+    - multi-tenant isolation changes (tenant_id logic)
     - Shared database schema modifications
     - Core business logic
 ```

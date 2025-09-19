@@ -6,6 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+
+	"ecommerce-saas/internal/security"
 )
 
 // Handler handles user HTTP requests
@@ -73,7 +75,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		// User related data
 		users.GET("/:id/orders", h.GetUserOrders)
 		users.GET("/:id/addresses", h.GetUserAddresses)
-		
+
 		// Missing endpoints from documentation
 		users.POST("/bulk", h.BulkOperations)
 		users.POST("/export", h.ExportUsers)
@@ -918,7 +920,7 @@ func (h *Handler) UpdateSecuritySettings(c *gin.Context) {
 		return
 	}
 
-	var settings SecuritySettings
+	var settings security.SecuritySettings
 	if err := c.ShouldBindJSON(&settings); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

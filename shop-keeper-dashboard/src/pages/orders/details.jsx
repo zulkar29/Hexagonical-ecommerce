@@ -44,7 +44,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { useOrder, useUpdateOrderStatus } from "@/hooks/useApi";
+// import { useOrder, useUpdateOrderStatus } from "@/hooks/useApi";
 import { generateInvoicePDF } from "@/utils/pdfGenerator";
 import { useReactToPrint } from "react-to-print";
 import InvoicePDF from "@/components/invoices/InvoicePDF";

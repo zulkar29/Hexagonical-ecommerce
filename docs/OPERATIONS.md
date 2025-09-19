@@ -1,6 +1,5 @@
 # Production Operations Guide
 
-
 ## Operations Overview
 
 Comprehensive operational procedures for maintaining the multi-tenant e-commerce SaaS platform (PostgreSQL + Redis) with shared database tenant isolation in production.
@@ -52,11 +51,11 @@ COMMIT;
 pg_dump --host=localhost --port=5432 --username=postgres \
   --format=custom --file="tenant_${TENANT_ID}_backup.dump" \
   --table="products" --table="orders" --table="customers" \
-  --where="tenant_id='${TENANT_ID}'" ecommerce_db
+  --where="tenant_id='${TENANT_ID}'" ecommerce_saas
 
 # Tenant restore with validation
 pg_restore --host=localhost --port=5432 --username=postgres \
-  --dbname=ecommerce_db --clean --if-exists \
+  --dbname=ecommerce_saas --clean --if-exists \
   "tenant_${TENANT_ID}_backup.dump"
 ```
 
@@ -105,9 +104,9 @@ Post-maintenance:
 -- Weekly maintenance (Sunday 1:00 AM BDT)
 Daily Tasks:
   - Backup verification
-  - Connection pool monitoring
-  - Slow query analysis
-  - Disk space monitoring
+  - Connection pool maintenance
+  - Slow query remediation
+  - Disk space cleanup
 
 Weekly Tasks:
   - Index optimization
@@ -125,16 +124,16 @@ Monthly Tasks:
 ### **Database Performance Optimization**
 ```yaml
 Query Optimization:
-  - Identify queries >100ms
-  - Index recommendations
-  - Query plan analysis
-  - Connection pooling tuning
+  - Remediate queries >100ms
+  - Apply index recommendations
+  - Optimize query plans
+  - Tune connection pooling
 
 Storage Management:
-  - Auto-vacuum configuration
-  - WAL file archiving
-  - Tablespace monitoring
-  - Partition maintenance
+  - Configure auto-vacuum settings
+  - Manage WAL file archiving
+  - Maintain tablespace allocation
+  - Execute partition maintenance
 ```
 
 ### **Tenant Data Management**
@@ -161,7 +160,6 @@ Application Logs:
   - Format: Structured JSON
   - Retention: 30 days (ERROR), 7 days (INFO)
   - Centralized: ELK stack ready
-  - Real-time: Critical error alerts
 
 System Logs:
   - Server logs: 7 days
@@ -179,13 +177,11 @@ Daily Review:
   - Tenant usage patterns
 
 Weekly Analysis:
-  - Feature usage analytics
+  - Capacity planning data
+  - User behavior insights
   - Performance optimization opportunities
-  - Capacity planning indicators
-  - Customer behavior insights
-```
 
-## Capacity Planning
+## Capacity Planning & Scaling
 
 ### **Resource Monitoring**
 ```yaml

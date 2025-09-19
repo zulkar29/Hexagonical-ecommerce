@@ -2,7 +2,7 @@
 
 ## Core Platform Features
 
-### Multi-Tenant Store Management
+### multi-tenant Store Management
 - **Store Creation**: One-click store setup with guided onboarding
 - **Custom Domains**: Support for custom domains and subdomains
 - **Store Settings**: Business information, policies, SEO settings
@@ -99,7 +99,7 @@
 - **Purchase Orders**: B2B payment terms
 
 ### Integration Ecosystem
-- **Payment Gateways**: SSLCommerz (primary), PayPal/others (international fallback)
+- **Payment Gateways**: SSLCommerz (comprehensive payment solution)
 - **Shipping Providers**: Pathao, Steadfast, RedX, FedEx, UPS, DHL
 - **Accounting Software**: QuickBooks, Xero integration
 - **Email Marketing Platforms**: Mailchimp, Klaviyo, SendGrid integration

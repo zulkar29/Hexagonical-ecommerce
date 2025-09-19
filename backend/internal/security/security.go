@@ -170,14 +170,6 @@ type SecurityEvent struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
-// PasswordHistory tracks user's previous passwords to prevent reuse
-type PasswordHistory struct {
-	ID           uuid.UUID `json:"id" gorm:"primarykey"`
-	UserID       uuid.UUID `json:"user_id" gorm:"not null;index"`
-	PasswordHash string    `json:"password_hash" gorm:"not null"`
-	CreatedAt    time.Time `json:"created_at" gorm:"not null"`
-}
-
 // AccountLockout tracks user account lockouts due to security violations
 type AccountLockout struct {
 	ID          uuid.UUID   `json:"id" gorm:"primarykey"`

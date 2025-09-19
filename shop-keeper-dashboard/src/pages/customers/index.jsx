@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Plus, Edit, Trash2, Eye, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
-import { useUsers, useUpdateUserStatus, useDeleteUser } from "@/hooks/useApi";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { shopApi } from '@/lib/api';
 import { toast } from "sonner";
 
 const ITEMS_PER_PAGE = 10;
@@ -46,10 +47,27 @@ export default function Customers() {
     return params;
   }, [currentPage, debouncedSearch, sortBy, sortOrder]);
 
+  const queryClient = useQueryClient();
+
   // API calls
-  const { data: usersData, isLoading, error } = useUsers(queryParams);
-  const updateUserStatusMutation = useUpdateUserStatus();
-  const deleteUserMutation = useDeleteUser();
+  const { data: usersData, isLoading, error } = useQuery({
+    queryKey: ['customers', queryParams],
+    queryFn: () => shopApi.getCustomers(queryParams),
+  });
+
+  const updateUserStatusMutation = useMutation({
+    mutationFn: ({ id, status }) => shopApi.updateCustomer(id, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['customers']);
+    },
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: (id) => shopApi.deleteCustomer(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['customers']);
+    },
+  });
 
   // Extract data from API response
   const users = usersData?.data || [];
