@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -12,12 +12,15 @@ import {
   Receipt,
   FileText,
   Eye,
-  Send
+  Send,
+  Printer
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 // Mock subscription billing data
 const mockBillings = {
@@ -120,6 +123,36 @@ const mockBillings = {
 export default function BillingDetail() {
   const { id } = useParams();
   const billing = mockBillings[id] || mockBillings[1];
+  const printableRef = useRef(null);
+
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      @media print {
+        body * {
+          visibility: hidden;
+        }
+        .printable-area,
+        .printable-area * {
+          visibility: visible;
+        }
+        .printable-area {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+        }
+        .no-print {
+          display: none !important;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
 
   const formatCurrency = (amount) => `৳${amount.toLocaleString()}`;
   const formatDate = (dateString) => {
@@ -129,6 +162,34 @@ export default function BillingDetail() {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!printableRef.current) return;
+
+    try {
+      const canvas = await html2canvas(printableRef.current, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff'
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Invoice-${billing.id}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+    }
   };
 
   const getStatusColor = (status) => {
@@ -154,7 +215,7 @@ export default function BillingDetail() {
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
-      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 no-print">
         <div className="flex h-16 items-center justify-between px-6">
           <div className="flex items-center gap-4">
             <Link to="/billing">
@@ -176,7 +237,7 @@ export default function BillingDetail() {
             </Badge>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
               <Download className="h-4 w-4 mr-2" />
               Download PDF
             </Button>
@@ -184,8 +245,8 @@ export default function BillingDetail() {
               <Send className="h-4 w-4 mr-2" />
               Send Invoice
             </Button>
-            <Button size="sm">
-              <Eye className="h-4 w-4 mr-2" />
+            <Button size="sm" onClick={handlePrint}>
+              <Printer className="h-4 w-4 mr-2" />
               Print
             </Button>
           </div>
@@ -193,7 +254,7 @@ export default function BillingDetail() {
       </div>
 
       <div className="flex-1 overflow-auto p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 printable-area" ref={printableRef}>
           {/* Main Invoice Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Invoice Header */}
