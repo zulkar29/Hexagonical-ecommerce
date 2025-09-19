@@ -88,19 +88,38 @@
   },
   "getStarted": {
     "title": "Create Your Online Store",
-    "subtitle": "Start your dream business in just 3 simple steps",
-    "estimatedTime": "Estimated time: 3-5 minutes",
-    "successMessage": "🎉 Store is being created!\n\n📱 Business: {{businessName}}\n🌐 Domain: {{domain}}\n🎨 Template: {{template}}\n💳 Plan: {{plan}}\n\nSetup guide will be sent to your email.",
+    "subtitle": "Start your dream business in just 4 simple steps",
+    "estimatedTime": "Estimated time: 5-7 minutes",
+    "successMessage": "🎉 Welcome {{userName}}! Your store is being created!\n\n📱 Business: {{businessName}}\n🌐 Domain: {{domain}}\n🎨 Template: {{template}}\n💳 Plan: {{plan}}\n\nSetup guide will be sent to {{email}}.",
     "steps": {
       "step": "Step",
-      "domain": "Choose Domain",
+      "account": "Create Account",
+      "store": "Setup Store",
       "template": "Choose Design",
       "plan": "Choose Plan"
     },
     "stepDescriptions": {
-      "domain": "Choose website address",
+      "account": "Your account details",
+      "store": "Choose website address",
       "template": "Pick a template for your store",
       "plan": "Choose subscription"
+    },
+    "account": {
+      "title": "Create Your Account",
+      "subtitle": "Let's start by setting up your account. This will be used to manage your store and receive important updates.",
+      "fullName": "Full Name",
+      "fullNamePlaceholder": "Enter your full name",
+      "email": "Email Address",
+      "emailPlaceholder": "your@email.com",
+      "phone": "Phone Number",
+      "phonePlaceholder": "+880 1700-000000",
+      "password": "Password",
+      "passwordPlaceholder": "Choose a strong password",
+      "passwordHint": "Minimum 6 characters required",
+      "businessName": "Business Name",
+      "businessNamePlaceholder": "Your Business Name",
+      "businessNameHint": "This will be displayed on your store",
+      "agreement": "By creating an account, you agree to our Terms of Service and Privacy Policy. Your information is secure and will only be used to provide our services."
     },
     "businessInfo": {
       "title": "Tell us about your business",
@@ -161,7 +180,8 @@
       "createStore": "Create Store"
     },
     "summary": {
-      "title": "Your Selected Information",
+      "title": "Your Setup Summary",
+      "account": "Account:",
       "business": "Business:",
       "businessType": "Type:",
       "domain": "Domain:",
@@ -360,11 +380,19 @@
     }
   },
   "footer": {
-    "companyDescription": "Create online stores easily. No coding knowledge required.",
+    "companyDescription": "Complete e-commerce platform for creating beautiful online stores. Launch your business with professional templates, secure payments, and powerful sales tools.",
+    "platformFeatures": "Key Benefits",
+    "quickLaunch": "Launch in Minutes",
+    "customDomain": "Your Own Domain",
+    "securePayments": "Secure Payments",
+    "realTimeAnalytics": "Real-Time Analytics",
+    "mobileOptimized": "Mobile Optimized",
     "quickLinks": "Quick Links",
+    "documentation": "Documentation",
     "contactTitle": "Contact",
     "email": "hello@storebuilder.com",
     "startFreeTrial": "Start Free Trial",
+    "freePlanAvailable": "Free plan available with 10 products",
     "copyright": "© 2024 StoreBuilder. All rights reserved.",
     "privacy": "Privacy",
     "terms": "Terms"
@@ -395,101 +423,104 @@
     "customersCount": "89"
   },
   "contactPage": {
-    "title": "Contact Us",
-    "description": "Ready to launch your online store in minutes? Get in touch with our team and let's discuss how we can help your business succeed with ready-made templates and automatic setup.",
+    "badge": "Get Support 24/7",
+    "title": "Contact Our Team",
+    "description": "Ready to launch your online store? Get in touch with our expert team and discover how our hexagonal e-commerce platform can transform your business with enterprise-grade features.",
+    "supportFeaturesTitle": "Why Choose Our Support",
+    "supportFeaturesSubtitle": "We're committed to your success with world-class support and enterprise-grade reliability.",
+    "supportFeatures": {
+      "support": {
+        "title": "24/7 Expert Support",
+        "description": "Round-the-clock technical assistance from our certified e-commerce specialists."
+      },
+      "security": {
+        "title": "Enterprise Security",
+        "description": "Multi-tenant architecture with advanced security features and compliance standards."
+      },
+      "response": {
+        "title": "Fast Response Time",
+        "description": "Average response time under 1 hour for critical issues and 4 hours for general inquiries."
+      },
+      "global": {
+        "title": "Global Coverage",
+        "description": "Support in multiple languages with local payment gateways and shipping integrations."
+      }
+    },
+    "contactInfoTitle": "Get In Touch",
+    "contactInfoSubtitle": "Multiple ways to reach our team for the fastest possible assistance.",
     "contactInfo": {
       "email": {
-        "title": "Email Us",
-        "details": "hello@business.com",
-        "description": "Send us an email anytime"
+        "title": "Email Support",
+        "details": "hello@storebuilder.com",
+        "description": "Get detailed responses within 4 hours"
       },
       "phone": {
-        "title": "Call Us",
-        "details": "+1 (555) 123-4567",
-        "description": "Mon-Fri from 8am to 6pm"
-      },
-      "address": {
-        "title": "Visit Us",
-        "details": "123 Business St, Suite 100",
-        "description": "San Francisco, CA 94105"
+        "title": "Phone Support",
+        "details": "+880 1700-000000",
+        "description": "Direct line for urgent technical issues"
       },
       "hours": {
-        "title": "Business Hours",
-        "details": "Mon - Fri: 8am - 6pm",
-        "description": "Weekend support available"
+        "title": "Support Hours",
+        "details": "24/7 Available",
+        "description": "Round-the-clock assistance for all plans"
       }
     },
     "form": {
       "title": "Send us a Message",
-      "subtitle": "Fill out the form below and we'll get back to you within 24 hours.",
-      "fullName": "Full Name *",
-      "email": "Email Address *",
+      "subtitle": "Tell us about your project and we'll get back to you within 4 hours with a detailed response.",
+      "fullName": "Full Name",
+      "email": "Email Address",
       "company": "Company",
-      "subject": "Subject *",
-      "message": "Message *",
+      "subject": "Subject",
+      "message": "Message",
+      "successMessage": "Thank you! Your message has been sent successfully. We'll get back to you within 4 hours.",
       "placeholders": {
         "fullName": "Your full name",
         "email": "your@email.com",
         "company": "Your company name",
         "subject": "Select a subject",
-        "message": "Tell us about your e-commerce store plans or inquiry..."
+        "message": "Tell us about your e-commerce project or requirements..."
       },
       "subjects": {
-        "store": "Online Store Builder",
-        "support": "Store Support",
-        "technical": "Technical Support",
+        "store": "New Store Setup",
+        "support": "Technical Support",
+        "technical": "Platform Issues",
         "migration": "Store Migration",
-        "partnership": "Partnership",
-        "other": "Other"
+        "partnership": "Business Partnership",
+        "other": "General Inquiry"
       },
       "sendMessage": "Send Message"
-    },
-    "location": {
-      "title": "Our Location",
-      "mapText": "Interactive Map"
     },
     "faq": {
       "title": "Frequently Asked Questions",
       "questions": {
         "response": {
-          "question": "How quickly do you respond?",
-          "answer": "We typically respond to all inquiries within 24 hours during business days."
+          "question": "How quickly do you respond to inquiries?",
+          "answer": "We respond to all inquiries within 4 hours during business days, and critical issues are addressed within 1 hour."
         },
         "onboarding": {
-          "question": "Do you offer platform onboarding support?",
-          "answer": "Yes, we provide comprehensive onboarding support to help you set up and configure your e-commerce store."
+          "question": "Do you provide store setup assistance?",
+          "answer": "Yes! We offer comprehensive onboarding including store configuration, theme customization, and payment gateway setup."
         },
         "timeline": {
-          "question": "How long does it take to launch a store?",
-          "answer": "Store launch timelines vary based on complexity, but most stores are live within 2-8 weeks."
+          "question": "How long does it take to go live?",
+          "answer": "Most stores are live within 24-48 hours. Complex custom setups may take 3-5 business days."
         }
       }
     },
     "liveChat": {
       "title": "Need Immediate Help?",
-      "description": "Chat with our support team for instant assistance with your questions.",
+      "description": "Connect with our technical experts instantly for real-time assistance with your store setup and platform questions.",
       "startChat": "Start Live Chat"
     },
-    "officeHours": {
-      "title": "Office Hours",
-      "regular": {
-        "title": "Regular Hours",
-        "monday": "Monday - Friday",
-        "mondayTime": "8:00 AM - 6:00 PM",
-        "saturday": "Saturday",
-        "saturdayTime": "9:00 AM - 2:00 PM",
-        "sunday": "Sunday",
-        "sundayTime": "Closed"
-      },
-      "emergency": {
-        "title": "Emergency Support",
-        "line": "24/7 Emergency Line",
-        "phone": "+1 (555) 999-0000",
-        "responseTime": "Response Time",
-        "responseValue": "< 1 Hour",
-        "available": "Available",
-        "availableValue": "All Days"
-      }
+    "supportHours": {
+      "title": "Support Availability",
+      "weekdays": "Monday - Friday",
+      "weekdaysTime": "9:00 AM - 10:00 PM",
+      "saturday": "Saturday",
+      "saturdayTime": "10:00 AM - 6:00 PM",
+      "sunday": "Sunday",
+      "sundayTime": "Emergency Only"
     }
   },
   "team": {

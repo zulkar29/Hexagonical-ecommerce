@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowRight, ArrowLeft, Check, Globe, ShoppingCart, CreditCard, Crown, Zap, Star, Clock, User, Palette } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Check, Globe, ShoppingCart, CreditCard, Crown, Zap, Star, Clock, User, Palette, Mail, Phone, Lock, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations } from '@/hooks/useTranslations';
 
@@ -18,6 +18,18 @@ export default function GetStartedPage() {
     }
   };
   const [currentStep, setCurrentStep] = useState(1);
+
+  // User registration data
+  const [userInfo, setUserInfo] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+    businessName: ''
+  });
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Store setup data
   const [selectedDomain, setSelectedDomain] = useState('');
   const [domainType, setDomainType] = useState('subdomain');
   const [selectedTemplate, setSelectedTemplate] = useState(null);
@@ -51,13 +63,14 @@ export default function GetStartedPage() {
   };
 
   const steps = [
-    { id: 1, titleKey: 'getStarted.steps.domain', icon: Globe, descriptionKey: 'getStarted.stepDescriptions.domain' },
-    { id: 2, titleKey: 'getStarted.steps.template', icon: Palette, descriptionKey: 'getStarted.stepDescriptions.template' },
-    { id: 3, titleKey: 'getStarted.steps.plan', icon: CreditCard, descriptionKey: 'getStarted.stepDescriptions.plan' }
+    { id: 1, titleKey: 'getStarted.steps.account', icon: User, descriptionKey: 'getStarted.stepDescriptions.account' },
+    { id: 2, titleKey: 'getStarted.steps.store', icon: Globe, descriptionKey: 'getStarted.stepDescriptions.store' },
+    { id: 3, titleKey: 'getStarted.steps.template', icon: Palette, descriptionKey: 'getStarted.stepDescriptions.template' },
+    { id: 4, titleKey: 'getStarted.steps.plan', icon: CreditCard, descriptionKey: 'getStarted.stepDescriptions.plan' }
   ];
 
   const nextStep = () => {
-    if (currentStep < 3) {
+    if (currentStep < 4) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -69,15 +82,30 @@ export default function GetStartedPage() {
   };
 
   const canProceed = () => {
-    if (currentStep === 1) return selectedDomain.length > 0;
-    if (currentStep === 2) return selectedTemplate !== null;
-    if (currentStep === 3) return selectedPlan !== null;
+    if (currentStep === 1) {
+      return userInfo.name.length > 0 &&
+             userInfo.email.length > 0 &&
+             userInfo.phone.length > 0 &&
+             userInfo.password.length >= 6 &&
+             userInfo.businessName.length > 0;
+    }
+    if (currentStep === 2) return selectedDomain.length > 0;
+    if (currentStep === 3) return selectedTemplate !== null;
+    if (currentStep === 4) return selectedPlan !== null;
     return false;
+  };
+
+  const handleUserInfoChange = (field, value) => {
+    setUserInfo(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   const handleComplete = () => {
     // Here you would typically integrate with your backend
     const storeData = {
+      user: userInfo,
       domain: {
         name: selectedDomain,
         type: domainType
@@ -87,10 +115,11 @@ export default function GetStartedPage() {
     };
 
     const successMessage = t('getStarted.successMessage')
-      .replace('{{businessName}}', 'Your Store')
+      .replace('{{businessName}}', userInfo.businessName)
       .replace('{{domain}}', `${selectedDomain}${domainType === 'subdomain' ? '.storebuilder.com' : '.com'}`)
       .replace('{{template}}', t(`getStarted.templates.${selectedTemplate}.name`))
-      .replace('{{plan}}', t(`getStarted.plans.${selectedPlan}.name`));
+      .replace('{{plan}}', t(`getStarted.plans.${selectedPlan}.name`))
+      .replace('{{userName}}', userInfo.name);
 
     console.log('Store Data:', storeData);
     alert(successMessage);
@@ -164,6 +193,8 @@ export default function GetStartedPage() {
               <div className={`h-0.5 flex-1 ${currentStep > 1 ? 'bg-gray-900' : 'bg-gray-300'}`} />
               <div className="w-12" />
               <div className={`h-0.5 flex-1 ${currentStep > 2 ? 'bg-gray-900' : 'bg-gray-300'}`} />
+              <div className="w-12" />
+              <div className={`h-0.5 flex-1 ${currentStep > 3 ? 'bg-gray-900' : 'bg-gray-300'}`} />
             </div>
           </div>
         </div>
@@ -171,8 +202,137 @@ export default function GetStartedPage() {
         {/* Step Content */}
         <div className="bg-white rounded-2xl shadow-sm border p-6 md:p-8">
           <AnimatePresence mode="wait">
-            {/* Step 1: Domain Selection */}
+            {/* Step 1: Account Creation */}
             {currentStep === 1 && (
+              <motion.div
+                key="step1"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
+                    <User className="w-6 h-6 text-orange-600" />
+                  </div>
+                  <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
+                    {t('getStarted.account.title')}
+                  </h2>
+                </div>
+                <p className="text-gray-600 mb-8">
+                  {t('getStarted.account.subtitle')}
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Full Name */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      {t('getStarted.account.fullName')} *
+                    </label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input
+                        type="text"
+                        value={userInfo.name}
+                        onChange={(e) => handleUserInfoChange('name', e.target.value)}
+                        placeholder={t('getStarted.account.fullNamePlaceholder')}
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Email */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      {t('getStarted.account.email')} *
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input
+                        type="email"
+                        value={userInfo.email}
+                        onChange={(e) => handleUserInfoChange('email', e.target.value)}
+                        placeholder={t('getStarted.account.emailPlaceholder')}
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Phone */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      {t('getStarted.account.phone')} *
+                    </label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input
+                        type="tel"
+                        value={userInfo.phone}
+                        onChange={(e) => handleUserInfoChange('phone', e.target.value)}
+                        placeholder={t('getStarted.account.phonePlaceholder')}
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Password */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      {t('getStarted.account.password')} *
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={userInfo.password}
+                        onChange={(e) => handleUserInfoChange('password', e.target.value)}
+                        placeholder={t('getStarted.account.passwordPlaceholder')}
+                        className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-colors"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">{t('getStarted.account.passwordHint')}</p>
+                  </div>
+                </div>
+
+                {/* Business Name - Full Width */}
+                <div className="mt-6">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    {t('getStarted.account.businessName')} *
+                  </label>
+                  <div className="relative">
+                    <ShoppingCart className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="text"
+                      value={userInfo.businessName}
+                      onChange={(e) => handleUserInfoChange('businessName', e.target.value)}
+                      placeholder={t('getStarted.account.businessNamePlaceholder')}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-colors"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">{t('getStarted.account.businessNameHint')}</p>
+                </div>
+
+                {/* Terms Agreement */}
+                <div className="mt-6 p-4 bg-gray-50 rounded-xl">
+                  <div className="flex items-start gap-3">
+                    <Check className="w-5 h-5 text-emerald-500 mt-0.5" />
+                    <div className="text-sm text-gray-600">
+                      <p>{t('getStarted.account.agreement')}</p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Step 2: Store Setup (Previously Step 1) */}
+            {currentStep === 2 && (
               <motion.div
                 key="step1"
                 initial={{ opacity: 0, x: 20 }}
@@ -275,8 +435,8 @@ export default function GetStartedPage() {
               </motion.div>
             )}
 
-            {/* Step 2: Template Selection */}
-            {currentStep === 2 && (
+            {/* Step 3: Template Selection */}
+            {currentStep === 3 && (
               <motion.div
                 key="step2"
                 initial={{ opacity: 0, x: 20 }}
@@ -355,8 +515,8 @@ export default function GetStartedPage() {
             )}
 
 
-            {/* Step 3: Plan Selection */}
-            {currentStep === 3 && (
+            {/* Step 4: Plan Selection */}
+            {currentStep === 4 && (
               <motion.div
                 key="step3"
                 initial={{ opacity: 0, x: 20 }}
@@ -527,7 +687,7 @@ export default function GetStartedPage() {
             {t('getStarted.navigation.previous')}
           </button>
 
-          {currentStep < 3 ? (
+          {currentStep < 4 ? (
             <button
               onClick={nextStep}
               disabled={!canProceed()}
@@ -556,6 +716,12 @@ export default function GetStartedPage() {
               {t('getStarted.summary.title')}
             </h4>
             <div className="space-y-3 text-sm">
+              {userInfo.name && (
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-blue-600" />
+                  <span><strong>{t('getStarted.summary.account')}</strong> {userInfo.name} ({userInfo.businessName})</span>
+                </div>
+              )}
               {selectedDomain && (
                 <div className="flex items-center gap-2">
                   <Globe className="w-4 h-4 text-orange-600" />
@@ -575,7 +741,7 @@ export default function GetStartedPage() {
                 </div>
               )}
             </div>
-            {currentStep === 3 && selectedPlan && (
+            {currentStep === 4 && selectedPlan && (
               <div className="mt-4 pt-4 border-t border-gray-200">
                 {selectedPlan === 'free' ? (
                   <div className="text-lg font-bold text-emerald-600">

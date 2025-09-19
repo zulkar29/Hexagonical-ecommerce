@@ -6,11 +6,11 @@ import { useTranslations } from '@/hooks/useTranslations';
 
 export default function Footer() {
   const { t, locale } = useTranslations();
-  
+
   return (
     <footer className="bg-gray-900 text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           {/* Company Info */}
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
@@ -33,6 +33,28 @@ export default function Footer() {
                 <Instagram className="w-4 h-4" />
               </a>
             </div>
+          </div>
+
+          {/* Platform Features */}
+          <div className="space-y-4">
+            <h4 className="text-lg font-semibold text-white">{t('footer.platformFeatures')}</h4>
+            <ul className="space-y-2">
+              <li>
+                <span className="text-gray-300 text-sm">{t('footer.quickLaunch')}</span>
+              </li>
+              <li>
+                <span className="text-gray-300 text-sm">{t('footer.customDomain')}</span>
+              </li>
+              <li>
+                <span className="text-gray-300 text-sm">{t('footer.securePayments')}</span>
+              </li>
+              <li>
+                <span className="text-gray-300 text-sm">{t('footer.realTimeAnalytics')}</span>
+              </li>
+              <li>
+                <span className="text-gray-300 text-sm">{t('footer.mobileOptimized')}</span>
+              </li>
+            </ul>
           </div>
 
           {/* Quick Links */}
@@ -64,6 +86,11 @@ export default function Footer() {
                   {t('navigation.contact')}
                 </Link>
               </li>
+              <li>
+                <Link href={`/${locale}/documentation`} className="text-gray-300 hover:text-white transition-colors text-sm">
+                  {t('footer.documentation')}
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -75,12 +102,15 @@ export default function Footer() {
                 <Mail className="w-4 h-4 text-orange-500" />
                 <span className="text-gray-300 text-sm">{t('footer.email')}</span>
               </div>
-              <Link
-                href={`/${locale}/get-started`}
-                className="inline-block bg-orange-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-orange-700 transition-colors text-sm"
-              >
-                {t('footer.startFreeTrial')}
-              </Link>
+              <div className="space-y-2">
+                <Link
+                  href={`/${locale}/get-started`}
+                  className="block bg-orange-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-orange-700 transition-colors text-sm text-center"
+                >
+                  {t('footer.startFreeTrial')}
+                </Link>
+                <p className="text-gray-400 text-xs">{t('footer.freePlanAvailable')}</p>
+              </div>
             </div>
           </div>
         </div>
