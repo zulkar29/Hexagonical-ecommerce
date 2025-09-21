@@ -11,21 +11,54 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-// import { useCategories, useCreateProduct, useUpdateProduct, useProduct } from "@/hooks/useApi";
+import { shopApi } from "@/lib/api";
 
 const ProductForm = ({ productId, mode = "create" }) => {
   const navigate = useNavigate();
   const isEditMode = mode === "edit" && productId;
 
-  // API hooks
-  const { data: categoriesResponse, isLoading: categoriesLoading } = useCategories();
-  const { data: productData, isLoading: productLoading } = useProduct(productId);
-  const createProductMutation = useCreateProduct();
-  const updateProductMutation = useUpdateProduct();
+  // State for API data
+  const [categories, setCategories] = useState([]);
+  const [product, setProduct] = useState(null);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [productLoading, setProductLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Extract categories data
-  const categories = Array.isArray(categoriesResponse?.data) ? categoriesResponse.data : [];
-  const product = productData?.data;
+  // Load categories
+  useEffect(() => {
+    const loadCategories = async () => {
+      setCategoriesLoading(true);
+      try {
+        const response = await shopApi.getCategories();
+        setCategories(Array.isArray(response?.data) ? response.data : []);
+      } catch (error) {
+        console.error('Error loading categories:', error);
+        toast.error('Failed to load categories');
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+    loadCategories();
+  }, []);
+
+  // Load product data for edit mode
+  useEffect(() => {
+    if (isEditMode) {
+      const loadProduct = async () => {
+        setProductLoading(true);
+        try {
+          const response = await shopApi.getProduct(productId);
+          setProduct(response?.data);
+        } catch (error) {
+          console.error('Error loading product:', error);
+          toast.error('Failed to load product');
+        } finally {
+          setProductLoading(false);
+        }
+      };
+      loadProduct();
+    }
+  }, [isEditMode, productId]);
 
   // Form setup
   const methods = useForm({
@@ -96,7 +129,6 @@ const ProductForm = ({ productId, mode = "create" }) => {
     }
   }, [isEditMode, product, reset]);
 
-  const isSubmitting = createProductMutation.isPending || updateProductMutation.isPending;
   const isLoading = isEditMode ? productLoading : false;
 
   // Auto-save draft functionality
@@ -267,13 +299,14 @@ const ProductForm = ({ productId, mode = "create" }) => {
         });
       }
 
+      setIsSubmitting(true);
       const loadingToast = toast.loading(`${isEditMode ? 'Updating' : 'Creating'} product...`);
 
       if (isEditMode) {
-        await updateProductMutation.mutateAsync({ id: productId, data: formData });
+        await shopApi.updateProduct(productId, formData);
         toast.success("Product updated successfully", { id: loadingToast });
       } else {
-        await createProductMutation.mutateAsync(formData);
+        await shopApi.createProduct(formData);
         toast.success("Product created successfully", { id: loadingToast });
         // Clear draft after successful creation
         localStorage.removeItem('product-draft');
@@ -284,6 +317,8 @@ const ProductForm = ({ productId, mode = "create" }) => {
       console.error('Product submission error:', error);
       const errorMessage = error?.response?.data?.message || error?.message || `Failed to ${isEditMode ? 'update' : 'create'} product`;
       toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

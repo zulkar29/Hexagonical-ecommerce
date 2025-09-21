@@ -179,4 +179,32 @@ apiClient.setAuthToken = (token) => {
   }
 };
 
+// Export aliases for compatibility with existing code
+export const usersApi = {
+  getUsers: shopApi.getCustomers,
+  getUser: shopApi.getCustomer,
+  create: shopApi.createCustomer,
+  update: shopApi.updateCustomer,
+  delete: shopApi.deleteCustomer,
+};
+
+export const productsApi = {
+  getProducts: shopApi.getProducts,
+  getProduct: shopApi.getProduct,
+  create: shopApi.createProduct,
+  update: shopApi.updateProduct,
+  delete: shopApi.deleteProduct,
+  search: shopApi.searchProducts,
+};
+
+export const ordersApi = {
+  getOrders: shopApi.getOrders,
+  getOrder: shopApi.getOrder,
+  create: shopApi.createOrder,
+  update: shopApi.updateOrder,
+  delete: shopApi.deleteOrder,
+  updateNotes: (id, notes) => shopApi.updateOrder(id, { notes }),
+  updateTracking: (id, tracking) => shopApi.updateOrder(id, { tracking }),
+};
+
 export default api

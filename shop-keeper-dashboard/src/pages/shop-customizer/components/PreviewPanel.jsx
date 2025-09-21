@@ -18,8 +18,8 @@ const PreviewPanel = ({ components }) => {
               </div>
               <nav className="hidden md:flex space-x-6">
                 {(component.props?.menuItems || ['Home', 'Products', 'About', 'Contact']).map((item, index) => (
-                  <a key={index} href="#" className="hover:text-blue-600 transition-colors">
-                    {item}
+                  <a key={index} href={typeof item === 'object' ? item.href || '#' : '#'} className="hover:text-blue-600 transition-colors">
+                    {typeof item === 'object' ? item.label : item}
                   </a>
                 ))}
               </nav>
@@ -53,7 +53,9 @@ const PreviewPanel = ({ components }) => {
                   <ul className="space-y-2 text-sm">
                     {(component.props?.quickLinks || ['About', 'Services', 'Contact']).map((link, index) => (
                       <li key={index}>
-                        <a href="#" className="hover:text-blue-600 transition-colors">{link}</a>
+                        <a href={typeof link === 'object' ? link.href || '#' : '#'} className="hover:text-blue-600 transition-colors">
+                          {typeof link === 'object' ? link.label : link}
+                        </a>
                       </li>
                     ))}
                   </ul>

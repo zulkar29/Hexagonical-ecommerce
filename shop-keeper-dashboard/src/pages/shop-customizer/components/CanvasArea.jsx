@@ -2,7 +2,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Trash2, GripVertical, Edit3, Plus } from 'lucide-react';
-import { componentTemplates } from '../../../data/componentTemplates';
+import { componentTemplates } from '../../../data/shopTemplates';
 
 // Drop zone component for inserting components between existing ones
 const DropZone = ({ id, index, onDrop }) => {
@@ -314,7 +314,7 @@ const CanvasArea = ({ components, selectedComponent, onComponentSelect, onCompon
   });
 
   // Debug logging for development
-  if (process.env.NODE_ENV === 'development' && (isOver || active)) {
+  if (import.meta.env.DEV && (isOver || active)) {
     console.log('🎯 Canvas area - isOver:', isOver, 'active:', active?.id, 'activeType:', active?.data?.current?.type);
   }
 

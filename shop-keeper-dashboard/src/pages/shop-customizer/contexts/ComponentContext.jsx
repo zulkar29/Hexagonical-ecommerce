@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { atom, useAtom } from 'jotai';
-import { componentTemplates } from '../data/componentTemplates';
+import { componentTemplates } from '../../../data/shopTemplates';
 
 // General app component atoms (separate from builder-specific atoms)
 const appComponentsAtom = atom([]);
@@ -33,11 +33,11 @@ export const ComponentProvider = ({ children }) => {
       } catch (error) {
         console.error('Failed to parse saved components:', error);
         // Fallback to default templates
-        setComponents(componentTemplates);
+        setComponents(shopTemplates);
       }
     } else {
       // Initialize with default templates
-      setComponents(componentTemplates);
+      setComponents(shopTemplates);
     }
   }, [setComponents]);
 

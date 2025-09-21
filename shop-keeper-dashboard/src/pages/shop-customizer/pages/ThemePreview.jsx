@@ -1,6 +1,6 @@
 import React from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { themeTemplates, sampleLayouts, sampleProducts } from '../data/componentTemplates';
+import { themeTemplates, sampleLayouts, sampleProducts } from '../../../data/shopTemplates';
 import { useEffect, useState } from 'react';
 
 const ThemePreview = () => {

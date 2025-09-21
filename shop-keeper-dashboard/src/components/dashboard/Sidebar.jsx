@@ -56,7 +56,7 @@ const Sidebar = ({ isCollapsed }) => {
 
   const storeItems = [
     { name: "Dashboard", path: "/", icon: <LayoutDashboard className="w-5 h-5" /> },
-    { name: "Store Designer", path: "/builder", icon: <Palette className="w-5 h-5" /> },
+    { name: "Customize My Shop", path: "/customize", icon: <Palette className="w-5 h-5" /> },
     { name: "Products", path: "/products", icon: <ShoppingBag className="w-5 h-5" /> },
     { name: "Categories", path: "/category", icon: <Tags className="w-5 h-5" /> },
     { name: "Orders", path: "/orders", icon: <ClipboardList className="w-5 h-5" />, badge: 3 },
