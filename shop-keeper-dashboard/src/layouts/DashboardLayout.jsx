@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import Header from "@/components/dashboard/Header";
 import Sidebar from "@/components/dashboard/Sidebar";
-import LiveChat from "@/components/support/LiveChat";
 import { cn } from "@/lib/utils";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
@@ -10,8 +9,6 @@ const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
-  const [chatMinimized, setChatMinimized] = useState(false);
 
   useEffect(() => {
     const checkSize = () => {
@@ -64,14 +61,6 @@ const DashboardLayout = () => {
           />
         )}
       </div>
-
-      {/* Live Chat */}
-      <LiveChat 
-        isOpen={chatOpen}
-        onToggle={() => setChatOpen(!chatOpen)}
-        isMinimized={chatMinimized}
-        onMinimize={() => setChatMinimized(!chatMinimized)}
-      />
     </div>
   );
 };

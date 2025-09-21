@@ -4,8 +4,9 @@ export const themeTemplates = {
   'modern-minimalist': {
     id: 'modern-minimalist',
     name: 'Modern Minimalist',
-    description: 'Clean, simple design with plenty of white space and subtle typography',
+    description: 'Clean, simple design perfect for professional businesses',
     category: 'minimalist',
+    recommended: true,
     preview: '/themes/modern-minimalist.jpg',
     colors: {
       primary: '#2563eb',
@@ -53,16 +54,34 @@ export const themeTemplates = {
     },
     components: {
       header: {
-        background: 'transparent',
+        backgroundColor: '#ffffff',
+        textColor: '#1e293b',
         padding: '1rem 0',
-        borderBottom: '1px solid #e2e8f0'
+        borderBottom: '1px solid #e2e8f0',
+        fontFamily: 'Inter, system-ui, sans-serif'
+      },
+      hero: {
+        backgroundColor: '#f8fafc',
+        textColor: '#1e293b',
+        padding: '4rem 0',
+        fontFamily: 'Inter, system-ui, sans-serif'
+      },
+      footer: {
+        backgroundColor: '#1f2937',
+        textColor: '#ffffff',
+        padding: '2rem 0',
+        fontFamily: 'Inter, system-ui, sans-serif'
       },
       button: {
+        backgroundColor: '#2563eb',
+        textColor: '#ffffff',
         borderRadius: '0.5rem',
         padding: '0.75rem 1.5rem',
         fontWeight: '500'
       },
       card: {
+        backgroundColor: '#ffffff',
+        textColor: '#1e293b',
         borderRadius: '0.75rem',
         padding: '1.5rem',
         shadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)'
@@ -73,8 +92,9 @@ export const themeTemplates = {
   'classic-ecommerce': {
     id: 'classic-ecommerce',
     name: 'Classic E-commerce',
-    description: 'Traditional online store layout with proven conversion patterns',
+    description: 'Proven layout optimized for online sales and conversions',
     category: 'ecommerce',
+    recommended: true,
     preview: '/themes/classic-ecommerce.jpg',
     colors: {
       primary: '#dc2626',
@@ -122,16 +142,34 @@ export const themeTemplates = {
     },
     components: {
       header: {
-        background: '#ffffff',
+        backgroundColor: '#ffffff',
+        textColor: '#111827',
         padding: '1rem 0',
-        borderBottom: '2px solid #e5e7eb'
+        borderBottom: '2px solid #e5e7eb',
+        fontFamily: 'Roboto, Arial, sans-serif'
+      },
+      hero: {
+        backgroundColor: '#f9fafb',
+        textColor: '#111827',
+        padding: '4rem 0',
+        fontFamily: 'Roboto, Arial, sans-serif'
+      },
+      footer: {
+        backgroundColor: '#374151',
+        textColor: '#ffffff',
+        padding: '2rem 0',
+        fontFamily: 'Roboto, Arial, sans-serif'
       },
       button: {
+        backgroundColor: '#dc2626',
+        textColor: '#ffffff',
         borderRadius: '0.25rem',
         padding: '0.75rem 1.25rem',
         fontWeight: '600'
       },
       card: {
+        backgroundColor: '#ffffff',
+        textColor: '#111827',
         borderRadius: '0.5rem',
         padding: '1.25rem',
         shadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
@@ -142,7 +180,7 @@ export const themeTemplates = {
   'bold-colorful': {
     id: 'bold-colorful',
     name: 'Bold & Colorful',
-    description: 'Vibrant design with bold colors and dynamic layouts',
+    description: 'Eye-catching design for creative and lifestyle brands',
     category: 'creative',
     preview: '/themes/bold-colorful.jpg',
     colors: {
@@ -211,8 +249,9 @@ export const themeTemplates = {
   'professional-corporate': {
     id: 'professional-corporate',
     name: 'Professional Corporate',
-    description: 'Sophisticated business design with professional aesthetics',
+    description: 'Enterprise-grade design for B2B and corporate sales',
     category: 'business',
+    recommended: true,
     preview: '/themes/professional-corporate.jpg',
     colors: {
       primary: '#1e40af',
@@ -827,6 +866,78 @@ export const componentTemplates = [
     defaultStyles: {
       backgroundColor: '#ffffff',
       textColor: '#1f2937'
+    }
+  },
+
+  // Product Components
+  {
+    id: 'product-grid',
+    name: 'Product Grid',
+    type: 'product',
+    category: 'product',
+    description: 'Grid layout for showcasing products',
+    icon: '🛍️',
+    preview: '[Product 1] [Product 2] [Product 3]\n[Product 4] [Product 5] [Product 6]',
+    defaultProps: {
+      title: 'Featured Products',
+      columns: 3,
+      showPrices: true,
+      showRatings: true,
+      products: [
+        { id: 1, name: 'Premium Wireless Headphones', price: '$199.99', rating: 4.5, image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&h=300&fit=crop' },
+        { id: 2, name: 'Smart Fitness Watch', price: '$299.99', rating: 4.8, image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&h=300&fit=crop' },
+        { id: 3, name: 'Laptop Stand', price: '$79.99', rating: 4.2, image: 'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=300&h=300&fit=crop' }
+      ]
+    },
+    defaultStyles: {
+      backgroundColor: '#ffffff',
+      textColor: '#000000',
+      padding: '2rem 0'
+    }
+  },
+  {
+    id: 'product-showcase',
+    name: 'Product Showcase',
+    type: 'product',
+    category: 'product',
+    description: 'Single product spotlight with detailed info',
+    icon: '⭐',
+    preview: '[Large Product Image] | Product Details\nDescription & Reviews',
+    defaultProps: {
+      productName: 'Professional Wireless Speaker',
+      price: '$299.99',
+      originalPrice: '$399.99',
+      rating: 4.9,
+      reviews: 127,
+      description: 'Premium sound quality with 360-degree audio and smart connectivity features.',
+      features: ['360° Sound Technology', 'Waterproof Design', 'Smart Voice Assistant', '20-hour Battery Life'],
+      images: ['https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=500&h=500&fit=crop']
+    },
+    defaultStyles: {
+      backgroundColor: '#f8f9fa',
+      textColor: '#000000',
+      padding: '3rem 0'
+    }
+  },
+  {
+    id: 'category-banner',
+    name: 'Category Banner',
+    type: 'category',
+    category: 'product',
+    description: 'Promotional banner for product categories',
+    icon: '🏷️',
+    preview: '[Background Image] Category Title\nShop Now Button',
+    defaultProps: {
+      title: 'New Collection',
+      subtitle: 'Discover our latest arrivals',
+      buttonText: 'Shop Now',
+      backgroundImage: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&h=400&fit=crop',
+      overlay: true
+    },
+    defaultStyles: {
+      backgroundColor: '#000000',
+      textColor: '#ffffff',
+      padding: '4rem 0'
     }
   },
 

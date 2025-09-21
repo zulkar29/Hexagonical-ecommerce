@@ -17,9 +17,9 @@ export const applyThemeToDocument = (theme) => {
     root.style.setProperty('--theme-accent', colors.accent);
     root.style.setProperty('--theme-background', colors.background);
     root.style.setProperty('--theme-surface', colors.surface);
-    root.style.setProperty('--theme-text-primary', colors.text.primary);
-    root.style.setProperty('--theme-text-secondary', colors.text.secondary);
-    root.style.setProperty('--theme-text-muted', colors.text.muted);
+    root.style.setProperty('--theme-text-primary', colors.text || colors.textPrimary || '#000000');
+    root.style.setProperty('--theme-text-secondary', colors.textSecondary || '#666666');
+    root.style.setProperty('--theme-text-muted', colors.textMuted || '#999999');
   }
 
   // Apply typography variables

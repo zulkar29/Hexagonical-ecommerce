@@ -1,55 +1,76 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { Palette, Type, Settings, ChevronDown, ChevronRight } from 'lucide-react';
 
 const CustomizationPanel = ({ component, onUpdate }) => {
-  const [activeTab, setActiveTab] = useState('content');
   const [expandedSections, setExpandedSections] = useState({
     content: true,
     styling: true,
     layout: true
   });
 
+  // Initialize React Hook Form with component data
+  const {
+    register,
+    control,
+    watch,
+    setValue,
+    reset,
+    handleSubmit
+  } = useForm({
+    defaultValues: {
+      props: component?.props || {},
+      styles: component?.styles || {}
+    },
+    mode: 'onChange'
+  });
+
+  // Field arrays for dynamic lists (menu items, quick links, etc.)
+  const menuItemsArray = useFieldArray({
+    control,
+    name: 'props.menuItems'
+  });
+
+  const quickLinksArray = useFieldArray({
+    control,
+    name: 'props.quickLinks'
+  });
+
+  // Watch form changes and update component
+  const formData = watch();
+
+  useEffect(() => {
+    if (component) {
+      reset({
+        props: component.props || {},
+        styles: component.styles || {}
+      });
+    }
+  }, [component?.id, reset]);
+
+  // Debounced update on form changes
+  useEffect(() => {
+    const subscription = watch((value) => {
+      const timeoutId = setTimeout(() => {
+        if (value.props || value.styles) {
+          const updates = {};
+          if (value.props) updates.props = value.props;
+          if (value.styles) updates.styles = value.styles;
+          onUpdate(updates);
+        }
+      }, 300);
+
+      return () => clearTimeout(timeoutId);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [watch, onUpdate]);
+
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
       ...prev,
       [section]: !prev[section]
     }));
-  };
-
-  const handlePropChange = (key, value) => {
-    onUpdate({
-      props: {
-        ...component.props,
-        [key]: value
-      }
-    });
-  };
-
-  const handleStyleChange = (key, value) => {
-    onUpdate({
-      styles: {
-        ...component.styles,
-        [key]: value
-      }
-    });
-  };
-
-  const handleArrayPropChange = (key, index, value) => {
-    const currentArray = component.props?.[key] || [];
-    const newArray = [...currentArray];
-    newArray[index] = value;
-    handlePropChange(key, newArray);
-  };
-
-  const addArrayItem = (key, defaultValue = '') => {
-    const currentArray = component.props?.[key] || [];
-    handlePropChange(key, [...currentArray, defaultValue]);
-  };
-
-  const removeArrayItem = (key, index) => {
-    const currentArray = component.props?.[key] || [];
-    const newArray = currentArray.filter((_, i) => i !== index);
-    handlePropChange(key, newArray);
   };
 
   const renderContentFields = () => {
@@ -60,45 +81,44 @@ const CustomizationPanel = ({ component, onUpdate }) => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Logo/Title</label>
               <input
+                {...register('props.title')}
                 type="text"
-                value={component.props?.title || ''}
-                onChange={(e) => handlePropChange('title', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Your Logo"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">CTA Button Text</label>
               <input
+                {...register('props.ctaText')}
                 type="text"
-                value={component.props?.ctaText || ''}
-                onChange={(e) => handlePropChange('ctaText', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Get Started"
               />
             </div>
-            
+
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-medium text-gray-700">Menu Items</label>
                 <button
-                  onClick={() => addArrayItem('menuItems', 'New Item')}
+                  type="button"
+                  onClick={() => menuItemsArray.append('New Item')}
                   className="text-sm text-blue-600 hover:text-blue-700"
                 >
                   + Add Item
                 </button>
               </div>
-              {(component.props?.menuItems || ['Home', 'Products', 'About', 'Contact']).map((item, index) => (
-                <div key={index} className="flex items-center space-x-2 mb-2">
+              {menuItemsArray.fields.map((field, index) => (
+                <div key={field.id} className="flex items-center space-x-2 mb-2">
                   <input
+                    {...register(`props.menuItems.${index}`)}
                     type="text"
-                    value={item}
-                    onChange={(e) => handleArrayPropChange('menuItems', index, e.target.value)}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <button
-                    onClick={() => removeArrayItem('menuItems', index)}
+                    type="button"
+                    onClick={() => menuItemsArray.remove(index)}
                     className="text-red-600 hover:text-red-700 text-sm"
                   >
                     Remove
@@ -115,9 +135,8 @@ const CustomizationPanel = ({ component, onUpdate }) => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Company Name</label>
               <input
+                {...register('props.companyName')}
                 type="text"
-                value={component.props?.companyName || ''}
-                onChange={(e) => handlePropChange('companyName', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Company"
               />
@@ -126,8 +145,7 @@ const CustomizationPanel = ({ component, onUpdate }) => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
               <textarea
-                value={component.props?.description || ''}
-                onChange={(e) => handlePropChange('description', e.target.value)}
+                {...register('props.description')}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 rows={3}
                 placeholder="Your company description here."
@@ -137,9 +155,8 @@ const CustomizationPanel = ({ component, onUpdate }) => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
               <input
+                {...register('props.email')}
                 type="email"
-                value={component.props?.email || ''}
-                onChange={(e) => handlePropChange('email', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="contact@company.com"
               />
@@ -148,9 +165,8 @@ const CustomizationPanel = ({ component, onUpdate }) => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
               <input
+                {...register('props.phone')}
                 type="tel"
-                value={component.props?.phone || ''}
-                onChange={(e) => handlePropChange('phone', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="+1 (555) 123-4567"
               />
@@ -160,22 +176,23 @@ const CustomizationPanel = ({ component, onUpdate }) => {
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-medium text-gray-700">Quick Links</label>
                 <button
-                  onClick={() => addArrayItem('quickLinks', 'New Link')}
+                  type="button"
+                  onClick={() => quickLinksArray.append('New Link')}
                   className="text-sm text-blue-600 hover:text-blue-700"
                 >
                   + Add Link
                 </button>
               </div>
-              {(component.props?.quickLinks || ['About', 'Services', 'Contact']).map((link, index) => (
-                <div key={index} className="flex items-center space-x-2 mb-2">
+              {quickLinksArray.fields.map((field, index) => (
+                <div key={field.id} className="flex items-center space-x-2 mb-2">
                   <input
+                    {...register(`props.quickLinks.${index}`)}
                     type="text"
-                    value={link}
-                    onChange={(e) => handleArrayPropChange('quickLinks', index, e.target.value)}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <button
-                    onClick={() => removeArrayItem('quickLinks', index)}
+                    type="button"
+                    onClick={() => quickLinksArray.remove(index)}
                     className="text-red-600 hover:text-red-700 text-sm"
                   >
                     Remove
@@ -192,42 +209,38 @@ const CustomizationPanel = ({ component, onUpdate }) => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
               <input
+                {...register('props.title')}
                 type="text"
-                value={component.props?.title || ''}
-                onChange={(e) => handlePropChange('title', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Welcome to Our Platform"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Subtitle</label>
               <textarea
-                value={component.props?.subtitle || ''}
-                onChange={(e) => handlePropChange('subtitle', e.target.value)}
+                {...register('props.subtitle')}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 rows={2}
                 placeholder="Build amazing experiences with our tools"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Primary CTA</label>
               <input
+                {...register('props.primaryCta')}
                 type="text"
-                value={component.props?.primaryCta || ''}
-                onChange={(e) => handlePropChange('primaryCta', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Get Started"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Secondary CTA</label>
               <input
+                {...register('props.secondaryCta')}
                 type="text"
-                value={component.props?.secondaryCta || ''}
-                onChange={(e) => handlePropChange('secondaryCta', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Learn More"
               />
@@ -250,34 +263,30 @@ const CustomizationPanel = ({ component, onUpdate }) => {
         <label className="block text-sm font-medium text-gray-700 mb-2">Background Color</label>
         <div className="flex items-center space-x-2">
           <input
+            {...register('styles.backgroundColor')}
             type="color"
-            value={component.styles?.backgroundColor || '#ffffff'}
-            onChange={(e) => handleStyleChange('backgroundColor', e.target.value)}
             className="w-12 h-10 border border-gray-300 rounded cursor-pointer"
           />
           <input
+            {...register('styles.backgroundColor')}
             type="text"
-            value={component.styles?.backgroundColor || '#ffffff'}
-            onChange={(e) => handleStyleChange('backgroundColor', e.target.value)}
             className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="#ffffff"
           />
         </div>
       </div>
-      
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">Text Color</label>
         <div className="flex items-center space-x-2">
           <input
+            {...register('styles.textColor')}
             type="color"
-            value={component.styles?.textColor || '#000000'}
-            onChange={(e) => handleStyleChange('textColor', e.target.value)}
             className="w-12 h-10 border border-gray-300 rounded cursor-pointer"
           />
           <input
+            {...register('styles.textColor')}
             type="text"
-            value={component.styles?.textColor || '#000000'}
-            onChange={(e) => handleStyleChange('textColor', e.target.value)}
             className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="#000000"
           />

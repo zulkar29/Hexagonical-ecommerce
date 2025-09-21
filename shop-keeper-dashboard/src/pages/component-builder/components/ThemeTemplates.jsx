@@ -1,21 +1,34 @@
 import { useState } from 'react';
+import { useDraggable } from '@dnd-kit/core';
 import { themeTemplates, themeCategories } from '../../../data/componentTemplates';
-import { 
-  Palette, 
-  Check, 
-  Eye, 
+import {
+  Palette,
+  Check,
+  Eye,
   Settings,
   Minimize2,
   ShoppingBag,
   Briefcase,
   Crown,
-  ExternalLink
+  Move
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import ThemePreviewModal from './ThemePreviewModal';
 
-const ThemeCard = ({ theme, isSelected, onSelect, onPreview, onCustomize, onBrowserPreview, onApply }) => {
+const DraggableThemeCard = ({ theme, isSelected, onSelect, onPreview, onCustomize }) => {
   const [isHovered, setIsHovered] = useState(false);
+
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `theme-${theme.id}`,
+    data: {
+      type: 'theme-item',
+      theme
+    }
+  });
+
+  const style = transform ? {
+    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+    opacity: isDragging ? 0.5 : 1
+  } : undefined;
 
   const getCategoryIcon = (category) => {
     const icons = {
@@ -29,15 +42,16 @@ const ThemeCard = ({ theme, isSelected, onSelect, onPreview, onCustomize, onBrow
   };
 
   return (
-    <div 
-      className={`relative bg-white rounded-lg border-2 transition-all duration-200 cursor-pointer ${
-        isSelected 
-          ? 'border-blue-500 shadow-lg' 
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`relative bg-white rounded-lg border-2 transition-all duration-200 ${
+        isSelected
+          ? 'border-blue-500 shadow-lg'
           : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
-      }`}
+      } ${isDragging ? 'z-50' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onClick={() => onSelect(theme)}
     >
       {/* Selection Indicator */}
       {isSelected && (
@@ -86,35 +100,26 @@ const ThemeCard = ({ theme, isSelected, onSelect, onPreview, onCustomize, onBrow
           </div>
         </div>
 
+        {/* Drag Handle */}
+        <div
+          {...attributes}
+          {...listeners}
+          className="absolute top-2 left-2 p-1 bg-white bg-opacity-80 rounded cursor-grab active:cursor-grabbing hover:bg-opacity-100 transition-all"
+          title="Drag to apply theme"
+        >
+          <Move className="w-4 h-4 text-gray-600" />
+        </div>
+
         {/* Hover Actions */}
         {isHovered && (
           <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center space-x-2">
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onPreview(theme);
+                e.preventDefault();
+                onSelect(theme);
               }}
-              className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors"
-              title="Preview"
-            >
-              <Eye className="w-4 h-4 text-gray-700" />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onBrowserPreview(theme);
-              }}
-              className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors"
-              title="Browser Preview"
-            >
-              <ExternalLink className="w-4 h-4 text-gray-700" />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onApply(theme);
-              }}
-              className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors"
+              className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors z-10"
               title="Apply Theme"
             >
               <Check className="w-4 h-4 text-gray-700" />
@@ -122,9 +127,21 @@ const ThemeCard = ({ theme, isSelected, onSelect, onPreview, onCustomize, onBrow
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onCustomize(theme);
+                e.preventDefault();
+                onPreview(theme);
               }}
-              className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors"
+              className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors z-10"
+              title="Preview"
+            >
+              <Eye className="w-4 h-4 text-gray-700" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onCustomize && onCustomize(theme);
+              }}
+              className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors z-10"
               title="Customize"
             >
               <Settings className="w-4 h-4 text-gray-700" />
@@ -137,29 +154,54 @@ const ThemeCard = ({ theme, isSelected, onSelect, onPreview, onCustomize, onBrow
       <div className="p-4">
         <div className="flex items-center justify-between mb-2">
           <h3 className="font-semibold text-gray-900">{theme.name}</h3>
-          <div className="flex items-center space-x-1 text-gray-500">
-            {getCategoryIcon(theme.category)}
-            <span className="text-xs">
-              {themeCategories[theme.category]?.name || theme.category}
-            </span>
+          <div className="flex items-center space-x-2">
+            {theme.recommended && (
+              <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">
+                ⭐ Recommended
+              </span>
+            )}
+            <div className="flex items-center space-x-1 text-gray-500">
+              {getCategoryIcon(theme.category)}
+              <span className="text-xs">
+                {themeCategories[theme.category]?.name || theme.category}
+              </span>
+            </div>
           </div>
         </div>
         <p className="text-sm text-gray-600 mb-3">{theme.description}</p>
-        
+
+        {/* Action Buttons */}
+        <div className="flex items-center justify-between mb-3">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              onSelect(theme);
+            }}
+            className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
+          >
+            Apply Theme
+          </button>
+          <div className="text-xs text-gray-500 flex items-center">
+            <Move className="w-3 h-3 mr-1" />
+            or drag to canvas
+          </div>
+        </div>
+
         {/* Color Palette */}
         <div className="flex items-center space-x-1">
           <span className="text-xs text-gray-500 mr-2">Colors:</span>
-          <div 
+          <div
             className="w-4 h-4 rounded-full border border-gray-200"
             style={{ backgroundColor: theme.colors.primary }}
             title="Primary"
           />
-          <div 
+          <div
             className="w-4 h-4 rounded-full border border-gray-200"
             style={{ backgroundColor: theme.colors.secondary }}
             title="Secondary"
           />
-          <div 
+          <div
             className="w-4 h-4 rounded-full border border-gray-200"
             style={{ backgroundColor: theme.colors.accent }}
             title="Accent"
@@ -171,11 +213,9 @@ const ThemeCard = ({ theme, isSelected, onSelect, onPreview, onCustomize, onBrow
 };
 
 const ThemeTemplates = ({ onThemeSelect, selectedTheme }) => {
-  const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [previewTheme, setPreviewTheme] = useState(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
-  const [customizeTheme, setCustomizeTheme] = useState(null);
 
   const themes = Object.values(themeTemplates);
   const categories = Object.entries(themeCategories);
@@ -199,18 +239,6 @@ const ThemeTemplates = ({ onThemeSelect, selectedTheme }) => {
     setPreviewTheme(null);
   };
 
-  const handleBrowserPreview = (theme) => {
-    const previewUrl = `/standalone-preview/${theme.id}`;
-    window.open(previewUrl, '_blank', 'noopener,noreferrer');
-  };
-
-  const handleApplyTheme = (theme) => {
-    console.log('Applying theme:', theme);
-    // Apply the theme to the current project
-    if (onThemeSelect) {
-      onThemeSelect(theme);
-    }
-  };
 
   const handleCustomize = (theme) => {
     console.log('Customizing theme:', theme);
@@ -219,7 +247,17 @@ const ThemeTemplates = ({ onThemeSelect, selectedTheme }) => {
       onThemeSelect(theme);
     }
     // Switch to customization mode
-    setCustomizeTheme(theme);
+    // Theme customization would be implemented here
+  };
+
+  const handleApplyTheme = (theme) => {
+    console.log('Applying theme via modal:', theme.name);
+    if (onThemeSelect) {
+      onThemeSelect(theme);
+      // Close modal after applying
+      setIsPreviewModalOpen(false);
+      setPreviewTheme(null);
+    }
   };
 
   return (
@@ -266,19 +304,29 @@ const ThemeTemplates = ({ onThemeSelect, selectedTheme }) => {
 
       {/* Theme Grid */}
       <div className="flex-1 overflow-y-auto p-4">
-        <div className="grid grid-cols-1 gap-4">
-          {filteredThemes.map(theme => (
-            <ThemeCard
-              key={theme.id}
-              theme={theme}
-              isSelected={selectedTheme?.id === theme.id}
-              onSelect={handleThemeSelect}
-              onPreview={handlePreview}
-              onCustomize={handleCustomize}
-              onBrowserPreview={handleBrowserPreview}
-              onApply={handleApplyTheme}
-            />
-          ))}
+        <div className="space-y-4">
+          <div className="text-sm text-gray-600 mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center space-x-2">
+              <span className="text-lg">🎨</span>
+              <div>
+                <div className="font-medium text-blue-900">How to apply themes:</div>
+                <div>1. Click "Apply Theme" button below each theme</div>
+                <div>2. OR drag the theme handle <Move className="w-3 h-3 inline mx-1" /> to the canvas</div>
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4">
+            {filteredThemes.map(theme => (
+              <DraggableThemeCard
+                key={theme.id}
+                theme={theme}
+                isSelected={selectedTheme?.id === theme.id}
+                onSelect={handleThemeSelect}
+                onPreview={handlePreview}
+                onCustomize={handleCustomize}
+              />
+            ))}
+          </div>
         </div>
         
         {filteredThemes.length === 0 && (
