@@ -373,9 +373,7 @@ All API endpoints return standard HTTP status codes and JSON error responses:
 | PATCH | `/marketing/segments/:id` | Manage segment (?action=create\|update\|delete\|refresh) | ✅ | ✅ |
 | POST | `/marketing/newsletter` | Manage newsletter (?action=subscribe\|unsubscribe) | ❌ | ✅ |
 | GET | `/marketing/subscribers` | List newsletter subscribers | ✅ | ✅ |
-| GET | `/marketing/referrals` | List referral programs | ✅ | ✅ |
-| POST | `/marketing/referrals` | Create referral program | ✅ | ✅ |
-| GET | `/marketing/referrals/:id/stats` | Get referral statistics | ✅ | ✅ |
+| GET | `/marketing/campaigns/:id/performance` | Get campaign performance metrics | ✅ | ✅ |
 | GET | `/marketing/abandoned-carts` | Get abandoned carts | ✅ | ✅ |
 
 ## Discount Module (9 endpoints)
@@ -396,6 +394,49 @@ All API endpoints return standard HTTP status codes and JSON error responses:
 | PATCH | `/gift-cards/:id` | Manage gift card (?action=create\|update\|delete\|validate\|use) | ✅/❌ | ✅ |
 | GET | `/store-credit/:customer_id` | Get customer store credit | ✅ | ✅ |
 | PATCH | `/store-credit/:customer_id` | Update store credit (?action=add\|use\|refund) | ✅ | ✅ |
+
+## Referral/Affiliate Module (20 endpoints)
+
+### Referral Management
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/referrals/generate` | Generate referral code | ✅ | ✅ |
+| POST | `/referrals/apply` | Apply referral code | ✅ | ✅ |
+| GET | `/referrals/validate/:code` | Validate referral code | ❌/✅ | ✅ |
+| GET | `/referrals/my` | Get my referrals | ✅ | ✅ |
+| DELETE | `/referrals/:id` | Deactivate referral | ✅ | ✅ |
+| GET | `/referrals/stats` | Get my referral stats | ✅ | ✅ |
+| GET | `/referrals/stats/tenant` | Get tenant referral stats (admin) | ✅ | ✅ |
+
+### Affiliate Management
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/affiliates/register` | Create affiliate account | ✅ | ✅ |
+| PUT | `/affiliates/:id/settings` | Update affiliate settings | ✅ | ✅ |
+| GET | `/affiliates/performance` | Get affiliate performance | ✅ | ✅ |
+| GET | `/affiliates/top` | Get top performing affiliates (admin) | ✅ | ✅ |
+
+### Click Tracking
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/tracking/click` | Track affiliate click | ❌ | ✅ |
+| GET | `/tracking/clicks` | Get affiliate clicks | ✅ | ✅ |
+| GET | `/tracking/clicks/range` | Get clicks by date range | ✅ | ✅ |
+
+### Commissions
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| GET | `/commissions/my` | Get my commissions | ✅ | ✅ |
+| GET | `/commissions/pending` | Get pending commissions (admin) | ✅ | ✅ |
+| PUT | `/commissions/:id/paid` | Mark commission as paid (admin) | ✅ | ✅ |
+| POST | `/commissions/order` | Create order commission (internal) | ✅ | ✅ |
+
+### Payouts
+| Method | URL | Description | Auth | Tenant |
+|--------|-----|-------------|------|--------|
+| POST | `/payouts/batch` | Create payout batch (admin) | ✅ | ✅ |
+| PUT | `/payouts/batch/:id/process` | Process payout batch (admin) | ✅ | ✅ |
+| GET | `/payouts/batches` | Get payout batches (admin) | ✅ | ✅ |
 
 ## Search Module (6 endpoints)
 
@@ -697,7 +738,8 @@ The e-commerce platform implements **284 documented API endpoints** across **28 
 - ✅ **Shipping Module** - 11 endpoints (zones, rates, labels, tracking, webhooks)
 - ✅ **Notification Module** - 8 endpoints (notifications, templates, preferences)
 - ✅ **Analytics Module** - 10 endpoints (tracking, dashboard, insights, reports, customer segmentation)
-- ✅ **Marketing Module** - 13 endpoints (campaigns, templates, segments, automation, referrals)
+- ✅ **Marketing Module** - 10 endpoints (campaigns, templates, segments, automation)
+- ✅ **Referral/Affiliate Module** - 20 endpoints (referral management, affiliate marketing, click tracking, commissions, payouts)
 - ✅ **Discount Module** - 9 endpoints (discounts, gift cards, store credit)
 - ✅ **Search Module** - 6 endpoints (global search, product search, suggestions, analytics, filters)
 - ✅ **Settings Module** - 8 endpoints (store settings, maintenance mode, SEO, appearance, integrations, reviews, contact, support)

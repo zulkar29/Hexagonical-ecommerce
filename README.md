@@ -8,7 +8,7 @@ A multi-tenant e-commerce SaaS platform built with hexagonal architecture, enabl
 
 ### **Quick Links**
 - [🏗️ Architecture](./docs/ARCHITECTURE.md) - System architecture and hexagonal design patterns
-- [📡 API Documentation](./docs/API_REFERENCE.md) - Complete REST API documentation (275 endpoints)
+- [📡 API Documentation](./docs/API_REFERENCE.md) - Complete REST API documentation (284 endpoints)
 - [✨ Features](./docs/FEATURES.md) - Complete feature list and pricing tiers  
 - [🐳 Docker Setup](./docs/README-DOCKER.md) - Development environment with Docker
 

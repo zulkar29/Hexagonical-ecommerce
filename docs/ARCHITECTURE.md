@@ -523,15 +523,6 @@ For implementation-specific details, see:
 - **[MONITORING.md](./MONITORING.md)** - Performance monitoring, health checks, observability
 - **[API_REFERENCE.md](./API_REFERENCE.md)** - Complete API documentation and endpoints
 
-## Reference Documentation
-
-For implementation-specific details, see:
-- **[INFRASTRUCTURE.md](./INFRASTRUCTURE.md)** - Infrastructure setup, database configuration, caching strategies
-- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Docker deployment, VPS setup, domain management
-- **[MONITORING.md](./MONITORING.md)** - Performance monitoring, health checks, observability
-- **[API_REFERENCE.md](./API_REFERENCE.md)** - Complete API documentation and endpoints
-- Maintains cost efficiency for majority of tenants while allowing custom scaling
-
 ### Tenant Context Resolution (Hexagonal Pattern)
 ```go
 // Domain layer - tenant context is injected at the boundary

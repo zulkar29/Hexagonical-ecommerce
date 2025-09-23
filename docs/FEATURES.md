@@ -45,7 +45,7 @@
 - **Festival Sales**: Eid, Pohela Boishakh, Durga Puja automated campaigns
 - **Abandoned Cart Recovery**: SMS + Email sequences (Bengali)
 - **Social Commerce**: Facebook/Instagram integration, WhatsApp catalog
-- **Referral Program**: Partner management with Bengali interface
+- **Referral Program**: Comprehensive affiliate marketing system with multiple referral types (customer, influencer, digital marketer, partner), click tracking, UTM campaign analytics, and automated commission payouts
 - **Local Marketing**: Regional promotions, family discount programs
 - **Comprehensive Notification System**: Order status updates, payment alerts, system notifications via email/SMS
 - **Template Management**: Customizable email/SMS templates with tenant branding
@@ -275,7 +275,7 @@ Email/SMS Limits:
 - **Advanced Reviews & Ratings**: Basic review moderation system
 - **Q&A Platform**: Customer questions and merchant answers
 - **User-Generated Content**: Customer photo/video submissions
-- **Advanced Referral Program**: Automated customer referral system
+- **Advanced Referral Program**: Affiliate marketing system supporting customers, influencers, digital marketers, and partners with detailed performance analytics, UTM tracking, and batch payout processing
 
 ## Advanced Shipping & Logistics
 

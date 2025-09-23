@@ -242,8 +242,9 @@ This document outlines all user flows in the system to help plan comprehensive t
 - [ ] **Coupon Management**: Create coupon codes → Set discount rules (percentage/fixed) → Usage limits → Expiry dates → Activation → Usage tracking
 - [ ] **Bulk Coupon Creation**: CSV upload → Coupon generation → Validation → Activation → Distribution
 - [ ] **Promotion Campaigns**: Campaign creation → Target audience → Discount rules → Schedule → Performance tracking
-- [ ] **Referral Program Setup**: Define referral rewards → Commission structure → Referral link generation → Tracking setup
-- [ ] **Referral Tracking**: Track referral signups → Commission calculation → Payment processing → Performance analytics
+- [x] **Referral Program Setup**: Define referral rewards → Commission structure → Referral link generation → Affiliate type selection (customer, influencer, digital marketer, partner) → Payout threshold configuration → Tracking setup
+- [x] **Referral Tracking**: Track referral signups → Click tracking with UTM parameters → Commission calculation → Conversion analytics → Performance metrics → Batch payout processing
+- [x] **Affiliate Marketing**: Create affiliate accounts → Generate tracking links → Monitor click-through rates → Track conversions → Performance dashboards → Commission management
 
 ### Tenant Staff Management
 - [ ] **Tenant Staff Creation**: User details → Role assignment → Account activation → Login credentials

@@ -13,24 +13,39 @@ import (
 	"gorm.io/gorm"
 )
 
-// Service defines the interface for referral business logic
+// Service defines the interface for referral/affiliate business logic
 type Service interface {
-	// Referral management
+	// Referral/Affiliate management
 	GenerateReferralCode(ctx context.Context, tenantID, referrerID uuid.UUID, commissionRate float64, expiresAt *time.Time) (*Referral, error)
+	CreateAffiliateAccount(ctx context.Context, tenantID, userID uuid.UUID, affiliateType AffiliateType, commissionRate float64, payoutThreshold float64) (*Referral, error)
 	ApplyReferralCode(ctx context.Context, tenantID uuid.UUID, referralCode string, refereeID uuid.UUID) (*Referral, error)
 	GetReferralByCode(ctx context.Context, tenantID uuid.UUID, code string) (*Referral, error)
 	GetUserReferrals(ctx context.Context, tenantID, userID uuid.UUID, limit, offset int) ([]*Referral, error)
+	UpdateAffiliateSettings(ctx context.Context, tenantID, referralID uuid.UUID, settings map[string]interface{}) error
 	DeactivateReferral(ctx context.Context, tenantID, referralID uuid.UUID) error
+
+	// Click tracking
+	TrackAffiliateClick(ctx context.Context, tenantID uuid.UUID, referralCode string, clickData *AffiliateClick) (*AffiliateClick, error)
+	GetAffiliateClicks(ctx context.Context, tenantID, referrerID uuid.UUID, limit, offset int) ([]*AffiliateClick, error)
+	GetClicksByDateRange(ctx context.Context, tenantID, referrerID uuid.UUID, startDate, endDate time.Time) ([]*AffiliateClick, error)
 
 	// Commission management
 	CreateCommission(ctx context.Context, tenantID, referralID, subscriptionID uuid.UUID, subscriptionAmount float64) (*ReferralCommission, error)
+	CreateOrderCommission(ctx context.Context, tenantID, referralID, orderID uuid.UUID, orderAmount float64) (*ReferralCommission, error)
 	GetUserCommissions(ctx context.Context, tenantID, userID uuid.UUID, limit, offset int) ([]*ReferralCommission, error)
 	ProcessPendingCommissions(ctx context.Context, tenantID uuid.UUID, limit int) ([]*ReferralCommission, error)
 	MarkCommissionAsPaid(ctx context.Context, tenantID, commissionID uuid.UUID) error
 
-	// Statistics and analytics
+	// Affiliate performance & analytics
+	GetAffiliatePerformance(ctx context.Context, tenantID, referrerID uuid.UUID) (*AffiliatePerformance, error)
+	GetTopPerformingAffiliates(ctx context.Context, tenantID uuid.UUID, limit int) ([]*AffiliatePerformance, error)
 	GetUserReferralStats(ctx context.Context, tenantID, userID uuid.UUID) (*ReferralStats, error)
 	GetTenantReferralStats(ctx context.Context, tenantID uuid.UUID) (*ReferralStats, error)
+
+	// Payout management
+	CreatePayoutBatch(ctx context.Context, tenantID uuid.UUID, affiliateIDs []uuid.UUID) (*AffiliatePayoutBatch, error)
+	ProcessPayoutBatch(ctx context.Context, tenantID, batchID uuid.UUID) error
+	GetPayoutBatches(ctx context.Context, tenantID uuid.UUID, limit, offset int) ([]*AffiliatePayoutBatch, error)
 
 	// Maintenance
 	ExpireOldReferrals(ctx context.Context, tenantID uuid.UUID) error
@@ -51,9 +66,19 @@ func NewService(repo Repository) Service {
 
 // GenerateReferralCode generates a new referral code for a user
 func (s *ServiceImpl) GenerateReferralCode(ctx context.Context, tenantID, referrerID uuid.UUID, commissionRate float64, expiresAt *time.Time) (*Referral, error) {
+	return s.CreateAffiliateAccount(ctx, tenantID, referrerID, AffiliateTypeCustomer, commissionRate, 50.0)
+}
+
+// CreateAffiliateAccount creates a new affiliate account with specific type and settings
+func (s *ServiceImpl) CreateAffiliateAccount(ctx context.Context, tenantID, userID uuid.UUID, affiliateType AffiliateType, commissionRate float64, payoutThreshold float64) (*Referral, error) {
 	// Validate commission rate
 	if commissionRate < 0 || commissionRate > 1 {
 		return nil, errors.New("commission rate must be between 0 and 1")
+	}
+
+	// Validate payout threshold
+	if payoutThreshold < 0 {
+		return nil, errors.New("payout threshold must be positive")
 	}
 
 	// Generate unique referral code
@@ -62,20 +87,22 @@ func (s *ServiceImpl) GenerateReferralCode(ctx context.Context, tenantID, referr
 		return nil, fmt.Errorf("failed to generate unique code: %w", err)
 	}
 
-	// Create referral
+	// Create referral/affiliate account
 	referral := &Referral{
-		ID:             uuid.New(),
-		TenantID:       tenantID,
-		ReferrerID:     referrerID,
-		ReferralCode:   code,
-		Status:         ReferralStatusActive,
-		CommissionRate: commissionRate,
-		ExpiresAt:      expiresAt,
+		ID:              uuid.New(),
+		TenantID:        tenantID,
+		ReferrerID:      userID,
+		ReferralCode:    code,
+		Status:          ReferralStatusActive,
+		CommissionRate:  commissionRate,
+		AffiliateType:   affiliateType,
+		PayoutThreshold: payoutThreshold,
+		TrackingData:    make(map[string]interface{}),
 	}
 
 	err = s.repo.CreateReferral(ctx, referral)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create referral: %w", err)
+		return nil, fmt.Errorf("failed to create affiliate account: %w", err)
 	}
 
 	return referral, nil
@@ -169,11 +196,12 @@ func (s *ServiceImpl) CreateCommission(ctx context.Context, tenantID, referralID
 		TenantID:           tenantID,
 		ReferralID:         referralID,
 		ReferrerID:         referral.ReferrerID,
-		SubscriptionID:     subscriptionID,
+		SubscriptionID:     &subscriptionID,
 		Amount:             commissionAmount,
 		Currency:           "USD", // Default currency, could be configurable
 		CommissionRate:     referral.CommissionRate,
 		SubscriptionAmount: subscriptionAmount,
+		ConversionType:     "subscription",
 		Status:             CommissionStatusPending,
 	}
 
@@ -296,4 +324,198 @@ func (s *ServiceImpl) generateRandomCode() string {
 	bytes := make([]byte, 4) // 8 character hex string
 	rand.Read(bytes)
 	return strings.ToUpper(hex.EncodeToString(bytes))
+}
+
+// UpdateAffiliateSettings updates affiliate-specific settings
+func (s *ServiceImpl) UpdateAffiliateSettings(ctx context.Context, tenantID, referralID uuid.UUID, settings map[string]interface{}) error {
+	referral, err := s.repo.GetReferralByID(ctx, tenantID, referralID)
+	if err != nil {
+		return fmt.Errorf("failed to get referral: %w", err)
+	}
+
+	// Update allowed settings
+	if payoutThreshold, ok := settings["payout_threshold"].(float64); ok && payoutThreshold >= 0 {
+		referral.PayoutThreshold = payoutThreshold
+	}
+
+	if affiliateType, ok := settings["affiliate_type"].(string); ok {
+		referral.AffiliateType = AffiliateType(affiliateType)
+	}
+
+	// Update tracking data
+	if trackingData, ok := settings["tracking_data"].(map[string]interface{}); ok {
+		if referral.TrackingData == nil {
+			referral.TrackingData = make(map[string]interface{})
+		}
+		for key, value := range trackingData {
+			referral.TrackingData[key] = value
+		}
+	}
+
+	return s.repo.UpdateReferral(ctx, referral)
+}
+
+// TrackAffiliateClick tracks a click on an affiliate link
+func (s *ServiceImpl) TrackAffiliateClick(ctx context.Context, tenantID uuid.UUID, referralCode string, clickData *AffiliateClick) (*AffiliateClick, error) {
+	// Validate referral code exists
+	referral, err := s.ValidateReferralCode(ctx, tenantID, referralCode)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set required fields
+	clickData.ID = uuid.New()
+	clickData.TenantID = tenantID
+	clickData.ReferralID = referral.ID
+	clickData.ReferrerID = referral.ReferrerID
+
+	// Create click record
+	err = s.repo.CreateAffiliateClick(ctx, clickData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create affiliate click: %w", err)
+	}
+
+	return clickData, nil
+}
+
+// GetAffiliateClicks retrieves clicks for an affiliate
+func (s *ServiceImpl) GetAffiliateClicks(ctx context.Context, tenantID, referrerID uuid.UUID, limit, offset int) ([]*AffiliateClick, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	return s.repo.GetAffiliateClicksByReferrer(ctx, tenantID, referrerID, limit, offset)
+}
+
+// GetClicksByDateRange retrieves clicks within a date range
+func (s *ServiceImpl) GetClicksByDateRange(ctx context.Context, tenantID, referrerID uuid.UUID, startDate, endDate time.Time) ([]*AffiliateClick, error) {
+	return s.repo.GetAffiliateClicksByDateRange(ctx, tenantID, referrerID, startDate, endDate)
+}
+
+// CreateOrderCommission creates a commission for an order
+func (s *ServiceImpl) CreateOrderCommission(ctx context.Context, tenantID, referralID, orderID uuid.UUID, orderAmount float64) (*ReferralCommission, error) {
+	// Get the referral
+	referral, err := s.repo.GetReferralByID(ctx, tenantID, referralID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get referral: %w", err)
+	}
+
+	// Validate referral status
+	if referral.Status != ReferralStatusCompleted && referral.Status != ReferralStatusActive {
+		return nil, errors.New("referral must be active or completed to generate commission")
+	}
+
+	// Calculate commission amount
+	commissionAmount := referral.CalculateCommission(orderAmount)
+
+	// Create commission
+	commission := &ReferralCommission{
+		ID:             uuid.New(),
+		TenantID:       tenantID,
+		ReferralID:     referralID,
+		ReferrerID:     referral.ReferrerID,
+		OrderID:        &orderID,
+		Amount:         commissionAmount,
+		Currency:       "USD",
+		CommissionRate: referral.CommissionRate,
+		OrderAmount:    orderAmount,
+		ConversionType: "order",
+		Status:         CommissionStatusPending,
+	}
+
+	err = s.repo.CreateCommission(ctx, commission)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create order commission: %w", err)
+	}
+
+	return commission, nil
+}
+
+// GetAffiliatePerformance retrieves performance metrics for an affiliate
+func (s *ServiceImpl) GetAffiliatePerformance(ctx context.Context, tenantID, referrerID uuid.UUID) (*AffiliatePerformance, error) {
+	return s.repo.GetAffiliatePerformance(ctx, tenantID, referrerID)
+}
+
+// GetTopPerformingAffiliates retrieves top performing affiliates
+func (s *ServiceImpl) GetTopPerformingAffiliates(ctx context.Context, tenantID uuid.UUID, limit int) ([]*AffiliatePerformance, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 50 {
+		limit = 50
+	}
+
+	return s.repo.GetTopPerformingAffiliates(ctx, tenantID, limit)
+}
+
+// CreatePayoutBatch creates a batch payout for multiple affiliates
+func (s *ServiceImpl) CreatePayoutBatch(ctx context.Context, tenantID uuid.UUID, affiliateIDs []uuid.UUID) (*AffiliatePayoutBatch, error) {
+	// Calculate total amount for batch
+	var totalAmount float64
+	for _, affiliateID := range affiliateIDs {
+		commissions, err := s.repo.GetPendingCommissionsByReferrer(ctx, tenantID, affiliateID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get pending commissions for affiliate %s: %w", affiliateID, err)
+		}
+		for _, commission := range commissions {
+			totalAmount += commission.Amount
+		}
+	}
+
+	// Create payout batch
+	batch := &AffiliatePayoutBatch{
+		ID:             uuid.New(),
+		TenantID:       tenantID,
+		TotalAmount:    totalAmount,
+		Currency:       "USD",
+		AffiliateCount: len(affiliateIDs),
+		Status:         "pending",
+	}
+	batch.BatchNumber = batch.GenerateBatchNumber()
+
+	err := s.repo.CreatePayoutBatch(ctx, batch)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create payout batch: %w", err)
+	}
+
+	return batch, nil
+}
+
+// ProcessPayoutBatch processes a payout batch
+func (s *ServiceImpl) ProcessPayoutBatch(ctx context.Context, tenantID, batchID uuid.UUID) error {
+	batch, err := s.repo.GetPayoutBatch(ctx, tenantID, batchID)
+	if err != nil {
+		return fmt.Errorf("failed to get payout batch: %w", err)
+	}
+
+	if batch.Status != "pending" {
+		return errors.New("batch is not in pending status")
+	}
+
+	// Mark batch as processing
+	batch.MarkAsProcessing()
+	err = s.repo.UpdatePayoutBatch(ctx, batch)
+	if err != nil {
+		return fmt.Errorf("failed to update batch status: %w", err)
+	}
+
+	// Here you would integrate with payment provider
+	// For now, we'll mark as completed
+	batch.MarkAsCompleted()
+	return s.repo.UpdatePayoutBatch(ctx, batch)
+}
+
+// GetPayoutBatches retrieves payout batches
+func (s *ServiceImpl) GetPayoutBatches(ctx context.Context, tenantID uuid.UUID, limit, offset int) ([]*AffiliatePayoutBatch, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	return s.repo.GetPayoutBatches(ctx, tenantID, limit, offset)
 }
