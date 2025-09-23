@@ -157,6 +157,21 @@ func (u *User) ShouldChangePassword(maxDays int) bool {
 	return u.PasswordChangedAt.Before(threshold)
 }
 
+// GetID returns the user's ID (implements security.User interface)
+func (u *User) GetID() uuid.UUID {
+	return u.ID
+}
+
+// GetTenantID returns the user's tenant ID (implements security.User interface)
+func (u *User) GetTenantID() *uuid.UUID {
+	return u.TenantID
+}
+
+// IsTwoFactorEnabled returns whether 2FA is enabled (implements security.User interface)
+func (u *User) IsTwoFactorEnabled() bool {
+	return u.TwoFactorEnabled
+}
+
 // Business Logic Methods for Permission
 
 // GetPermissionKey returns a unique key for the permission

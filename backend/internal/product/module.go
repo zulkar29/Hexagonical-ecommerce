@@ -7,7 +7,7 @@ import (
 
 // Module represents the product module
 type Module struct {
-	Repository RepositoryInterface
+	Repository Repository
 	Service    *Service
 	Handler    *Handler
 }

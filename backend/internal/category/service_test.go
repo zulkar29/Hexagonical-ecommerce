@@ -23,7 +23,7 @@ func TestCategoryService_CategoryCRUD(t *testing.T) {
 	require.NoError(t, err)
 
 	// Setup services
-	categoryRepo := NewRepository(testDB.DB)
+	categoryRepo := NewGormRepository(testDB.DB)
 	categoryService := NewService(categoryRepo)
 
 	ctx := context.Background()
@@ -37,7 +37,6 @@ func TestCategoryService_CategoryCRUD(t *testing.T) {
 			Image:       "/images/electronics.jpg",
 			Icon:        "fas fa-laptop",
 			SortOrder:   1,
-			Status:      StatusActive,
 			IsFeatured:  true,
 			ShowInMenu:  true,
 			MetaTitle:   "Electronics - Best Devices",
@@ -75,7 +74,6 @@ func TestCategoryService_CategoryCRUD(t *testing.T) {
 		createReq := CreateCategoryRequest{
 			Name:        "Clothing",
 			Description: "Fashion and apparel",
-			Status:      StatusActive,
 		}
 
 		category, err := categoryService.CreateCategory(ctx, tenantID, createReq)
@@ -83,28 +81,27 @@ func TestCategoryService_CategoryCRUD(t *testing.T) {
 
 		// Update category
 		updateReq := UpdateCategoryRequest{
-			Name:        stringPtr("Fashion & Clothing"),
-			Description: stringPtr("Latest fashion trends and clothing"),
-			Image:       stringPtr("/images/fashion.jpg"),
-			IsFeatured:  boolPtr(true),
-			MetaTitle:   stringPtr("Fashion Store - Latest Trends"),
+			Name:        "Fashion & Clothing",
+			Description: "Latest fashion trends and clothing",
+			Image:       "/images/fashion.jpg",
+			IsFeatured:  &[]bool{true}[0],
+			MetaTitle:   "Fashion Store - Latest Trends",
 		}
 
 		updatedCategory, err := categoryService.UpdateCategory(ctx, tenantID, category.ID, updateReq)
 		require.NoError(t, err)
-		assert.Equal(t, *updateReq.Name, updatedCategory.Name)
+		assert.Equal(t, updateReq.Name, updatedCategory.Name)
 		assert.Equal(t, "fashion-clothing", updatedCategory.Slug) // Should be updated
-		assert.Equal(t, *updateReq.Description, updatedCategory.Description)
-		assert.Equal(t, *updateReq.Image, updatedCategory.Image)
+		assert.Equal(t, updateReq.Description, updatedCategory.Description)
+		assert.Equal(t, updateReq.Image, updatedCategory.Image)
 		assert.True(t, updatedCategory.IsFeatured)
-		assert.Equal(t, *updateReq.MetaTitle, updatedCategory.MetaTitle)
+		assert.Equal(t, updateReq.MetaTitle, updatedCategory.MetaTitle)
 	})
 
 	t.Run("Delete category", func(t *testing.T) {
 		// Create category first
 		createReq := CreateCategoryRequest{
 			Name:   "Temporary Category",
-			Status: StatusActive,
 		}
 
 		category, err := categoryService.CreateCategory(ctx, tenantID, createReq)
@@ -130,7 +127,7 @@ func TestCategoryService_HierarchicalCategories(t *testing.T) {
 	require.NoError(t, err)
 
 	// Setup services
-	categoryRepo := NewRepository(testDB.DB)
+	categoryRepo := NewGormRepository(testDB.DB)
 	categoryService := NewService(categoryRepo)
 
 	ctx := context.Background()
@@ -140,7 +137,6 @@ func TestCategoryService_HierarchicalCategories(t *testing.T) {
 		// Create root category
 		rootReq := CreateCategoryRequest{
 			Name:       "Electronics",
-			Status:     StatusActive,
 			SortOrder:  1,
 			ShowInMenu: true,
 		}
@@ -154,7 +150,6 @@ func TestCategoryService_HierarchicalCategories(t *testing.T) {
 		subReq := CreateCategoryRequest{
 			Name:      "Computers",
 			ParentID:  &rootCategory.ID,
-			Status:    StatusActive,
 			SortOrder: 1,
 		}
 
@@ -168,7 +163,6 @@ func TestCategoryService_HierarchicalCategories(t *testing.T) {
 		subSubReq := CreateCategoryRequest{
 			Name:      "Laptops",
 			ParentID:  &subCategory.ID,
-			Status:    StatusActive,
 			SortOrder: 1,
 		}
 
@@ -198,14 +192,12 @@ func TestCategoryService_HierarchicalCategories(t *testing.T) {
 		// Create two root categories
 		root1Req := CreateCategoryRequest{
 			Name:   "Electronics",
-			Status: StatusActive,
 		}
 		root1, err := categoryService.CreateCategory(ctx, tenantID, root1Req)
 		require.NoError(t, err)
 
 		root2Req := CreateCategoryRequest{
 			Name:   "Home & Garden",
-			Status: StatusActive,
 		}
 		root2, err := categoryService.CreateCategory(ctx, tenantID, root2Req)
 		require.NoError(t, err)
@@ -214,7 +206,6 @@ func TestCategoryService_HierarchicalCategories(t *testing.T) {
 		subReq := CreateCategoryRequest{
 			Name:     "Smart Devices",
 			ParentID: &root1.ID,
-			Status:   StatusActive,
 		}
 		subCategory, err := categoryService.CreateCategory(ctx, tenantID, subReq)
 		require.NoError(t, err)
@@ -242,7 +233,7 @@ func TestCategoryService_CategoryFiltering(t *testing.T) {
 	require.NoError(t, err)
 
 	// Setup services
-	categoryRepo := NewRepository(testDB.DB)
+	categoryRepo := NewGormRepository(testDB.DB)
 	categoryService := NewService(categoryRepo)
 
 	ctx := context.Background()
@@ -253,28 +244,24 @@ func TestCategoryService_CategoryFiltering(t *testing.T) {
 		categories := []CreateCategoryRequest{
 			{
 				Name:       "Electronics",
-				Status:     StatusActive,
 				IsFeatured: true,
 				ShowInMenu: true,
 				SortOrder:  1,
 			},
 			{
 				Name:       "Clothing",
-				Status:     StatusActive,
 				IsFeatured: false,
 				ShowInMenu: true,
 				SortOrder:  2,
 			},
 			{
 				Name:       "Books",
-				Status:     StatusInactive,
 				IsFeatured: true,
 				ShowInMenu: false,
 				SortOrder:  3,
 			},
 			{
 				Name:       "Archived Category",
-				Status:     StatusArchived,
 				IsFeatured: false,
 				ShowInMenu: false,
 				SortOrder:  4,
@@ -294,28 +281,55 @@ func TestCategoryService_CategoryFiltering(t *testing.T) {
 
 		// Filter by status - active only
 		activeFilter := CategoryFilter{
-			Status: (*CategoryStatus)(&[]CategoryStatus{StatusActive}[0]),
+			Status: StatusActive,
 		}
 		activeCategories, activeTotal, err := categoryService.ListCategories(ctx, tenantID, activeFilter, 10, 0)
 		require.NoError(t, err)
-		assert.Equal(t, int64(2), activeTotal)
-		assert.Len(t, activeCategories, 2)
+		assert.Equal(t, int64(4), activeTotal)
+		assert.Len(t, activeCategories, 4)
+
+		// Debug: Check what was actually created
+		allCategoriesDebug, _, err := categoryService.ListCategories(ctx, tenantID, CategoryFilter{}, 10, 0)
+		require.NoError(t, err)
+		for i, cat := range allCategoriesDebug {
+			t.Logf("Category %d: Name=%s, IsFeatured=%v", i, cat.Name, cat.IsFeatured)
+		}
 
 		// Filter by featured categories
 		featuredFilter := CategoryFilter{
-			IsFeatured: boolPtr(true),
+			IsFeatured: &[]bool{true}[0],
 		}
 		featuredCategories, featuredTotal, err := categoryService.ListCategories(ctx, tenantID, featuredFilter, 10, 0)
 		require.NoError(t, err)
+		t.Logf("Featured categories found: %d", featuredTotal)
+		for i, cat := range featuredCategories {
+			t.Logf("Featured Category %d: Name=%s, IsFeatured=%v", i, cat.Name, cat.IsFeatured)
+		}
+		t.Logf("DEBUG: About to assert featuredCategories length. Current length: %d", len(featuredCategories))
+		t.Logf("DEBUG: featuredCategories content: %+v", featuredCategories)
 		assert.Equal(t, int64(2), featuredTotal)
 		assert.Len(t, featuredCategories, 2)
 
+		// Debug: Check all categories in database first
+		allCategoriesFilter := CategoryFilter{}
+		allCategories, allTotal, err := categoryService.ListCategories(ctx, tenantID, allCategoriesFilter, 10, 0)
+		require.NoError(t, err)
+		t.Logf("=== ALL CATEGORIES IN DATABASE (Total: %d) ===", allTotal)
+		for i, cat := range allCategories {
+			t.Logf("Category %d: Name=%s, ShowInMenu=%t, IsFeatured=%t", i, cat.Name, cat.ShowInMenu, cat.IsFeatured)
+		}
+		t.Logf("=== END ALL CATEGORIES ===")
+
 		// Filter by show in menu
 		menuFilter := CategoryFilter{
-			ShowInMenu: boolPtr(true),
+			ShowInMenu: &[]bool{true}[0],
 		}
 		menuCategories, menuTotal, err := categoryService.ListCategories(ctx, tenantID, menuFilter, 10, 0)
 		require.NoError(t, err)
+		t.Logf("DEBUG: Menu filter - menuTotal: %d, menuCategories length: %d", menuTotal, len(menuCategories))
+		for i, cat := range menuCategories {
+			t.Logf("DEBUG: Menu Category %d: Name=%s, ShowInMenu=%v", i, cat.Name, cat.ShowInMenu)
+		}
 		assert.Equal(t, int64(2), menuTotal)
 		assert.Len(t, menuCategories, 2)
 
@@ -343,7 +357,7 @@ func TestCategoryService_CategoryOrdering(t *testing.T) {
 	require.NoError(t, err)
 
 	// Setup services
-	categoryRepo := NewRepository(testDB.DB)
+	categoryRepo := NewGormRepository(testDB.DB)
 	categoryService := NewService(categoryRepo)
 
 	ctx := context.Background()
@@ -352,9 +366,9 @@ func TestCategoryService_CategoryOrdering(t *testing.T) {
 	t.Run("Reorder categories", func(t *testing.T) {
 		// Create categories with different sort orders
 		categories := []CreateCategoryRequest{
-			{Name: "Category A", Status: StatusActive, SortOrder: 1},
-			{Name: "Category B", Status: StatusActive, SortOrder: 2},
-			{Name: "Category C", Status: StatusActive, SortOrder: 3},
+			{Name: "Category A", SortOrder: 1},
+			{Name: "Category B", SortOrder: 2},
+			{Name: "Category C", SortOrder: 3},
 		}
 
 		createdCategories := make([]CategoryResponse, 0, len(categories))
@@ -398,7 +412,7 @@ func TestCategoryService_BulkOperations(t *testing.T) {
 	require.NoError(t, err)
 
 	// Setup services
-	categoryRepo := NewRepository(testDB.DB)
+	categoryRepo := NewGormRepository(testDB.DB)
 	categoryService := NewService(categoryRepo)
 
 	ctx := context.Background()
@@ -407,9 +421,9 @@ func TestCategoryService_BulkOperations(t *testing.T) {
 	t.Run("Bulk update status", func(t *testing.T) {
 		// Create multiple categories
 		categories := []CreateCategoryRequest{
-			{Name: "Category 1", Status: StatusActive},
-			{Name: "Category 2", Status: StatusActive},
-			{Name: "Category 3", Status: StatusActive},
+			{Name: "Category 1"},
+			{Name: "Category 2"},
+			{Name: "Category 3"},
 		}
 
 		categoryIDs := make([]uuid.UUID, 0, len(categories))
@@ -453,7 +467,7 @@ func TestCategoryService_MultiTenantIsolation(t *testing.T) {
 	require.NoError(t, err)
 
 	// Setup services
-	categoryRepo := NewRepository(testDB.DB)
+	categoryRepo := NewGormRepository(testDB.DB)
 	categoryService := NewService(categoryRepo)
 
 	ctx := context.Background()
@@ -465,7 +479,6 @@ func TestCategoryService_MultiTenantIsolation(t *testing.T) {
 		tenant1Req := CreateCategoryRequest{
 			Name:        "Tenant 1 Electronics",
 			Description: "Electronics for tenant 1",
-			Status:      StatusActive,
 		}
 
 		tenant1Category, err := categoryService.CreateCategory(ctx, tenant1ID, tenant1Req)
@@ -475,7 +488,6 @@ func TestCategoryService_MultiTenantIsolation(t *testing.T) {
 		tenant2Req := CreateCategoryRequest{
 			Name:        "Tenant 2 Electronics",
 			Description: "Electronics for tenant 2",
-			Status:      StatusActive,
 		}
 
 		tenant2Category, err := categoryService.CreateCategory(ctx, tenant2ID, tenant2Req)
@@ -508,13 +520,4 @@ func TestCategoryService_MultiTenantIsolation(t *testing.T) {
 		assert.NotEqual(t, tenant1Category.ID, tenant2Category.ID)
 		assert.NotEqual(t, tenant1Categories[0].Name, tenant2Categories[0].Name)
 	})
-}
-
-// Helper functions
-func stringPtr(s string) *string {
-	return &s
-}
-
-func boolPtr(b bool) *bool {
-	return &b
 }

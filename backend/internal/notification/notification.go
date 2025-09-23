@@ -90,10 +90,10 @@ type NotificationPreference struct {
 	TenantID     uuid.UUID `json:"tenant_id" gorm:"type:uuid;not null;index"`
 	UserID       uuid.UUID `json:"user_id" gorm:"type:uuid;not null;index"`
 	Channel      string    `json:"channel" gorm:"size:50;not null"` // order_updates, marketing, etc.
-	EmailEnabled bool      `json:"email_enabled" gorm:"default:true"`
-	SMSEnabled   bool      `json:"sms_enabled" gorm:"default:false"`
-	PushEnabled  bool      `json:"push_enabled" gorm:"default:true"`
-	InAppEnabled bool      `json:"in_app_enabled" gorm:"default:true"`
+	EmailEnabled bool      `json:"email_enabled"`
+	SMSEnabled   bool      `json:"sms_enabled"`
+	PushEnabled  bool      `json:"push_enabled"`
+	InAppEnabled bool      `json:"in_app_enabled"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
@@ -174,6 +174,7 @@ type SendSMSRequest struct {
 	Message    string                 `json:"message" validate:"required,max=160"`
 	Variables  map[string]interface{} `json:"variables,omitempty"`
 	TemplateID string                 `json:"template_id,omitempty"`
+	UserID     string                 `json:"user_id,omitempty"`
 }
 
 type NotificationStatsResponse struct {

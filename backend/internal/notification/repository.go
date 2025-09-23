@@ -22,8 +22,9 @@ type Repository interface {
 	ListTemplates(tenantID uuid.UUID, notificationType, channel string) ([]*NotificationTemplate, error)
 
 	// Preference operations
-	GetPreferences(tenantID, userID uuid.UUID) (*NotificationPreference, error)
+	GetPreferences(tenantID, userID uuid.UUID, channel string) (*NotificationPreference, error)
 	UpdatePreferences(preference *NotificationPreference) error
+	CreatePreferences(preference *NotificationPreference) error
 
 	// Log operations
 	CreateLog(log *NotificationLog) error
@@ -138,14 +139,18 @@ func (r *repository) ListTemplates(tenantID uuid.UUID, notificationType, channel
 }
 
 // Preference operations
-func (r *repository) GetPreferences(tenantID, userID uuid.UUID) (*NotificationPreference, error) {
+func (r *repository) GetPreferences(tenantID, userID uuid.UUID, channel string) (*NotificationPreference, error) {
 	var preference NotificationPreference
-	err := r.db.Where("tenant_id = ? AND user_id = ?", tenantID, userID).First(&preference).Error
+	err := r.db.Where("tenant_id = ? AND user_id = ? AND channel = ?", tenantID, userID, channel).First(&preference).Error
 	return &preference, err
 }
 
 func (r *repository) UpdatePreferences(preference *NotificationPreference) error {
 	return r.db.Save(preference).Error
+}
+
+func (r *repository) CreatePreferences(preference *NotificationPreference) error {
+	return r.db.Create(preference).Error
 }
 
 // Log operations
@@ -163,22 +168,32 @@ func (r *repository) GetLogs(notificationID uuid.UUID) ([]*NotificationLog, erro
 func (r *repository) GetNotificationStats(tenantID uuid.UUID) (map[string]int64, error) {
 	stats := make(map[string]int64)
 
-	// Use temporary variables to avoid taking address of map index expressions
-	var total, sent, delivered, failed, email, sms, push, inApp int64
-
-	// Total notifications
-	r.db.Model(&Notification{}).Where("tenant_id = ?", tenantID).Count(&total)
+	// Count total notifications
+	var total int64
+	if err := r.db.Model(&Notification{}).Where("tenant_id = ?", tenantID).Count(&total).Error; err != nil {
+		return nil, err
+	}
 	stats["total"] = total
 
-	// By status
-	r.db.Model(&Notification{}).Where("tenant_id = ? AND status = ?", tenantID, StatusSent).Count(&sent)
+	// Count by status
+	var sent, delivered, failed int64
+	if err := r.db.Model(&Notification{}).Where("tenant_id = ? AND status = ?", tenantID, StatusSent).Count(&sent).Error; err != nil {
+		return nil, err
+	}
 	stats["sent"] = sent
-	r.db.Model(&Notification{}).Where("tenant_id = ? AND status = ?", tenantID, StatusDelivered).Count(&delivered)
+
+	if err := r.db.Model(&Notification{}).Where("tenant_id = ? AND status = ?", tenantID, StatusDelivered).Count(&delivered).Error; err != nil {
+		return nil, err
+	}
 	stats["delivered"] = delivered
-	r.db.Model(&Notification{}).Where("tenant_id = ? AND status = ?", tenantID, StatusFailed).Count(&failed)
+
+	if err := r.db.Model(&Notification{}).Where("tenant_id = ? AND status = ?", tenantID, StatusFailed).Count(&failed).Error; err != nil {
+		return nil, err
+	}
 	stats["failed"] = failed
 
 	// By type
+	var email, sms, push, inApp int64
 	r.db.Model(&Notification{}).Where("tenant_id = ? AND type = ?", tenantID, TypeEmail).Count(&email)
 	stats["email"] = email
 	r.db.Model(&Notification{}).Where("tenant_id = ? AND type = ?", tenantID, TypeSMS).Count(&sms)

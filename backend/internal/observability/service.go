@@ -13,11 +13,11 @@ type ObservabilityService struct {
 	logger  Logger
 	metrics MetricsCollector
 	tracer  Tracer
-	repo    ObservabilityRepository
+	repo    Repository
 }
 
 // NewObservabilityService creates a new observability service
-func NewObservabilityService(logger Logger, metrics MetricsCollector, tracer Tracer, repo ObservabilityRepository) *ObservabilityService {
+func NewObservabilityService(logger Logger, metrics MetricsCollector, tracer Tracer, repo Repository) *ObservabilityService {
 	return &ObservabilityService{
 		logger:  logger,
 		metrics: metrics,

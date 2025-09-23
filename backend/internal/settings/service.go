@@ -101,6 +101,7 @@ func (s *service) UpdateSettings(ctx context.Context, tenantID uint, req *Update
 
 	updated := make([]string, 0)
 	updatedSettings := make(map[string]interface{})
+	updatedSections := make(map[string]bool)
 
 	// Process each section in the settings
 	for section, sectionData := range req.Settings {
@@ -178,7 +179,13 @@ func (s *service) UpdateSettings(ctx context.Context, tenantID uint, req *Update
 
 			updated = append(updated, fmt.Sprintf("%s.%s", section, key))
 			updatedSettings[fmt.Sprintf("%s.%s", section, key)] = value
+			updatedSections[section] = true
 		}
+	}
+
+	// Add section names to updated list
+	for section := range updatedSections {
+		updated = append(updated, section)
 	}
 
 	response := &UpdateSettingsResponse{

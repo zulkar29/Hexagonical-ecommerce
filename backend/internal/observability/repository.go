@@ -13,8 +13,8 @@ type observabilityRepository struct {
 	db *gorm.DB
 }
 
-// NewObservabilityRepository creates a new observability repository
-func NewObservabilityRepository(db *gorm.DB) ObservabilityRepository {
+// NewRepository creates a new observability repository
+func NewRepository(db *gorm.DB) Repository {
 	return &observabilityRepository{
 		db: db,
 	}

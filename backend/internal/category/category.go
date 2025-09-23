@@ -46,7 +46,7 @@ type Category struct {
 
 	// Features
 	IsFeatured   bool `json:"is_featured" gorm:"default:false"`
-	ShowInMenu   bool `json:"show_in_menu" gorm:"default:true"`
+	ShowInMenu   bool `json:"show_in_menu" gorm:"default:false"`
 	ProductCount int  `json:"product_count" gorm:"default:0"`
 
 	// Timestamps
@@ -137,7 +137,7 @@ func (c *Category) UpdatePath(parent *Category) {
 		c.Path = ""
 		c.Level = 0
 	} else {
-		c.Path = parent.GetFullPath()
+		c.Path = parent.Path + "/" + c.Slug
 		c.Level = parent.Level + 1
 	}
 }
@@ -155,8 +155,16 @@ func (c *Category) GenerateSlug() {
 	if c.Slug == "" {
 		c.Slug = strings.ToLower(strings.ReplaceAll(c.Name, " ", "-"))
 		// Remove special characters and clean up
-		c.Slug = strings.ReplaceAll(c.Slug, "&", "and")
+		c.Slug = strings.ReplaceAll(c.Slug, "&", "")
 		c.Slug = strings.ReplaceAll(c.Slug, "'", "")
+		
+		// Clean up multiple consecutive hyphens
+		for strings.Contains(c.Slug, "--") {
+			c.Slug = strings.ReplaceAll(c.Slug, "--", "-")
+		}
+		
+		// Trim leading and trailing hyphens
+		c.Slug = strings.Trim(c.Slug, "-")
 	}
 }
 

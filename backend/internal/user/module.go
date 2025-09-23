@@ -51,7 +51,7 @@ func (u *userAdapter) IsTwoFactorEnabled() bool {
 
 // Module represents the user module
 type Module struct {
-	Repository RepositoryInterface
+	Repository Repository
 	Service    *Service
 	Handler    *Handler
 }
@@ -86,6 +86,11 @@ func (m *Module) GetService() *Service {
 }
 
 // GetRepository returns the user repository
-func (m *Module) GetRepository() RepositoryInterface {
+func (m *Module) GetRepository() Repository {
 	return m.Repository
+}
+
+// GetSecurityRepository returns the security-compatible repository adapter
+func (m *Module) GetSecurityRepository() security.UserRepository {
+	return &userRepositoryAdapter{repo: m.Repository}
 }

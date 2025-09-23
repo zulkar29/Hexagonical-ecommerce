@@ -69,7 +69,10 @@ func TestNotificationService_NotificationLifecycle(t *testing.T) {
 		response, err := notificationService.SendNotification(tenantID, sendReq)
 		require.NoError(t, err)
 		assert.NotEmpty(t, response.NotificationIDs)
-		assert.Equal(t, "success", response.Status)
+		assert.Equal(t, "queued", response.Status)
+
+		// Wait for async notification processing to complete
+		time.Sleep(100 * time.Millisecond)
 
 		// Step 3: Verify notification was created
 		notificationID, err := uuid.Parse(response.NotificationIDs[0])
@@ -92,10 +95,14 @@ func TestNotificationService_NotificationLifecycle(t *testing.T) {
 		smsReq := &SendSMSRequest{
 			To:      []string{"+8801712345678"},
 			Message: "Your order has been shipped. Track: bit.ly/track123",
+			UserID:  userID.String(),
 		}
 
 		err := notificationService.SendSMS(tenantID, smsReq)
 		require.NoError(t, err)
+
+		// Wait for async notification processing to complete
+		time.Sleep(100 * time.Millisecond)
 
 		// Verify notification was created
 		notifications, _, err := notificationService.ListNotifications(tenantID, &userID, 0, 10)
@@ -244,8 +251,8 @@ func TestNotificationService_UserPreferences(t *testing.T) {
 	userID := uuid.New()
 
 	t.Run("Preference management", func(t *testing.T) {
-		// Get default preferences (should return defaults)
-		prefs, err := notificationService.GetPreferences(tenantID, userID)
+		// Get default preferences for marketing channel (should return defaults)
+		prefs, err := notificationService.GetPreferences(tenantID, userID, ChannelMarketing)
 		require.NoError(t, err)
 		// Default values should be set
 		assert.True(t, prefs.EmailEnabled) // Default
@@ -261,9 +268,10 @@ func TestNotificationService_UserPreferences(t *testing.T) {
 		err = notificationService.UpdatePreferences(tenantID, userID, marketingReq)
 		require.NoError(t, err)
 
-		// Verify update
-		updatedPrefs, err := notificationService.GetPreferences(tenantID, userID)
+		// Verify marketing channel update
+		updatedPrefs, err := notificationService.GetPreferences(tenantID, userID, ChannelMarketing)
 		require.NoError(t, err)
+		t.Logf("Marketing prefs: EmailEnabled=%v, SMSEnabled=%v", updatedPrefs.EmailEnabled, updatedPrefs.SMSEnabled)
 		assert.False(t, updatedPrefs.EmailEnabled)
 		assert.True(t, updatedPrefs.SMSEnabled)
 
@@ -278,9 +286,10 @@ func TestNotificationService_UserPreferences(t *testing.T) {
 		err = notificationService.UpdatePreferences(tenantID, userID, orderReq)
 		require.NoError(t, err)
 
-		// Verify order preferences
-		orderPrefs, err := notificationService.GetPreferences(tenantID, userID)
+		// Verify order confirmation channel preferences
+		orderPrefs, err := notificationService.GetPreferences(tenantID, userID, ChannelOrderConfirmation)
 		require.NoError(t, err)
+		t.Logf("Order prefs: EmailEnabled=%v, SMSEnabled=%v, PushEnabled=%v", orderPrefs.EmailEnabled, orderPrefs.SMSEnabled, orderPrefs.PushEnabled)
 		assert.True(t, orderPrefs.EmailEnabled)
 		assert.True(t, orderPrefs.SMSEnabled)
 		assert.False(t, orderPrefs.PushEnabled)
@@ -313,6 +322,7 @@ func TestNotificationService_Statistics(t *testing.T) {
 				Recipient: "test1@example.com",
 				Status:    StatusSent,
 				Content:   "Order confirmed",
+				Metadata:  "{}",
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			},
@@ -324,6 +334,7 @@ func TestNotificationService_Statistics(t *testing.T) {
 				Recipient: "test2@example.com",
 				Status:    StatusDelivered,
 				Content:   "Order confirmed",
+				Metadata:  "{}",
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			},
@@ -335,6 +346,7 @@ func TestNotificationService_Statistics(t *testing.T) {
 				Recipient: "+8801712345678",
 				Status:    StatusFailed,
 				Content:   "Shipped",
+				Metadata:  "{}",
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			},

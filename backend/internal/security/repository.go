@@ -8,8 +8,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// SecurityRepository defines the interface for security data operations
-type SecurityRepository interface {
+// Repository defines the interface for security data operations
+type Repository interface {
 	// Migration
 	Migrate() error
 
@@ -118,13 +118,13 @@ type IPThreatInfo struct {
 	LastSeen     time.Time `json:"last_seen"`
 }
 
-// gormSecurityRepository implements SecurityRepository using GORM
+// gormSecurityRepository implements Repository using GORM
 type gormSecurityRepository struct {
 	db *gorm.DB
 }
 
-// NewSecurityRepository creates a new security repository
-func NewSecurityRepository(db *gorm.DB) SecurityRepository {
+// NewRepository creates a new security repository
+func NewRepository(db *gorm.DB) Repository {
 	return &gormSecurityRepository{db: db}
 }
 

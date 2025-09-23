@@ -208,12 +208,14 @@ func TestReferralIntegration(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create test commission
+		commissionID := uuid.New()
+		subscriptionID := uuid.New()
 		commission := &ReferralCommission{
-			ID:                 uuid.New(),
+			ID:                 commissionID,
 			TenantID:           testTenant.ID,
 			ReferralID:         testReferral.ID,
 			ReferrerID:         referrer.ID,
-			SubscriptionID:     uuid.New(),
+			SubscriptionID:     &subscriptionID,
 			Amount:             25.00,
 			Currency:           "USD",
 			CommissionRate:     0.10,

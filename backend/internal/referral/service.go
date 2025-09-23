@@ -66,7 +66,21 @@ func NewService(repo Repository) Service {
 
 // GenerateReferralCode generates a new referral code for a user
 func (s *ServiceImpl) GenerateReferralCode(ctx context.Context, tenantID, referrerID uuid.UUID, commissionRate float64, expiresAt *time.Time) (*Referral, error) {
-	return s.CreateAffiliateAccount(ctx, tenantID, referrerID, AffiliateTypeCustomer, commissionRate, 50.0)
+	referral, err := s.CreateAffiliateAccount(ctx, tenantID, referrerID, AffiliateTypeCustomer, commissionRate, 50.0)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set expiration date if provided
+	if expiresAt != nil {
+		referral.ExpiresAt = expiresAt
+		err = s.repo.UpdateReferral(ctx, referral)
+		if err != nil {
+			return nil, fmt.Errorf("failed to update referral expiration: %w", err)
+		}
+	}
+
+	return referral, nil
 }
 
 // CreateAffiliateAccount creates a new affiliate account with specific type and settings

@@ -7,11 +7,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// Repository is an alias for RepositoryInterface for backward compatibility
-type Repository = RepositoryInterface
-
-// RepositoryInterface defines user repository interface
-type RepositoryInterface interface {
+// Repository defines user repository interface
+type Repository interface {
 	// User CRUD operations
 	CreateUser(ctx context.Context, user *User) (*User, error)
 	GetUserByID(ctx context.Context, userID uuid.UUID) (*User, error)
@@ -235,6 +232,15 @@ func (r *repository) UpdateUserPreferences(ctx context.Context, userID uuid.UUID
 // GetByID is an alias for GetUserByID for compatibility
 func (r *repository) GetByID(ctx context.Context, userID uuid.UUID) (*User, error) {
 	return r.GetUserByID(ctx, userID)
+}
+
+// GetUserByIDForSecurity returns user as interface for security module compatibility
+func (r *repository) GetUserByIDForSecurity(ctx context.Context, userID uuid.UUID) (interface{}, error) {
+	user, err := r.GetUserByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
 // UpdateUser2FA updates the two-factor authentication status for a user

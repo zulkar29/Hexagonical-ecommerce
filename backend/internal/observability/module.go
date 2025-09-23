@@ -7,15 +7,18 @@ import (
 
 // Module represents the observability module
 type Module struct {
-	handler    *ObservabilityHandler
+	logger     Logger
+	metrics    MetricsCollector
+	racer     Tracer
+	repository Repository
 	service    *ObservabilityService
-	repository ObservabilityRepository
+	handler    *ObservabilityHandler
 }
 
 // NewModule creates a new observability module
 func NewModule(db *gorm.DB) *Module {
 	// Initialize repository
-	repo := NewObservabilityRepository(db)
+	repo := NewRepository(db)
 
 	// Initialize service (needs logger, metrics, tracer)
 	// Initialize logger, metrics, and tracer
@@ -50,6 +53,12 @@ func (m *Module) GetService() *ObservabilityService {
 }
 
 // GetRepository returns the observability repository
-func (m *Module) GetRepository() ObservabilityRepository {
+func (m *Module) GetRepository() Repository {
 	return m.repository
+}
+
+// Migrate runs database migrations for observability module
+func (m *Module) Migrate() error {
+	// No migrations needed for observability module
+	return nil
 }

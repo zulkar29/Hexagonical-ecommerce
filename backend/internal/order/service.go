@@ -497,7 +497,7 @@ func (s *Service) ProcessPayment(tenantID uuid.UUID, orderID string) (*Order, er
 }
 
 // RefundOrder processes a refund for an order
-func (s *Service) RefundOrder(ctx context.Context, tenantID, orderID uuid.UUID, paymentID string, amount float64, reason string) (*Payment, error) {
+func (s *Service) RefundOrder(ctx context.Context, tenantID, orderID uuid.UUID, paymentID string, amount float64, reason string) (*payment.Payment, error) {
 	// Get order
 	order, err := s.repository.GetOrderByID(tenantID, orderID)
 	if err != nil {
@@ -548,7 +548,7 @@ func (s *Service) RefundOrder(ctx context.Context, tenantID, orderID uuid.UUID, 
 	}
 
 	// Create a payment response for the refund
-	payment := &Payment{
+	paymentResult := &payment.Payment{
 		ID:       uuid.New(),
 		TenantID: tenantID,
 		OrderID:  orderID,
@@ -556,7 +556,7 @@ func (s *Service) RefundOrder(ctx context.Context, tenantID, orderID uuid.UUID, 
 		Status:   "refunded",
 	}
 
-	return payment, nil
+	return paymentResult, nil
 }
 
 // GetCustomerOrders retrieves orders for a specific customer

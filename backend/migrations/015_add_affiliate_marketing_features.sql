@@ -12,8 +12,7 @@ ALTER TABLE referral_commissions ADD COLUMN IF NOT EXISTS order_amount DECIMAL(1
 ALTER TABLE referral_commissions ADD COLUMN IF NOT EXISTS conversion_type VARCHAR(20) DEFAULT 'order' CHECK (conversion_type IN ('order', 'subscription', 'signup'));
 ALTER TABLE referral_commissions ADD COLUMN IF NOT EXISTS click_data JSONB DEFAULT '{}';
 
--- Make subscription_id nullable since we now support order commissions too
-ALTER TABLE referral_commissions ALTER COLUMN subscription_id DROP NOT NULL;
+-- Note: referral_commissions table already supports order commissions via order_id column
 
 -- Create affiliate_clicks table for detailed click tracking
 CREATE TABLE IF NOT EXISTS affiliate_clicks (

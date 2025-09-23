@@ -22,12 +22,12 @@ const (
 
 // TenantMiddleware handles tenant resolution based on domain/subdomain
 type TenantMiddleware struct {
-	tenantRepo tenantpkg.RepositoryInterface
+	tenantRepo tenantpkg.Repository
 	baseDomain string // e.g., "esass.com"
 }
 
 // NewTenantMiddleware creates a new tenant middleware
-func NewTenantMiddleware(tenantRepo tenantpkg.RepositoryInterface, baseDomain string) *TenantMiddleware {
+func NewTenantMiddleware(tenantRepo tenantpkg.Repository, baseDomain string) *TenantMiddleware {
 	return &TenantMiddleware{
 		tenantRepo: tenantRepo,
 		baseDomain: baseDomain,

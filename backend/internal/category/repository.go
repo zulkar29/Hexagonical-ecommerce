@@ -120,7 +120,6 @@ func (r *GormRepository) Delete(ctx context.Context, tenantID, categoryID uuid.U
 // List returns categories with filtering and pagination
 func (r *GormRepository) List(ctx context.Context, tenantID uuid.UUID, filter CategoryFilter, limit, offset int) ([]Category, error) {
 	var categories []Category
-
 	query := r.db.WithContext(ctx).
 		Preload("Parent").
 		Where("tenant_id = ?", tenantID)

@@ -5,11 +5,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// Repository is an alias for RepositoryInterface for backward compatibility
-type Repository = RepositoryInterface
-
-// RepositoryInterface defines the product repository interface
-type RepositoryInterface interface {
+// Repository defines the product repository interface
+type Repository interface {
 	// Product operations
 	CreateProduct(product *Product) (*Product, error)
 	GetProductByID(tenantID, productID uuid.UUID) (*Product, error)
@@ -54,7 +51,7 @@ type repository struct {
 }
 
 // NewRepository creates a new product repository
-func NewRepository(db *gorm.DB) RepositoryInterface {
+func NewRepository(db *gorm.DB) Repository {
 	return &repository{
 		db: db,
 	}

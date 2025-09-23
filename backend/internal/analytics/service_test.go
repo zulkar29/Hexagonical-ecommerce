@@ -458,7 +458,7 @@ func TestAnalyticsService_RealTimeAnalytics(t *testing.T) {
 	defer testDB.TeardownTestDatabase(t)
 
 	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&AnalyticsEvent{}, &PageView{})
+	err := testDB.DB.AutoMigrate(&AnalyticsEvent{}, &PageView{}, &Purchase{})
 	require.NoError(t, err)
 
 	// Setup services

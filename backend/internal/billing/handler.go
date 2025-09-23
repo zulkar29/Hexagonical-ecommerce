@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"ecommerce-saas/internal/payment"
 	"ecommerce-saas/internal/shared/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -102,14 +103,8 @@ type RecordUsageRequest struct {
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
-type ProcessPaymentRequest struct {
-	PaymentMethodID string `json:"payment_method_id" binding:"required"`
-}
-
-type RefundPaymentRequest struct {
-	Amount float64 `json:"amount" binding:"required"`
-	Reason string  `json:"reason" binding:"required"`
-}
+// ProcessPaymentRequest and RefundPaymentRequest are now imported from the payment module
+// Use payment.ProcessPaymentRequest and payment.RefundPaymentRequest
 
 type CreateBillingPlanRequest struct {
 	Name            string                   `json:"name" binding:"required"`
@@ -618,13 +613,13 @@ func (h *BillingHandler) ProcessPayment(c *gin.Context) {
 		return
 	}
 
-	var req ProcessPaymentRequest
+	var req payment.ProcessPaymentRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return
 	}
 
-	attempt, err := h.service.ProcessPayment(c.Request.Context(), invoiceID, req.PaymentMethodID)
+	attempt, err := h.service.ProcessPayment(c.Request.Context(), invoiceID, req.PaymentID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -641,7 +636,7 @@ func (h *BillingHandler) RefundPayment(c *gin.Context) {
 		return
 	}
 
-	var req RefundPaymentRequest
+	var req payment.RefundPaymentRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
 		return

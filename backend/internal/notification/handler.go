@@ -272,7 +272,13 @@ func (h *Handler) GetPreferences(c *gin.Context) {
 		return
 	}
 
-	preferences, err := h.service.GetPreferences(tenantID.(uuid.UUID), userID.(uuid.UUID))
+	channel := c.Query("channel")
+	if channel == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Channel parameter is required"})
+		return
+	}
+
+	preferences, err := h.service.GetPreferences(tenantID.(uuid.UUID), userID.(uuid.UUID), channel)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Preferences not found"})
 		return

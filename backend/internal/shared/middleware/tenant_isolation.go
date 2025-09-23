@@ -15,7 +15,7 @@ import (
 // TenantIsolationMiddleware provides comprehensive tenant isolation and validation
 type TenantIsolationMiddleware struct {
 	db         *gorm.DB
-	tenantRepo tenant.RepositoryInterface
+	tenantRepo tenant.Repository
 	baseDomain string
 }
 

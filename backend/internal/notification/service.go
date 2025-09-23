@@ -3,6 +3,7 @@ package notification
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/go-playground/validator/v10"
+	"gorm.io/gorm"
 )
 
 type Service interface {
@@ -29,7 +31,7 @@ type Service interface {
 	ListTemplates(tenantID uuid.UUID, notificationType, channel string) ([]*NotificationTemplate, error)
 	
 	// Preferences
-	GetPreferences(tenantID, userID uuid.UUID) (*NotificationPreference, error)
+	GetPreferences(tenantID, userID uuid.UUID, channel string) (*NotificationPreference, error)
 	UpdatePreferences(tenantID, userID uuid.UUID, req *NotificationPreferenceRequest) error
 	
 	// Stats
@@ -105,6 +107,7 @@ func (s *service) SendNotification(tenantID uuid.UUID, req *SendNotificationRequ
 			Status:      StatusPending,
 			Priority:    req.Priority,
 			ScheduledAt: req.ScheduledAt,
+			Metadata:    "{}", // Initialize as empty JSON object
 		}
 
 		if req.UserID != "" {
@@ -115,6 +118,7 @@ func (s *service) SendNotification(tenantID uuid.UUID, req *SendNotificationRequ
 		}
 
 		if err := s.repository.Create(notification); err != nil {
+			log.Printf("Failed to create notification: %v", err)
 			continue // Log error but continue with other notifications
 		}
 
@@ -371,6 +375,7 @@ func (s *service) SendSMS(tenantID uuid.UUID, req *SendSMSRequest) error {
 		Content:    req.Message,
 		Variables:  req.Variables,
 		TemplateID: req.TemplateID,
+		UserID:     req.UserID,
 	}
 
 	_, err := s.SendNotification(tenantID, sendReq)
@@ -416,8 +421,13 @@ func (s *service) CreateTemplate(tenantID uuid.UUID, req *CreateTemplateRequest)
 		IsActive: true,
 	}
 
-	variablesJSON, _ := json.Marshal(req.Variables)
-	template.Variables = string(variablesJSON)
+	// Handle Variables field - ensure it's never null
+	if req.Variables == nil {
+		template.Variables = "{}"
+	} else {
+		variablesJSON, _ := json.Marshal(req.Variables)
+		template.Variables = string(variablesJSON)
+	}
 
 	if err := s.repository.CreateTemplate(template); err != nil {
 		return nil, fmt.Errorf("failed to create template: %w", err)
@@ -470,21 +480,51 @@ func (s *service) ListTemplates(tenantID uuid.UUID, notificationType, channel st
 	return s.repository.ListTemplates(tenantID, notificationType, channel)
 }
 
-func (s *service) GetPreferences(tenantID, userID uuid.UUID) (*NotificationPreference, error) {
-	return s.repository.GetPreferences(tenantID, userID)
+func (s *service) GetPreferences(tenantID, userID uuid.UUID, channel string) (*NotificationPreference, error) {
+	preference, err := s.repository.GetPreferences(tenantID, userID, channel)
+	if err != nil {
+		// Return default preferences if not found
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return &NotificationPreference{
+				TenantID:     tenantID,
+				UserID:       userID,
+				Channel:      channel,
+				EmailEnabled: true,  // Default to enabled
+				SMSEnabled:   false, // Default to disabled
+				PushEnabled:  true,  // Default to enabled
+				InAppEnabled: true,  // Default to enabled
+			}, nil
+		}
+		return nil, err
+	}
+	return preference, nil
 }
 
 func (s *service) UpdatePreferences(tenantID, userID uuid.UUID, req *NotificationPreferenceRequest) error {
-	preference, err := s.repository.GetPreferences(tenantID, userID)
+	// Check if preference exists for this channel
+	preference, err := s.repository.GetPreferences(tenantID, userID, req.Channel)
+	isNewRecord := false
 	if err != nil {
-		// Create new preference if not exists
-		preference = &NotificationPreference{
-			TenantID: tenantID,
-			UserID:   userID,
-			Channel:  req.Channel,
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// Create new preference for this channel
+			isNewRecord = true
+			preference = &NotificationPreference{
+				ID:           uuid.New(),
+				TenantID:     tenantID,
+				UserID:       userID,
+				Channel:      req.Channel,
+				EmailEnabled: true,  // Default values
+				SMSEnabled:   false,
+				PushEnabled:  true,
+				InAppEnabled: true,
+				CreatedAt:    time.Now(),
+			}
+		} else {
+			return err
 		}
 	}
 
+	// Update preferences based on request
 	if req.EmailEnabled != nil {
 		preference.EmailEnabled = *req.EmailEnabled
 	}
@@ -498,7 +538,14 @@ func (s *service) UpdatePreferences(tenantID, userID uuid.UUID, req *Notificatio
 		preference.InAppEnabled = *req.InAppEnabled
 	}
 
-	return s.repository.UpdatePreferences(preference)
+	preference.UpdatedAt = time.Now()
+
+	// Save preference
+	if isNewRecord {
+		return s.repository.CreatePreferences(preference)
+	} else {
+		return s.repository.UpdatePreferences(preference)
+	}
 }
 
 func (s *service) GetStats(tenantID uuid.UUID) (*NotificationStatsResponse, error) {
@@ -509,7 +556,7 @@ func (s *service) GetStats(tenantID uuid.UUID) (*NotificationStatsResponse, erro
 
 	// Convert map to structured response
 	stats := &NotificationStatsResponse{
-		TotalSent:      statsMap["sent"],
+		TotalSent:      statsMap["sent"] + statsMap["delivered"], // sent + delivered
 		TotalDelivered: statsMap["delivered"],
 		TotalFailed:    statsMap["failed"],
 	}

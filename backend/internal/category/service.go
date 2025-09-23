@@ -140,8 +140,23 @@ func (s *ServiceImpl) UpdateCategory(ctx context.Context, tenantID, categoryID u
 		return nil, err
 	}
 
+	// Store original slug for comparison
+	originalSlug := category.Slug
+
 	// Update fields
 	s.updateCategoryFields(category, req)
+
+	// If slug was regenerated (name changed but no explicit slug), validate uniqueness
+	if req.Name != "" && req.Slug == "" && category.Slug != originalSlug {
+		if err := s.ValidateSlug(ctx, tenantID, category.Slug, &categoryID); err != nil {
+			// If slug is not unique, generate a unique one
+			uniqueSlug, genErr := s.GenerateUniqueSlug(ctx, tenantID, req.Name, &categoryID)
+			if genErr != nil {
+				return nil, genErr
+			}
+			category.Slug = uniqueSlug
+		}
+	}
 
 	// Handle parent change
 	if req.ParentID != nil && (category.ParentID == nil || *category.ParentID != *req.ParentID) {
@@ -454,6 +469,10 @@ func (s *ServiceImpl) validateUpdateRequest(ctx context.Context, tenantID, categ
 func (s *ServiceImpl) updateCategoryFields(category *Category, req UpdateCategoryRequest) {
 	if req.Name != "" {
 		category.Name = req.Name
+		// If name is updated but no slug provided, regenerate slug
+		if req.Slug == "" {
+			category.Slug = s.generateSlugFromName(req.Name)
+		}
 	}
 	if req.Slug != "" {
 		category.Slug = req.Slug
@@ -497,7 +516,7 @@ func (s *ServiceImpl) updateCategoryFields(category *Category, req UpdateCategor
 func (s *ServiceImpl) setHierarchyInfo(ctx context.Context, tenantID uuid.UUID, category *Category) error {
 	if category.ParentID == nil {
 		category.Level = 0
-		category.Path = ""
+		category.Path = "/" + category.Slug
 		return nil
 	}
 
@@ -520,7 +539,7 @@ func (s *ServiceImpl) updateChildrenPaths(ctx context.Context, tenantID uuid.UUI
 func (s *ServiceImpl) generateSlugFromName(name string) string {
 	slug := strings.ToLower(name)
 	slug = strings.ReplaceAll(slug, " ", "-")
-	slug = strings.ReplaceAll(slug, "&", "and")
+	slug = strings.ReplaceAll(slug, "&", "")
 	slug = strings.ReplaceAll(slug, "'", "")
 
 	// Remove special characters (keep only alphanumeric and hyphens)
@@ -531,7 +550,17 @@ func (s *ServiceImpl) generateSlugFromName(name string) string {
 		}
 	}
 
-	return result.String()
+	slug = result.String()
+
+	// Clean up multiple consecutive hyphens
+	for strings.Contains(slug, "--") {
+		slug = strings.ReplaceAll(slug, "--", "-")
+	}
+
+	// Trim leading and trailing hyphens
+	slug = strings.Trim(slug, "-")
+
+	return slug
 }
 
 // buildCategoryResponse builds category response

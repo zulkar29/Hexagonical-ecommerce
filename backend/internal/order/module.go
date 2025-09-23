@@ -77,57 +77,8 @@ type SendSMSRequest struct {
 	TemplateID string                 `json:"template_id,omitempty"`
 }
 
-// Payment related structs
-type CreatePaymentRequest struct {
-	OrderID         string  `json:"order_id" validate:"required"`
-	Amount          float64 `json:"amount" validate:"required,min=0.01"`
-	Currency        string  `json:"currency" validate:"required,len=3"`
-	Gateway         string  `json:"gateway" validate:"required"`
-	PaymentMethodID string  `json:"payment_method_id,omitempty"`
-	CustomerEmail   string  `json:"customer_email" validate:"required,email"`
-	CustomerPhone   string  `json:"customer_phone,omitempty"`
-	ReturnURL       string  `json:"return_url,omitempty"`
-}
-
-type CreatePaymentResponse struct {
-	PaymentID      string `json:"payment_id"`
-	Status         string `json:"status"`
-	PaymentURL     string `json:"payment_url,omitempty"`
-	SessionKey     string `json:"session_key,omitempty"`
-	GatewayPageURL string `json:"gateway_page_url,omitempty"`
-}
-
-type ProcessPaymentRequest struct {
-	PaymentID       string                 `json:"payment_id" validate:"required"`
-	Gateway         string                 `json:"gateway" validate:"required"`
-	GatewayResponse map[string]interface{} `json:"gateway_response"`
-}
-
-type RefundPaymentRequest struct {
-	PaymentID string  `json:"payment_id" validate:"required"`
-	Amount    float64 `json:"amount" validate:"required,min=0.01"`
-	Reason    string  `json:"reason,omitempty"`
-}
-
-type Payment struct {
-	ID              uuid.UUID  `json:"id"`
-	TenantID        uuid.UUID  `json:"tenant_id"`
-	OrderID         uuid.UUID  `json:"order_id"`
-	UserID          uuid.UUID  `json:"user_id"`
-	PaymentIntentID string     `json:"payment_intent_id"`
-	PaymentMethodID string     `json:"payment_method_id"`
-	Amount          float64    `json:"amount"`
-	Currency        string     `json:"currency"`
-	Status          string     `json:"status"`
-	Gateway         string     `json:"gateway"`
-	GatewayResponse string     `json:"gateway_response"`
-	FailureReason   string     `json:"failure_reason"`
-	RefundedAmount  float64    `json:"refunded_amount"`
-	RefundedAt      *time.Time `json:"refunded_at"`
-	ProcessedAt     *time.Time `json:"processed_at"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
-}
+// Payment related structs are now imported from the payment module
+// Use payment.CreatePaymentRequest, payment.CreatePaymentResponse, etc.
 
 // Discount-related structs for order integration
 type ValidateDiscountRequest struct {
@@ -169,7 +120,7 @@ type DiscountApplication struct {
 
 // Module represents the order module
 type Module struct {
-	Repository RepositoryInterface
+	Repository Repository
 	Service    *Service
 	Handler    *Handler
 }
@@ -207,6 +158,6 @@ func (m *Module) GetService() *Service {
 }
 
 // GetRepository returns the order repository for direct database access
-func (m *Module) GetRepository() RepositoryInterface {
+func (m *Module) GetRepository() Repository {
 	return m.Repository
 }

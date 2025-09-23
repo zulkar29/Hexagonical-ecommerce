@@ -9,8 +9,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// BillingRepository defines the interface for billing data operations
-type BillingRepository interface {
+// Repository defines the interface for billing data operations
+type Repository interface {
 	// Billing Plans
 	CreateBillingPlan(ctx context.Context, plan *BillingPlan) error
 	GetBillingPlan(ctx context.Context, planID uuid.UUID) (*BillingPlan, error)
@@ -194,22 +194,14 @@ type PaymentMetrics struct {
 	DunningRecoveryRate  float64          `json:"dunning_recovery_rate"`
 }
 
-// gormBillingRepository implements BillingRepository using GORM
+// gormBillingRepository implements Repository using GORM
 type gormBillingRepository struct {
 	db *gorm.DB
 }
 
-// NewBillingRepository creates a new billing repository
-func NewBillingRepository(db *gorm.DB) BillingRepository {
-	return &gormBillingRepository{db: db}
-}
-
-// Repository is an alias for BillingRepository
-type Repository = BillingRepository
-
-// NewRepository creates a new repository (alias for NewBillingRepository)
+// NewRepository creates a new billing repository
 func NewRepository(db *gorm.DB) Repository {
-	return NewBillingRepository(db)
+	return &gormBillingRepository{db: db}
 }
 
 // Transaction implementation

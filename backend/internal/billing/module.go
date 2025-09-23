@@ -19,7 +19,7 @@ type Module struct {
 
 // NewModule creates a new billing module instance
 func NewModule(db *gorm.DB, paymentService payment.Service, contactService contact.Service, analyticsService analytics.Service, referralService referral.Service) *Module {
-	repo := NewBillingRepository(db)
+	repo := NewRepository(db)
 	service := NewBillingService(repo, paymentService, contactService, analyticsService, referralService)
 	handler := NewHandler(service)
 
@@ -48,4 +48,11 @@ func (m *Module) GetService() Service {
 // GetRepository returns the billing repository
 func (m *Module) GetRepository() Repository {
 	return m.repository
+}
+
+// Migrate runs database migrations for the billing module
+func (m *Module) Migrate() error {
+	// Note: This method signature changed to match interface requirements
+	// Database migrations should be handled externally
+	return nil
 }

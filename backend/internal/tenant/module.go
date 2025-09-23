@@ -6,8 +6,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// RepositoryInterface defines the contract for tenant data operations
-type RepositoryInterface interface {
+// Repository defines the contract for tenant data operations
+type Repository interface {
 	Save(tenant *Tenant) (*Tenant, error)
 	FindByID(id uuid.UUID) (*Tenant, error)
 	FindBySubdomain(subdomain string) (*Tenant, error)
@@ -48,7 +48,7 @@ type ServiceInterface interface {
 
 // Module represents the tenant module
 type Module struct {
-	Repository RepositoryInterface
+	Repository Repository
 	Service    ServiceInterface
 	Handler    *Handler
 }

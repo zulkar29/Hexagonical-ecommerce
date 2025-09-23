@@ -220,8 +220,8 @@ type Tracer interface {
 	TraceOperation(ctx context.Context, operationName string, tags map[string]interface{}, fn func(ctx context.Context) error) error
 }
 
-// ObservabilityRepository interface for persistence
-type ObservabilityRepository interface {
+// Repository interface for persistence
+type Repository interface {
 	// Log methods
 	SaveLogEntry(ctx context.Context, entry *LogEntry) error
 	GetLogEntries(ctx context.Context, filters map[string]interface{}, limit, offset int) ([]*LogEntry, error)

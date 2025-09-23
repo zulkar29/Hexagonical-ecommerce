@@ -20,7 +20,7 @@ func TestBillingService_BillingPlanManagement(t *testing.T) {
 	defer testDB.TeardownTestDatabase(t)
 
 	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&BillingPlan{}, &TenantSubscription{}, &UsageTier{})
+	err := testDB.DB.AutoMigrate(&BillingPlan{}, &TenantSubscription{}, &UsageTier{}, &UsageRecord{}, &Invoice{}, &InvoiceLineItem{}, &PaymentAttempt{}, &DunningProcess{}, &DunningAction{})
 	require.NoError(t, err)
 
 	// Setup services
@@ -97,7 +97,7 @@ func TestBillingService_SubscriptionManagement(t *testing.T) {
 	defer testDB.TeardownTestDatabase(t)
 
 	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&BillingPlan{}, &TenantSubscription{})
+	err := testDB.DB.AutoMigrate(&BillingPlan{}, &TenantSubscription{}, &UsageTier{}, &UsageRecord{}, &Invoice{}, &InvoiceLineItem{}, &PaymentAttempt{}, &DunningProcess{}, &DunningAction{})
 	require.NoError(t, err)
 
 	// Setup services
@@ -161,7 +161,7 @@ func TestBillingService_UsageTracking(t *testing.T) {
 	defer testDB.TeardownTestDatabase(t)
 
 	// Migrate schemas for usage tracking
-	err := testDB.DB.AutoMigrate(&BillingPlan{}, &TenantSubscription{}, &UsageTier{})
+	err := testDB.DB.AutoMigrate(&BillingPlan{}, &TenantSubscription{}, &UsageTier{}, &UsageRecord{}, &Invoice{}, &InvoiceLineItem{}, &PaymentAttempt{}, &DunningProcess{}, &DunningAction{})
 	require.NoError(t, err)
 
 	// Setup services
@@ -233,7 +233,7 @@ func TestBillingService_MultiTenantIsolation(t *testing.T) {
 	defer testDB.TeardownTestDatabase(t)
 
 	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&BillingPlan{}, &TenantSubscription{})
+	err := testDB.DB.AutoMigrate(&BillingPlan{}, &TenantSubscription{}, &UsageTier{}, &UsageRecord{}, &Invoice{}, &InvoiceLineItem{}, &PaymentAttempt{}, &DunningProcess{}, &DunningAction{})
 	require.NoError(t, err)
 
 	// Setup services

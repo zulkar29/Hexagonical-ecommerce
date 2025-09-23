@@ -62,13 +62,25 @@ func createMigrationTable(db *gorm.DB) error {
 
 // getMigrationFiles returns a sorted list of migration files
 func getMigrationFiles() ([]string, error) {
-	migrationDir := "./migrations"
-	if _, err := os.Stat(migrationDir); os.IsNotExist(err) {
-		// Try relative path from backend directory
-		migrationDir = "../migrations"
-		if _, err := os.Stat(migrationDir); os.IsNotExist(err) {
-			return nil, fmt.Errorf("migration directory not found")
+	// Try multiple possible migration directory paths
+	migrationPaths := []string{
+		"./migrations",                    // From backend root
+		"../migrations",                  // From subdirectory
+		"../../migrations",               // From deeper subdirectory
+		"../../../migrations",            // From even deeper subdirectory
+		"../../../../migrations",         // From very deep subdirectory
+	}
+	
+	var migrationDir string
+	for _, path := range migrationPaths {
+		if _, err := os.Stat(path); err == nil {
+			migrationDir = path
+			break
 		}
+	}
+	
+	if migrationDir == "" {
+		return nil, fmt.Errorf("migration directory not found")
 	}
 
 	files, err := os.ReadDir(migrationDir)

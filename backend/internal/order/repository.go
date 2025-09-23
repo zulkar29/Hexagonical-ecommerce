@@ -9,11 +9,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// Repository is an alias for RepositoryInterface for backward compatibility
-type Repository = RepositoryInterface
-
-// RepositoryInterface defines the order repository interface
-type RepositoryInterface interface {
+// Repository defines the order repository interface
+type Repository interface {
 	// Order operations
 	CreateOrder(order *Order) (*Order, error)
 	GetOrderByID(tenantID, orderID uuid.UUID) (*Order, error)

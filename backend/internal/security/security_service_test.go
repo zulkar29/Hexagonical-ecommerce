@@ -31,7 +31,7 @@ func TestSecurityIntegrationSecurityLifecycle(t *testing.T) {
 	require.NoError(t, err)
 
 	// Setup repository
-	repo := NewSecurityRepository(testDB.DB)
+	repo := NewRepository(testDB.DB)
 
 	t.Run("Password policy lifecycle", func(t *testing.T) {
 		tenantID := uuid.New()

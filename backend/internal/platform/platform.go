@@ -29,7 +29,7 @@ type PlatformAdmin struct {
 	Name        string    `json:"name" gorm:"not null"`
 	Password    string    `json:"-" gorm:"not null"`
 	Role        string    `json:"role" gorm:"not null"` // super_admin, platform_admin, support
-	Permissions []string  `json:"permissions" gorm:"type:text[]"`
+	Permissions []string  `json:"permissions" gorm:"serializer:json"` // Use JSON serializer instead of text[]
 	Status      string    `json:"status" gorm:"default:'active'"` // active, inactive, suspended
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -40,7 +40,7 @@ type PlatformRole struct {
 	ID          uuid.UUID `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
 	Name        string    `json:"name" gorm:"unique;not null"`
 	Description string    `json:"description"`
-	Permissions []string  `json:"permissions" gorm:"type:text[]"`
+	Permissions []string  `json:"permissions" gorm:"serializer:json"` // Use JSON serializer instead of text[]
 	IsSystem    bool      `json:"is_system" gorm:"default:false"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`

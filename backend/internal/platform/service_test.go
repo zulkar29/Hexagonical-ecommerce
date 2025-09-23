@@ -15,13 +15,11 @@ import (
 // Integration tests for platform service - critical for SaaS management
 
 func TestPlatformService_PlatformAdminManagement(t *testing.T) {
-	// Setup test database
-	testDB := testhelpers.SetupSimpleTestDatabase(t)
+	// Setup test database with migrations
+	testDB := testhelpers.SetupTestDatabaseWithOptions(t, testhelpers.TestDatabaseOptions{
+		RunMigrations: true,
+	})
 	defer testDB.TeardownTestDatabase(t)
-
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&PlatformAdmin{}, &PlatformRole{})
-	require.NoError(t, err)
 
 	// Setup services
 	platformRepo := NewRepository(testDB.DB)
@@ -130,13 +128,11 @@ func TestPlatformService_PlatformAdminManagement(t *testing.T) {
 }
 
 func TestPlatformService_PlatformRoleManagement(t *testing.T) {
-	// Setup test database
-	testDB := testhelpers.SetupSimpleTestDatabase(t)
+	// Setup test database with migrations
+	testDB := testhelpers.SetupTestDatabaseWithOptions(t, testhelpers.TestDatabaseOptions{
+		RunMigrations: true,
+	})
 	defer testDB.TeardownTestDatabase(t)
-
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&PlatformRole{})
-	require.NoError(t, err)
 
 	// Setup services
 	platformRepo := NewRepository(testDB.DB)
@@ -205,8 +201,8 @@ func TestPlatformService_PlatformRoleManagement(t *testing.T) {
 }
 
 func TestPlatformService_PlatformStats(t *testing.T) {
-	// Setup test database
-	testDB := testhelpers.SetupSimpleTestDatabase(t)
+	// Setup test database with migrations
+	testDB := testhelpers.SetupTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
 	// Seed test data

@@ -188,7 +188,7 @@ type ChurnAnalysis struct {
 
 // service implements BillingService
 type service struct {
-	repo             BillingRepository
+	repo             Repository
 	paymentService   payment.Service
 	contactService   contact.Service
 	analyticsService analytics.Service
@@ -199,7 +199,7 @@ type service struct {
 type Service = BillingService
 
 // NewBillingService creates a new billing service
-func NewBillingService(repo BillingRepository, paymentService payment.Service, contactService contact.Service, analyticsService analytics.Service, referralService referral.Service) BillingService {
+func NewBillingService(repo Repository, paymentService payment.Service, contactService contact.Service, analyticsService analytics.Service, referralService referral.Service) BillingService {
 	return &service{
 		repo:             repo,
 		paymentService:   paymentService,
@@ -487,9 +487,9 @@ func (s *service) CancelSubscription(ctx context.Context, tenantID uuid.UUID, re
 		subscription.Status = SubscriptionStatusCanceled
 		subscription.CurrentPeriodEnd = now
 	} else {
-		// Cancel at end of current period
-		subscription.Status = SubscriptionStatusActive // Keep active until period end
-		// The status will be updated to canceled when the period ends
+		// Cancel at end of current period - mark as canceled but keep service active until period end
+		subscription.Status = SubscriptionStatusCanceled
+		// Service remains active until CurrentPeriodEnd
 	}
 
 	err = s.repo.UpdateSubscription(ctx, subscription)

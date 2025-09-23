@@ -130,6 +130,8 @@ func (s *service) CreatePlatformAdmin(ctx context.Context, req *CreatePlatformAd
 
 	if req.Permissions != nil {
 		admin.Permissions = req.Permissions
+	} else {
+		admin.Permissions = []string{} // Initialize empty permissions array
 	}
 
 	createdAdmin, err := s.repo.CreatePlatformAdmin(ctx, admin)
