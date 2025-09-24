@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+
+	sharedErrors "ecommerce-saas/internal/shared/errors"
 )
 
 type DateRange struct {
@@ -212,10 +215,10 @@ func NewService(repo Repository) Service {
 func (s *service) TrackEvent(ctx context.Context, tenantID uuid.UUID, event *AnalyticsEvent) error {
 	// Validate event structure
 	if event == nil {
-		return fmt.Errorf("event cannot be nil")
+		return sharedErrors.NewValidationError("event cannot be nil", nil)
 	}
 	if event.EventType == "" {
-		return fmt.Errorf("event type is required")
+		return sharedErrors.NewValidationError("event type is required", nil)
 	}
 	if event.TenantID == uuid.Nil {
 		event.TenantID = tenantID
@@ -237,10 +240,10 @@ func (s *service) TrackEvent(ctx context.Context, tenantID uuid.UUID, event *Ana
 func (s *service) TrackPageView(ctx context.Context, tenantID uuid.UUID, pageView *PageView) error {
 	// Validate page view data
 	if pageView == nil {
-		return fmt.Errorf("page view cannot be nil")
+		return sharedErrors.NewValidationError("page view cannot be nil", nil)
 	}
 	if pageView.Path == "" {
-		return fmt.Errorf("page path is required")
+		return sharedErrors.NewValidationError("page path is required", nil)
 	}
 	if pageView.TenantID == uuid.Nil {
 		pageView.TenantID = tenantID
@@ -262,10 +265,10 @@ func (s *service) TrackPageView(ctx context.Context, tenantID uuid.UUID, pageVie
 func (s *service) TrackProductView(ctx context.Context, tenantID uuid.UUID, productView *ProductView) error {
 	// Validate product view data
 	if productView == nil {
-		return fmt.Errorf("product view cannot be nil")
+		return sharedErrors.NewValidationError("product view cannot be nil", nil)
 	}
 	if productView.ProductID == uuid.Nil {
-		return fmt.Errorf("product ID is required")
+		return sharedErrors.NewValidationError("product ID is required", nil)
 	}
 	if productView.TenantID == uuid.Nil {
 		productView.TenantID = tenantID
@@ -287,10 +290,10 @@ func (s *service) TrackProductView(ctx context.Context, tenantID uuid.UUID, prod
 func (s *service) TrackPurchase(ctx context.Context, tenantID uuid.UUID, purchase *Purchase) error {
 	// Validate purchase data
 	if purchase == nil {
-		return fmt.Errorf("purchase cannot be nil")
+		return sharedErrors.NewValidationError("purchase cannot be nil", nil)
 	}
 	if purchase.TotalAmount <= 0 {
-		return fmt.Errorf("purchase total amount must be greater than 0")
+		return sharedErrors.NewValidationError("purchase total amount must be greater than 0", nil)
 	}
 	if purchase.TenantID == uuid.Nil {
 		purchase.TenantID = tenantID
@@ -514,7 +517,7 @@ func (s *service) GenerateReport(ctx context.Context, tenantID uuid.UUID, reques
 	case "cohort":
 		return s.generateCohortReport(ctx, tenantID, request)
 	default:
-		return nil, "", fmt.Errorf("unsupported report type: %s", request.ReportType)
+		return nil, "", sharedErrors.NewValidationError("unsupported report type: " + request.ReportType, nil)
 	}
 }
 
@@ -522,17 +525,20 @@ func (s *service) generateTrafficReport(ctx context.Context, tenantID uuid.UUID,
 	// TODO: Generate traffic report in requested format
 	stats, err := s.GetTrafficStats(ctx, tenantID, request.DateRange)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("failed to get traffic stats: %w", err)
 	}
 
 	switch request.Format {
 	case ReportFormatJSON:
 		data, err := json.Marshal(stats)
-		return data, "application/json", err
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to marshal traffic stats to JSON: %w", err)
+		}
+		return data, "application/json", nil
 	case ReportFormatCSV:
 		return s.trafficStatsToCSV(stats)
 	default:
-		return nil, "", fmt.Errorf("unsupported format: %s", request.Format)
+		return nil, "", sharedErrors.NewValidationError("unsupported format: " + string(request.Format), nil)
 	}
 }
 
@@ -540,17 +546,20 @@ func (s *service) generateSalesReport(ctx context.Context, tenantID uuid.UUID, r
 	// TODO: Generate sales report in requested format
 	stats, err := s.GetSalesStats(ctx, tenantID, request.DateRange)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("failed to get sales stats: %w", err)
 	}
 
 	switch request.Format {
 	case ReportFormatJSON:
 		data, err := json.Marshal(stats)
-		return data, "application/json", err
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to marshal sales stats to JSON: %w", err)
+		}
+		return data, "application/json", nil
 	case ReportFormatCSV:
 		return s.salesStatsToCSV(stats)
 	default:
-		return nil, "", fmt.Errorf("unsupported format: %s", request.Format)
+		return nil, "", sharedErrors.NewValidationError("unsupported format: " + string(request.Format), nil)
 	}
 }
 
@@ -558,17 +567,20 @@ func (s *service) generateProductReport(ctx context.Context, tenantID uuid.UUID,
 	// TODO: Generate product performance report
 	products, err := s.GetTopProducts(ctx, tenantID, request.DateRange, 100)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("failed to get top products: %w", err)
 	}
 
 	switch request.Format {
 	case ReportFormatJSON:
 		data, err := json.Marshal(products)
-		return data, "application/json", err
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to marshal products to JSON: %w", err)
+		}
+		return data, "application/json", nil
 	case ReportFormatCSV:
 		return s.productStatsToCSV(products)
 	default:
-		return nil, "", fmt.Errorf("unsupported format: %s", request.Format)
+		return nil, "", sharedErrors.NewValidationError("unsupported format: " + string(request.Format), nil)
 	}
 }
 
@@ -576,15 +588,18 @@ func (s *service) generateCohortReport(ctx context.Context, tenantID uuid.UUID, 
 	// TODO: Generate cohort analysis report
 	cohorts, err := s.GetCohortAnalysis(ctx, tenantID, request.DateRange)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("failed to get cohort analysis: %w", err)
 	}
 
 	switch request.Format {
 	case ReportFormatJSON:
 		data, err := json.Marshal(cohorts)
-		return data, "application/json", err
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to marshal cohorts to JSON: %w", err)
+		}
+		return data, "application/json", nil
 	default:
-		return nil, "", fmt.Errorf("unsupported format: %s", request.Format)
+		return nil, "", sharedErrors.NewValidationError("unsupported format: " + string(request.Format), nil)
 	}
 }
 

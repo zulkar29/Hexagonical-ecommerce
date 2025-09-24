@@ -6,6 +6,8 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+
+	sharedErrors "ecommerce-saas/internal/shared/errors"
 )
 
 type Repository interface {
@@ -62,24 +64,36 @@ func (r *repository) CreateEvent(ctx context.Context, event *AnalyticsEvent) err
 	// - Validate event structure
 	// - Add tenant isolation
 	// - Handle batch inserts for high volume
-	return r.db.WithContext(ctx).Create(event).Error
+	if err := r.db.WithContext(ctx).Create(event).Error; err != nil {
+		return sharedErrors.NewInternalError("Failed to create analytics event", err)
+	}
+	return nil
 }
 
 func (r *repository) CreatePageView(ctx context.Context, pageView *PageView) error {
 	// TODO: Implement page view creation
 	// - Update previous page view duration if exists
 	// - Create new page view record
-	return r.db.WithContext(ctx).Create(pageView).Error
+	if err := r.db.WithContext(ctx).Create(pageView).Error; err != nil {
+		return sharedErrors.NewInternalError("Failed to create page view", err)
+	}
+	return nil
 }
 
 func (r *repository) CreateProductView(ctx context.Context, productView *ProductView) error {
 	// TODO: Implement product view creation
-	return r.db.WithContext(ctx).Create(productView).Error
+	if err := r.db.WithContext(ctx).Create(productView).Error; err != nil {
+		return sharedErrors.NewInternalError("Failed to create product view", err)
+	}
+	return nil
 }
 
 func (r *repository) CreatePurchase(ctx context.Context, purchase *Purchase) error {
 	// TODO: Implement purchase event creation
-	return r.db.WithContext(ctx).Create(purchase).Error
+	if err := r.db.WithContext(ctx).Create(purchase).Error; err != nil {
+		return sharedErrors.NewInternalError("Failed to create purchase event", err)
+	}
+	return nil
 }
 
 // Basic analytics
@@ -123,7 +137,7 @@ func (r *repository) GetTrafficStats(ctx context.Context, tenantID uuid.UUID, da
 		Row().
 		Scan(&pageViews)
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("Failed to get traffic stats", err)
 	}
 
 	stats.PageViews = pageViews
@@ -153,7 +167,7 @@ func (r *repository) GetSalesStats(ctx context.Context, tenantID uuid.UUID, date
 		Row().
 		Scan(&totalRevenue, &totalOrders)
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("Failed to get sales stats", err)
 	}
 
 	stats.TotalRevenue = totalRevenue
@@ -202,14 +216,14 @@ func (r *repository) GetTopPages(ctx context.Context, tenantID uuid.UUID, dateRa
 		Limit(limit).
 		Rows()
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("Failed to get top pages", err)
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var page PageStats
 		if err := rows.Scan(&page.Path, &page.Views, &page.UniqueViews, &page.AvgTime); err != nil {
-			return nil, err
+			return nil, sharedErrors.NewInternalError("Failed to scan page stats", err)
 		}
 		pages = append(pages, &page)
 	}
@@ -232,7 +246,7 @@ func (r *repository) GetTopReferrers(ctx context.Context, tenantID uuid.UUID, da
 		Limit(limit).
 		Rows()
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("Failed to get top referrers", err)
 	}
 	defer rows.Close()
 
@@ -240,7 +254,7 @@ func (r *repository) GetTopReferrers(ctx context.Context, tenantID uuid.UUID, da
 	for rows.Next() {
 		var referrer ReferrerStats
 		if err := rows.Scan(&referrer.Referrer, &referrer.Visits); err != nil {
-			return nil, err
+			return nil, sharedErrors.NewInternalError("Failed to scan referrer stats", err)
 		}
 		totalVisits += referrer.Visits
 		referrers = append(referrers, &referrer)
@@ -296,14 +310,14 @@ func (r *repository) GetCohortAnalysis(ctx context.Context, tenantID uuid.UUID, 
 	`, tenantID, dateRange.Start, dateRange.End, tenantID, dateRange.Start, dateRange.End).Rows()
 
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("Failed to get cohort analysis data", err)
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var cd customerCohort
 		if err := rows.Scan(&cd.CustomerID, &cd.CohortMonth, &cd.PurchaseMonth); err != nil {
-			return nil, err
+			return nil, sharedErrors.NewInternalError("Failed to scan cohort data", err)
 		}
 		cohortData = append(cohortData, cd)
 	}
@@ -376,7 +390,7 @@ func (r *repository) GetFunnelAnalysis(ctx context.Context, tenantID uuid.UUID, 
 				Row().
 				Scan(&userCount)
 			if pageViewErr != nil {
-				return nil, pageViewErr
+				return nil, sharedErrors.NewInternalError("Failed to get page view count for funnel", pageViewErr)
 			}
 		case "product_view":
 			productViewErr := r.db.WithContext(ctx).
@@ -386,7 +400,7 @@ func (r *repository) GetFunnelAnalysis(ctx context.Context, tenantID uuid.UUID, 
 				Row().
 				Scan(&userCount)
 			if productViewErr != nil {
-				return nil, productViewErr
+				return nil, sharedErrors.NewInternalError("Failed to get product view count for funnel", productViewErr)
 			}
 		case "add_to_cart":
 			addToCartErr := r.db.WithContext(ctx).
@@ -396,7 +410,7 @@ func (r *repository) GetFunnelAnalysis(ctx context.Context, tenantID uuid.UUID, 
 				Row().
 				Scan(&userCount)
 			if addToCartErr != nil {
-				return nil, addToCartErr
+				return nil, sharedErrors.NewInternalError("Failed to get add to cart count for funnel", addToCartErr)
 			}
 		case "checkout":
 			checkoutErr := r.db.WithContext(ctx).
@@ -406,7 +420,7 @@ func (r *repository) GetFunnelAnalysis(ctx context.Context, tenantID uuid.UUID, 
 				Row().
 				Scan(&userCount)
 			if checkoutErr != nil {
-				return nil, checkoutErr
+				return nil, sharedErrors.NewInternalError("Failed to get checkout count for funnel", checkoutErr)
 			}
 		case "purchase":
 			purchaseErr := r.db.WithContext(ctx).
@@ -416,7 +430,7 @@ func (r *repository) GetFunnelAnalysis(ctx context.Context, tenantID uuid.UUID, 
 				Row().
 				Scan(&userCount)
 			if purchaseErr != nil {
-				return nil, purchaseErr
+				return nil, sharedErrors.NewInternalError("Failed to get purchase count for funnel", purchaseErr)
 			}
 		default:
 			// Custom event type
@@ -427,7 +441,7 @@ func (r *repository) GetFunnelAnalysis(ctx context.Context, tenantID uuid.UUID, 
 				Row().
 				Scan(&userCount)
 			if customEventErr != nil {
-				return nil, customEventErr
+				return nil, sharedErrors.NewInternalError("Failed to get custom event count for funnel", customEventErr)
 			}
 		}
 
@@ -467,7 +481,7 @@ func (r *repository) GetCustomerLifetimeValue(ctx context.Context, tenantID uuid
 		Row().
 		Scan(&avgOrderValue)
 	if err != nil {
-		return 0, err
+		return 0, sharedErrors.NewInternalError("Failed to get average order value", err)
 	}
 
 	// Calculate purchase frequency (orders per customer)
@@ -478,8 +492,11 @@ func (r *repository) GetCustomerLifetimeValue(ctx context.Context, tenantID uuid
 		Select("COUNT(*), COUNT(DISTINCT customer_id)").
 		Row().
 		Scan(&totalOrders, &uniqueCustomers)
-	if frequencyErr != nil || uniqueCustomers == 0 {
-		return avgOrderValue, frequencyErr
+	if frequencyErr != nil {
+		return avgOrderValue, sharedErrors.NewInternalError("Failed to get purchase frequency", frequencyErr)
+	}
+	if uniqueCustomers == 0 {
+		return avgOrderValue, nil
 	}
 
 	purchaseFrequency := float64(totalOrders) / float64(uniqueCustomers)
@@ -556,7 +573,7 @@ func (r *repository) GetRetentionRate(ctx context.Context, tenantID uuid.UUID, d
 	`, tenantID, startDate, endDate, startDate, midDate).Rows()
 
 	if err != nil {
-		return 0, err
+		return 0, sharedErrors.NewInternalError("Failed to get first purchase customers for retention rate", err)
 	}
 	defer rows.Close()
 
@@ -620,7 +637,7 @@ func (r *repository) GetRealTimeStats(ctx context.Context, tenantID uuid.UUID) (
 		Where("tenant_id = ? AND timestamp >= ?", tenantID, oneHourAgo).
 		Count(&pageViewsLastHour).Error
 	if pageViewErr != nil {
-		return nil, pageViewErr
+		return nil, sharedErrors.NewInternalError("Failed to get page views for real-time stats", pageViewErr)
 	}
 	stats.PageViews = pageViewsLastHour
 
@@ -634,7 +651,7 @@ func (r *repository) GetRealTimeStats(ctx context.Context, tenantID uuid.UUID) (
 		Limit(10).
 		Rows()
 	if activePagesErr != nil {
-		return nil, activePagesErr
+		return nil, sharedErrors.NewInternalError("Failed to get active pages for real-time stats", activePagesErr)
 	}
 	defer rows.Close()
 
@@ -653,7 +670,7 @@ func (r *repository) GetRealTimeStats(ctx context.Context, tenantID uuid.UUID) (
 		Where("tenant_id = ? AND timestamp >= ?", tenantID, oneHourAgo).
 		Count(&conversionsLastHour).Error
 	if conversionsErr != nil {
-		return nil, conversionsErr
+		return nil, sharedErrors.NewInternalError("Failed to get conversions for real-time stats", conversionsErr)
 	}
 	stats.Conversions = conversionsLastHour
 
@@ -672,7 +689,10 @@ func (r *repository) GetActiveUsers(ctx context.Context, tenantID uuid.UUID) (in
 		Row().
 		Scan(&activeUsers)
 
-	return activeUsers, err
+	if err != nil {
+		return 0, sharedErrors.NewInternalError("Failed to get active users count", err)
+	}
+	return activeUsers, nil
 }
 
 // Scheduled reports
@@ -705,7 +725,10 @@ func (r *repository) CreateScheduledReport(ctx context.Context, tenantID uuid.UU
 	}
 
 	err := r.db.WithContext(ctx).Create(report).Error
-	return report, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("Failed to create scheduled report", err)
+	}
+	return report, nil
 }
 
 func (r *repository) GetScheduledReports(ctx context.Context, tenantID uuid.UUID) ([]*ScheduledReport, error) {
@@ -714,18 +737,29 @@ func (r *repository) GetScheduledReports(ctx context.Context, tenantID uuid.UUID
 		Where("tenant_id = ?", tenantID).
 		Order("created_at DESC").
 		Find(&reports).Error
-	return reports, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("Failed to get scheduled reports", err)
+	}
+	return reports, nil
 }
 
 func (r *repository) UpdateScheduledReport(ctx context.Context, report *ScheduledReport) error {
 	report.UpdatedAt = time.Now()
-	return r.db.WithContext(ctx).Save(report).Error
+	err := r.db.WithContext(ctx).Save(report).Error
+	if err != nil {
+		return sharedErrors.NewInternalError("Failed to update scheduled report", err)
+	}
+	return nil
 }
 
 func (r *repository) DeleteScheduledReport(ctx context.Context, tenantID, reportID uuid.UUID) error {
-	return r.db.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND id = ?", tenantID, reportID).
 		Delete(&ScheduledReport{}).Error
+	if err != nil {
+		return sharedErrors.NewInternalError("Failed to delete scheduled report", err)
+	}
+	return nil
 }
 
 // Removed ExportData and all export helper methods - GDPR data export functionality not needed

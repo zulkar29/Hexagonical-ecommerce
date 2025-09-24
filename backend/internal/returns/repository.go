@@ -7,6 +7,8 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+
+	sharedErrors "ecommerce-saas/internal/shared/errors"
 )
 
 // Repository defines the interface for return data operations
@@ -126,7 +128,10 @@ func NewRepository(db *gorm.DB) Repository {
 
 // CreateReturn creates a new return
 func (r *gormRepository) CreateReturn(ctx context.Context, return_ *Return) error {
-	return r.db.WithContext(ctx).Create(return_).Error
+	if err := r.db.WithContext(ctx).Create(return_).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to create return", err)
+	}
+	return nil
 }
 
 // GetReturnByID retrieves a return by ID
@@ -139,7 +144,10 @@ func (r *gormRepository) GetReturnByID(ctx context.Context, tenantID, returnID u
 		First(&return_).Error
 
 	if err != nil {
-		return nil, err
+		if err == gorm.ErrRecordNotFound {
+			return nil, sharedErrors.NewNotFoundError("return not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get return", err)
 	}
 	return &return_, nil
 }
@@ -154,7 +162,10 @@ func (r *gormRepository) GetReturnByNumber(ctx context.Context, tenantID uuid.UU
 		First(&return_).Error
 
 	if err != nil {
-		return nil, err
+		if err == gorm.ErrRecordNotFound {
+			return nil, sharedErrors.NewNotFoundError("Return not found")
+		}
+		return nil, sharedErrors.NewInternalError("Failed to get return by number", err)
 	}
 	return &return_, nil
 }
@@ -174,7 +185,7 @@ func (r *gormRepository) ListReturns(ctx context.Context, tenantID uuid.UUID, fi
 	countQuery := r.db.WithContext(ctx).Model(&Return{}).Where("tenant_id = ?", tenantID)
 	countQuery = r.applyReturnFilters(countQuery, filter)
 	if err := countQuery.Count(&total).Error; err != nil {
-		return nil, 0, err
+		return nil, 0, sharedErrors.NewInternalError("Failed to count returns", err)
 	}
 
 	// Apply sorting
@@ -197,25 +208,36 @@ func (r *gormRepository) ListReturns(ctx context.Context, tenantID uuid.UUID, fi
 	}
 
 	var returns []*Return
-	findErr := query.Find(&returns).Error
-	return returns, total, findErr
+	if err := query.Find(&returns).Error; err != nil {
+		return nil, 0, sharedErrors.NewInternalError("Failed to list returns", err)
+	}
+	return returns, total, nil
 }
 
 // UpdateReturn updates a return
 func (r *gormRepository) UpdateReturn(ctx context.Context, return_ *Return) error {
-	return r.db.WithContext(ctx).Save(return_).Error
+	if err := r.db.WithContext(ctx).Save(return_).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to update return", err)
+	}
+	return nil
 }
 
 // DeleteReturn deletes a return
 func (r *gormRepository) DeleteReturn(ctx context.Context, tenantID, returnID uuid.UUID) error {
-	return r.db.WithContext(ctx).
+	if err := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND id = ?", tenantID, returnID).
-		Delete(&Return{}).Error
+		Delete(&Return{}).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to delete return", err)
+	}
+	return nil
 }
 
 // CreateReturnItem creates a new return item
 func (r *gormRepository) CreateReturnItem(ctx context.Context, item *ReturnItem) error {
-	return r.db.WithContext(ctx).Create(item).Error
+	if err := r.db.WithContext(ctx).Create(item).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to create return item", err)
+	}
+	return nil
 }
 
 // GetReturnItemByID retrieves a return item by ID
@@ -226,7 +248,10 @@ func (r *gormRepository) GetReturnItemByID(ctx context.Context, itemID uuid.UUID
 		First(&item).Error
 
 	if err != nil {
-		return nil, err
+		if err == gorm.ErrRecordNotFound {
+			return nil, sharedErrors.NewNotFoundError("return item not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get return item", err)
 	}
 	return &item, nil
 }
@@ -234,25 +259,36 @@ func (r *gormRepository) GetReturnItemByID(ctx context.Context, itemID uuid.UUID
 // GetReturnItems retrieves return items for a return
 func (r *gormRepository) GetReturnItems(ctx context.Context, returnID uuid.UUID) ([]*ReturnItem, error) {
 	var items []*ReturnItem
-	itemsErr := r.db.WithContext(ctx).
+	if err := r.db.WithContext(ctx).
 		Where("return_id = ?", returnID).
-		Find(&items).Error
-	return items, itemsErr
+		Find(&items).Error; err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get return items", err)
+	}
+	return items, nil
 }
 
 // UpdateReturnItem updates a return item
 func (r *gormRepository) UpdateReturnItem(ctx context.Context, item *ReturnItem) error {
-	return r.db.WithContext(ctx).Save(item).Error
+	if err := r.db.WithContext(ctx).Save(item).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to update return item", err)
+	}
+	return nil
 }
 
 // DeleteReturnItem deletes a return item
 func (r *gormRepository) DeleteReturnItem(ctx context.Context, itemID uuid.UUID) error {
-	return r.db.WithContext(ctx).Delete(&ReturnItem{}, itemID).Error
+	if err := r.db.WithContext(ctx).Delete(&ReturnItem{}, itemID).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to delete return item", err)
+	}
+	return nil
 }
 
 // CreateReturnReason creates a new return reason
 func (r *gormRepository) CreateReturnReason(ctx context.Context, reason *ReturnReason) error {
-	return r.db.WithContext(ctx).Create(reason).Error
+	if err := r.db.WithContext(ctx).Create(reason).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to create return reason", err)
+	}
+	return nil
 }
 
 // GetReturnReasonByID retrieves a return reason by ID
@@ -263,7 +299,10 @@ func (r *gormRepository) GetReturnReasonByID(ctx context.Context, tenantID, reas
 		First(&reason).Error
 
 	if err != nil {
-		return nil, err
+		if err == gorm.ErrRecordNotFound {
+			return nil, sharedErrors.NewNotFoundError("return reason not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get return reason", err)
 	}
 	return &reason, nil
 }
@@ -277,20 +316,28 @@ func (r *gormRepository) ListReturnReasons(ctx context.Context, tenantID uuid.UU
 	}
 
 	var reasons []*ReturnReason
-	err := query.Order("display_order ASC, name ASC").Find(&reasons).Error
-	return reasons, err
+	if err := query.Order("display_order ASC, name ASC").Find(&reasons).Error; err != nil {
+		return nil, sharedErrors.NewInternalError("failed to list return reasons", err)
+	}
+	return reasons, nil
 }
 
 // UpdateReturnReason updates a return reason
 func (r *gormRepository) UpdateReturnReason(ctx context.Context, reason *ReturnReason) error {
-	return r.db.WithContext(ctx).Save(reason).Error
+	if err := r.db.WithContext(ctx).Save(reason).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to update return reason", err)
+	}
+	return nil
 }
 
 // DeleteReturnReason deletes a return reason
 func (r *gormRepository) DeleteReturnReason(ctx context.Context, tenantID, reasonID uuid.UUID) error {
-	return r.db.WithContext(ctx).
+	if err := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND id = ?", tenantID, reasonID).
-		Delete(&ReturnReason{}).Error
+		Delete(&ReturnReason{}).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to delete return reason", err)
+	}
+	return nil
 }
 
 // GetReturnStats retrieves return statistics
@@ -313,12 +360,12 @@ func (r *gormRepository) GetReturnStats(ctx context.Context, tenantID uuid.UUID,
 	var totalRefund float64
 
 	if err := query.Count(&totalCount).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("Failed to count returns for stats", err)
 	}
 	stats.TotalReturns = totalCount
 
 	if err := query.Select("COALESCE(SUM(total_refund), 0)").Scan(&totalRefund).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("Failed to calculate total refund amount", err)
 	}
 	stats.TotalRefundAmount = totalRefund
 
@@ -333,7 +380,7 @@ func (r *gormRepository) GetReturnStats(ctx context.Context, tenantID uuid.UUID,
 	}
 
 	if err := query.Select("status, COUNT(*) as count").Group("status").Scan(&statusCounts).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get status breakdown", err)
 	}
 
 	for _, sc := range statusCounts {
@@ -358,7 +405,7 @@ func (r *gormRepository) GetReturnStats(ctx context.Context, tenantID uuid.UUID,
 	}
 
 	if err := query.Select("type, COUNT(*) as count").Group("type").Scan(&typeCounts).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get type breakdown", err)
 	}
 
 	for _, tc := range typeCounts {
@@ -381,7 +428,7 @@ func (r *gormRepository) GetReturnStats(ctx context.Context, tenantID uuid.UUID,
 		Order("count DESC").
 		Limit(10).
 		Scan(&reasonStats).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get top return reasons", err)
 	}
 	stats.TopReasons = reasonStats
 
@@ -401,7 +448,7 @@ func (r *gormRepository) GetReturnsByCustomer(ctx context.Context, tenantID, cus
 	// Get total count
 	var total int64
 	if err := query.Model(&Return{}).Count(&total).Error; err != nil {
-		return nil, 0, err
+		return nil, 0, sharedErrors.NewInternalError("failed to count returns by customer", err)
 	}
 
 	// Apply pagination and ordering
@@ -414,20 +461,24 @@ func (r *gormRepository) GetReturnsByCustomer(ctx context.Context, tenantID, cus
 	}
 
 	var returns []*Return
-	err := query.Find(&returns).Error
-	return returns, total, err
+	if err := query.Find(&returns).Error; err != nil {
+		return nil, 0, sharedErrors.NewInternalError("failed to get returns by customer", err)
+	}
+	return returns, total, nil
 }
 
 // GetReturnsByOrder retrieves returns for a specific order
 func (r *gormRepository) GetReturnsByOrder(ctx context.Context, tenantID, orderID uuid.UUID) ([]*Return, error) {
 	var returns []*Return
-	err := r.db.WithContext(ctx).
+	if err := r.db.WithContext(ctx).
 		Preload("Items").
 		Preload("Reason").
 		Where("tenant_id = ? AND order_id = ?", tenantID, orderID).
 		Order("created_at DESC").
-		Find(&returns).Error
-	return returns, err
+		Find(&returns).Error; err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get returns by order", err)
+	}
+	return returns, nil
 }
 
 // applyReturnFilters applies filters to the query

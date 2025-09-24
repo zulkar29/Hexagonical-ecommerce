@@ -2,11 +2,14 @@ package billing
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+
+	sharedErrors "ecommerce-saas/internal/shared/errors"
 )
 
 // Repository defines the interface for billing data operations
@@ -223,7 +226,13 @@ func (t *gormTransaction) GetContext() context.Context {
 
 // Billing Plans
 func (r *gormBillingRepository) CreateBillingPlan(ctx context.Context, plan *BillingPlan) error {
-	return r.db.WithContext(ctx).Create(plan).Error
+	if err := r.db.WithContext(ctx).Create(plan).Error; err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return sharedErrors.NewConflictError("Billing plan already exists")
+		}
+		return sharedErrors.NewInternalError("Failed to create billing plan", err)
+	}
+	return nil
 }
 
 func (r *gormBillingRepository) GetBillingPlan(ctx context.Context, planID uuid.UUID) (*BillingPlan, error) {
@@ -232,7 +241,10 @@ func (r *gormBillingRepository) GetBillingPlan(ctx context.Context, planID uuid.
 		Preload("UsageTiers").
 		First(&plan, "id = ?", planID).Error
 	if err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("Billing plan")
+		}
+		return nil, sharedErrors.NewInternalError("Failed to retrieve billing plan", err)
 	}
 	return &plan, nil
 }
@@ -258,21 +270,32 @@ func (r *gormBillingRepository) GetBillingPlans(ctx context.Context, filter Plan
 	}
 
 	var plans []*BillingPlan
-	err := query.Preload("UsageTiers").Find(&plans).Error
-	return plans, err
+	if err := query.Preload("UsageTiers").Find(&plans).Error; err != nil {
+		return nil, sharedErrors.NewInternalError("Failed to retrieve billing plans", err)
+	}
+	return plans, nil
 }
 
 func (r *gormBillingRepository) UpdateBillingPlan(ctx context.Context, plan *BillingPlan) error {
-	return r.db.WithContext(ctx).Save(plan).Error
+	if err := r.db.WithContext(ctx).Save(plan).Error; err != nil {
+		return sharedErrors.NewInternalError("Failed to update billing plan", err)
+	}
+	return nil
 }
 
 func (r *gormBillingRepository) DeleteBillingPlan(ctx context.Context, planID uuid.UUID) error {
-	return r.db.WithContext(ctx).Delete(&BillingPlan{}, "id = ?", planID).Error
+	if err := r.db.WithContext(ctx).Delete(&BillingPlan{}, "id = ?", planID).Error; err != nil {
+		return sharedErrors.NewInternalError("Failed to delete billing plan", err)
+	}
+	return nil
 }
 
 // Usage Tiers
 func (r *gormBillingRepository) CreateUsageTier(ctx context.Context, tier *UsageTier) error {
-	return r.db.WithContext(ctx).Create(tier).Error
+	if err := r.db.WithContext(ctx).Create(tier).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to create usage tier", err)
+	}
+	return nil
 }
 
 func (r *gormBillingRepository) GetUsageTiersByPlan(ctx context.Context, planID uuid.UUID) ([]*UsageTier, error) {
@@ -281,22 +304,31 @@ func (r *gormBillingRepository) GetUsageTiersByPlan(ctx context.Context, planID 
 		Where("billing_plan_id = ?", planID).
 		Order("usage_type, min_units").
 		Find(&tiers).Error
-	return tiers, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get usage tiers by plan", err)
+	}
+	return tiers, nil
 }
 
 func (r *gormBillingRepository) UpdateUsageTier(ctx context.Context, tier *UsageTier) error {
-	return r.db.WithContext(ctx).Save(tier).Error
+	if err := r.db.WithContext(ctx).Save(tier).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to update usage tier", err)
+	}
+	return nil
 }
 
 func (r *gormBillingRepository) DeleteUsageTier(ctx context.Context, tierID uuid.UUID) error {
-	return r.db.WithContext(ctx).Delete(&UsageTier{}, "id = ?", tierID).Error
+	if err := r.db.WithContext(ctx).Delete(&UsageTier{}, "id = ?", tierID).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to delete usage tier", err)
+	}
+	return nil
 }
 
 // BeginTransaction starts a new database transaction
 func (r *gormBillingRepository) BeginTransaction(ctx context.Context) (Transaction, error) {
 	tx := r.db.WithContext(ctx).Begin()
 	if tx.Error != nil {
-		return nil, tx.Error
+		return nil, sharedErrors.NewInternalError("failed to begin transaction", tx.Error)
 	}
 	return &gormTransaction{tx: tx}, nil
 }
@@ -307,19 +339,25 @@ func (r *gormBillingRepository) GetNextInvoiceNumber(ctx context.Context) (strin
 	var count int64
 	err := r.db.WithContext(ctx).Model(&Invoice{}).Count(&count).Error
 	if err != nil {
-		return "", err
+		return "", sharedErrors.NewInternalError("failed to get invoice count", err)
 	}
 	return fmt.Sprintf("INV-%06d", count+1), nil
 }
 
 // CreateDunningAction creates a new dunning action
 func (r *gormBillingRepository) CreateDunningAction(ctx context.Context, action *DunningAction) error {
-	return r.db.WithContext(ctx).Create(action).Error
+	if err := r.db.WithContext(ctx).Create(action).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to create dunning action", err)
+	}
+	return nil
 }
 
 // CreateDunningProcess creates a new dunning process
 func (r *gormBillingRepository) CreateDunningProcess(ctx context.Context, process *DunningProcess) error {
-	return r.db.WithContext(ctx).Create(process).Error
+	if err := r.db.WithContext(ctx).Create(process).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to create dunning process", err)
+	}
+	return nil
 }
 
 // Repository implementations for billing functionality
@@ -327,45 +365,93 @@ func (r *gormBillingRepository) CreateDunningProcess(ctx context.Context, proces
 
 // Subscription methods
 func (r *gormBillingRepository) CreateSubscription(ctx context.Context, subscription *TenantSubscription) error {
-	return r.db.WithContext(ctx).Create(subscription).Error
+	if err := r.db.WithContext(ctx).Create(subscription).Error; err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return sharedErrors.NewConflictError("Subscription already exists")
+		}
+		return sharedErrors.NewInternalError("Failed to create subscription", err)
+	}
+	return nil
 }
 
 func (r *gormBillingRepository) GetSubscription(ctx context.Context, subscriptionID uuid.UUID) (*TenantSubscription, error) {
 	var subscription TenantSubscription
-	err := r.db.WithContext(ctx).First(&subscription, "id = ?", subscriptionID).Error
-	return &subscription, err
+	if err := r.db.WithContext(ctx).First(&subscription, "id = ?", subscriptionID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("Subscription")
+		}
+		return nil, sharedErrors.NewInternalError("Failed to retrieve subscription", err)
+	}
+	return &subscription, nil
 }
 
 func (r *gormBillingRepository) GetSubscriptionByTenantID(ctx context.Context, tenantID uuid.UUID) (*TenantSubscription, error) {
 	var subscription TenantSubscription
 	err := r.db.WithContext(ctx).First(&subscription, "tenant_id = ?", tenantID).Error
-	return &subscription, err
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("subscription not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get subscription by tenant ID", err)
+	}
+	return &subscription, nil
 }
 
 func (r *gormBillingRepository) GetSubscriptions(ctx context.Context, filter SubscriptionFilter) ([]*TenantSubscription, error) {
+	query := r.db.WithContext(ctx).Model(&TenantSubscription{})
+
+	if len(filter.TenantIDs) > 0 {
+		query = query.Where("tenant_id IN ?", filter.TenantIDs)
+	}
+	if len(filter.PlanIDs) > 0 {
+		query = query.Where("plan_id IN ?", filter.PlanIDs)
+	}
+	if filter.Status != nil {
+		query = query.Where("status = ?", *filter.Status)
+	}
+
+	if filter.Limit > 0 {
+		query = query.Limit(filter.Limit)
+	}
+	if filter.Offset > 0 {
+		query = query.Offset(filter.Offset)
+	}
+
 	var subscriptions []*TenantSubscription
-	err := r.db.WithContext(ctx).Find(&subscriptions).Error
-	return subscriptions, err
+	if err := query.Find(&subscriptions).Error; err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get subscriptions", err)
+	}
+	return subscriptions, nil
 }
 
 func (r *gormBillingRepository) GetSubscriptionsWithPendingChanges(ctx context.Context) ([]*TenantSubscription, error) {
 	var subscriptions []*TenantSubscription
-	err := r.db.WithContext(ctx).Where("pending_change_date IS NOT NULL").Find(&subscriptions).Error
-	return subscriptions, err
+	if err := r.db.WithContext(ctx).Where("pending_change_date IS NOT NULL").Find(&subscriptions).Error; err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get subscriptions with pending changes", err)
+	}
+	return subscriptions, nil
 }
 
 func (r *gormBillingRepository) GetSubscriptionsDueForBilling(ctx context.Context, before time.Time) ([]*TenantSubscription, error) {
 	var subscriptions []*TenantSubscription
-	err := r.db.WithContext(ctx).Where("next_billing_date <= ?", before).Find(&subscriptions).Error
-	return subscriptions, err
+	if err := r.db.WithContext(ctx).Where("next_billing_date <= ?", before).Find(&subscriptions).Error; err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get subscriptions due for billing", err)
+	}
+	return subscriptions, nil
 }
 
 func (r *gormBillingRepository) UpdateSubscription(ctx context.Context, subscription *TenantSubscription) error {
-	return r.db.WithContext(ctx).Save(subscription).Error
+	if err := r.db.WithContext(ctx).Save(subscription).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to update subscription", err)
+	}
+	return nil
 }
 
 func (r *gormBillingRepository) DeleteSubscription(ctx context.Context, subscriptionID uuid.UUID) error {
-	return r.db.WithContext(ctx).Delete(&TenantSubscription{}, "id = ?", subscriptionID).Error
+	if err := r.db.WithContext(ctx).Delete(&TenantSubscription{}, "id = ?", subscriptionID).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to delete subscription", err)
+	}
+	return nil
 }
 
 func (r *gormBillingRepository) CreatePendingPlanChange(ctx context.Context, change *PlanChange) error {
@@ -376,13 +462,43 @@ func (r *gormBillingRepository) CreatePendingPlanChange(ctx context.Context, cha
 
 // Usage methods
 func (r *gormBillingRepository) CreateUsageRecord(ctx context.Context, usage *UsageRecord) error {
-	return r.db.WithContext(ctx).Create(usage).Error
+	if err := r.db.WithContext(ctx).Create(usage).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to create usage record", err)
+	}
+	return nil
 }
 
 func (r *gormBillingRepository) GetUsageRecords(ctx context.Context, filter UsageFilter) ([]*UsageRecord, error) {
+	query := r.db.WithContext(ctx).Model(&UsageRecord{})
+
+	if filter.TenantID != nil {
+		query = query.Where("tenant_id = ?", *filter.TenantID)
+	}
+	if filter.UsageType != nil {
+		query = query.Where("usage_type = ?", *filter.UsageType)
+	}
+	if filter.StartDate != nil {
+		query = query.Where("created_at >= ?", *filter.StartDate)
+	}
+	if filter.EndDate != nil {
+		query = query.Where("created_at <= ?", *filter.EndDate)
+	}
+	if filter.ResourceID != nil {
+		query = query.Where("resource_id = ?", *filter.ResourceID)
+	}
+
+	if filter.Limit > 0 {
+		query = query.Limit(filter.Limit)
+	}
+	if filter.Offset > 0 {
+		query = query.Offset(filter.Offset)
+	}
+
 	var records []*UsageRecord
-	err := r.db.WithContext(ctx).Find(&records).Error
-	return records, err
+	if err := query.Find(&records).Error; err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get usage records", err)
+	}
+	return records, nil
 }
 
 func (r *gormBillingRepository) GetUsageSummary(ctx context.Context, tenantID uuid.UUID, startDate, endDate time.Time) (map[UsageType]int64, error) {
@@ -417,22 +533,37 @@ func (r *gormBillingRepository) GetUsageByType(ctx context.Context, tenantID uui
 }
 
 func (r *gormBillingRepository) UpdateUsageRecord(ctx context.Context, usage *UsageRecord) error {
-	return r.db.WithContext(ctx).Save(usage).Error
+	if err := r.db.WithContext(ctx).Save(usage).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to update usage record", err)
+	}
+	return nil
 }
 
 func (r *gormBillingRepository) DeleteUsageRecord(ctx context.Context, usageID uuid.UUID) error {
-	return r.db.WithContext(ctx).Delete(&UsageRecord{}, "id = ?", usageID).Error
+	if err := r.db.WithContext(ctx).Delete(&UsageRecord{}, "id = ?", usageID).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to delete usage record", err)
+	}
+	return nil
 }
 
 // Invoice methods
 func (r *gormBillingRepository) CreateInvoice(ctx context.Context, invoice *Invoice) error {
-	return r.db.WithContext(ctx).Create(invoice).Error
+	if err := r.db.WithContext(ctx).Create(invoice).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to create invoice", err)
+	}
+	return nil
 }
 
 func (r *gormBillingRepository) GetInvoice(ctx context.Context, invoiceID uuid.UUID) (*Invoice, error) {
 	var invoice Invoice
 	err := r.db.WithContext(ctx).Preload("LineItems").First(&invoice, "id = ?", invoiceID).Error
-	return &invoice, err
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("Invoice")
+		}
+		return nil, sharedErrors.NewInternalError("Failed to retrieve invoice", err)
+	}
+	return &invoice, nil
 }
 
 func (r *gormBillingRepository) GetInvoices(ctx context.Context, filter InvoiceFilter) ([]*Invoice, int64, error) {
@@ -442,11 +573,14 @@ func (r *gormBillingRepository) GetInvoices(ctx context.Context, filter InvoiceF
 
 	err := query.Count(&total).Error
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, sharedErrors.NewInternalError("Failed to count invoices", err)
 	}
 
 	err = query.Find(&invoices).Error
-	return invoices, total, err
+	if err != nil {
+		return nil, 0, sharedErrors.NewInternalError("Failed to retrieve invoices", err)
+	}
+	return invoices, total, nil
 }
 
 func (r *gormBillingRepository) GetInvoicesByTenant(ctx context.Context, tenantID uuid.UUID, filter InvoiceFilter) ([]*Invoice, int64, error) {
@@ -456,128 +590,201 @@ func (r *gormBillingRepository) GetInvoicesByTenant(ctx context.Context, tenantI
 
 	err := query.Count(&total).Error
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, sharedErrors.NewInternalError("Failed to count invoices by tenant", err)
 	}
 
 	err = query.Find(&invoices).Error
-	return invoices, total, err
+	if err != nil {
+		return nil, 0, sharedErrors.NewInternalError("Failed to retrieve invoices by tenant", err)
+	}
+	return invoices, total, nil
 }
 
 func (r *gormBillingRepository) UpdateInvoice(ctx context.Context, invoice *Invoice) error {
-	return r.db.WithContext(ctx).Save(invoice).Error
+	if err := r.db.WithContext(ctx).Save(invoice).Error; err != nil {
+		return sharedErrors.NewInternalError("Failed to update invoice", err)
+	}
+	return nil
 }
 
 func (r *gormBillingRepository) DeleteInvoice(ctx context.Context, invoiceID uuid.UUID) error {
-	return r.db.WithContext(ctx).Delete(&Invoice{}, "id = ?", invoiceID).Error
+	if err := r.db.WithContext(ctx).Delete(&Invoice{}, "id = ?", invoiceID).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to delete invoice", err)
+	}
+	return nil
 }
 
 func (r *gormBillingRepository) GetOverdueInvoices(ctx context.Context, before time.Time) ([]*Invoice, error) {
 	var invoices []*Invoice
-	err := r.db.WithContext(ctx).Where("due_date < ? AND status = 'outstanding'", before).Find(&invoices).Error
-	return invoices, err
+	if err := r.db.WithContext(ctx).Where("due_date < ? AND status = 'outstanding'", before).Find(&invoices).Error; err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get overdue invoices", err)
+	}
+	return invoices, nil
 }
 
 // Invoice Line Item methods
 func (r *gormBillingRepository) CreateInvoiceLineItem(ctx context.Context, lineItem *InvoiceLineItem) error {
-	return r.db.WithContext(ctx).Create(lineItem).Error
+	if err := r.db.WithContext(ctx).Create(lineItem).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to create invoice line item", err)
+	}
+	return nil
 }
 
 func (r *gormBillingRepository) UpdateInvoiceLineItem(ctx context.Context, lineItem *InvoiceLineItem) error {
-	return r.db.WithContext(ctx).Save(lineItem).Error
+	if err := r.db.WithContext(ctx).Save(lineItem).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to update invoice line item", err)
+	}
+	return nil
 }
 
 func (r *gormBillingRepository) DeleteInvoiceLineItem(ctx context.Context, lineItemID uuid.UUID) error {
-	return r.db.WithContext(ctx).Delete(&InvoiceLineItem{}, "id = ?", lineItemID).Error
+	if err := r.db.WithContext(ctx).Delete(&InvoiceLineItem{}, "id = ?", lineItemID).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to delete invoice line item", err)
+	}
+	return nil
 }
 
 func (r *gormBillingRepository) GetInvoiceLineItems(ctx context.Context, invoiceID uuid.UUID) ([]*InvoiceLineItem, error) {
 	var lineItems []*InvoiceLineItem
-	err := r.db.WithContext(ctx).Where("invoice_id = ?", invoiceID).Find(&lineItems).Error
-	return lineItems, err
+	if err := r.db.WithContext(ctx).Where("invoice_id = ?", invoiceID).Find(&lineItems).Error; err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get invoice line items", err)
+	}
+	return lineItems, nil
 }
 
 // Payment Attempt methods
 func (r *gormBillingRepository) CreatePaymentAttempt(ctx context.Context, attempt *PaymentAttempt) error {
-	return r.db.WithContext(ctx).Create(attempt).Error
+	if err := r.db.WithContext(ctx).Create(attempt).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to create payment attempt", err)
+	}
+	return nil
 }
 
 func (r *gormBillingRepository) UpdatePaymentAttempt(ctx context.Context, attempt *PaymentAttempt) error {
-	return r.db.WithContext(ctx).Save(attempt).Error
+	if err := r.db.WithContext(ctx).Save(attempt).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to update payment attempt", err)
+	}
+	return nil
 }
 
 func (r *gormBillingRepository) DeletePaymentAttempt(ctx context.Context, attemptID uuid.UUID) error {
-	return r.db.WithContext(ctx).Delete(&PaymentAttempt{}, "id = ?", attemptID).Error
+	if err := r.db.WithContext(ctx).Delete(&PaymentAttempt{}, "id = ?", attemptID).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to delete payment attempt", err)
+	}
+	return nil
 }
 
 func (r *gormBillingRepository) GetPaymentAttempt(ctx context.Context, attemptID uuid.UUID) (*PaymentAttempt, error) {
 	var attempt PaymentAttempt
 	err := r.db.WithContext(ctx).First(&attempt, "id = ?", attemptID).Error
-	return &attempt, err
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("payment attempt not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get payment attempt", err)
+	}
+	return &attempt, nil
 }
 
 func (r *gormBillingRepository) GetPaymentAttemptsByInvoice(ctx context.Context, invoiceID uuid.UUID) ([]*PaymentAttempt, error) {
 	var attempts []*PaymentAttempt
-	err := r.db.WithContext(ctx).Where("invoice_id = ?", invoiceID).Find(&attempts).Error
-	return attempts, err
+	if err := r.db.WithContext(ctx).Where("invoice_id = ?", invoiceID).Find(&attempts).Error; err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get payment attempts by invoice", err)
+	}
+	return attempts, nil
 }
 
 func (r *gormBillingRepository) GetFailedPaymentAttempts(ctx context.Context, retryBefore time.Time) ([]*PaymentAttempt, error) {
 	var attempts []*PaymentAttempt
-	err := r.db.WithContext(ctx).Where("status = 'failed' AND next_retry_at <= ?", retryBefore).Find(&attempts).Error
-	return attempts, err
+	if err := r.db.WithContext(ctx).Where("status = 'failed' AND next_retry_at <= ?", retryBefore).Find(&attempts).Error; err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get failed payment attempts", err)
+	}
+	return attempts, nil
 }
 
 // Additional Dunning methods
 func (r *gormBillingRepository) GetDunningProcess(ctx context.Context, processID uuid.UUID) (*DunningProcess, error) {
 	var process DunningProcess
 	err := r.db.WithContext(ctx).First(&process, "id = ?", processID).Error
-	return &process, err
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("dunning process not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get dunning process", err)
+	}
+	return &process, nil
 }
 
 func (r *gormBillingRepository) GetDunningProcessByInvoice(ctx context.Context, invoiceID uuid.UUID) (*DunningProcess, error) {
 	var process DunningProcess
 	err := r.db.WithContext(ctx).First(&process, "invoice_id = ?", invoiceID).Error
-	return &process, err
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("dunning process not found for invoice")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get dunning process by invoice", err)
+	}
+	return &process, nil
 }
 
 func (r *gormBillingRepository) GetActiveDunningProcesses(ctx context.Context) ([]*DunningProcess, error) {
 	var processes []*DunningProcess
-	err := r.db.WithContext(ctx).Where("status = 'active'").Find(&processes).Error
-	return processes, err
+	if err := r.db.WithContext(ctx).Where("status = 'active'").Find(&processes).Error; err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get active dunning processes", err)
+	}
+	return processes, nil
 }
 
 func (r *gormBillingRepository) GetDunningProcessesDueForAction(ctx context.Context, before time.Time) ([]*DunningProcess, error) {
 	var processes []*DunningProcess
-	err := r.db.WithContext(ctx).Where("next_action_date <= ?", before).Find(&processes).Error
-	return processes, err
+	if err := r.db.WithContext(ctx).Where("next_action_date <= ?", before).Find(&processes).Error; err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get dunning processes due for action", err)
+	}
+	return processes, nil
 }
 
 func (r *gormBillingRepository) UpdateDunningProcess(ctx context.Context, process *DunningProcess) error {
-	return r.db.WithContext(ctx).Save(process).Error
+	if err := r.db.WithContext(ctx).Save(process).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to update dunning process", err)
+	}
+	return nil
 }
 
 func (r *gormBillingRepository) DeleteDunningProcess(ctx context.Context, processID uuid.UUID) error {
-	return r.db.WithContext(ctx).Delete(&DunningProcess{}, "id = ?", processID).Error
+	if err := r.db.WithContext(ctx).Delete(&DunningProcess{}, "id = ?", processID).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to delete dunning process", err)
+	}
+	return nil
 }
 
 func (r *gormBillingRepository) UpdateDunningAction(ctx context.Context, action *DunningAction) error {
-	return r.db.WithContext(ctx).Save(action).Error
+	if err := r.db.WithContext(ctx).Save(action).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to update dunning action", err)
+	}
+	return nil
 }
 
 func (r *gormBillingRepository) DeleteDunningAction(ctx context.Context, actionID uuid.UUID) error {
-	return r.db.WithContext(ctx).Delete(&DunningAction{}, "id = ?", actionID).Error
+	if err := r.db.WithContext(ctx).Delete(&DunningAction{}, "id = ?", actionID).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to delete dunning action", err)
+	}
+	return nil
 }
 
 func (r *gormBillingRepository) GetDunningActionsByProcess(ctx context.Context, processID uuid.UUID) ([]*DunningAction, error) {
 	var actions []*DunningAction
-	err := r.db.WithContext(ctx).Where("dunning_process_id = ?", processID).Find(&actions).Error
-	return actions, err
+	if err := r.db.WithContext(ctx).Where("dunning_process_id = ?", processID).Find(&actions).Error; err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get dunning actions by process", err)
+	}
+	return actions, nil
 }
 
 func (r *gormBillingRepository) GetDunningActionsDueForExecution(ctx context.Context, before time.Time) ([]*DunningAction, error) {
 	var actions []*DunningAction
-	err := r.db.WithContext(ctx).Where("scheduled_at <= ? AND status = 'pending'", before).Find(&actions).Error
-	return actions, err
+	if err := r.db.WithContext(ctx).Where("scheduled_at <= ? AND status = 'pending'", before).Find(&actions).Error; err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get dunning actions due for execution", err)
+	}
+	return actions, nil
 }
 
 // Metrics and summary methods
@@ -590,7 +797,7 @@ func (r *gormBillingRepository) GetRevenueSummary(ctx context.Context, filter An
 		Where("status = 'paid' AND created_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
 		Select("COALESCE(SUM(total_amount), 0)").Scan(&totalRevenue).Error
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to calculate total revenue", err)
 	}
 
 	// Calculate recurring revenue from subscription invoices
@@ -598,7 +805,7 @@ func (r *gormBillingRepository) GetRevenueSummary(ctx context.Context, filter An
 		Where("status = 'paid' AND invoice_type = 'subscription' AND created_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
 		Select("COALESCE(SUM(total_amount), 0)").Scan(&recurringRevenue).Error
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to calculate recurring revenue", err)
 	}
 
 	// Calculate one-time revenue
@@ -606,7 +813,7 @@ func (r *gormBillingRepository) GetRevenueSummary(ctx context.Context, filter An
 		Where("status = 'paid' AND invoice_type = 'one_time' AND created_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
 		Select("COALESCE(SUM(total_amount), 0)").Scan(&oneTimeRevenue).Error
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to calculate one-time revenue", err)
 	}
 
 	return &RevenueSummary{
@@ -627,7 +834,7 @@ func (r *gormBillingRepository) GetSubscriptionMetrics(ctx context.Context, filt
 		Where("created_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
 		Count(&totalSubscriptions).Error
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to count total subscriptions", err)
 	}
 
 	// Count active subscriptions
@@ -635,7 +842,7 @@ func (r *gormBillingRepository) GetSubscriptionMetrics(ctx context.Context, filt
 		Where("status = 'active' AND created_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
 		Count(&activeSubscriptions).Error
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to count active subscriptions", err)
 	}
 
 	// Count canceled subscriptions
@@ -643,7 +850,7 @@ func (r *gormBillingRepository) GetSubscriptionMetrics(ctx context.Context, filt
 		Where("status = 'canceled' AND canceled_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
 		Count(&canceledSubscriptions).Error
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to count canceled subscriptions", err)
 	}
 
 	// Count new subscriptions
@@ -651,7 +858,7 @@ func (r *gormBillingRepository) GetSubscriptionMetrics(ctx context.Context, filt
 		Where("created_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
 		Count(&newSubscriptions).Error
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to count new subscriptions", err)
 	}
 
 	return &SubscriptionMetrics{
@@ -672,7 +879,7 @@ func (r *gormBillingRepository) GetUsageMetrics(ctx context.Context, filter Anal
 		Where("created_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
 		Select("COALESCE(SUM(quantity), 0)").Scan(&totalUsage).Error
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to calculate total usage", err)
 	}
 
 	// Calculate average usage
@@ -680,7 +887,7 @@ func (r *gormBillingRepository) GetUsageMetrics(ctx context.Context, filter Anal
 		Where("created_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
 		Select("COALESCE(AVG(quantity), 0)").Scan(&averageUsage).Error
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to calculate average usage", err)
 	}
 
 	return &UsageMetrics{
@@ -703,7 +910,7 @@ func (r *gormBillingRepository) GetChurnMetrics(ctx context.Context, filter Anal
 		Where("status = 'canceled' AND canceled_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
 		Distinct("tenant_id").Count(&churnedCustomers).Error
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to count churned customers", err)
 	}
 
 	// Count total customers with subscriptions
@@ -711,7 +918,7 @@ func (r *gormBillingRepository) GetChurnMetrics(ctx context.Context, filter Anal
 		Where("created_at <= ?", filter.EndDate).
 		Distinct("tenant_id").Count(&totalCustomers).Error
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to count total customers", err)
 	}
 
 	// Calculate churn rate
@@ -727,6 +934,7 @@ func (r *gormBillingRepository) GetChurnMetrics(ctx context.Context, filter Anal
 
 func (r *gormBillingRepository) GetPaymentMetrics(ctx context.Context, filter AnalyticsFilter) (*PaymentMetrics, error) {
 	var successfulPayments, failedPayments, totalPayments int64
+	var totalPaymentVolume, averagePaymentAmount float64
 	var successRate float64
 
 	// Count successful payments
@@ -734,7 +942,7 @@ func (r *gormBillingRepository) GetPaymentMetrics(ctx context.Context, filter An
 		Where("status = 'succeeded' AND created_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
 		Count(&successfulPayments).Error
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to count successful payments", err)
 	}
 
 	// Count failed payments
@@ -742,10 +950,23 @@ func (r *gormBillingRepository) GetPaymentMetrics(ctx context.Context, filter An
 		Where("status = 'failed' AND created_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
 		Count(&failedPayments).Error
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to count failed payments", err)
 	}
 
 	totalPayments = successfulPayments + failedPayments
+
+	// Calculate total payment volume
+	err = r.db.WithContext(ctx).Model(&PaymentAttempt{}).
+		Where("status = 'succeeded' AND created_at BETWEEN ? AND ?", filter.StartDate, filter.EndDate).
+		Select("COALESCE(SUM(amount), 0)").Scan(&totalPaymentVolume).Error
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("failed to calculate total payment volume", err)
+	}
+
+	// Calculate average payment amount
+	if successfulPayments > 0 {
+		averagePaymentAmount = totalPaymentVolume / float64(successfulPayments)
+	}
 
 	// Calculate success rate
 	if totalPayments > 0 {
@@ -753,10 +974,17 @@ func (r *gormBillingRepository) GetPaymentMetrics(ctx context.Context, filter An
 	}
 
 	return &PaymentMetrics{
-		SuccessfulPayments: successfulPayments,
-		FailedPayments:     failedPayments,
-		TotalPayments:      totalPayments,
-		PaymentSuccessRate: successRate,
+		SuccessfulPayments:   successfulPayments,
+		FailedPayments:       failedPayments,
+		TotalPayments:        totalPayments,
+		PaymentSuccessRate:   successRate,
+		AveragePaymentAmount: averagePaymentAmount,
+		TotalPaymentVolume:   totalPaymentVolume,
+		PaymentMethodStats:   map[string]int64{},
+		RefundCount:          0,
+		RefundAmount:         0,
+		RefundRate:           0,
+		DunningRecoveryRate:  0,
 	}, nil
 }
 
@@ -772,7 +1000,7 @@ func (r *gormBillingRepository) GetMonthlyRevenueBreakdown(ctx context.Context, 
 		Rows()
 
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get monthly revenue breakdown", err)
 	}
 	defer rows.Close()
 
@@ -780,7 +1008,7 @@ func (r *gormBillingRepository) GetMonthlyRevenueBreakdown(ctx context.Context, 
 		var month time.Time
 		var revenue float64
 		if err := rows.Scan(&month, &revenue); err != nil {
-			return nil, err
+			return nil, sharedErrors.NewInternalError("failed to scan monthly revenue data", err)
 		}
 		monthlyRevenue = append(monthlyRevenue, MonthlyRevenue{
 			Month:   month,
@@ -789,7 +1017,7 @@ func (r *gormBillingRepository) GetMonthlyRevenueBreakdown(ctx context.Context, 
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("error iterating monthly revenue rows", err)
 	}
 
 	return monthlyRevenue, nil
@@ -798,5 +1026,9 @@ func (r *gormBillingRepository) GetMonthlyRevenueBreakdown(ctx context.Context, 
 func (r *gormBillingRepository) GetRevenueByCountry(ctx context.Context, filter AnalyticsFilter) ([]CountryRevenue, error) {
 	// This is a placeholder implementation since we don't have country information in our current schema
 	// In a real implementation, you'd join with tenant/customer tables that have country information
-	return []CountryRevenue{}, nil
+	var revenueByCountry []CountryRevenue
+
+	// For now, return empty slice with proper error handling structure
+	// In production, this would query actual country data from invoices or customer tables
+	return revenueByCountry, nil
 }

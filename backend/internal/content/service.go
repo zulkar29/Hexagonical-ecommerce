@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	sharedErrors "ecommerce-saas/internal/shared/errors"
 )
 
 type Service struct {
@@ -313,13 +314,17 @@ func (s *Service) CreatePage(tenantID, authorID uuid.UUID, req CreatePageRequest
 		}
 	}
 
-	return s.repository.GetPage(tenantID, createdPage.ID)
+	result, err := s.repository.GetPage(tenantID, createdPage.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get created page: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Service) UpdatePage(tenantID, pageID uuid.UUID, req UpdatePageRequest) (*Page, error) {
 	page, err := s.repository.GetPage(tenantID, pageID)
 	if err != nil {
-		return nil, fmt.Errorf("page not found: %w", err)
+		return nil, fmt.Errorf("failed to get page: %w", err)
 	}
 
 	// Update fields
@@ -391,67 +396,94 @@ func (s *Service) UpdatePage(tenantID, pageID uuid.UUID, req UpdatePageRequest) 
 		}
 	}
 
-	return s.repository.UpdatePage(page)
+	result, err := s.repository.UpdatePage(page)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update page: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Service) DeletePage(tenantID, pageID uuid.UUID) error {
-	return s.repository.DeletePage(tenantID, pageID)
+	if err := s.repository.DeletePage(tenantID, pageID); err != nil {
+		return fmt.Errorf("failed to delete page: %w", err)
+	}
+	return nil
 }
 
 func (s *Service) GetPage(tenantID, pageID uuid.UUID) (*Page, error) {
-	return s.repository.GetPage(tenantID, pageID)
+	result, err := s.repository.GetPage(tenantID, pageID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get page: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Service) GetPageBySlug(tenantID uuid.UUID, slug string) (*Page, error) {
-	return s.repository.GetPageBySlug(tenantID, slug)
+	result, err := s.repository.GetPageBySlug(tenantID, slug)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get page by slug: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Service) GetPublishedPageBySlug(tenantID uuid.UUID, slug string) (*Page, error) {
 	page, err := s.repository.GetPageBySlug(tenantID, slug)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get page by slug: %w", err)
 	}
 
 	if !page.IsPublished() {
-		return nil, errors.New("page not published")
+		return nil, sharedErrors.NewValidationError("page not published", nil)
 	}
 
 	return page, nil
 }
 
 func (s *Service) GetPages(tenantID uuid.UUID, filter PageListFilter) ([]Page, int64, error) {
-	return s.repository.GetPages(tenantID, filter)
+	result, count, err := s.repository.GetPages(tenantID, filter)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get pages: %w", err)
+	}
+	return result, count, nil
 }
 
 func (s *Service) PublishPage(tenantID, pageID uuid.UUID) (*Page, error) {
 	page, err := s.repository.GetPage(tenantID, pageID)
 	if err != nil {
-		return nil, fmt.Errorf("page not found: %w", err)
+		return nil, fmt.Errorf("failed to get page: %w", err)
 	}
 
 	page.Status = StatusPublished
 	now := time.Now()
 	page.PublishedAt = &now
 
-	return s.repository.UpdatePage(page)
+	result, err := s.repository.UpdatePage(page)
+	if err != nil {
+		return nil, fmt.Errorf("failed to publish page: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Service) UnpublishPage(tenantID, pageID uuid.UUID) (*Page, error) {
 	page, err := s.repository.GetPage(tenantID, pageID)
 	if err != nil {
-		return nil, fmt.Errorf("page not found: %w", err)
+		return nil, fmt.Errorf("failed to get page: %w", err)
 	}
 
 	page.Status = StatusDraft
 	page.PublishedAt = nil
 
-	return s.repository.UpdatePage(page)
+	result, err := s.repository.UpdatePage(page)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unpublish page: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Service) DuplicatePage(tenantID, authorID, pageID uuid.UUID, req DuplicatePageRequest) (*Page, error) {
 	originalPage, err := s.repository.GetPage(tenantID, pageID)
 	if err != nil {
-		return nil, fmt.Errorf("original page not found: %w", err)
+		return nil, fmt.Errorf("failed to get original page: %w", err)
 	}
 
 	duplicatePage := &Page{
@@ -486,7 +518,7 @@ func (s *Service) DuplicatePage(tenantID, authorID, pageID uuid.UUID, req Duplic
 	}
 
 	// Validate slug uniqueness
-	if tempErr := s.validateSlugUniqueness(tenantID, duplicatePage.Slug, uuid.Nil); tempErr != nil {
+	if err := s.validateSlugUniqueness(tenantID, duplicatePage.Slug, uuid.Nil); err != nil {
 		return nil, err
 	}
 
@@ -520,11 +552,18 @@ func (s *Service) DuplicatePage(tenantID, authorID, pageID uuid.UUID, req Duplic
 		}
 	}
 
-	return s.repository.GetPage(tenantID, createdPage.ID)
+	result, err := s.repository.GetPage(tenantID, createdPage.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get duplicated page: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Service) IncrementPageViews(tenantID, pageID uuid.UUID) error {
-	return s.repository.IncrementPageViews(tenantID, pageID)
+	if err := s.repository.IncrementPageViews(tenantID, pageID); err != nil {
+		return fmt.Errorf("failed to increment page views: %w", err)
+	}
+	return nil
 }
 
 // Media Management Service Methods
@@ -533,7 +572,7 @@ func (s *Service) UploadMedia(tenantID, userID uuid.UUID, req UploadMediaRequest
 	// Validate file type
 	mediaType, err := s.getMediaType(req.Header.Header.Get("Content-Type"))
 	if err != nil {
-		return nil, fmt.Errorf("unsupported file type: %w", err)
+		return nil, sharedErrors.NewValidationError("unsupported file type: " + err.Error(), nil)
 	}
 
 	// Generate file path
@@ -582,13 +621,17 @@ func (s *Service) UploadMedia(tenantID, userID uuid.UUID, req UploadMediaRequest
 		}
 	}
 
-	return s.repository.CreateMedia(media)
+	result, err := s.repository.CreateMedia(media)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create media: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Service) UpdateMedia(tenantID, mediaID uuid.UUID, req UpdateMediaRequest) (*Media, error) {
 	media, err := s.repository.GetMedia(tenantID, mediaID)
 	if err != nil {
-		return nil, fmt.Errorf("media not found: %w", err)
+		return nil, fmt.Errorf("failed to get media: %w", err)
 	}
 
 	if req.Title != nil {
@@ -607,13 +650,17 @@ func (s *Service) UpdateMedia(tenantID, mediaID uuid.UUID, req UpdateMediaReques
 		media.MetaDescription = *req.MetaDescription
 	}
 
-	return s.repository.UpdateMedia(media)
+	result, err := s.repository.UpdateMedia(media)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update media: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Service) DeleteMedia(tenantID, mediaID uuid.UUID) error {
 	media, err := s.repository.GetMedia(tenantID, mediaID)
 	if err != nil {
-		return fmt.Errorf("media not found: %w", err)
+		return fmt.Errorf("failed to get media: %w", err)
 	}
 
 	// Delete file from disk
@@ -621,15 +668,26 @@ func (s *Service) DeleteMedia(tenantID, mediaID uuid.UUID) error {
 		return fmt.Errorf("failed to delete file: %w", err)
 	}
 
-	return s.repository.DeleteMedia(tenantID, mediaID)
+	if err := s.repository.DeleteMedia(tenantID, mediaID); err != nil {
+		return fmt.Errorf("failed to delete media: %w", err)
+	}
+	return nil
 }
 
 func (s *Service) GetMedia(tenantID, mediaID uuid.UUID) (*Media, error) {
-	return s.repository.GetMedia(tenantID, mediaID)
+	result, err := s.repository.GetMedia(tenantID, mediaID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get media: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Service) GetMediaLibrary(tenantID uuid.UUID, filter MediaLibraryFilter) ([]Media, int64, error) {
-	return s.repository.GetMediaLibrary(tenantID, filter)
+	result, count, err := s.repository.GetMediaLibrary(tenantID, filter)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get media library: %w", err)
+	}
+	return result, count, nil
 }
 
 // Menu Management Service Methods
@@ -642,13 +700,17 @@ func (s *Service) CreateMenu(tenantID uuid.UUID, req CreateMenuRequest) (*Menu, 
 		IsActive: req.IsActive,
 	}
 
-	return s.repository.CreateMenu(menu)
+	result, err := s.repository.CreateMenu(menu)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create menu: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Service) UpdateMenu(tenantID, menuID uuid.UUID, req UpdateMenuRequest) (*Menu, error) {
 	menu, err := s.repository.GetMenu(tenantID, menuID)
 	if err != nil {
-		return nil, fmt.Errorf("menu not found: %w", err)
+		return nil, fmt.Errorf("failed to get menu: %w", err)
 	}
 
 	if req.Name != nil {
@@ -661,33 +723,52 @@ func (s *Service) UpdateMenu(tenantID, menuID uuid.UUID, req UpdateMenuRequest) 
 		menu.IsActive = *req.IsActive
 	}
 
-	return s.repository.UpdateMenu(menu)
+	result, err := s.repository.UpdateMenu(menu)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update menu: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Service) DeleteMenu(tenantID, menuID uuid.UUID) error {
-	return s.repository.DeleteMenu(tenantID, menuID)
+	if err := s.repository.DeleteMenu(tenantID, menuID); err != nil {
+		return fmt.Errorf("failed to delete menu: %w", err)
+	}
+	return nil
 }
 
 func (s *Service) GetMenu(tenantID, menuID uuid.UUID) (*Menu, error) {
-	return s.repository.GetMenu(tenantID, menuID)
+	result, err := s.repository.GetMenu(tenantID, menuID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get menu: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Service) GetMenus(tenantID uuid.UUID, location string, activeOnly bool) ([]Menu, error) {
-	return s.repository.GetMenus(tenantID, location, activeOnly)
+	result, err := s.repository.GetMenus(tenantID, location, activeOnly)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get menus: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Service) GetMenuByLocation(tenantID uuid.UUID, location string) (*Menu, error) {
-	return s.repository.GetMenuByLocation(tenantID, location)
+	result, err := s.repository.GetMenuByLocation(tenantID, location)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get menu by location: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Service) GetPublicMenuByLocation(tenantID uuid.UUID, location string) (*Menu, error) {
 	menu, err := s.repository.GetMenuByLocation(tenantID, location)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get menu by location: %w", err)
 	}
 
 	if !menu.IsActive {
-		return nil, errors.New("menu not active")
+		return nil, sharedErrors.NewValidationError("menu not active", nil)
 	}
 
 	return menu, nil
@@ -714,13 +795,17 @@ func (s *Service) CreateMenuItem(tenantID, menuID uuid.UUID, req CreateMenuItemR
 		menuItem.Target = "_self"
 	}
 
-	return s.repository.CreateMenuItem(menuItem)
+	result, err := s.repository.CreateMenuItem(menuItem)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create menu item: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Service) UpdateMenuItem(tenantID, itemID uuid.UUID, req UpdateMenuItemRequest) (*MenuItem, error) {
 	menuItem, err := s.repository.GetMenuItem(tenantID, itemID)
 	if err != nil {
-		return nil, fmt.Errorf("menu item not found: %w", err)
+		return nil, fmt.Errorf("failed to get menu item: %w", err)
 	}
 
 	if req.ParentID != nil {
@@ -751,15 +836,25 @@ func (s *Service) UpdateMenuItem(tenantID, itemID uuid.UUID, req UpdateMenuItemR
 		menuItem.SortOrder = *req.SortOrder
 	}
 
-	return s.repository.UpdateMenuItem(menuItem)
+	result, err := s.repository.UpdateMenuItem(menuItem)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update menu item: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Service) DeleteMenuItem(tenantID, itemID uuid.UUID) error {
-	return s.repository.DeleteMenuItem(tenantID, itemID)
+	if err := s.repository.DeleteMenuItem(tenantID, itemID); err != nil {
+		return fmt.Errorf("failed to delete menu item: %w", err)
+	}
+	return nil
 }
 
 func (s *Service) ReorderMenuItems(tenantID, menuID uuid.UUID, req ReorderMenuItemsRequest) error {
-	return s.repository.ReorderMenuItems(tenantID, menuID, req.ItemOrders)
+	if err := s.repository.ReorderMenuItems(tenantID, menuID, req.ItemOrders); err != nil {
+		return fmt.Errorf("failed to reorder menu items: %w", err)
+	}
+	return nil
 }
 
 // Tag Management Service Methods
@@ -778,13 +873,17 @@ func (s *Service) CreateTag(tenantID uuid.UUID, req CreateTagRequest) (*Tag, err
 		tag.Slug = s.generateSlug(tag.Name)
 	}
 
-	return s.repository.CreateTag(tag)
+	result, err := s.repository.CreateTag(tag)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create tag: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Service) UpdateTag(tenantID, tagID uuid.UUID, req UpdateTagRequest) (*Tag, error) {
 	tag, err := s.repository.GetTag(tenantID, tagID)
 	if err != nil {
-		return nil, fmt.Errorf("tag not found: %w", err)
+		return nil, fmt.Errorf("failed to get tag: %w", err)
 	}
 
 	if req.Name != nil {
@@ -800,15 +899,26 @@ func (s *Service) UpdateTag(tenantID, tagID uuid.UUID, req UpdateTagRequest) (*T
 		tag.Color = *req.Color
 	}
 
-	return s.repository.UpdateTag(tag)
+	result, err := s.repository.UpdateTag(tag)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update tag: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Service) DeleteTag(tenantID, tagID uuid.UUID) error {
-	return s.repository.DeleteTag(tenantID, tagID)
+	if err := s.repository.DeleteTag(tenantID, tagID); err != nil {
+		return fmt.Errorf("failed to delete tag: %w", err)
+	}
+	return nil
 }
 
 func (s *Service) GetTags(tenantID uuid.UUID, search string) ([]Tag, error) {
-	return s.repository.GetTags(tenantID, search)
+	result, err := s.repository.GetTags(tenantID, search)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tags: %w", err)
+	}
+	return result, nil
 }
 
 // Category Management Service Methods
@@ -829,13 +939,17 @@ func (s *Service) CreateCategory(tenantID uuid.UUID, req CreateCategoryRequest) 
 		category.Slug = s.generateSlug(category.Name)
 	}
 
-	return s.repository.CreateCategory(category)
+	result, err := s.repository.CreateCategory(category)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create category: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Service) UpdateCategory(tenantID, categoryID uuid.UUID, req UpdateCategoryRequest) (*Category, error) {
 	category, err := s.repository.GetCategory(tenantID, categoryID)
 	if err != nil {
-		return nil, fmt.Errorf("category not found: %w", err)
+		return nil, fmt.Errorf("failed to get category: %w", err)
 	}
 
 	if req.Name != nil {
@@ -857,15 +971,26 @@ func (s *Service) UpdateCategory(tenantID, categoryID uuid.UUID, req UpdateCateg
 		category.SortOrder = *req.SortOrder
 	}
 
-	return s.repository.UpdateCategory(category)
+	result, err := s.repository.UpdateCategory(category)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update category: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Service) DeleteCategory(tenantID, categoryID uuid.UUID) error {
-	return s.repository.DeleteCategory(tenantID, categoryID)
+	if err := s.repository.DeleteCategory(tenantID, categoryID); err != nil {
+		return fmt.Errorf("failed to delete category: %w", err)
+	}
+	return nil
 }
 
 func (s *Service) GetCategories(tenantID uuid.UUID, activeOnly bool) ([]Category, error) {
-	return s.repository.GetCategories(tenantID, activeOnly)
+	result, err := s.repository.GetCategories(tenantID, activeOnly)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get categories: %w", err)
+	}
+	return result, nil
 }
 
 // SEO Management Service Methods
@@ -920,14 +1045,26 @@ func (s *Service) UpdateSEOSettings(tenantID uuid.UUID, req UpdateSEOSettingsReq
 	}
 
 	if settings.ID == uuid.Nil {
-		return s.repository.CreateSEOSettings(settings)
+		result, err := s.repository.CreateSEOSettings(settings)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create SEO settings: %w", err)
+		}
+		return result, nil
 	}
 
-	return s.repository.UpdateSEOSettings(settings)
+	result, err := s.repository.UpdateSEOSettings(settings)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update SEO settings: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Service) GetSEOSettings(tenantID uuid.UUID) (*SEOSettings, error) {
-	return s.repository.GetSEOSettings(tenantID)
+	result, err := s.repository.GetSEOSettings(tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get SEO settings: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Service) GenerateSitemap(tenantID uuid.UUID) (string, error) {
@@ -1028,13 +1165,21 @@ func (s *Service) GetContentAnalytics(tenantID uuid.UUID) (*ContentAnalytics, er
 }
 
 func (s *Service) GetPopularContent(tenantID uuid.UUID, limit int, contentType string) ([]Page, error) {
-	return s.repository.GetPopularPages(tenantID, limit)
+	result, err := s.repository.GetPopularPages(tenantID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get popular content: %w", err)
+	}
+	return result, nil
 }
 
 // Search Service Methods
 
 func (s *Service) SearchContent(tenantID uuid.UUID, filter ContentSearchFilter) ([]ContentSearchResult, int64, error) {
-	return s.repository.SearchContent(tenantID, filter)
+	result, count, err := s.repository.SearchContent(tenantID, filter)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to search content: %w", err)
+	}
+	return result, count, nil
 }
 
 // Helper methods

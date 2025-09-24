@@ -7,6 +7,8 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+
+	sharedErrors "ecommerce-saas/internal/shared/errors"
 )
 
 // RepositoryImpl handles tenant data operations
@@ -27,14 +29,14 @@ func (r *RepositoryImpl) Save(tenant *Tenant) (*Tenant, error) {
 		// Check for unique constraint violations
 		if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "UNIQUE constraint") {
 			if strings.Contains(err.Error(), "subdomain") {
-				return nil, NewConflictError("Subdomain already exists")
+				return nil, sharedErrors.NewConflictError("Subdomain already exists")
 			}
 			if strings.Contains(err.Error(), "custom_domain") {
-				return nil, NewConflictError("Custom domain already exists")
+				return nil, sharedErrors.NewConflictError("Custom domain already exists")
 			}
-			return nil, NewConflictError("Tenant already exists")
+			return nil, sharedErrors.NewConflictError("Tenant already exists")
 		}
-		return nil, NewInternalError("Failed to create tenant")
+		return nil, sharedErrors.NewInternalError("Failed to create tenant", err)
 	}
 	return tenant, nil
 }
@@ -44,9 +46,9 @@ func (r *RepositoryImpl) FindByID(id uuid.UUID) (*Tenant, error) {
 	var tenant Tenant
 	if err := r.db.First(&tenant, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, NewNotFoundError("Tenant not found")
+			return nil, sharedErrors.NewNotFoundError("Tenant")
 		}
-		return nil, NewInternalError("Failed to retrieve tenant")
+		return nil, sharedErrors.NewInternalError("Failed to retrieve tenant", err)
 	}
 	return &tenant, nil
 }
@@ -56,9 +58,9 @@ func (r *RepositoryImpl) FindBySubdomain(subdomain string) (*Tenant, error) {
 	var tenant Tenant
 	if err := r.db.First(&tenant, "subdomain = ?", subdomain).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, NewNotFoundError("Tenant not found")
+			return nil, sharedErrors.NewNotFoundError("Tenant")
 		}
-		return nil, NewInternalError("Failed to retrieve tenant by subdomain")
+		return nil, sharedErrors.NewInternalError("Failed to retrieve tenant by subdomain", err)
 	}
 	return &tenant, nil
 }

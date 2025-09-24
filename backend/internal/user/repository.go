@@ -2,9 +2,12 @@ package user
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+
+	sharedErrors "ecommerce-saas/internal/shared/errors"
 )
 
 // Repository defines user repository interface
@@ -45,7 +48,10 @@ func NewRepository(db *gorm.DB) Repository {
 
 func (r *repository) CreateUser(ctx context.Context, user *User) (*User, error) {
 	if err := r.db.WithContext(ctx).Create(user).Error; err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return nil, sharedErrors.NewConflictError("User with this email already exists")
+		}
+		return nil, sharedErrors.NewInternalError("Failed to create user", err)
 	}
 	return user, nil
 }
@@ -54,7 +60,10 @@ func (r *repository) GetUserByID(ctx context.Context, userID uuid.UUID) (*User, 
 	var user User
 	err := r.db.WithContext(ctx).Where("id = ?", userID).First(&user).Error
 	if err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("User")
+		}
+		return nil, sharedErrors.NewInternalError("Failed to retrieve user", err)
 	}
 	return &user, nil
 }
@@ -63,7 +72,10 @@ func (r *repository) GetUserByEmail(ctx context.Context, email string) (*User, e
 	var user User
 	err := r.db.WithContext(ctx).Where("email = ?", email).First(&user).Error
 	if err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("User")
+		}
+		return nil, sharedErrors.NewInternalError("Failed to retrieve user by email", err)
 	}
 	return &user, nil
 }

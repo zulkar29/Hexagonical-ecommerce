@@ -2,8 +2,10 @@ package components
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	sharedErrors "ecommerce-saas/internal/shared/errors"
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"gorm.io/gorm"
@@ -81,7 +83,10 @@ func (r *gormRepository) CreateComponent(ctx context.Context, tenantID uuid.UUID
 		component.ID = uuid.New()
 	}
 	component.TenantID = tenantID
-	return r.db.WithContext(ctx).Create(component).Error
+	if err := r.db.WithContext(ctx).Create(component).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to create component", err)
+	}
+	return nil
 }
 
 func (r *gormRepository) GetComponent(ctx context.Context, tenantID, id uuid.UUID) (*Component, error) {
@@ -90,7 +95,10 @@ func (r *gormRepository) GetComponent(ctx context.Context, tenantID, id uuid.UUI
 		Where("tenant_id = ? AND id = ?", tenantID, id).
 		First(&component).Error
 	if err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("component not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get component", err)
 	}
 	return &component, nil
 }
@@ -101,21 +109,30 @@ func (r *gormRepository) GetComponentBySlug(ctx context.Context, tenantID uuid.U
 		Where("tenant_id = ? AND slug = ?", tenantID, slug).
 		First(&component).Error
 	if err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("component not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get component by slug", err)
 	}
 	return &component, nil
 }
 
 func (r *gormRepository) UpdateComponent(ctx context.Context, tenantID uuid.UUID, component *Component) error {
-	return r.db.WithContext(ctx).
+	if err := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND id = ?", tenantID, component.ID).
-		Updates(component).Error
+		Updates(component).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to update component", err)
+	}
+	return nil
 }
 
 func (r *gormRepository) DeleteComponent(ctx context.Context, tenantID, id uuid.UUID) error {
-	return r.db.WithContext(ctx).
+	if err := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND id = ?", tenantID, id).
-		Delete(&Component{}).Error
+		Delete(&Component{}).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to delete component", err)
+	}
+	return nil
 }
 
 func (r *gormRepository) ListComponents(ctx context.Context, tenantID uuid.UUID, filters ComponentFilters) ([]Component, int64, error) {
@@ -191,21 +208,30 @@ func (r *gormRepository) GetComponentInstance(ctx context.Context, tenantID, id 
 		Preload("Theme").
 		First(&instance).Error
 	if err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("component instance not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get component instance", err)
 	}
 	return &instance, nil
 }
 
 func (r *gormRepository) UpdateComponentInstance(ctx context.Context, tenantID uuid.UUID, instance *ComponentInstance) error {
-	return r.db.WithContext(ctx).
+	if err := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND id = ?", instance.TenantID, instance.ID).
-		Save(instance).Error
+		Save(instance).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to update component instance", err)
+	}
+	return nil
 }
 
 func (r *gormRepository) DeleteComponentInstance(ctx context.Context, tenantID, id uuid.UUID) error {
-	return r.db.WithContext(ctx).
+	if err := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND id = ?", tenantID, id).
-		Delete(&ComponentInstance{}).Error
+		Delete(&ComponentInstance{}).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to delete component instance", err)
+	}
+	return nil
 }
 
 func (r *gormRepository) ListComponentInstances(ctx context.Context, tenantID uuid.UUID, filter ComponentInstanceFilter) ([]*ComponentInstance, error) {
@@ -253,7 +279,7 @@ func (r *gormRepository) ListComponentInstances(ctx context.Context, tenantID uu
 	var instances []ComponentInstance
 	err := query.Preload("Component").Find(&instances).Error
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to list component instances", err)
 	}
 
 	// Convert to pointer slice
@@ -289,7 +315,10 @@ func (r *gormRepository) CreateTheme(ctx context.Context, tenantID uuid.UUID, th
 		theme.ID = uuid.New()
 	}
 	theme.TenantID = tenantID
-	return r.db.WithContext(ctx).Create(theme).Error
+	if err := r.db.WithContext(ctx).Create(theme).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to create theme", err)
+	}
+	return nil
 }
 
 func (r *gormRepository) GetTheme(ctx context.Context, tenantID, id uuid.UUID) (*Theme, error) {
@@ -300,7 +329,10 @@ func (r *gormRepository) GetTheme(ctx context.Context, tenantID, id uuid.UUID) (
 		Preload("Instances.Component").
 		First(&theme).Error
 	if err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("theme not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get theme", err)
 	}
 	return &theme, nil
 }
@@ -313,21 +345,30 @@ func (r *gormRepository) GetThemeBySlug(ctx context.Context, tenantID uuid.UUID,
 		Preload("Instances.Component").
 		First(&theme).Error
 	if err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("theme not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get theme by slug", err)
 	}
 	return &theme, nil
 }
 
 func (r *gormRepository) UpdateTheme(ctx context.Context, theme *Theme) error {
-	return r.db.WithContext(ctx).
+	if err := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND id = ?", theme.TenantID, theme.ID).
-		Save(theme).Error
+		Save(theme).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to update theme", err)
+	}
+	return nil
 }
 
 func (r *gormRepository) DeleteTheme(ctx context.Context, tenantID, id uuid.UUID) error {
-	return r.db.WithContext(ctx).
+	if err := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND id = ?", tenantID, id).
-		Delete(&Theme{}).Error
+		Delete(&Theme{}).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to delete theme", err)
+	}
+	return nil
 }
 
 func (r *gormRepository) ListThemes(ctx context.Context, tenantID uuid.UUID, filters ThemeFilters) ([]Theme, int64, error) {
@@ -349,7 +390,7 @@ func (r *gormRepository) ListThemes(ctx context.Context, tenantID uuid.UUID, fil
 	// Count total
 	var total int64
 	if err := query.Model(&Theme{}).Count(&total).Error; err != nil {
-		return nil, 0, err
+		return nil, 0, sharedErrors.NewInternalError("failed to count themes", err)
 	}
 
 	// Apply pagination and sorting
@@ -376,7 +417,10 @@ func (r *gormRepository) ListThemes(ctx context.Context, tenantID uuid.UUID, fil
 
 	var themes []Theme
 	err := query.Preload("Instances").Find(&themes).Error
-	return themes, total, err
+	if err != nil {
+		return nil, 0, sharedErrors.NewInternalError("failed to list themes", err)
+	}
+	return themes, total, nil
 }
 
 func (r *gormRepository) GetActiveTheme(ctx context.Context, tenantID uuid.UUID) (*Theme, error) {
@@ -387,7 +431,10 @@ func (r *gormRepository) GetActiveTheme(ctx context.Context, tenantID uuid.UUID)
 		Preload("Instances.Component").
 		First(&theme).Error
 	if err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("active theme not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get active theme", err)
 	}
 	return &theme, nil
 }
@@ -419,7 +466,7 @@ func (r *gormRepository) ListTemplates(ctx context.Context, filters TemplateFilt
 	// Count total
 	var total int64
 	if err := query.Model(&ComponentTemplate{}).Count(&total).Error; err != nil {
-		return nil, 0, err
+		return nil, 0, sharedErrors.NewInternalError("failed to count component templates", err)
 	}
 
 	// Apply pagination and sorting
@@ -446,7 +493,10 @@ func (r *gormRepository) ListTemplates(ctx context.Context, filters TemplateFilt
 
 	var templates []ComponentTemplate
 	err := query.Find(&templates).Error
-	return templates, total, err
+	if err != nil {
+		return nil, 0, sharedErrors.NewInternalError("failed to list component templates", err)
+	}
+	return templates, total, nil
 }
 
 // Statistics
@@ -486,7 +536,10 @@ func (r *gormRepository) CreateThemeTemplate(ctx context.Context, themeTemplate 
 	if themeTemplate.ID == uuid.Nil {
 		themeTemplate.ID = uuid.New()
 	}
-	return r.db.WithContext(ctx).Create(themeTemplate).Error
+	if err := r.db.WithContext(ctx).Create(themeTemplate).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to create theme template", err)
+	}
+	return nil
 }
 
 func (r *gormRepository) GetThemeTemplate(ctx context.Context, id uuid.UUID) (*ThemeTemplate, error) {
@@ -496,21 +549,30 @@ func (r *gormRepository) GetThemeTemplate(ctx context.Context, id uuid.UUID) (*T
 		Preload("Components").
 		First(&themeTemplate).Error
 	if err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("theme template not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get theme template", err)
 	}
 	return &themeTemplate, nil
 }
 
 func (r *gormRepository) UpdateThemeTemplate(ctx context.Context, themeTemplate *ThemeTemplate) error {
-	return r.db.WithContext(ctx).
+	if err := r.db.WithContext(ctx).
 		Where("id = ?", themeTemplate.ID).
-		Save(themeTemplate).Error
+		Save(themeTemplate).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to update theme template", err)
+	}
+	return nil
 }
 
 func (r *gormRepository) DeleteThemeTemplate(ctx context.Context, id uuid.UUID) error {
-	return r.db.WithContext(ctx).
+	if err := r.db.WithContext(ctx).
 		Where("id = ?", id).
-		Delete(&ThemeTemplate{}).Error
+		Delete(&ThemeTemplate{}).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to delete theme template", err)
+	}
+	return nil
 }
 
 func (r *gormRepository) ListThemeTemplates(ctx context.Context, filters ThemeTemplateFilter) ([]*ThemeTemplate, error) {
@@ -546,7 +608,7 @@ func (r *gormRepository) listThemeTemplatesWithCount(ctx context.Context, filter
 	// Count total
 	var total int64
 	if err := query.Model(&ThemeTemplate{}).Count(&total).Error; err != nil {
-		return nil, 0, err
+		return nil, 0, sharedErrors.NewInternalError("failed to count theme templates", err)
 	}
 
 	// Apply pagination
@@ -566,7 +628,7 @@ func (r *gormRepository) listThemeTemplatesWithCount(ctx context.Context, filter
 	var themeTemplates []ThemeTemplate
 	err := query.Preload("Components").Find(&themeTemplates).Error
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, sharedErrors.NewInternalError("failed to list theme templates", err)
 	}
 
 	// Convert to pointer slice
@@ -584,28 +646,40 @@ func (r *gormRepository) CreateComponentTemplate(ctx context.Context, componentT
 	if componentTemplate.ID == uuid.Nil {
 		componentTemplate.ID = uuid.New()
 	}
-	return r.db.WithContext(ctx).Create(componentTemplate).Error
+	if err := r.db.WithContext(ctx).Create(componentTemplate).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to create component template", err)
+	}
+	return nil
 }
 
 func (r *gormRepository) GetComponentTemplate(ctx context.Context, id uuid.UUID) (*ComponentTemplate, error) {
 	var componentTemplate ComponentTemplate
 	err := r.db.WithContext(ctx).Where("id = ?", id).First(&componentTemplate).Error
 	if err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("component template not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get component template", err)
 	}
 	return &componentTemplate, nil
 }
 
 func (r *gormRepository) UpdateComponentTemplate(ctx context.Context, componentTemplate *ComponentTemplate) error {
-	return r.db.WithContext(ctx).
+	if err := r.db.WithContext(ctx).
 		Where("id = ?", componentTemplate.ID).
-		Save(componentTemplate).Error
+		Save(componentTemplate).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to update component template", err)
+	}
+	return nil
 }
 
 func (r *gormRepository) DeleteComponentTemplate(ctx context.Context, id uuid.UUID) error {
-	return r.db.WithContext(ctx).
+	if err := r.db.WithContext(ctx).
 		Where("id = ?", id).
-		Delete(&ComponentTemplate{}).Error
+		Delete(&ComponentTemplate{}).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to delete component template", err)
+	}
+	return nil
 }
 
 func (r *gormRepository) ListComponentTemplates(ctx context.Context, filters ComponentTemplateFilter) ([]*ComponentTemplate, error) {
@@ -641,7 +715,7 @@ func (r *gormRepository) listComponentTemplatesWithCount(ctx context.Context, fi
 	// Count total
 	var total int64
 	if err := query.Model(&ComponentTemplate{}).Count(&total).Error; err != nil {
-		return nil, 0, err
+		return nil, 0, sharedErrors.NewInternalError("failed to count component templates", err)
 	}
 
 	// Apply pagination
@@ -669,7 +743,7 @@ func (r *gormRepository) listComponentTemplatesWithCount(ctx context.Context, fi
 	var componentTemplates []ComponentTemplate
 	err := query.Find(&componentTemplates).Error
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, sharedErrors.NewInternalError("failed to list component templates", err)
 	}
 
 	// Convert to pointer slice
@@ -678,10 +752,21 @@ func (r *gormRepository) listComponentTemplatesWithCount(ctx context.Context, fi
 		result[i] = &componentTemplates[i]
 	}
 
-	return result, total, err
+	return result, total, nil
 }
 
 // Template operations (general aliases)
 func (r *gormRepository) GetTemplate(ctx context.Context, id uuid.UUID) (*ComponentTemplate, error) {
 	return r.GetComponentTemplate(ctx, id)
+}
+
+func (r *gormRepository) GetTemplateByType(ctx context.Context, templateType string, id uuid.UUID) (interface{}, error) {
+	switch templateType {
+	case "component":
+		return r.GetComponentTemplate(ctx, id)
+	case "theme":
+		return r.GetThemeTemplate(ctx, id)
+	default:
+		return nil, sharedErrors.NewInternalError("invalid template type", fmt.Errorf("invalid template type: %s", templateType))
+	}
 }

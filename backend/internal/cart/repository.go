@@ -6,6 +6,8 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+
+	sharedErrors "ecommerce-saas/internal/shared/errors"
 )
 
 // Repository defines the cart repository interface
@@ -85,7 +87,7 @@ func NewRepository(db *gorm.DB) Repository {
 // SaveCart creates a new cart
 func (r *repository) SaveCart(cart *Cart) (*Cart, error) {
 	if err := r.db.Create(cart).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("Failed to create cart", err)
 	}
 	return cart, nil
 }
@@ -96,7 +98,10 @@ func (r *repository) FindCartByID(tenantID, cartID uuid.UUID) (*Cart, error) {
 	err := r.db.Preload("Items").
 		First(&cart, "id = ? AND tenant_id = ?", cartID, tenantID).Error
 	if err != nil {
-		return nil, err
+		if err == gorm.ErrRecordNotFound {
+			return nil, sharedErrors.NewNotFoundError("Cart not found")
+		}
+		return nil, sharedErrors.NewInternalError("Failed to find cart", err)
 	}
 	return &cart, nil
 }
@@ -108,7 +113,10 @@ func (r *repository) FindCartByCustomerID(tenantID, customerID uuid.UUID) (*Cart
 		Where("tenant_id = ? AND customer_id = ? AND status = ?", tenantID, customerID, StatusActive).
 		First(&cart).Error
 	if err != nil {
-		return nil, err
+		if err == gorm.ErrRecordNotFound {
+			return nil, sharedErrors.NewNotFoundError("Active cart not found for customer")
+		}
+		return nil, sharedErrors.NewInternalError("Failed to find customer cart", err)
 	}
 	return &cart, nil
 }
@@ -120,7 +128,10 @@ func (r *repository) FindCartBySessionID(tenantID uuid.UUID, sessionID string) (
 		Where("tenant_id = ? AND session_id = ? AND status = ?", tenantID, sessionID, StatusActive).
 		First(&cart).Error
 	if err != nil {
-		return nil, err
+		if err == gorm.ErrRecordNotFound {
+			return nil, sharedErrors.NewNotFoundError("Cart not found for session")
+		}
+		return nil, sharedErrors.NewInternalError("Failed to find session cart", err)
 	}
 	return &cart, nil
 }
@@ -128,14 +139,17 @@ func (r *repository) FindCartBySessionID(tenantID uuid.UUID, sessionID string) (
 // UpdateCart updates an existing cart
 func (r *repository) UpdateCart(cart *Cart) (*Cart, error) {
 	if err := r.db.Save(cart).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("Failed to update cart", err)
 	}
 	return cart, nil
 }
 
 // DeleteCart soft deletes a cart
 func (r *repository) DeleteCart(tenantID, cartID uuid.UUID) error {
-	return r.db.Where("tenant_id = ?", tenantID).Delete(&Cart{}, cartID).Error
+	if err := r.db.Where("tenant_id = ?", tenantID).Delete(&Cart{}, cartID).Error; err != nil {
+		return sharedErrors.NewInternalError("Failed to delete cart", err)
+	}
+	return nil
 }
 
 // ListCarts returns paginated carts with filters
@@ -174,7 +188,7 @@ func (r *repository) ListCarts(tenantID uuid.UUID, filter CartListFilter, offset
 
 	// Get total count
 	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, err
+		return nil, 0, sharedErrors.NewInternalError("Failed to count carts", err)
 	}
 
 	// Get paginated results with preloads
@@ -182,7 +196,7 @@ func (r *repository) ListCarts(tenantID uuid.UUID, filter CartListFilter, offset
 		Offset(offset).Limit(limit).
 		Order("created_at DESC").
 		Find(&carts).Error; err != nil {
-		return nil, 0, err
+		return nil, 0, sharedErrors.NewInternalError("Failed to list carts", err)
 	}
 
 	return carts, total, nil
@@ -194,7 +208,10 @@ func (r *repository) GetAbandonedCarts(tenantID uuid.UUID, since time.Time) ([]*
 	err := r.db.Preload("Items").
 		Where("tenant_id = ? AND status = ? AND abandoned_at >= ?", tenantID, StatusAbandoned, since).
 		Find(&carts).Error
-	return carts, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("Failed to get abandoned carts", err)
+	}
+	return carts, nil
 }
 
 // GetExpiredCarts returns expired carts
@@ -203,21 +220,27 @@ func (r *repository) GetExpiredCarts(tenantID uuid.UUID) ([]*Cart, error) {
 	now := time.Now()
 	err := r.db.Where("tenant_id = ? AND expires_at IS NOT NULL AND expires_at <= ? AND status = ?",
 		tenantID, now, StatusActive).Find(&carts).Error
-	return carts, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("Failed to get expired carts", err)
+	}
+	return carts, nil
 }
 
 // CleanupExpiredCarts marks expired carts as expired
 func (r *repository) CleanupExpiredCarts(tenantID uuid.UUID) error {
 	now := time.Now()
-	return r.db.Model(&Cart{}).
+	if err := r.db.Model(&Cart{}).
 		Where("tenant_id = ? AND expires_at IS NOT NULL AND expires_at <= ? AND status = ?",
 			tenantID, now, StatusActive).
-		Update("status", StatusExpired).Error
+		Update("status", StatusExpired).Error; err != nil {
+		return sharedErrors.NewInternalError("Failed to cleanup expired carts", err)
+	}
+	return nil
 }
 
 // MergeGuestCartToCustomer merges guest cart to customer cart
 func (r *repository) MergeGuestCartToCustomer(tenantID uuid.UUID, sessionID string, customerID uuid.UUID) error {
-	return r.db.Transaction(func(tx *gorm.DB) error {
+	if err := r.db.Transaction(func(tx *gorm.DB) error {
 		// Find guest cart
 		var guestCart Cart
 		if err := tx.Where("tenant_id = ? AND session_id = ? AND status = ?",
@@ -278,7 +301,10 @@ func (r *repository) MergeGuestCartToCustomer(tenantID uuid.UUID, sessionID stri
 
 		// Delete guest cart
 		return tx.Delete(&guestCart).Error
-	})
+	}); err != nil {
+		return sharedErrors.NewInternalError("Failed to merge guest cart to customer", err)
+	}
+	return nil
 }
 
 // Cart item operations
@@ -286,7 +312,7 @@ func (r *repository) MergeGuestCartToCustomer(tenantID uuid.UUID, sessionID stri
 // AddCartItem adds an item to cart
 func (r *repository) AddCartItem(item *CartItem) (*CartItem, error) {
 	if err := r.db.Create(item).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("Failed to add cart item", err)
 	}
 	return item, nil
 }
@@ -294,15 +320,18 @@ func (r *repository) AddCartItem(item *CartItem) (*CartItem, error) {
 // UpdateCartItem updates a cart item
 func (r *repository) UpdateCartItem(item *CartItem) (*CartItem, error) {
 	if err := r.db.Save(item).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("Failed to update cart item", err)
 	}
 	return item, nil
 }
 
 // RemoveCartItem removes an item from cart
 func (r *repository) RemoveCartItem(tenantID, cartID, itemID uuid.UUID) error {
-	return r.db.Where("id = ? AND cart_id IN (SELECT id FROM carts WHERE id = ? AND tenant_id = ?)",
-		itemID, cartID, tenantID).Delete(&CartItem{}).Error
+	if err := r.db.Where("id = ? AND cart_id IN (SELECT id FROM carts WHERE id = ? AND tenant_id = ?)",
+		itemID, cartID, tenantID).Delete(&CartItem{}).Error; err != nil {
+		return sharedErrors.NewInternalError("Failed to remove cart item", err)
+	}
+	return nil
 }
 
 // FindCartItem finds a specific cart item
@@ -311,15 +340,21 @@ func (r *repository) FindCartItem(tenantID, cartID, itemID uuid.UUID) (*CartItem
 	err := r.db.Where("id = ? AND cart_id IN (SELECT id FROM carts WHERE id = ? AND tenant_id = ?)",
 		itemID, cartID, tenantID).First(&item).Error
 	if err != nil {
-		return nil, err
+		if err == gorm.ErrRecordNotFound {
+			return nil, sharedErrors.NewNotFoundError("Cart item not found")
+		}
+		return nil, sharedErrors.NewInternalError("Failed to find cart item", err)
 	}
 	return &item, nil
 }
 
 // ClearCartItems removes all items from a cart
 func (r *repository) ClearCartItems(tenantID, cartID uuid.UUID) error {
-	return r.db.Where("cart_id IN (SELECT id FROM carts WHERE id = ? AND tenant_id = ?)",
-		cartID, tenantID).Delete(&CartItem{}).Error
+	if err := r.db.Where("cart_id IN (SELECT id FROM carts WHERE id = ? AND tenant_id = ?)",
+		cartID, tenantID).Delete(&CartItem{}).Error; err != nil {
+		return sharedErrors.NewInternalError("Failed to clear cart items", err)
+	}
+	return nil
 }
 
 // Statistics and analytics
@@ -408,5 +443,8 @@ func (r *repository) GetTopAbandonedProducts(tenantID uuid.UUID, limit int) ([]*
 		Limit(limit).
 		Scan(&stats).Error
 
-	return stats, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("Failed to get top abandoned products", err)
+	}
+	return stats, nil
 }

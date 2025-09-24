@@ -3,9 +3,13 @@ package marketing
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
+
+	sharedErrors "ecommerce-saas/internal/shared/errors"
 )
 
 // Service defines the marketing service interface
@@ -266,17 +270,7 @@ type CampaignStats struct {
 	BounceRate        float64   `json:"bounce_rate"`
 }
 
-type MarketingOverview struct {
-	TotalCampaigns      int     `json:"total_campaigns"`
-	ActiveCampaigns     int     `json:"active_campaigns"`
-	TotalSubscribers    int     `json:"total_subscribers"`
-	TotalEmailsSent     int     `json:"total_emails_sent"`
-	AverageOpenRate     float64 `json:"average_open_rate"`
-	AverageClickRate    float64 `json:"average_click_rate"`
-	AbandonedCartsCount int     `json:"abandoned_carts_count"`
-	RecoveredCartsCount int     `json:"recovered_carts_count"`
-	RecoveryRate        float64 `json:"recovery_rate"`
-}
+
 
 // Implementation methods (TODO: implement business logic)
 func (s *service) CreateCampaign(ctx context.Context, req CreateCampaignRequest) (*Campaign, error) {
@@ -620,28 +614,31 @@ func (s *service) GetAbandonedCarts(ctx context.Context, tenantID uuid.UUID, fil
 func (s *service) MarkCartRecovered(ctx context.Context, tenantID, cartID uuid.UUID, recoveredValue float64) error {
 	// Validate inputs
 	if tenantID == uuid.Nil {
-		return errors.New("tenant ID is required")
+		return sharedErrors.NewValidationError("tenant ID is required", nil)
 	}
 	if cartID == uuid.Nil {
-		return errors.New("cart ID is required")
+		return sharedErrors.NewValidationError("cart ID is required", nil)
 	}
 	if recoveredValue < 0 {
-		return errors.New("recovered value cannot be negative")
+		return sharedErrors.NewValidationError("recovered value cannot be negative", nil)
 	}
 
 	// Get the abandoned cart to verify it exists and isn't already recovered
 	cart, err := s.repo.GetAbandonedCartByID(ctx, tenantID, cartID)
 	if err != nil {
-		return err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return sharedErrors.NewNotFoundError("abandoned cart not found")
+		}
+		return fmt.Errorf("failed to get abandoned cart: %w", err)
 	}
 
 	if cart.IsRecovered {
-		return errors.New("cart is already marked as recovered")
+		return sharedErrors.NewBadRequestError("cart is already marked as recovered")
 	}
 
 	// Validate recovered value doesn't exceed original cart value
 	if recoveredValue > cart.CartValue {
-		return errors.New("recovered value cannot exceed original cart value")
+		return sharedErrors.NewValidationError("recovered value cannot exceed original cart value", nil)
 	}
 
 	// Mark cart as recovered
@@ -654,7 +651,7 @@ func (s *service) MarkCartRecovered(ctx context.Context, tenantID, cartID uuid.U
 	})
 
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to update abandoned cart: %w", err)
 	}
 
 	// TODO: Send recovery confirmation email or webhook notification
@@ -667,7 +664,10 @@ func (s *service) SendAbandonedCartEmail(ctx context.Context, tenantID, abandone
 	// Get abandoned cart details to verify it exists
 	_, err := s.repo.GetAbandonedCartByID(ctx, tenantID, abandonedCartID)
 	if err != nil {
-		return err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return sharedErrors.NewNotFoundError("abandoned cart not found")
+		}
+		return fmt.Errorf("failed to get abandoned cart: %w", err)
 	}
 
 	// TODO: Integrate with email service to send abandoned cart email

@@ -8,6 +8,8 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+
+	sharedErrors "ecommerce-saas/internal/shared/errors"
 )
 
 // repository implements the Repository interface
@@ -64,7 +66,7 @@ func (r *repository) Search(ctx context.Context, tenantID uuid.UUID, query *Sear
 		total += pageTotal
 
 	default:
-		return nil, 0, fmt.Errorf("unsupported search type: %s", query.Type)
+		return nil, 0, sharedErrors.NewInternalError("Unsupported search type", fmt.Errorf("unsupported search type: %s", query.Type))
 	}
 
 	// Apply sorting and pagination
@@ -129,7 +131,7 @@ func (r *repository) SearchProducts(ctx context.Context, tenantID uuid.UUID, req
 	// Count total
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to count products: %w", err)
+		return nil, 0, sharedErrors.NewInternalError("Failed to count products", err)
 	}
 
 	// Add sorting
@@ -162,7 +164,7 @@ func (r *repository) SearchProducts(ctx context.Context, tenantID uuid.UUID, req
 	}
 
 	if err := query.Scan(&products).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to search products: %w", err)
+		return nil, 0, sharedErrors.NewInternalError("Failed to search products", err)
 	}
 
 	// Convert to search results
@@ -201,7 +203,7 @@ func (r *repository) GetSuggestions(ctx context.Context, tenantID uuid.UUID, que
 			Limit(limit).
 			Pluck("name", &productNames).Error
 		if err != nil {
-			return nil, fmt.Errorf("failed to get product suggestions: %w", err)
+			return nil, sharedErrors.NewInternalError("Failed to get product suggestions", err)
 		}
 
 		for i, name := range productNames {
@@ -221,7 +223,7 @@ func (r *repository) GetSuggestions(ctx context.Context, tenantID uuid.UUID, que
 			Limit(limit).
 			Pluck("name", &categoryNames).Error
 		if err != nil {
-			return nil, fmt.Errorf("failed to get category suggestions: %w", err)
+			return nil, sharedErrors.NewInternalError("Failed to get category suggestions", err)
 		}
 
 		for i, name := range categoryNames {
@@ -238,7 +240,10 @@ func (r *repository) GetSuggestions(ctx context.Context, tenantID uuid.UUID, que
 
 // LogSearch logs search activity
 func (r *repository) LogSearch(ctx context.Context, log *SearchLog) error {
-	return r.db.WithContext(ctx).Create(log).Error
+	if err := r.db.WithContext(ctx).Create(log).Error; err != nil {
+		return sharedErrors.NewInternalError("Failed to log search", err)
+	}
+	return nil
 }
 
 // GetSearchAnalytics returns search analytics and metrics
@@ -253,7 +258,7 @@ func (r *repository) GetSearchAnalytics(ctx context.Context, tenantID uuid.UUID,
 		Where("tenant_id = ? AND created_at BETWEEN ? AND ?", tenantID, req.StartDate, req.EndDate).
 		Count(&totalSearches).Error
 	if err != nil {
-		return nil, fmt.Errorf("failed to get total searches: %w", err)
+		return nil, sharedErrors.NewInternalError("Failed to get total searches", err)
 	}
 	response.TotalSearches = totalSearches
 
@@ -267,7 +272,7 @@ func (r *repository) GetSearchAnalytics(ctx context.Context, tenantID uuid.UUID,
 		Limit(req.Limit).
 		Scan(&topQueries).Error
 	if err != nil {
-		return nil, fmt.Errorf("failed to get top queries: %w", err)
+		return nil, sharedErrors.NewInternalError("Failed to get top queries", err)
 	}
 	response.TopQueries = topQueries
 
@@ -281,7 +286,7 @@ func (r *repository) GetSearchAnalytics(ctx context.Context, tenantID uuid.UUID,
 		Limit(req.Limit).
 		Scan(&noResults).Error
 	if err != nil {
-		return nil, fmt.Errorf("failed to get no results queries: %w", err)
+		return nil, sharedErrors.NewInternalError("Failed to get no results queries", err)
 	}
 	response.NoResults = noResults
 
@@ -292,7 +297,7 @@ func (r *repository) GetSearchAnalytics(ctx context.Context, tenantID uuid.UUID,
 		Where("tenant_id = ? AND created_at BETWEEN ? AND ?", tenantID, req.StartDate, req.EndDate).
 		Scan(&uniqueQueries).Error
 	if err != nil {
-		return nil, fmt.Errorf("failed to get unique queries: %w", err)
+		return nil, sharedErrors.NewInternalError("Failed to get unique queries", err)
 	}
 
 	var avgResults float64
@@ -301,7 +306,7 @@ func (r *repository) GetSearchAnalytics(ctx context.Context, tenantID uuid.UUID,
 		Where("tenant_id = ? AND created_at BETWEEN ? AND ?", tenantID, req.StartDate, req.EndDate).
 		Scan(&avgResults).Error
 	if err != nil {
-		return nil, fmt.Errorf("failed to get average results: %w", err)
+		return nil, sharedErrors.NewInternalError("Failed to get average results", err)
 	}
 
 	var noResultsCount int64
@@ -309,7 +314,7 @@ func (r *repository) GetSearchAnalytics(ctx context.Context, tenantID uuid.UUID,
 		Where("tenant_id = ? AND created_at BETWEEN ? AND ? AND results = 0", tenantID, req.StartDate, req.EndDate).
 		Count(&noResultsCount).Error
 	if err != nil {
-		return nil, fmt.Errorf("failed to get no results count: %w", err)
+		return nil, sharedErrors.NewInternalError("Failed to get no results count", err)
 	}
 
 	noResultsRate := float64(0)
@@ -347,7 +352,7 @@ func (r *repository) GetFilters(ctx context.Context, tenantID uuid.UUID, searchT
 			Where("tenant_id = ? AND deleted_at IS NULL", tenantID).
 			Scan(&categories).Error
 		if err != nil {
-			return nil, fmt.Errorf("failed to get categories: %w", err)
+			return nil, sharedErrors.NewInternalError("Failed to get categories", err)
 		}
 
 		var categoryValues []FilterValue
@@ -425,7 +430,7 @@ func (r *repository) searchCategories(ctx context.Context, tenantID uuid.UUID, q
 		Offset(query.Offset).Limit(query.Limit).
 		Scan(&categories).Error
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to search categories: %w", err)
+		return nil, 0, sharedErrors.NewInternalError("Failed to search categories", err)
 	}
 
 	for _, category := range categories {

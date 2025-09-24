@@ -7,6 +7,8 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+
+	sharedErrors "ecommerce-saas/internal/shared/errors"
 )
 
 // Repository defines the interface for address data operations
@@ -71,7 +73,10 @@ func NewRepository(db *gorm.DB) Repository {
 
 // Create creates a new address
 func (r *GormRepository) Create(ctx context.Context, address *Address) error {
-	return r.db.WithContext(ctx).Create(address).Error
+	if err := r.db.WithContext(ctx).Create(address).Error; err != nil {
+		return sharedErrors.NewInternalError("Failed to create address", err)
+	}
+	return nil
 }
 
 // GetByID retrieves an address by ID
@@ -83,9 +88,9 @@ func (r *GormRepository) GetByID(ctx context.Context, tenantID, addressID uuid.U
 
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, ErrAddressNotFound
+			return nil, sharedErrors.NewNotFoundError("Address not found")
 		}
-		return nil, err
+		return nil, sharedErrors.NewInternalError("Failed to get address", err)
 	}
 
 	return &address, nil
@@ -98,11 +103,11 @@ func (r *GormRepository) Update(ctx context.Context, address *Address) error {
 		Updates(address)
 
 	if result.Error != nil {
-		return result.Error
+		return sharedErrors.NewInternalError("Failed to update address", result.Error)
 	}
 
 	if result.RowsAffected == 0 {
-		return ErrAddressNotFound
+		return sharedErrors.NewNotFoundError("Address not found")
 	}
 
 	return nil
@@ -115,11 +120,11 @@ func (r *GormRepository) Delete(ctx context.Context, tenantID, addressID uuid.UU
 		Delete(&Address{})
 
 	if result.Error != nil {
-		return result.Error
+		return sharedErrors.NewInternalError("Failed to delete address", result.Error)
 	}
 
 	if result.RowsAffected == 0 {
-		return ErrAddressNotFound
+		return sharedErrors.NewNotFoundError("Address not found")
 	}
 
 	return nil
@@ -135,7 +140,7 @@ func (r *GormRepository) List(ctx context.Context, tenantID uuid.UUID, filter Ad
 	// Count total records
 	var total int64
 	if err := query.Model(&Address{}).Count(&total).Error; err != nil {
-		return nil, 0, err
+		return nil, 0, sharedErrors.NewInternalError("Failed to count addresses", err)
 	}
 
 	// Get paginated results
@@ -145,7 +150,11 @@ func (r *GormRepository) List(ctx context.Context, tenantID uuid.UUID, filter Ad
 		Offset(offset).
 		Find(&addresses).Error
 
-	return addresses, total, err
+	if err != nil {
+		return nil, 0, sharedErrors.NewInternalError("Failed to list addresses", err)
+	}
+
+	return addresses, total, nil
 }
 
 // Customer address operations
@@ -158,7 +167,11 @@ func (r *GormRepository) GetCustomerAddresses(ctx context.Context, tenantID, cus
 		Order("is_default DESC, created_at DESC").
 		Find(&addresses).Error
 
-	return addresses, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("Failed to get customer addresses", err)
+	}
+
+	return addresses, nil
 }
 
 // GetDefaultAddress retrieves the default address for a customer and type
@@ -174,9 +187,9 @@ func (r *GormRepository) GetDefaultAddress(ctx context.Context, tenantID, custom
 	err := query.First(&address).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, ErrAddressNotFound
+			return nil, sharedErrors.NewNotFoundError("Default address not found")
 		}
-		return nil, err
+		return nil, sharedErrors.NewInternalError("Failed to get default address", err)
 	}
 
 	return &address, nil
@@ -189,7 +202,7 @@ func (r *GormRepository) SetDefaultAddress(ctx context.Context, tenantID, custom
 		if err := tx.Model(&Address{}).
 			Where("tenant_id = ? AND customer_id = ?", tenantID, customerID).
 			Update("is_default", false).Error; err != nil {
-			return err
+			return sharedErrors.NewInternalError("Failed to unset default addresses", err)
 		}
 
 		// Then set the specified address as default
@@ -198,11 +211,11 @@ func (r *GormRepository) SetDefaultAddress(ctx context.Context, tenantID, custom
 			Update("is_default", true)
 
 		if result.Error != nil {
-			return result.Error
+			return sharedErrors.NewInternalError("Failed to set default address", result.Error)
 		}
 
 		if result.RowsAffected == 0 {
-			return ErrAddressNotFound
+			return sharedErrors.NewNotFoundError("Address not found")
 		}
 
 		return nil
@@ -218,14 +231,20 @@ func (r *GormRepository) UnsetDefaultAddresses(ctx context.Context, tenantID, cu
 		query = query.Where("type = ? OR type = ?", addressType, AddressTypeBoth)
 	}
 
-	return query.Update("is_default", false).Error
+	if err := query.Update("is_default", false).Error; err != nil {
+		return sharedErrors.NewInternalError("Failed to unset default addresses", err)
+	}
+	return nil
 }
 
 // Address validation operations
 
 // CreateValidation creates a new address validation
 func (r *GormRepository) CreateValidation(ctx context.Context, validation *AddressValidation) error {
-	return r.db.WithContext(ctx).Create(validation).Error
+	if err := r.db.WithContext(ctx).Create(validation).Error; err != nil {
+		return sharedErrors.NewInternalError("Failed to create address validation", err)
+	}
+	return nil
 }
 
 // GetValidation retrieves the latest validation for an address
@@ -238,9 +257,9 @@ func (r *GormRepository) GetValidation(ctx context.Context, tenantID, addressID 
 
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, ErrValidationNotFound
+			return nil, sharedErrors.NewNotFoundError("Address validation not found")
 		}
-		return nil, err
+		return nil, sharedErrors.NewInternalError("Failed to get address validation", err)
 	}
 
 	return &validation, nil
@@ -256,9 +275,9 @@ func (r *GormRepository) GetValidationByID(ctx context.Context, tenantID, valida
 
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, ErrValidationNotFound
+			return nil, sharedErrors.NewNotFoundError("Address validation not found")
 		}
-		return nil, err
+		return nil, sharedErrors.NewInternalError("Failed to get address validation", err)
 	}
 
 	return &validation, nil
@@ -271,11 +290,11 @@ func (r *GormRepository) UpdateValidation(ctx context.Context, validation *Addre
 		Updates(validation)
 
 	if result.Error != nil {
-		return result.Error
+		return sharedErrors.NewInternalError("Failed to update address validation", result.Error)
 	}
 
 	if result.RowsAffected == 0 {
-		return ErrValidationNotFound
+		return sharedErrors.NewNotFoundError("Address validation not found")
 	}
 
 	return nil
@@ -290,7 +309,7 @@ func (r *GormRepository) ListValidations(ctx context.Context, tenantID uuid.UUID
 	// Count total records
 	var total int64
 	if err := query.Model(&AddressValidation{}).Count(&total).Error; err != nil {
-		return nil, 0, err
+		return nil, 0, sharedErrors.NewInternalError("Failed to count address validations", err)
 	}
 
 	// Get paginated results
@@ -300,7 +319,11 @@ func (r *GormRepository) ListValidations(ctx context.Context, tenantID uuid.UUID
 		Offset(offset).
 		Find(&validations).Error
 
-	return validations, total, err
+	if err != nil {
+		return nil, 0, sharedErrors.NewInternalError("Failed to list address validations", err)
+	}
+
+	return validations, total, nil
 }
 
 // Bulk operations
@@ -311,7 +334,10 @@ func (r *GormRepository) BulkCreate(ctx context.Context, addresses []*Address) e
 		return nil
 	}
 
-	return r.db.WithContext(ctx).CreateInBatches(addresses, 100).Error
+	if err := r.db.WithContext(ctx).CreateInBatches(addresses, 100).Error; err != nil {
+		return sharedErrors.NewInternalError("Failed to bulk create addresses", err)
+	}
+	return nil
 }
 
 // BulkUpdate updates multiple addresses
@@ -320,7 +346,7 @@ func (r *GormRepository) BulkUpdate(ctx context.Context, addresses []*Address) e
 		return nil
 	}
 
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for _, address := range addresses {
 			if err := tx.Where("tenant_id = ? AND id = ?", address.TenantID, address.ID).
 				Updates(address).Error; err != nil {
@@ -328,7 +354,10 @@ func (r *GormRepository) BulkUpdate(ctx context.Context, addresses []*Address) e
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return sharedErrors.NewInternalError("Failed to bulk update addresses", err)
+	}
+	return nil
 }
 
 // BulkDelete soft deletes multiple addresses
@@ -337,9 +366,12 @@ func (r *GormRepository) BulkDelete(ctx context.Context, tenantID uuid.UUID, add
 		return nil
 	}
 
-	return r.db.WithContext(ctx).
+	if err := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND id IN ?", tenantID, addressIDs).
-		Delete(&Address{}).Error
+		Delete(&Address{}).Error; err != nil {
+		return sharedErrors.NewInternalError("Failed to bulk delete addresses", err)
+	}
+	return nil
 }
 
 // Validation and checks
@@ -352,7 +384,11 @@ func (r *GormRepository) ExistsByID(ctx context.Context, tenantID, addressID uui
 		Where("tenant_id = ? AND id = ?", tenantID, addressID).
 		Count(&count).Error
 
-	return count > 0, err
+	if err != nil {
+		return false, sharedErrors.NewInternalError("Failed to check address existence", err)
+	}
+
+	return count > 0, nil
 }
 
 // CountCustomerAddresses counts addresses for a customer
@@ -363,7 +399,11 @@ func (r *GormRepository) CountCustomerAddresses(ctx context.Context, tenantID, c
 		Where("tenant_id = ? AND customer_id = ?", tenantID, customerID).
 		Count(&count).Error
 
-	return count, err
+	if err != nil {
+		return 0, sharedErrors.NewInternalError("Failed to count customer addresses", err)
+	}
+
+	return count, nil
 }
 
 // HasDefaultAddress checks if customer has a default address of specified type
@@ -378,7 +418,10 @@ func (r *GormRepository) HasDefaultAddress(ctx context.Context, tenantID, custom
 
 	var count int64
 	err := query.Count(&count).Error
-	return count > 0, err
+	if err != nil {
+		return false, sharedErrors.NewInternalError("Failed to check default address", err)
+	}
+	return count > 0, nil
 }
 
 // Statistics and analytics
@@ -395,7 +438,7 @@ func (r *GormRepository) GetStats(ctx context.Context, tenantID uuid.UUID) (*Add
 		Model(&Address{}).
 		Where("tenant_id = ?", tenantID).
 		Count(&stats.TotalAddresses).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("Failed to count total addresses", err)
 	}
 
 	// Validated addresses
@@ -403,7 +446,7 @@ func (r *GormRepository) GetStats(ctx context.Context, tenantID uuid.UUID) (*Add
 		Model(&Address{}).
 		Where("tenant_id = ? AND is_validated = ?", tenantID, true).
 		Count(&stats.ValidatedAddresses).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("Failed to count validated addresses", err)
 	}
 
 	// Default addresses
@@ -411,7 +454,7 @@ func (r *GormRepository) GetStats(ctx context.Context, tenantID uuid.UUID) (*Add
 		Model(&Address{}).
 		Where("tenant_id = ? AND is_default = ?", tenantID, true).
 		Count(&stats.DefaultAddresses).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("Failed to count default addresses", err)
 	}
 
 	// Recent addresses (last 30 days)
@@ -420,7 +463,7 @@ func (r *GormRepository) GetStats(ctx context.Context, tenantID uuid.UUID) (*Add
 		Model(&Address{}).
 		Where("tenant_id = ? AND created_at >= ?", tenantID, thirtyDaysAgo).
 		Count(&stats.RecentAddresses).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("Failed to count recent addresses", err)
 	}
 
 	// Addresses by type
@@ -456,7 +499,7 @@ func (r *GormRepository) GetAddressesByCountry(ctx context.Context, tenantID uui
 		Find(&results).Error
 
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("Failed to get addresses by country", err)
 	}
 
 	stats := make(map[string]int64)
@@ -483,7 +526,7 @@ func (r *GormRepository) GetAddressesByType(ctx context.Context, tenantID uuid.U
 		Find(&results).Error
 
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("Failed to get addresses by type", err)
 	}
 
 	stats := make(map[string]int64)
@@ -504,7 +547,11 @@ func (r *GormRepository) GetRecentAddresses(ctx context.Context, tenantID uuid.U
 		Order("created_at DESC").
 		Find(&addresses).Error
 
-	return addresses, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("Failed to get recent addresses", err)
+	}
+
+	return addresses, nil
 }
 
 // Maintenance operations
@@ -517,7 +564,11 @@ func (r *GormRepository) CleanupUnvalidatedAddresses(ctx context.Context, tenant
 		Where("tenant_id = ? AND is_validated = ? AND created_at < ?", tenantID, false, cutoffDate).
 		Delete(&Address{})
 
-	return result.RowsAffected, result.Error
+	if result.Error != nil {
+		return 0, sharedErrors.NewInternalError("Failed to cleanup unvalidated addresses", result.Error)
+	}
+
+	return result.RowsAffected, nil
 }
 
 // CleanupOrphanedValidations removes validations for non-existent addresses
@@ -526,7 +577,11 @@ func (r *GormRepository) CleanupOrphanedValidations(ctx context.Context, tenantI
 		Where("tenant_id = ? AND address_id NOT IN (SELECT id FROM addresses WHERE tenant_id = ?)", tenantID, tenantID).
 		Delete(&AddressValidation{})
 
-	return result.RowsAffected, result.Error
+	if result.Error != nil {
+		return 0, sharedErrors.NewInternalError("Failed to cleanup orphaned validations", result.Error)
+	}
+
+	return result.RowsAffected, nil
 }
 
 // Helper methods

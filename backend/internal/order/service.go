@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -200,6 +201,9 @@ func (s *Service) GetOrderTracking(ctx context.Context, tenantID uuid.UUID, orde
 	// Get order to validate it exists
 	order, err := s.repository.GetOrderByID(tenantID, orderID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("order not found")
+		}
 		return nil, fmt.Errorf("failed to get order for tracking: %w", err)
 	}
 
@@ -328,15 +332,29 @@ func (s *Service) ListOrdersWithIncludes(tenantID uuid.UUID, filter OrderFilter,
 func (s *Service) GetOrder(tenantID uuid.UUID, orderID string) (*Order, error) {
 	id, err := uuid.Parse(orderID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid order ID: %w", err)
+		return nil, sharedErrors.NewBadRequestError("Invalid order ID format")
 	}
 
-	return s.repository.GetOrderByID(tenantID, id)
+	order, err := s.repository.GetOrderByID(tenantID, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("order not found")
+		}
+		return nil, fmt.Errorf("failed to get order: %w", err)
+	}
+	return order, nil
 }
 
 // GetOrderByNumber retrieves an order by order number
 func (s *Service) GetOrderByNumber(tenantID uuid.UUID, orderNumber string) (*Order, error) {
-	return s.repository.GetOrderByNumber(tenantID, orderNumber)
+	order, err := s.repository.GetOrderByNumber(tenantID, orderNumber)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("order not found")
+		}
+		return nil, fmt.Errorf("failed to get order by number: %w", err)
+	}
+	return order, nil
 }
 
 // UpdateOrderStatus updates the status of an order
@@ -427,7 +445,7 @@ func (s *Service) CancelOrder(tenantID uuid.UUID, orderID string, reason string)
 	}
 
 	if !order.IsCancellable() {
-		return nil, fmt.Errorf("order cannot be cancelled in current status: %s", order.Status)
+		return nil, sharedErrors.NewBadRequestError(fmt.Sprintf("order cannot be cancelled in current status: %s", order.Status))
 	}
 
 	order.Status = StatusCancelled
@@ -479,12 +497,20 @@ func (s *Service) CancelOrder(tenantID uuid.UUID, orderID string, reason string)
 // ListOrders retrieves orders with filtering and pagination
 func (s *Service) ListOrders(tenantID uuid.UUID, filter OrderFilter, page, limit int) ([]*Order, int64, error) {
 	offset := (page - 1) * limit
-	return s.repository.ListOrders(tenantID, filter, offset, limit)
+	orders, total, err := s.repository.ListOrders(tenantID, filter, offset, limit)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list orders: %w", err)
+	}
+	return orders, total, nil
 }
 
 // GetOrderStats retrieves order statistics
 func (s *Service) GetOrderStats(tenantID uuid.UUID) (map[string]interface{}, error) {
-	return s.repository.GetOrderStats(tenantID)
+	stats, err := s.repository.GetOrderStats(tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get order stats: %w", err)
+	}
+	return stats, nil
 }
 
 // ProcessPayment processes payment for an order
@@ -495,7 +521,7 @@ func (s *Service) ProcessPayment(tenantID uuid.UUID, orderID string) (*Order, er
 	}
 
 	if order.PaymentStatus != PaymentPending {
-		return nil, fmt.Errorf("order payment is not pending")
+		return nil, sharedErrors.NewBadRequestError("order payment is not pending")
 	}
 
 	// TODO: Integrate with payment gateway
@@ -512,12 +538,15 @@ func (s *Service) RefundOrder(ctx context.Context, tenantID, orderID uuid.UUID, 
 	// Get order
 	order, err := s.repository.GetOrderByID(tenantID, orderID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("order not found")
+		}
 		return nil, fmt.Errorf("failed to get order: %w", err)
 	}
 
 	// Check if order can be refunded
 	if !order.IsRefundable() {
-		return nil, fmt.Errorf("order %s is not refundable", order.OrderNumber)
+		return nil, sharedErrors.NewBadRequestError(fmt.Sprintf("order %s is not refundable", order.OrderNumber))
 	}
 
 	// Create refund request
@@ -572,14 +601,21 @@ func (s *Service) RefundOrder(ctx context.Context, tenantID, orderID uuid.UUID, 
 
 // GetCustomerOrders retrieves orders for a specific customer
 func (s *Service) GetCustomerOrders(tenantID, customerID uuid.UUID) ([]*Order, error) {
-	return s.repository.GetOrdersByCustomer(tenantID, customerID)
+	orders, err := s.repository.GetOrdersByCustomer(tenantID, customerID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get customer orders: %w", err)
+	}
+	return orders, nil
 }
 
 // TrackOrder provides tracking information for an order
 func (s *Service) TrackOrder(tenantID uuid.UUID, orderNumber string) (map[string]interface{}, error) {
 	order, err := s.repository.GetOrderByNumber(tenantID, orderNumber)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("order not found")
+		}
+		return nil, fmt.Errorf("failed to get order: %w", err)
 	}
 
 	tracking := map[string]interface{}{
@@ -680,11 +716,11 @@ func (s *Service) calculateEstimatedDelivery(order *Order) *time.Time {
 // ValidateOrder validates order data
 func (s *Service) ValidateOrder(order *Order) error {
 	if order.CustomerEmail == "" {
-		return fmt.Errorf("customer email is required")
+		return sharedErrors.NewValidationError("customer email is required", nil)
 	}
 
 	if !order.ShippingAddress.IsComplete() {
-		return fmt.Errorf("shipping address is incomplete")
+		return sharedErrors.NewValidationError("shipping address is incomplete", nil)
 	}
 
 	if len(order.Items) == 0 {
@@ -692,7 +728,7 @@ func (s *Service) ValidateOrder(order *Order) error {
 	}
 
 	if order.TotalAmount <= 0 {
-		return fmt.Errorf("order total must be greater than zero")
+		return sharedErrors.NewValidationError("order total must be greater than zero", nil)
 	}
 
 	return nil
@@ -719,7 +755,7 @@ func (s *Service) ExportOrders(tenantID uuid.UUID, format string, filters map[st
 	case "excel":
 		return s.exportOrdersToExcel(orderList)
 	default:
-		return nil, "", fmt.Errorf("unsupported export format: %s", format)
+		return nil, "", sharedErrors.NewBadRequestError(fmt.Sprintf("unsupported export format: %s", format))
 	}
 }
 

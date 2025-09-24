@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	sharedErrors "ecommerce-saas/internal/shared/errors"
 )
 
 // Service defines the search service interface
@@ -188,7 +189,7 @@ func (s *service) GetSuggestions(ctx context.Context, req *SuggestionRequest) (*
 
 	// Validate request
 	if req.Query == "" {
-		return nil, fmt.Errorf("query is required")
+		return nil, sharedErrors.NewValidationError("query is required", nil)
 	}
 
 	// Set defaults
@@ -248,7 +249,7 @@ func (s *service) ManageFilters(ctx context.Context, req *FilterRequest) (*Filte
 
 	// Validate request
 	if req.Type == "" {
-		return nil, fmt.Errorf("filter type is required")
+		return nil, sharedErrors.NewValidationError("filter type is required", nil)
 	}
 
 	// Manage filter
@@ -283,29 +284,29 @@ func (s *service) GetFilters(ctx context.Context, searchType string) (*FilterRes
 
 func (s *service) validateSearchQuery(req *SearchQuery) error {
 	if req.Query == "" {
-		return fmt.Errorf("query is required")
+		return sharedErrors.NewValidationError("query is required", nil)
 	}
 	if req.Limit < 0 || req.Limit > 100 {
-		return fmt.Errorf("limit must be between 0 and 100")
+		return sharedErrors.NewValidationError("limit must be between 0 and 100", nil)
 	}
 	if req.Offset < 0 {
-		return fmt.Errorf("offset must be non-negative")
+		return sharedErrors.NewValidationError("offset must be non-negative", nil)
 	}
 	return nil
 }
 
 func (s *service) validateProductSearchRequest(req *ProductSearchRequest) error {
 	if req.Query == "" {
-		return fmt.Errorf("query is required")
+		return sharedErrors.NewValidationError("query is required", nil)
 	}
 	if req.Limit < 0 || req.Limit > 100 {
-		return fmt.Errorf("limit must be between 0 and 100")
+		return sharedErrors.NewValidationError("limit must be between 0 and 100", nil)
 	}
 	if req.Offset < 0 {
-		return fmt.Errorf("offset must be non-negative")
+		return sharedErrors.NewValidationError("offset must be non-negative", nil)
 	}
 	if req.MinPrice != nil && req.MaxPrice != nil && *req.MinPrice > *req.MaxPrice {
-		return fmt.Errorf("min_price cannot be greater than max_price")
+		return sharedErrors.NewValidationError("min_price cannot be greater than max_price", nil)
 	}
 	return nil
 }
@@ -338,5 +339,5 @@ func (s *service) getTenantIDFromContext(ctx context.Context) (uuid.UUID, error)
 		}
 	}
 	
-	return uuid.Nil, fmt.Errorf("tenant ID not found or invalid in context")
+	return uuid.Nil, sharedErrors.NewUnauthorizedError("tenant ID not found or invalid in context")
 }

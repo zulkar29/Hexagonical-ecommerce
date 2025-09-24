@@ -6,6 +6,8 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+
+	sharedErrors "ecommerce-saas/internal/shared/errors"
 )
 
 type Repository struct {
@@ -22,20 +24,23 @@ func NewRepository(db *gorm.DB) *Repository {
 
 func (r *Repository) CreatePage(page *Page) (*Page, error) {
 	if err := r.db.Create(page).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to create page", err)
 	}
 	return page, nil
 }
 
 func (r *Repository) UpdatePage(page *Page) (*Page, error) {
 	if err := r.db.Save(page).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to update page", err)
 	}
 	return page, nil
 }
 
 func (r *Repository) DeletePage(tenantID, pageID uuid.UUID) error {
-	return r.db.Where("tenant_id = ? AND id = ?", tenantID, pageID).Delete(&Page{}).Error
+	if err := r.db.Where("tenant_id = ? AND id = ?", tenantID, pageID).Delete(&Page{}).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to delete page", err)
+	}
+	return nil
 }
 
 func (r *Repository) GetPage(tenantID, pageID uuid.UUID) (*Page, error) {
@@ -44,7 +49,10 @@ func (r *Repository) GetPage(tenantID, pageID uuid.UUID) (*Page, error) {
 		Where("tenant_id = ? AND id = ?", tenantID, pageID).
 		First(&page).Error
 	if err != nil {
-		return nil, err
+		if err == gorm.ErrRecordNotFound {
+			return nil, sharedErrors.NewNotFoundError("page not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get page", err)
 	}
 	return &page, nil
 }
@@ -55,7 +63,10 @@ func (r *Repository) GetPageBySlug(tenantID uuid.UUID, slug string) (*Page, erro
 		Where("tenant_id = ? AND slug = ?", tenantID, slug).
 		First(&page).Error
 	if err != nil {
-		return nil, err
+		if err == gorm.ErrRecordNotFound {
+			return nil, sharedErrors.NewNotFoundError("page not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get page by slug", err)
 	}
 	return &page, nil
 }
@@ -79,7 +90,9 @@ func (r *Repository) GetPages(tenantID uuid.UUID, filter PageListFilter) ([]Page
 	}
 
 	// Get total count
-	query.Count(&total)
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, sharedErrors.NewInternalError("failed to count pages", err)
+	}
 
 	// Apply pagination
 	if filter.Limit > 0 {
@@ -94,8 +107,11 @@ func (r *Repository) GetPages(tenantID uuid.UUID, filter PageListFilter) ([]Page
 	err := query.Preload("FeaturedImage").Preload("Tags").Preload("Categories").
 		Order("created_at DESC").
 		Find(&pages).Error
+	if err != nil {
+		return nil, 0, sharedErrors.NewInternalError("failed to get pages", err)
+	}
 
-	return pages, total, err
+	return pages, total, nil
 }
 
 func (r *Repository) GetPublishedPages(tenantID uuid.UUID) ([]Page, error) {
@@ -104,7 +120,10 @@ func (r *Repository) GetPublishedPages(tenantID uuid.UUID) ([]Page, error) {
 		tenantID, StatusPublished).
 		Order("published_at DESC").
 		Find(&pages).Error
-	return pages, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get published pages", err)
+	}
+	return pages, nil
 }
 
 func (r *Repository) GetPopularPages(tenantID uuid.UUID, limit int) ([]Page, error) {
@@ -113,7 +132,10 @@ func (r *Repository) GetPopularPages(tenantID uuid.UUID, limit int) ([]Page, err
 		Order("view_count DESC").
 		Limit(limit).
 		Find(&pages).Error
-	return pages, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get popular pages", err)
+	}
+	return pages, nil
 }
 
 func (r *Repository) GetRecentPages(tenantID uuid.UUID, limit int) ([]Page, error) {
@@ -122,13 +144,19 @@ func (r *Repository) GetRecentPages(tenantID uuid.UUID, limit int) ([]Page, erro
 		Order("created_at DESC").
 		Limit(limit).
 		Find(&pages).Error
-	return pages, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get recent pages", err)
+	}
+	return pages, nil
 }
 
 func (r *Repository) IncrementPageViews(tenantID, pageID uuid.UUID) error {
-	return r.db.Model(&Page{}).
+	if err := r.db.Model(&Page{}).
 		Where("tenant_id = ? AND id = ?", tenantID, pageID).
-		UpdateColumn("view_count", gorm.Expr("view_count + 1")).Error
+		UpdateColumn("view_count", gorm.Expr("view_count + 1")).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to increment page views", err)
+	}
+	return nil
 }
 
 func (r *Repository) SlugExists(tenantID uuid.UUID, slug string, excludeID uuid.UUID) (bool, error) {
@@ -140,20 +168,23 @@ func (r *Repository) SlugExists(tenantID uuid.UUID, slug string, excludeID uuid.
 	}
 
 	err := query.Count(&count).Error
-	return count > 0, err
+	if err != nil {
+		return false, sharedErrors.NewInternalError("failed to check slug existence", err)
+	}
+	return count > 0, nil
 }
 
 func (r *Repository) AssociatePageTags(pageID uuid.UUID, tagIDs []uuid.UUID) error {
 	// First, clear existing associations
 	if err := r.db.Exec("DELETE FROM page_tags WHERE page_id = ? AND EXISTS (SELECT 1 FROM pages WHERE pages.id = page_tags.page_id)", pageID).Error; err != nil {
-		return err
+		return sharedErrors.NewInternalError("failed to clear page tag associations", err)
 	}
 
 	// Add new associations
 	if len(tagIDs) > 0 {
 		for _, tagID := range tagIDs {
 			if err := r.db.Exec("INSERT INTO page_tags (page_id, tag_id) VALUES (?, ?)", pageID, tagID).Error; err != nil {
-				return err
+				return sharedErrors.NewInternalError("failed to associate page tag", err)
 			}
 		}
 	}
@@ -167,14 +198,14 @@ func (r *Repository) UpdatePageTags(pageID uuid.UUID, tagIDs []uuid.UUID) error 
 func (r *Repository) AssociatePageCategories(pageID uuid.UUID, categoryIDs []uuid.UUID) error {
 	// First, clear existing associations
 	if err := r.db.Exec("DELETE FROM page_categories WHERE page_id = ? AND EXISTS (SELECT 1 FROM pages WHERE pages.id = page_categories.page_id)", pageID).Error; err != nil {
-		return err
+		return sharedErrors.NewInternalError("failed to clear page category associations", err)
 	}
 
 	// Add new associations
 	if len(categoryIDs) > 0 {
 		for _, categoryID := range categoryIDs {
 			if err := r.db.Exec("INSERT INTO page_categories (page_id, category_id) VALUES (?, ?)", pageID, categoryID).Error; err != nil {
-				return err
+				return sharedErrors.NewInternalError("failed to associate page category", err)
 			}
 		}
 	}
@@ -189,27 +220,33 @@ func (r *Repository) UpdatePageCategories(pageID uuid.UUID, categoryIDs []uuid.U
 
 func (r *Repository) CreateMedia(media *Media) (*Media, error) {
 	if err := r.db.Create(media).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to create media", err)
 	}
 	return media, nil
 }
 
 func (r *Repository) UpdateMedia(media *Media) (*Media, error) {
 	if err := r.db.Save(media).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to update media", err)
 	}
 	return media, nil
 }
 
 func (r *Repository) DeleteMedia(tenantID, mediaID uuid.UUID) error {
-	return r.db.Where("tenant_id = ? AND id = ?", tenantID, mediaID).Delete(&Media{}).Error
+	if err := r.db.Where("tenant_id = ? AND id = ?", tenantID, mediaID).Delete(&Media{}).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to delete media", err)
+	}
+	return nil
 }
 
 func (r *Repository) GetMedia(tenantID, mediaID uuid.UUID) (*Media, error) {
 	var media Media
 	err := r.db.Where("tenant_id = ? AND id = ?", tenantID, mediaID).First(&media).Error
 	if err != nil {
-		return nil, err
+		if err == gorm.ErrRecordNotFound {
+			return nil, sharedErrors.NewNotFoundError("media not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get media", err)
 	}
 	return &media, nil
 }
@@ -230,7 +267,9 @@ func (r *Repository) GetMediaLibrary(tenantID uuid.UUID, filter MediaLibraryFilt
 	}
 
 	// Get total count
-	query.Count(&total)
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, sharedErrors.NewInternalError("failed to count media", err)
+	}
 
 	// Apply pagination
 	if filter.Limit > 0 {
@@ -243,22 +282,25 @@ func (r *Repository) GetMediaLibrary(tenantID uuid.UUID, filter MediaLibraryFilt
 
 	// Get results
 	err := query.Order("created_at DESC").Find(&media).Error
+	if err != nil {
+		return nil, 0, sharedErrors.NewInternalError("failed to get media library", err)
+	}
 
-	return media, total, err
+	return media, total, nil
 }
 
 // Menu Repository Methods
 
 func (r *Repository) CreateMenu(menu *Menu) (*Menu, error) {
 	if err := r.db.Create(menu).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to create menu", err)
 	}
 	return menu, nil
 }
 
 func (r *Repository) UpdateMenu(menu *Menu) (*Menu, error) {
 	if err := r.db.Save(menu).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to update menu", err)
 	}
 	return menu, nil
 }
@@ -266,11 +308,14 @@ func (r *Repository) UpdateMenu(menu *Menu) (*Menu, error) {
 func (r *Repository) DeleteMenu(tenantID, menuID uuid.UUID) error {
 	// Delete menu items first
 	if err := r.db.Where("menu_id = ?", menuID).Delete(&MenuItem{}).Error; err != nil {
-		return err
+		return sharedErrors.NewInternalError("failed to delete menu items", err)
 	}
 
 	// Delete menu
-	return r.db.Where("tenant_id = ? AND id = ?", tenantID, menuID).Delete(&Menu{}).Error
+	if err := r.db.Where("tenant_id = ? AND id = ?", tenantID, menuID).Delete(&Menu{}).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to delete menu", err)
+	}
+	return nil
 }
 
 func (r *Repository) GetMenu(tenantID, menuID uuid.UUID) (*Menu, error) {
@@ -283,7 +328,10 @@ func (r *Repository) GetMenu(tenantID, menuID uuid.UUID) (*Menu, error) {
 		Where("tenant_id = ? AND id = ?", tenantID, menuID).
 		First(&menu).Error
 	if err != nil {
-		return nil, err
+		if err == gorm.ErrRecordNotFound {
+			return nil, sharedErrors.NewNotFoundError("menu not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get menu", err)
 	}
 	return &menu, nil
 }
@@ -300,7 +348,10 @@ func (r *Repository) GetMenus(tenantID uuid.UUID, location string, activeOnly bo
 	}
 
 	err := query.Order("name ASC").Find(&menus).Error
-	return menus, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get menus", err)
+	}
+	return menus, nil
 }
 
 func (r *Repository) GetMenuByLocation(tenantID uuid.UUID, location string) (*Menu, error) {
@@ -313,7 +364,10 @@ func (r *Repository) GetMenuByLocation(tenantID uuid.UUID, location string) (*Me
 		Where("tenant_id = ? AND location = ? AND is_active = ?", tenantID, location, true).
 		First(&menu).Error
 	if err != nil {
-		return nil, err
+		if err == gorm.ErrRecordNotFound {
+			return nil, sharedErrors.NewNotFoundError("menu not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get menu by location", err)
 	}
 	return &menu, nil
 }
@@ -322,14 +376,14 @@ func (r *Repository) GetMenuByLocation(tenantID uuid.UUID, location string) (*Me
 
 func (r *Repository) CreateMenuItem(menuItem *MenuItem) (*MenuItem, error) {
 	if err := r.db.Create(menuItem).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to create menu item", err)
 	}
 	return menuItem, nil
 }
 
 func (r *Repository) UpdateMenuItem(menuItem *MenuItem) (*MenuItem, error) {
 	if err := r.db.Save(menuItem).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to update menu item", err)
 	}
 	return menuItem, nil
 }
@@ -337,11 +391,14 @@ func (r *Repository) UpdateMenuItem(menuItem *MenuItem) (*MenuItem, error) {
 func (r *Repository) DeleteMenuItem(tenantID, itemID uuid.UUID) error {
 	// Delete children first
 	if err := r.db.Where("parent_id = ?", itemID).Delete(&MenuItem{}).Error; err != nil {
-		return err
+		return sharedErrors.NewInternalError("failed to delete menu item children", err)
 	}
 
 	// Delete the item
-	return r.db.Where("id = ?", itemID).Delete(&MenuItem{}).Error
+	if err := r.db.Where("id = ?", itemID).Delete(&MenuItem{}).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to delete menu item", err)
+	}
+	return nil
 }
 
 func (r *Repository) GetMenuItem(tenantID, itemID uuid.UUID) (*MenuItem, error) {
@@ -351,13 +408,16 @@ func (r *Repository) GetMenuItem(tenantID, itemID uuid.UUID) (*MenuItem, error) 
 		Where("menus.tenant_id = ? AND menu_items.id = ?", tenantID, itemID).
 		First(&menuItem).Error
 	if err != nil {
-		return nil, err
+		if err == gorm.ErrRecordNotFound {
+			return nil, sharedErrors.NewNotFoundError("menu item not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get menu item", err)
 	}
 	return &menuItem, nil
 }
 
 func (r *Repository) ReorderMenuItems(tenantID, menuID uuid.UUID, itemOrders []MenuItemOrder) error {
-	return r.db.Transaction(func(tx *gorm.DB) error {
+	err := r.db.Transaction(func(tx *gorm.DB) error {
 		for _, order := range itemOrders {
 			if err := tx.Model(&MenuItem{}).
 				Joins("JOIN menus ON menu_items.menu_id = menus.id").
@@ -368,20 +428,24 @@ func (r *Repository) ReorderMenuItems(tenantID, menuID uuid.UUID, itemOrders []M
 		}
 		return nil
 	})
+	if err != nil {
+		return sharedErrors.NewInternalError("failed to reorder menu items", err)
+	}
+	return nil
 }
 
 // Tag Repository Methods
 
 func (r *Repository) CreateTag(tag *Tag) (*Tag, error) {
 	if err := r.db.Create(tag).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to create tag", err)
 	}
 	return tag, nil
 }
 
 func (r *Repository) UpdateTag(tag *Tag) (*Tag, error) {
 	if err := r.db.Save(tag).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to update tag", err)
 	}
 	return tag, nil
 }
@@ -389,18 +453,24 @@ func (r *Repository) UpdateTag(tag *Tag) (*Tag, error) {
 func (r *Repository) DeleteTag(tenantID, tagID uuid.UUID) error {
 	// Remove associations first
 	if err := r.db.Exec("DELETE FROM page_tags WHERE tag_id = ? AND EXISTS (SELECT 1 FROM tags WHERE tags.id = page_tags.tag_id AND tags.tenant_id = ?)", tagID, tenantID).Error; err != nil {
-		return err
+		return sharedErrors.NewInternalError("failed to remove tag associations", err)
 	}
 
 	// Delete tag
-	return r.db.Where("tenant_id = ? AND id = ?", tenantID, tagID).Delete(&Tag{}).Error
+	if err := r.db.Where("tenant_id = ? AND id = ?", tenantID, tagID).Delete(&Tag{}).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to delete tag", err)
+	}
+	return nil
 }
 
 func (r *Repository) GetTag(tenantID, tagID uuid.UUID) (*Tag, error) {
 	var tag Tag
 	err := r.db.Where("tenant_id = ? AND id = ?", tenantID, tagID).First(&tag).Error
 	if err != nil {
-		return nil, err
+		if err == gorm.ErrRecordNotFound {
+			return nil, sharedErrors.NewNotFoundError("tag not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get tag", err)
 	}
 	return &tag, nil
 }
@@ -415,21 +485,24 @@ func (r *Repository) GetTags(tenantID uuid.UUID, search string) ([]Tag, error) {
 	}
 
 	err := query.Order("name ASC").Find(&tags).Error
-	return tags, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get tags", err)
+	}
+	return tags, nil
 }
 
 // Category Repository Methods
 
 func (r *Repository) CreateCategory(category *Category) (*Category, error) {
 	if err := r.db.Create(category).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to create category", err)
 	}
 	return category, nil
 }
 
 func (r *Repository) UpdateCategory(category *Category) (*Category, error) {
 	if err := r.db.Save(category).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to update category", err)
 	}
 	return category, nil
 }
@@ -437,18 +510,21 @@ func (r *Repository) UpdateCategory(category *Category) (*Category, error) {
 func (r *Repository) DeleteCategory(tenantID, categoryID uuid.UUID) error {
 	// Remove associations first
 	if err := r.db.Exec("DELETE FROM page_categories WHERE category_id = ? AND EXISTS (SELECT 1 FROM categories WHERE categories.id = page_categories.category_id AND categories.tenant_id = ?)", categoryID, tenantID).Error; err != nil {
-		return err
+		return sharedErrors.NewInternalError("failed to remove category associations", err)
 	}
 
 	// Update children to remove parent reference
 	if err := r.db.Model(&Category{}).
 		Where("tenant_id = ? AND parent_id = ?", tenantID, categoryID).
 		Update("parent_id", nil).Error; err != nil {
-		return err
+		return sharedErrors.NewInternalError("failed to update child categories", err)
 	}
 
 	// Delete category
-	return r.db.Where("tenant_id = ? AND id = ?", tenantID, categoryID).Delete(&Category{}).Error
+	if err := r.db.Where("tenant_id = ? AND id = ?", tenantID, categoryID).Delete(&Category{}).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to delete category", err)
+	}
+	return nil
 }
 
 func (r *Repository) GetCategory(tenantID, categoryID uuid.UUID) (*Category, error) {
@@ -457,7 +533,10 @@ func (r *Repository) GetCategory(tenantID, categoryID uuid.UUID) (*Category, err
 		Where("tenant_id = ? AND id = ?", tenantID, categoryID).
 		First(&category).Error
 	if err != nil {
-		return nil, err
+		if err == gorm.ErrRecordNotFound {
+			return nil, sharedErrors.NewNotFoundError("category not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get category", err)
 	}
 	return &category, nil
 }
@@ -471,21 +550,24 @@ func (r *Repository) GetCategories(tenantID uuid.UUID, activeOnly bool) ([]Categ
 	}
 
 	err := query.Order("sort_order ASC, name ASC").Find(&categories).Error
-	return categories, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get categories", err)
+	}
+	return categories, nil
 }
 
 // SEO Repository Methods
 
 func (r *Repository) CreateSEOSettings(settings *SEOSettings) (*SEOSettings, error) {
 	if err := r.db.Create(settings).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to create SEO settings", err)
 	}
 	return settings, nil
 }
 
 func (r *Repository) UpdateSEOSettings(settings *SEOSettings) (*SEOSettings, error) {
 	if err := r.db.Save(settings).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to update SEO settings", err)
 	}
 	return settings, nil
 }
@@ -494,7 +576,10 @@ func (r *Repository) GetSEOSettings(tenantID uuid.UUID) (*SEOSettings, error) {
 	var settings SEOSettings
 	err := r.db.Where("tenant_id = ?", tenantID).First(&settings).Error
 	if err != nil {
-		return nil, err
+		if err == gorm.ErrRecordNotFound {
+			return nil, sharedErrors.NewNotFoundError("SEO settings not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get SEO settings", err)
 	}
 	return &settings, nil
 }
@@ -513,21 +598,37 @@ func (r *Repository) GetContentStats(tenantID uuid.UUID) (*ContentStats, error) 
 	stats := &ContentStats{}
 
 	// Get page counts
-	r.db.Model(&Page{}).Where("tenant_id = ?", tenantID).Count(&[]int64{int64(stats.TotalPages)}[0])
-	r.db.Model(&Page{}).Where("tenant_id = ? AND status = ?", tenantID, StatusPublished).Count(&[]int64{int64(stats.PublishedPages)}[0])
-	r.db.Model(&Page{}).Where("tenant_id = ? AND status = ?", tenantID, StatusDraft).Count(&[]int64{int64(stats.DraftPages)}[0])
+	var totalPages, publishedPages, draftPages, totalMedia int64
+	if err := r.db.Model(&Page{}).Where("tenant_id = ?", tenantID).Count(&totalPages).Error; err != nil {
+		return nil, sharedErrors.NewInternalError("failed to count pages", err)
+	}
+	if err := r.db.Model(&Page{}).Where("tenant_id = ? AND status = ?", tenantID, StatusPublished).Count(&publishedPages).Error; err != nil {
+		return nil, sharedErrors.NewInternalError("failed to count published pages", err)
+	}
+	if err := r.db.Model(&Page{}).Where("tenant_id = ? AND status = ?", tenantID, StatusDraft).Count(&draftPages).Error; err != nil {
+		return nil, sharedErrors.NewInternalError("failed to count draft pages", err)
+	}
 
 	// Get media count
-	r.db.Model(&Media{}).Where("tenant_id = ?", tenantID).Count(&[]int64{int64(stats.TotalMedia)}[0])
+	if err := r.db.Model(&Media{}).Where("tenant_id = ?", tenantID).Count(&totalMedia).Error; err != nil {
+		return nil, sharedErrors.NewInternalError("failed to count media", err)
+	}
 
 	// Get total views
 	var totalViewsResult struct {
 		TotalViews int64 `json:"total_views"`
 	}
-	r.db.Model(&Page{}).
+	if err := r.db.Model(&Page{}).
 		Where("tenant_id = ?", tenantID).
 		Select("SUM(view_count) as total_views").
-		Scan(&totalViewsResult)
+		Scan(&totalViewsResult).Error; err != nil {
+		return nil, sharedErrors.NewInternalError("failed to calculate total views", err)
+	}
+
+	stats.TotalPages = int(totalPages)
+	stats.PublishedPages = int(publishedPages)
+	stats.DraftPages = int(draftPages)
+	stats.TotalMedia = int(totalMedia)
 	stats.TotalViews = totalViewsResult.TotalViews
 
 	return stats, nil
@@ -573,7 +674,7 @@ func (r *Repository) SearchContent(tenantID uuid.UUID, filter ContentSearchFilte
 		Order("view_count DESC, created_at DESC").
 		Find(&pages).Error
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, sharedErrors.NewInternalError("failed to search content", err)
 	}
 
 	// Convert to search results
@@ -615,7 +716,10 @@ func (r *Repository) GetPagesByTag(tenantID uuid.UUID, tagID uuid.UUID, limit in
 		Limit(limit).
 		Order("pages.published_at DESC").
 		Find(&pages).Error
-	return pages, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get pages by tag", err)
+	}
+	return pages, nil
 }
 
 func (r *Repository) GetPagesByCategory(tenantID uuid.UUID, categoryID uuid.UUID, limit int) ([]Page, error) {
@@ -625,7 +729,10 @@ func (r *Repository) GetPagesByCategory(tenantID uuid.UUID, categoryID uuid.UUID
 		Limit(limit).
 		Order("pages.published_at DESC").
 		Find(&pages).Error
-	return pages, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get pages by category", err)
+	}
+	return pages, nil
 }
 
 func (r *Repository) GetRelatedPages(tenantID uuid.UUID, pageID uuid.UUID, limit int) ([]Page, error) {
@@ -651,7 +758,10 @@ func (r *Repository) GetRelatedPages(tenantID uuid.UUID, pageID uuid.UUID, limit
 		LIMIT ?
 	`, tenantID, pageID, pageID, pageID, pageID, pageID, limit).Scan(&pages).Error
 
-	return pages, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get related pages", err)
+	}
+	return pages, nil
 }
 
 func (r *Repository) GetMediaUsage(tenantID uuid.UUID, mediaID uuid.UUID) ([]Page, error) {
@@ -659,7 +769,10 @@ func (r *Repository) GetMediaUsage(tenantID uuid.UUID, mediaID uuid.UUID) ([]Pag
 	err := r.db.Where("tenant_id = ? AND featured_image_id = ?", tenantID, mediaID).
 		Or("tenant_id = ? AND content LIKE ?", tenantID, fmt.Sprintf("%%%s%%", mediaID.String())).
 		Find(&pages).Error
-	return pages, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get media usage", err)
+	}
+	return pages, nil
 }
 
 func (r *Repository) GetMenuItemsByPage(tenantID uuid.UUID, pageID uuid.UUID) ([]MenuItem, error) {
@@ -667,7 +780,10 @@ func (r *Repository) GetMenuItemsByPage(tenantID uuid.UUID, pageID uuid.UUID) ([
 	err := r.db.Joins("JOIN menus ON menu_items.menu_id = menus.id").
 		Where("menus.tenant_id = ? AND menu_items.page_id = ?", tenantID, pageID).
 		Find(&menuItems).Error
-	return menuItems, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get menu items by page", err)
+	}
+	return menuItems, nil
 }
 
 func (r *Repository) GetOrphanedMedia(tenantID uuid.UUID) ([]Media, error) {
@@ -676,17 +792,24 @@ func (r *Repository) GetOrphanedMedia(tenantID uuid.UUID) ([]Media, error) {
 		SELECT DISTINCT featured_image_id FROM pages 
 		WHERE tenant_id = ? AND featured_image_id IS NOT NULL
 	)`, tenantID, tenantID).Find(&media).Error
-	return media, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get orphaned media", err)
+	}
+	return media, nil
 }
 
 func (r *Repository) BulkUpdatePageStatus(tenantID uuid.UUID, pageIDs []uuid.UUID, status PageStatus) error {
-	return r.db.Model(&Page{}).
+	err := r.db.Model(&Page{}).
 		Where("tenant_id = ? AND id IN ?", tenantID, pageIDs).
 		Update("status", status).Error
+	if err != nil {
+		return sharedErrors.NewInternalError("failed to bulk update page status", err)
+	}
+	return nil
 }
 
 func (r *Repository) BulkDeletePages(tenantID uuid.UUID, pageIDs []uuid.UUID) error {
-	return r.db.Transaction(func(tx *gorm.DB) error {
+	err := r.db.Transaction(func(tx *gorm.DB) error {
 		// Delete tag associations
 		if err := tx.Exec("DELETE FROM page_tags WHERE page_id IN ? AND EXISTS (SELECT 1 FROM pages WHERE pages.id = page_tags.page_id AND pages.tenant_id = ?)", pageIDs, tenantID).Error; err != nil {
 			return err
@@ -704,8 +827,16 @@ func (r *Repository) BulkDeletePages(tenantID uuid.UUID, pageIDs []uuid.UUID) er
 
 		return nil
 	})
+	if err != nil {
+		return sharedErrors.NewInternalError("failed to bulk delete pages", err)
+	}
+	return nil
 }
 
 func (r *Repository) BulkDeleteMedia(tenantID uuid.UUID, mediaIDs []uuid.UUID) error {
-	return r.db.Where("tenant_id = ? AND id IN ?", tenantID, mediaIDs).Delete(&Media{}).Error
+	err := r.db.Where("tenant_id = ? AND id IN ?", tenantID, mediaIDs).Delete(&Media{}).Error
+	if err != nil {
+		return sharedErrors.NewInternalError("failed to bulk delete media", err)
+	}
+	return nil
 }

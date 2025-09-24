@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 
 	sharedErrors "ecommerce-saas/internal/shared/errors"
 )
@@ -276,7 +277,10 @@ func (s *Service) ReserveStock(tenantID uuid.UUID, productID uuid.UUID, quantity
 	// Get the product first
 	product, err := s.repo.GetProductByID(tenantID, productID)
 	if err != nil {
-		return fmt.Errorf("product not found: %w", err)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return sharedErrors.NewNotFoundError("product not found")
+		}
+		return fmt.Errorf("failed to get product: %w", err)
 	}
 
 	// Check if we can decrement inventory
@@ -299,7 +303,10 @@ func (s *Service) RestoreStock(tenantID uuid.UUID, productID uuid.UUID, quantity
 	// Get the product first
 	product, err := s.repo.GetProductByID(tenantID, productID)
 	if err != nil {
-		return fmt.Errorf("product not found: %w", err)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return sharedErrors.NewNotFoundError("product not found")
+		}
+		return fmt.Errorf("failed to get product: %w", err)
 	}
 
 	// Increment inventory
@@ -315,7 +322,10 @@ func (s *Service) CheckAvailability(tenantID uuid.UUID, productID uuid.UUID, var
 	// For now, we only handle product-level inventory (not variant-level)
 	product, err := s.repo.GetProductByID(tenantID, productID)
 	if err != nil {
-		return false, fmt.Errorf("product not found: %w", err)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, sharedErrors.NewNotFoundError("product not found")
+		}
+		return false, fmt.Errorf("failed to get product: %w", err)
 	}
 
 	return product.CanDecrementInventory(quantity), nil
@@ -365,15 +375,26 @@ func (s *Service) CreateCategory(tenantID uuid.UUID, category *Category) (*Categ
 func (s *Service) GetCategory(tenantID uuid.UUID, id string) (*Category, error) {
 	categoryID, err := uuid.Parse(id)
 	if err != nil {
-		return nil, errors.New("invalid category ID")
+		return nil, sharedErrors.NewBadRequestError("Invalid category ID format")
 	}
 
-	return s.repo.GetCategoryByID(tenantID, categoryID)
+	category, err := s.repo.GetCategoryByID(tenantID, categoryID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("category not found")
+		}
+		return nil, fmt.Errorf("failed to get category: %w", err)
+	}
+	return category, nil
 }
 
 // ListCategories returns all categories for a tenant
 func (s *Service) ListCategories(tenantID uuid.UUID) ([]*Category, error) {
-	return s.repo.ListCategories(tenantID)
+	categories, err := s.repo.ListCategories(tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list categories: %w", err)
+	}
+	return categories, nil
 }
 
 // Private helper methods
@@ -438,23 +459,29 @@ func (s *Service) generateUniqueCategorySlug(tenantID uuid.UUID, baseSlug string
 // BulkDeleteProducts deletes multiple products at once
 func (s *Service) BulkDeleteProducts(tenantID uuid.UUID, productIDs []uuid.UUID) error {
 	if len(productIDs) == 0 {
-		return errors.New("no product IDs provided")
+		return sharedErrors.NewValidationError("No product IDs provided", "")
 	}
 
-	return s.repo.BulkDeleteProducts(tenantID, productIDs)
+	if err := s.repo.BulkDeleteProducts(tenantID, productIDs); err != nil {
+		return fmt.Errorf("failed to bulk delete products: %w", err)
+	}
+	return nil
 }
 
 // GetProductAnalytics returns analytics data for a specific product
 func (s *Service) GetProductAnalytics(tenantID uuid.UUID, productID, analyticsType string) (interface{}, error) {
 	prodID, err := uuid.Parse(productID)
 	if err != nil {
-		return nil, errors.New("invalid product ID")
+		return nil, sharedErrors.NewBadRequestError("Invalid product ID format")
 	}
 
 	// Verify product exists
 	_, err = s.repo.GetProductByID(tenantID, prodID)
 	if err != nil {
-		return nil, errors.New("product not found")
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("product not found")
+		}
+		return nil, fmt.Errorf("failed to get product: %w", err)
 	}
 
 	switch analyticsType {
@@ -557,7 +584,11 @@ func (s *Service) GetProductAnalytics(tenantID uuid.UUID, productID, analyticsTy
 
 // GetProductStats returns product statistics for a tenant
 func (s *Service) GetProductStats(tenantID uuid.UUID) (*ProductStats, error) {
-	return s.repo.GetProductStats(tenantID)
+	stats, err := s.repo.GetProductStats(tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get product stats: %w", err)
+	}
+	return stats, nil
 }
 
 // BulkUpdateProducts updates multiple products at once
@@ -571,7 +602,7 @@ func (s *Service) BulkUpdateProducts(tenantID uuid.UUID, productIDs []string, up
 	}
 
 	if len(uuidIDs) == 0 {
-		return errors.New("no valid product IDs provided")
+		return sharedErrors.NewValidationError("No valid product IDs provided", "")
 	}
 
 	// Validate updates - only allow specific fields
@@ -591,10 +622,13 @@ func (s *Service) BulkUpdateProducts(tenantID uuid.UUID, productIDs []string, up
 	}
 
 	if len(validUpdates) == 0 {
-		return errors.New("no valid update fields provided")
+		return sharedErrors.NewValidationError("No valid update fields provided", "")
 	}
 
-	return s.repo.BulkUpdateProducts(tenantID, uuidIDs, validUpdates)
+	if err := s.repo.BulkUpdateProducts(tenantID, uuidIDs, validUpdates); err != nil {
+		return fmt.Errorf("failed to bulk update products: %w", err)
+	}
+	return nil
 }
 
 // DuplicateProduct creates a copy of an existing product
@@ -607,7 +641,10 @@ func (s *Service) DuplicateProduct(tenantID uuid.UUID, productIDStr string) (*Pr
 	// Get original product
 	original, err := s.repo.GetProductByID(tenantID, productID)
 	if err != nil {
-		return nil, sharedErrors.Wrap(err, sharedErrors.CodeInternal, "Failed to find product", 500)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("product not found")
+		}
+		return nil, fmt.Errorf("failed to get product: %w", err)
 	}
 
 	// Create duplicate with modified name and slug
@@ -649,7 +686,11 @@ func (s *Service) SearchProducts(tenantID uuid.UUID, query string, offset, limit
 		return nil, 0, sharedErrors.NewBadRequestError("Search query is required")
 	}
 
-	return s.repo.SearchProducts(tenantID, query, offset, limit)
+	products, total, err := s.repo.SearchProducts(tenantID, query, offset, limit)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to search products: %w", err)
+	}
+	return products, total, nil
 }
 
 // GetLowStockProducts returns products with low inventory
@@ -658,7 +699,11 @@ func (s *Service) GetLowStockProducts(tenantID uuid.UUID, threshold int) ([]*Pro
 		threshold = 10 // Default threshold
 	}
 
-	return s.repo.GetLowStockProducts(tenantID, threshold)
+	products, err := s.repo.GetLowStockProducts(tenantID, threshold)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get low stock products: %w", err)
+	}
+	return products, nil
 }
 
 // UpdateProductStatus updates product status
@@ -723,16 +768,23 @@ func (s *Service) CreateProductVariant(tenantID, productID uuid.UUID, variant *P
 func (s *Service) GetProductVariants(tenantID uuid.UUID, productIDStr string) ([]*ProductVariant, error) {
 	productID, err := uuid.Parse(productIDStr)
 	if err != nil {
-		return nil, errors.New("invalid product ID")
+		return nil, sharedErrors.NewBadRequestError("Invalid product ID format")
 	}
 
 	// Verify product exists and belongs to tenant
 	_, err = s.repo.GetProductByID(tenantID, productID)
 	if err != nil {
-		return nil, errors.New("product not found")
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("product not found")
+		}
+		return nil, fmt.Errorf("failed to get product: %w", err)
 	}
 
-	return s.repo.GetProductVariants(tenantID, productID)
+	variants, err := s.repo.GetProductVariants(tenantID, productID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get product variants: %w", err)
+	}
+	return variants, nil
 }
 
 // UpdateProductVariant updates an existing product variant
@@ -806,21 +858,27 @@ func (s *Service) UpdateProductVariant(tenantID, productID, variantID uuid.UUID,
 func (s *Service) DeleteProductVariant(tenantID uuid.UUID, productIDStr, variantIDStr string) error {
 	productID, err := uuid.Parse(productIDStr)
 	if err != nil {
-		return errors.New("invalid product ID")
+		return sharedErrors.NewBadRequestError("Invalid product ID format")
 	}
 
 	variantID, err := uuid.Parse(variantIDStr)
 	if err != nil {
-		return errors.New("invalid variant ID")
+		return sharedErrors.NewBadRequestError("Invalid variant ID format")
 	}
 
 	// Verify product exists and belongs to tenant
 	_, err = s.repo.GetProductByID(tenantID, productID)
 	if err != nil {
-		return errors.New("product not found")
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return sharedErrors.NewNotFoundError("product not found")
+		}
+		return fmt.Errorf("failed to get product: %w", err)
 	}
 
-	return s.repo.DeleteProductVariant(tenantID, variantID)
+	if err := s.repo.DeleteProductVariant(tenantID, variantID); err != nil {
+		return fmt.Errorf("failed to delete product variant: %w", err)
+	}
+	return nil
 }
 
 // Category management methods
@@ -891,43 +949,54 @@ func (s *Service) UpdateCategory(tenantID, categoryID uuid.UUID, category *Categ
 func (s *Service) DeleteCategory(tenantID uuid.UUID, categoryIDStr string) error {
 	categoryID, err := uuid.Parse(categoryIDStr)
 	if err != nil {
-		return errors.New("invalid category ID")
+		return sharedErrors.NewBadRequestError("Invalid category ID format")
 	}
 
 	// Check if category has products
 	products, _, err := s.repo.GetProductsByCategoryID(tenantID, categoryID, 0, 1)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to check category products: %w", err)
 	}
 
 	if len(products) > 0 {
-		return errors.New("cannot delete category with products")
+		return sharedErrors.NewConflictError("Cannot delete category with products")
 	}
 
 	// Check if category has children
 	children, err := s.repo.GetCategoryChildren(tenantID, categoryID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to check category children: %w", err)
 	}
 
 	if len(children) > 0 {
-		return errors.New("cannot delete category with subcategories")
+		return sharedErrors.NewConflictError("Cannot delete category with subcategories")
 	}
 
-	return s.repo.DeleteCategory(tenantID, categoryID)
+	if err := s.repo.DeleteCategory(tenantID, categoryID); err != nil {
+		return fmt.Errorf("failed to delete category: %w", err)
+	}
+	return nil
 }
 
 // GetRootCategories returns top-level categories
 func (s *Service) GetRootCategories(tenantID uuid.UUID) ([]*Category, error) {
-	return s.repo.GetRootCategories(tenantID)
+	categories, err := s.repo.GetRootCategories(tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get root categories: %w", err)
+	}
+	return categories, nil
 }
 
 // GetCategoryChildren returns child categories
 func (s *Service) GetCategoryChildren(tenantID uuid.UUID, categoryIDStr string) ([]*Category, error) {
 	categoryID, err := uuid.Parse(categoryIDStr)
 	if err != nil {
-		return nil, errors.New("invalid category ID")
+		return nil, sharedErrors.NewBadRequestError("Invalid category ID format")
 	}
 
-	return s.repo.GetCategoryChildren(tenantID, categoryID)
+	children, err := s.repo.GetCategoryChildren(tenantID, categoryID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get category children: %w", err)
+	}
+	return children, nil
 }

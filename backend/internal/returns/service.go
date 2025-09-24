@@ -8,6 +8,8 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+
+	sharedErrors "ecommerce-saas/internal/shared/errors"
 )
 
 // Service defines the interface for return business logic
@@ -127,9 +129,9 @@ func (s *service) CreateReturn(ctx context.Context, return_ *Return) (*Return, e
 	// Calculate total refund
 	return_.CalculateTotalRefund()
 
-	// Save to repository
+	// Save return
 	if err := s.repo.CreateReturn(ctx, return_); err != nil {
-		return nil, fmt.Errorf("failed to create return: %w", err)
+		return nil, sharedErrors.NewInternalError("failed to create return", err)
 	}
 
 	// TODO: Send notification to customer
@@ -140,17 +142,35 @@ func (s *service) CreateReturn(ctx context.Context, return_ *Return) (*Return, e
 
 // GetReturn retrieves a return by ID
 func (s *service) GetReturn(ctx context.Context, tenantID, returnID uuid.UUID) (*Return, error) {
-	return s.repo.GetReturnByID(ctx, tenantID, returnID)
+	return_, err := s.repo.GetReturnByID(ctx, tenantID, returnID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("return not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get return", err)
+	}
+	return return_, nil
 }
 
 // GetReturnByNumber retrieves a return by return number
 func (s *service) GetReturnByNumber(ctx context.Context, tenantID uuid.UUID, returnNumber string) (*Return, error) {
-	return s.repo.GetReturnByNumber(ctx, tenantID, returnNumber)
+	return_, err := s.repo.GetReturnByNumber(ctx, tenantID, returnNumber)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("return not found")
+		}
+		return nil, fmt.Errorf("failed to get return by number: %w", err)
+	}
+	return return_, nil
 }
 
 // ListReturns retrieves returns with filtering and pagination
 func (s *service) ListReturns(ctx context.Context, tenantID uuid.UUID, filter ReturnFilter) ([]*Return, int64, error) {
-	return s.repo.ListReturns(ctx, tenantID, filter)
+	returns, count, err := s.repo.ListReturns(ctx, tenantID, filter)
+	if err != nil {
+		return nil, 0, sharedErrors.NewInternalError("failed to list returns", err)
+	}
+	return returns, count, nil
 }
 
 // UpdateReturn updates a return
@@ -161,14 +181,14 @@ func (s *service) UpdateReturn(ctx context.Context, return_ *Return) (*Return, e
 	existing, err := s.repo.GetReturnByID(ctx, tenantID, returnID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("return not found")
+			return nil, sharedErrors.NewNotFoundError("return not found")
 		}
-		return nil, fmt.Errorf("failed to get return: %w", err)
+		return nil, sharedErrors.NewInternalError("failed to get return", err)
 	}
 
 	// Check if return is editable
 	if !existing.IsEditable() {
-		return nil, errors.New("return cannot be edited in current status")
+		return nil, sharedErrors.NewBadRequestError("return cannot be edited in current status")
 	}
 
 	// Update fields from the return_ object
@@ -189,7 +209,7 @@ func (s *service) UpdateReturn(ctx context.Context, return_ *Return) (*Return, e
 
 	// Save changes
 	if err := s.repo.UpdateReturn(ctx, existing); err != nil {
-		return nil, fmt.Errorf("failed to update return: %w", err)
+		return nil, sharedErrors.NewInternalError("failed to update return", err)
 	}
 
 	return existing, nil
@@ -201,17 +221,20 @@ func (s *service) DeleteReturn(ctx context.Context, tenantID, returnID uuid.UUID
 	return_, err := s.repo.GetReturnByID(ctx, tenantID, returnID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("return not found")
+			return sharedErrors.NewNotFoundError("return not found")
 		}
-		return fmt.Errorf("failed to get return: %w", err)
+		return sharedErrors.NewInternalError("failed to get return", err)
 	}
 
 	// Check if return can be deleted
 	if return_.Status != StatusPending {
-		return errors.New("only pending returns can be deleted")
+		return sharedErrors.NewBadRequestError("only pending returns can be deleted")
 	}
 
-	return s.repo.DeleteReturn(ctx, tenantID, returnID)
+	if err := s.repo.DeleteReturn(ctx, tenantID, returnID); err != nil {
+		return sharedErrors.NewInternalError("failed to delete return", err)
+	}
+	return nil
 }
 
 // ApproveReturn approves a return
@@ -219,12 +242,15 @@ func (s *service) ApproveReturn(ctx context.Context, tenantID, returnID uuid.UUI
 	// Get existing return
 	return_, err := s.repo.GetReturnByID(ctx, tenantID, returnID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get return: %w", err)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("return not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get return", err)
 	}
 
 	// Validate status transition
 	if return_.Status != StatusPending {
-		return nil, errors.New("only pending returns can be approved")
+		return nil, sharedErrors.NewBadRequestError("only pending returns can be approved")
 	}
 
 	// Update return
@@ -237,7 +263,7 @@ func (s *service) ApproveReturn(ctx context.Context, tenantID, returnID uuid.UUI
 
 	// Save changes
 	if err := s.repo.UpdateReturn(ctx, return_); err != nil {
-		return nil, fmt.Errorf("failed to approve return: %w", err)
+		return nil, sharedErrors.NewInternalError("failed to approve return", err)
 	}
 
 	// TODO: Send notification to customer
@@ -251,12 +277,15 @@ func (s *service) RejectReturn(ctx context.Context, tenantID, returnID uuid.UUID
 	// Get existing return
 	return_, err := s.repo.GetReturnByID(ctx, tenantID, returnID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get return: %w", err)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("return not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get return", err)
 	}
 
 	// Validate status transition
 	if return_.Status != StatusPending {
-		return nil, errors.New("only pending returns can be rejected")
+		return nil, sharedErrors.NewBadRequestError("only pending returns can be rejected")
 	}
 
 	// Update return
@@ -269,7 +298,7 @@ func (s *service) RejectReturn(ctx context.Context, tenantID, returnID uuid.UUID
 
 	// Save changes
 	if err := s.repo.UpdateReturn(ctx, return_); err != nil {
-		return nil, fmt.Errorf("failed to reject return: %w", err)
+		return nil, sharedErrors.NewInternalError("failed to reject return", err)
 	}
 
 	// TODO: Send notification to customer
@@ -282,12 +311,15 @@ func (s *service) ProcessReturn(ctx context.Context, tenantID, returnID uuid.UUI
 	// Get existing return
 	return_, err := s.repo.GetReturnByID(ctx, tenantID, returnID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("return not found")
+		}
 		return nil, fmt.Errorf("failed to get return: %w", err)
 	}
 
 	// Validate status transition
 	if return_.Status != StatusApproved {
-		return nil, errors.New("only approved returns can be processed")
+		return nil, sharedErrors.NewBadRequestError("only approved returns can be processed")
 	}
 
 	// Update return
@@ -301,7 +333,7 @@ func (s *service) ProcessReturn(ctx context.Context, tenantID, returnID uuid.UUI
 
 	// Save changes
 	if err := s.repo.UpdateReturn(ctx, return_); err != nil {
-		return nil, fmt.Errorf("failed to process return: %w", err)
+		return nil, sharedErrors.NewInternalError("failed to process return", err)
 	}
 
 	// TODO: Update inventory if needed
@@ -315,12 +347,15 @@ func (s *service) CompleteReturn(ctx context.Context, tenantID, returnID uuid.UU
 	// Get existing return
 	return_, err := s.repo.GetReturnByID(ctx, tenantID, returnID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("return not found")
+		}
 		return nil, fmt.Errorf("failed to get return: %w", err)
 	}
 
 	// Validate status transition
 	if return_.Status != StatusProcessing {
-		return nil, errors.New("only processing returns can be completed")
+		return nil, sharedErrors.NewBadRequestError("only processing returns can be completed")
 	}
 
 	// Update return
@@ -331,7 +366,7 @@ func (s *service) CompleteReturn(ctx context.Context, tenantID, returnID uuid.UU
 
 	// Save changes
 	if err := s.repo.UpdateReturn(ctx, return_); err != nil {
-		return nil, fmt.Errorf("failed to complete return: %w", err)
+		return nil, sharedErrors.NewInternalError("failed to complete return", err)
 	}
 
 	// TODO: Process refund payment
@@ -346,18 +381,24 @@ func (s *service) AddReturnItem(ctx context.Context, returnItem *ReturnItem) (*R
 	// First get the return to find the tenantID
 	return_, err := s.repo.GetReturnByID(ctx, uuid.Nil, returnItem.ReturnID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("return not found")
+		}
 		return nil, fmt.Errorf("failed to get return: %w", err)
 	}
 
 	// Now get the return with proper tenantID
 	return_, err = s.repo.GetReturnByID(ctx, return_.TenantID, returnItem.ReturnID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("return not found")
+		}
 		return nil, fmt.Errorf("failed to get return: %w", err)
 	}
 
 	// Validate return is editable
 	if return_.Status != StatusPending {
-		return nil, errors.New("cannot add items to non-pending returns")
+		return nil, sharedErrors.NewBadRequestError("cannot add items to non-pending returns")
 	}
 
 	// Set system fields
@@ -367,7 +408,7 @@ func (s *service) AddReturnItem(ctx context.Context, returnItem *ReturnItem) (*R
 
 	// Save item
 	if err := s.repo.CreateReturnItem(ctx, returnItem); err != nil {
-		return nil, fmt.Errorf("failed to add return item: %w", err)
+		return nil, sharedErrors.NewInternalError("failed to add return item", err)
 	}
 
 	// Update return total
@@ -381,29 +422,38 @@ func (s *service) UpdateReturnItem(ctx context.Context, returnItem *ReturnItem) 
 	// First get the return to find the tenantID
 	return_, err := s.repo.GetReturnByID(ctx, uuid.Nil, returnItem.ReturnID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("return not found")
+		}
 		return nil, fmt.Errorf("failed to get return: %w", err)
 	}
 
 	// Now get the return with proper tenantID
 	return_, err = s.repo.GetReturnByID(ctx, return_.TenantID, returnItem.ReturnID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("return not found")
+		}
 		return nil, fmt.Errorf("failed to get return: %w", err)
 	}
 
 	// Validate return is editable
 	if return_.Status != StatusPending {
-		return nil, errors.New("cannot update items in non-pending returns")
+		return nil, sharedErrors.NewBadRequestError("cannot update items in non-pending returns")
 	}
 
 	// Get existing item
 	item, err := s.repo.GetReturnItemByID(ctx, returnItem.ID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get return item: %w", err)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("return item not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get return item", err)
 	}
 
 	// Validate item belongs to return
 	if item.ReturnID != returnItem.ReturnID {
-		return nil, errors.New("item does not belong to this return")
+		return nil, sharedErrors.NewBadRequestError("item does not belong to this return")
 	}
 
 	// Update item fields
@@ -414,7 +464,7 @@ func (s *service) UpdateReturnItem(ctx context.Context, returnItem *ReturnItem) 
 
 	// Save changes
 	if err := s.repo.UpdateReturnItem(ctx, item); err != nil {
-		return nil, fmt.Errorf("failed to update return item: %w", err)
+		return nil, sharedErrors.NewInternalError("failed to update return item", err)
 	}
 
 	// Update return total
@@ -428,15 +478,21 @@ func (s *service) RemoveReturnItem(ctx context.Context, tenantID, returnID, item
 	// Get existing return to check if editable
 	return_, err := s.repo.GetReturnByID(ctx, tenantID, returnID)
 	if err != nil {
-		return fmt.Errorf("failed to get return: %w", err)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return sharedErrors.NewNotFoundError("return not found")
+		}
+		return sharedErrors.NewInternalError("failed to get return", err)
 	}
 
 	// Check if return is editable
 	if !return_.IsEditable() {
-		return errors.New("return cannot be edited in current status")
+		return sharedErrors.NewBadRequestError("return cannot be edited in current status")
 	}
 
-	return s.repo.DeleteReturnItem(ctx, itemID)
+	if err := s.repo.DeleteReturnItem(ctx, itemID); err != nil {
+		return sharedErrors.NewInternalError("failed to delete return item", err)
+	}
+	return nil
 }
 
 // CreateReturnReason creates a new return reason
@@ -448,7 +504,7 @@ func (s *service) CreateReturnReason(ctx context.Context, reason *ReturnReason) 
 
 	// Save reason
 	if err := s.repo.CreateReturnReason(ctx, reason); err != nil {
-		return nil, fmt.Errorf("failed to create return reason: %w", err)
+		return nil, sharedErrors.NewInternalError("failed to create return reason", err)
 	}
 
 	return reason, nil
@@ -456,14 +512,21 @@ func (s *service) CreateReturnReason(ctx context.Context, reason *ReturnReason) 
 
 // GetReturnReason retrieves a return reason by ID
 func (s *service) GetReturnReason(ctx context.Context, tenantID, reasonID uuid.UUID) (*ReturnReason, error) {
-	return s.repo.GetReturnReasonByID(ctx, tenantID, reasonID)
+	reason, err := s.repo.GetReturnReasonByID(ctx, tenantID, reasonID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("return reason not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get return reason", err)
+	}
+	return reason, nil
 }
 
 // ListReturnReasons retrieves return reasons
 func (s *service) ListReturnReasons(ctx context.Context, tenantID uuid.UUID, activeOnly bool) ([]*ReturnReason, error) {
 	reasons, err := s.repo.ListReturnReasons(ctx, tenantID, activeOnly)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list return reasons: %w", err)
+		return nil, sharedErrors.NewInternalError("failed to list return reasons", err)
 	}
 	return reasons, nil
 }
@@ -474,9 +537,9 @@ func (s *service) UpdateReturnReason(ctx context.Context, reason *ReturnReason) 
 	existing, err := s.repo.GetReturnReasonByID(ctx, reason.TenantID, reason.ID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("return reason not found")
+			return nil, sharedErrors.NewNotFoundError("return reason not found")
 		}
-		return nil, fmt.Errorf("failed to get return reason: %w", err)
+		return nil, sharedErrors.NewInternalError("failed to get return reason", err)
 	}
 
 	// Update fields
@@ -491,7 +554,7 @@ func (s *service) UpdateReturnReason(ctx context.Context, reason *ReturnReason) 
 
 	// Save changes
 	if err := s.repo.UpdateReturnReason(ctx, existing); err != nil {
-		return nil, fmt.Errorf("failed to update return reason: %w", err)
+		return nil, sharedErrors.NewInternalError("failed to update return reason", err)
 	}
 
 	return existing, nil
@@ -499,23 +562,47 @@ func (s *service) UpdateReturnReason(ctx context.Context, reason *ReturnReason) 
 
 // DeleteReturnReason deletes a return reason
 func (s *service) DeleteReturnReason(ctx context.Context, tenantID, reasonID uuid.UUID) error {
+	// Get existing reason to check if it exists
+	_, err := s.repo.GetReturnReasonByID(ctx, tenantID, reasonID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return sharedErrors.NewNotFoundError("return reason not found")
+		}
+		return sharedErrors.NewInternalError("failed to get return reason", err)
+	}
+
 	// TODO: Check if reason is being used by any returns
-	return s.repo.DeleteReturnReason(ctx, tenantID, reasonID)
+	if err := s.repo.DeleteReturnReason(ctx, tenantID, reasonID); err != nil {
+		return sharedErrors.NewInternalError("failed to delete return reason", err)
+	}
+	return nil
 }
 
 // GetReturnStats retrieves return statistics
 func (s *service) GetReturnStats(ctx context.Context, tenantID uuid.UUID, filter StatsFilter) (*ReturnStats, error) {
-	return s.repo.GetReturnStats(ctx, tenantID, filter)
+	stats, err := s.repo.GetReturnStats(ctx, tenantID, filter)
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get return stats", err)
+	}
+	return stats, nil
 }
 
 // GetReturnsByCustomer retrieves returns for a specific customer
 func (s *service) GetReturnsByCustomer(ctx context.Context, tenantID, customerID uuid.UUID, filter ReturnFilter) ([]*Return, int64, error) {
-	return s.repo.GetReturnsByCustomer(ctx, tenantID, customerID, filter)
+	returns, count, err := s.repo.GetReturnsByCustomer(ctx, tenantID, customerID, filter)
+	if err != nil {
+		return nil, 0, sharedErrors.NewInternalError("failed to get returns by customer", err)
+	}
+	return returns, count, nil
 }
 
 // GetReturnsByOrder retrieves returns for a specific order
 func (s *service) GetReturnsByOrder(ctx context.Context, tenantID, orderID uuid.UUID) ([]*Return, error) {
-	return s.repo.GetReturnsByOrder(ctx, tenantID, orderID)
+	returns, err := s.repo.GetReturnsByOrder(ctx, tenantID, orderID)
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get returns by order", err)
+	}
+	return returns, nil
 }
 
 // GenerateReturnLabel generates a shipping label for return
@@ -523,12 +610,15 @@ func (s *service) GenerateReturnLabel(ctx context.Context, tenantID, returnID uu
 	// Get return details
 	return_, err := s.repo.GetReturnByID(ctx, tenantID, returnID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("return not found")
+		}
 		return nil, fmt.Errorf("failed to get return: %w", err)
 	}
 
 	// Validate return status
 	if return_.Status != StatusApproved {
-		return nil, errors.New("return must be approved to generate shipping label")
+		return nil, sharedErrors.NewBadRequestError("return must be approved to generate shipping label")
 	}
 
 	// TODO: Integrate with shipping service to generate label
@@ -546,7 +636,7 @@ func (s *service) GenerateReturnLabel(ctx context.Context, tenantID, returnID uu
 	return_.UpdatedAt = time.Now()
 
 	if err := s.repo.UpdateReturn(ctx, return_); err != nil {
-		return nil, fmt.Errorf("failed to update return with tracking number: %w", err)
+		return nil, sharedErrors.NewInternalError("failed to update return with tracking number", err)
 	}
 
 	return label, nil
@@ -557,11 +647,14 @@ func (s *service) TrackReturnShipment(ctx context.Context, tenantID, returnID uu
 	// Get return details
 	return_, err := s.repo.GetReturnByID(ctx, tenantID, returnID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("return not found")
+		}
 		return nil, fmt.Errorf("failed to get return: %w", err)
 	}
 
 	if return_.TrackingNumber == "" {
-		return nil, errors.New("no tracking number available for this return")
+		return nil, sharedErrors.NewBadRequestError("no tracking number available for this return")
 	}
 
 	// TODO: Integrate with shipping service to get tracking info
@@ -594,29 +687,29 @@ func (s *service) TrackReturnShipment(ctx context.Context, tenantID, returnID uu
 // validateReturn validates a return object
 func (s *service) validateReturn(return_ *Return) error {
 	if return_ == nil {
-		return errors.New("return cannot be nil")
+		return sharedErrors.NewValidationError("return cannot be nil", nil)
 	}
 
 	if return_.CustomerID == uuid.Nil {
-		return errors.New("customer ID is required")
+		return sharedErrors.NewValidationError("customer ID is required", nil)
 	}
 
 	if return_.OrderID == uuid.Nil {
-		return errors.New("order ID is required")
+		return sharedErrors.NewValidationError("order ID is required", nil)
 	}
 
 	if len(return_.Items) == 0 {
-		return errors.New("at least one return item is required")
+		return sharedErrors.NewValidationError("at least one return item is required", nil)
 	}
 
 	// Validate return items
 	for i, item := range return_.Items {
 		if item.ProductID == uuid.Nil {
-			return fmt.Errorf("product ID is required for item %d", i+1)
+			return sharedErrors.NewValidationError(fmt.Sprintf("product ID is required for item %d", i+1), nil)
 		}
 
 		if item.QuantityReturned <= 0 {
-			return fmt.Errorf("quantity must be greater than 0 for item %d", i+1)
+			return sharedErrors.NewValidationError(fmt.Sprintf("quantity must be greater than 0 for item %d", i+1), nil)
 		}
 	}
 

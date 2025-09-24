@@ -1,8 +1,12 @@
 package product
 
 import (
+	"errors"
+
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+
+	sharedErrors "ecommerce-saas/internal/shared/errors"
 )
 
 // Repository defines the product repository interface
@@ -62,7 +66,10 @@ func NewRepository(db *gorm.DB) Repository {
 // CreateProduct creates a new product
 func (r *repository) CreateProduct(product *Product) (*Product, error) {
 	if err := r.db.Create(product).Error; err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return nil, sharedErrors.NewConflictError("Product with this SKU or slug already exists")
+		}
+		return nil, sharedErrors.NewInternalError("Failed to create product", err)
 	}
 	return product, nil
 }
@@ -73,7 +80,10 @@ func (r *repository) GetProductByID(tenantID, productID uuid.UUID) (*Product, er
 	err := r.db.Preload("Variants").Preload("Category").
 		First(&product, "id = ? AND tenant_id = ?", productID, tenantID).Error
 	if err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("Product")
+		}
+		return nil, sharedErrors.NewInternalError("Failed to retrieve product", err)
 	}
 	return &product, nil
 }
@@ -84,7 +94,10 @@ func (r *repository) GetProductBySlug(tenantID uuid.UUID, slug string) (*Product
 	err := r.db.Preload("Variants").Preload("Category").
 		First(&product, "slug = ? AND tenant_id = ?", slug, tenantID).Error
 	if err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("Product")
+		}
+		return nil, sharedErrors.NewInternalError("Failed to retrieve product by slug", err)
 	}
 	return &product, nil
 }
@@ -92,14 +105,24 @@ func (r *repository) GetProductBySlug(tenantID uuid.UUID, slug string) (*Product
 // UpdateProduct updates an existing product
 func (r *repository) UpdateProduct(product *Product) (*Product, error) {
 	if err := r.db.Save(product).Error; err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return nil, sharedErrors.NewConflictError("Product with this SKU or slug already exists")
+		}
+		return nil, sharedErrors.NewInternalError("Failed to update product", err)
 	}
 	return product, nil
 }
 
 // DeleteProduct soft deletes a product
 func (r *repository) DeleteProduct(tenantID, productID uuid.UUID) error {
-	return r.db.Where("tenant_id = ?", tenantID).Delete(&Product{}, productID).Error
+	result := r.db.Where("tenant_id = ?", tenantID).Delete(&Product{}, productID)
+	if result.Error != nil {
+		return sharedErrors.NewInternalError("Failed to delete product", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return sharedErrors.NewNotFoundError("Product")
+	}
+	return nil
 }
 
 // ListProducts returns paginated products with filters
@@ -139,7 +162,7 @@ func (r *repository) ListProducts(tenantID uuid.UUID, filter ProductListFilter, 
 
 	// Get total count
 	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, err
+		return nil, 0, sharedErrors.NewInternalError("Failed to count products", err)
 	}
 
 	// Get paginated results with preloads
@@ -147,7 +170,7 @@ func (r *repository) ListProducts(tenantID uuid.UUID, filter ProductListFilter, 
 		Offset(offset).Limit(limit).
 		Order("created_at DESC").
 		Find(&products).Error; err != nil {
-		return nil, 0, err
+		return nil, 0, sharedErrors.NewInternalError("Failed to retrieve products", err)
 	}
 
 	return products, total, nil

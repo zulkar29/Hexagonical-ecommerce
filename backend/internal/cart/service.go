@@ -3,6 +3,7 @@ package cart
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -10,8 +11,10 @@ import (
 	"ecommerce-saas/internal/product"
 	"ecommerce-saas/internal/discount"
 	"ecommerce-saas/internal/shipping"
+	sharedErrors "ecommerce-saas/internal/shared/errors"
 	"github.com/google/uuid"
 	"github.com/go-playground/validator/v10"
+	"gorm.io/gorm"
 )
 
 // Request/Response Structures
@@ -200,12 +203,12 @@ func NewService(repo Repository, productService ProductService, discountService 
 func (s *CartService) CreateCart(tenantID uuid.UUID, req CreateCartRequest) (*CartResponse, error) {
 	// Validate request
 	if validateErr := s.validator.Struct(req); validateErr != nil {
-		return nil, validateErr
+		return nil, sharedErrors.NewValidationError(validateErr.Error(), nil)
 	}
 
 	// Validate that either customer ID or session ID is provided
 	if req.CustomerID == nil && req.SessionID == "" {
-		return nil, errors.New("either customer_id or session_id must be provided")
+		return nil, sharedErrors.NewValidationError("either customer_id or session_id must be provided", nil)
 	}
 
 	// Check if cart already exists
@@ -236,7 +239,7 @@ func (s *CartService) CreateCart(tenantID uuid.UUID, req CreateCartRequest) (*Ca
 
 	savedCart, err := s.repo.SaveCart(cart)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to save cart: %w", err)
 	}
 
 	return s.buildCartResponse(savedCart), nil
@@ -246,7 +249,10 @@ func (s *CartService) CreateCart(tenantID uuid.UUID, req CreateCartRequest) (*Ca
 func (s *CartService) GetCart(tenantID, cartID uuid.UUID) (*CartResponse, error) {
 	cart, err := s.repo.FindCartByID(tenantID, cartID)
 	if err != nil {
-		return nil, ErrCartNotFound
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("cart not found")
+		}
+		return nil, fmt.Errorf("failed to get cart: %w", err)
 	}
 
 	// Check if cart is expired and update status
@@ -270,7 +276,10 @@ func (s *CartService) GetCartByID(tenantID, cartID uuid.UUID) (*CartResponse, er
 func (s *CartService) GetCartByCustomer(tenantID, customerID uuid.UUID) (*CartResponse, error) {
 	cart, err := s.repo.FindCartByCustomerID(tenantID, customerID)
 	if err != nil {
-		return nil, ErrCartNotFound
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("cart not found")
+		}
+		return nil, fmt.Errorf("failed to get cart: %w", err)
 	}
 
 	// Check if cart is expired
@@ -289,7 +298,10 @@ func (s *CartService) GetCartByCustomer(tenantID, customerID uuid.UUID) (*CartRe
 func (s *CartService) GetCartBySession(tenantID uuid.UUID, sessionID string) (*CartResponse, error) {
 	cart, err := s.repo.FindCartBySessionID(tenantID, sessionID)
 	if err != nil {
-		return nil, ErrCartNotFound
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("cart not found")
+		}
+		return nil, fmt.Errorf("failed to get cart: %w", err)
 	}
 
 	// Check if cart is expired
@@ -308,13 +320,16 @@ func (s *CartService) GetCartBySession(tenantID uuid.UUID, sessionID string) (*C
 func (s *CartService) AddItem(tenantID, cartID uuid.UUID, req AddItemRequest) (*CartResponse, error) {
 	// Validate request
 	if validateErr := s.validator.Struct(req); validateErr != nil {
-		return nil, validateErr
+		return nil, sharedErrors.NewValidationError(validateErr.Error(), nil)
 	}
 
 	// Get cart
 	cart, cartErr := s.repo.FindCartByID(tenantID, cartID)
 	if cartErr != nil {
-		return nil, ErrCartNotFound
+		if errors.Is(cartErr, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("cart not found")
+		}
+		return nil, fmt.Errorf("failed to get cart: %w", cartErr)
 	}
 
 	// Check if cart can be modified
@@ -404,7 +419,7 @@ func (s *CartService) AddItem(tenantID, cartID uuid.UUID, req AddItemRequest) (*
 	// Update cart
 	updatedCart, err := s.repo.UpdateCart(cart)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update cart: %w", err)
 	}
 
 	return s.buildCartResponse(updatedCart), nil
@@ -414,13 +429,16 @@ func (s *CartService) AddItem(tenantID, cartID uuid.UUID, req AddItemRequest) (*
 func (s *CartService) UpdateItem(tenantID, cartID, itemID uuid.UUID, req UpdateItemRequest) (*CartItem, error) {
 	// Validate request
 	if err := s.validator.Struct(req); err != nil {
-		return nil, err
+		return nil, sharedErrors.NewValidationError(err.Error(), nil)
 	}
 
 	// Get cart
 	cart, cartErr := s.repo.FindCartByID(tenantID, cartID)
 	if cartErr != nil {
-		return nil, ErrCartNotFound
+		if errors.Is(cartErr, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("cart not found")
+		}
+		return nil, fmt.Errorf("failed to get cart: %w", cartErr)
 	}
 
 	// Check if cart can be modified
@@ -486,17 +504,20 @@ func (s *CartService) RemoveItem(tenantID, cartID, itemID uuid.UUID) error {
 	// Get cart
 	cart, cartErr := s.repo.FindCartByID(tenantID, cartID)
 	if cartErr != nil {
-		return ErrCartNotFound
+		if errors.Is(cartErr, gorm.ErrRecordNotFound) {
+			return sharedErrors.NewNotFoundError("cart not found")
+		}
+		return fmt.Errorf("failed to get cart: %w", cartErr)
 	}
 
 	// Check if cart can be modified
 	if modifyErr := cart.CanModify(); modifyErr != nil {
-		return modifyErr
+		return sharedErrors.NewBadRequestError(modifyErr.Error())
 	}
 
 	// Remove item
 	if removeErr := s.repo.RemoveCartItem(tenantID, cartID, itemID); removeErr != nil {
-		return ErrItemNotFound
+		return sharedErrors.NewNotFoundError("item not found in cart")
 	}
 
 	// Reload cart
@@ -524,12 +545,15 @@ func (s *CartService) ClearCart(tenantID, cartID uuid.UUID) error {
 	// Get cart
 	cart, cartErr := s.repo.FindCartByID(tenantID, cartID)
 	if cartErr != nil {
-		return ErrCartNotFound
+		if errors.Is(cartErr, gorm.ErrRecordNotFound) {
+			return sharedErrors.NewNotFoundError("cart not found")
+		}
+		return fmt.Errorf("failed to get cart: %w", cartErr)
 	}
 
 	// Check if cart can be modified
 	if modifyErr := cart.CanModify(); modifyErr != nil {
-		return modifyErr
+		return sharedErrors.NewBadRequestError(modifyErr.Error())
 	}
 
 	// Clear all items
@@ -559,18 +583,21 @@ func (s *CartService) ClearCart(tenantID, cartID uuid.UUID) error {
 func (s *CartService) ApplyCoupon(tenantID, cartID uuid.UUID, req ApplyCouponRequest) (*CartResponse, error) {
 	// Validate request
 	if validateErr := s.validator.Struct(req); validateErr != nil {
-		return nil, validateErr
+		return nil, sharedErrors.NewValidationError(validateErr.Error(), nil)
 	}
 
 	// Get cart
 	cart, cartErr := s.repo.FindCartByID(tenantID, cartID)
 	if cartErr != nil {
-		return nil, ErrCartNotFound
+		if errors.Is(cartErr, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("cart not found")
+		}
+		return nil, fmt.Errorf("failed to get cart: %w", cartErr)
 	}
 
 	// Check if cart can be modified
 	if modifyErr := cart.CanModify(); modifyErr != nil {
-		return nil, modifyErr
+		return nil, sharedErrors.NewBadRequestError(modifyErr.Error())
 	}
 
 	// Apply coupon (simplified - actual discount calculation would be done during order processing)
@@ -594,12 +621,15 @@ func (s *CartService) RemoveCoupon(tenantID, cartID uuid.UUID) (*CartResponse, e
 	// Get cart
 	cart, cartErr := s.repo.FindCartByID(tenantID, cartID)
 	if cartErr != nil {
-		return nil, ErrCartNotFound
+		if errors.Is(cartErr, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("cart not found")
+		}
+		return nil, fmt.Errorf("failed to get cart: %w", cartErr)
 	}
 
 	// Check if cart can be modified
 	if modifyErr := cart.CanModify(); modifyErr != nil {
-		return nil, modifyErr
+		return nil, sharedErrors.NewBadRequestError(modifyErr.Error())
 	}
 
 	// Remove coupon
@@ -624,12 +654,15 @@ func (s *CartService) UpdateAddress(tenantID, cartID uuid.UUID, req UpdateAddres
 	// Get cart
 	cart, err := s.repo.FindCartByID(tenantID, cartID)
 	if err != nil {
-		return nil, ErrCartNotFound
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("cart not found")
+		}
+		return nil, fmt.Errorf("failed to get cart: %w", err)
 	}
 
 	// Check if cart can be modified
 	if modifyErr := cart.CanModify(); modifyErr != nil {
-		return nil, modifyErr
+		return nil, sharedErrors.NewBadRequestError(modifyErr.Error())
 	}
 
 	// Update addresses
@@ -656,15 +689,23 @@ func (s *CartService) UpdateAddress(tenantID, cartID uuid.UUID, req UpdateAddres
 
 // UpdateShipping updates shipping method
 func (s *CartService) UpdateShipping(tenantID, cartID uuid.UUID, req UpdateShippingRequest) (*CartResponse, error) {
+	// Validate request
+	if validateErr := s.validator.Struct(req); validateErr != nil {
+		return nil, sharedErrors.NewValidationError(validateErr.Error(), nil)
+	}
+
 	// Get cart
 	cart, err := s.repo.FindCartByID(tenantID, cartID)
 	if err != nil {
-		return nil, ErrCartNotFound
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("cart not found")
+		}
+		return nil, fmt.Errorf("failed to get cart: %w", err)
 	}
 
 	// Check if cart can be modified
 	if modifyErr := cart.CanModify(); modifyErr != nil {
-		return nil, modifyErr
+		return nil, sharedErrors.NewBadRequestError(modifyErr.Error())
 	}
 
 	// Update shipping method
@@ -694,7 +735,10 @@ func (s *CartService) MergeGuestCart(tenantID uuid.UUID, sessionID string, custo
 	// Get the merged cart
 	cart, err := s.repo.FindCartByCustomerID(tenantID, customerID)
 	if err != nil {
-		return nil, ErrCartNotFound
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("cart not found")
+		}
+		return nil, fmt.Errorf("failed to get cart: %w", err)
 	}
 
 	// Recalculate totals
@@ -715,30 +759,42 @@ func (s *CartService) MergeGuestCart(tenantID uuid.UUID, sessionID string, custo
 func (s *CartService) AbandonCart(tenantID, cartID uuid.UUID) error {
 	cart, err := s.repo.FindCartByID(tenantID, cartID)
 	if err != nil {
-		return ErrCartNotFound
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return sharedErrors.NewNotFoundError("cart not found")
+		}
+		return fmt.Errorf("failed to get cart: %w", err)
 	}
 
 	if cart.Status == StatusActive {
 		cart.MarkAsAbandoned()
-		_, err = s.repo.UpdateCart(cart)
+		_, updateErr := s.repo.UpdateCart(cart)
+		if updateErr != nil {
+			return fmt.Errorf("failed to update cart: %w", updateErr)
+		}
 	}
 
-	return err
+	return nil
 }
 
 // ConvertCart marks cart as converted to order
 func (s *CartService) ConvertCart(tenantID, cartID uuid.UUID) error {
 	cart, err := s.repo.FindCartByID(tenantID, cartID)
 	if err != nil {
-		return ErrCartNotFound
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return sharedErrors.NewNotFoundError("cart not found")
+		}
+		return fmt.Errorf("failed to get cart: %w", err)
 	}
 
 	if cart.Status == StatusActive {
 		cart.MarkAsConverted()
-		_, err = s.repo.UpdateCart(cart)
+		_, updateErr := s.repo.UpdateCart(cart)
+		if updateErr != nil {
+			return fmt.Errorf("failed to update cart: %w", updateErr)
+		}
 	}
 
-	return err
+	return nil
 }
 
 // DeleteCart soft deletes a cart
@@ -750,7 +806,10 @@ func (s *CartService) DeleteCart(tenantID, cartID uuid.UUID) error {
 func (s *CartService) GetCartSummary(tenantID, cartID uuid.UUID) (*CartSummary, error) {
 	cart, err := s.repo.FindCartByID(tenantID, cartID)
 	if err != nil {
-		return nil, ErrCartNotFound
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("cart not found")
+		}
+		return nil, fmt.Errorf("failed to get cart: %w", err)
 	}
 
 	return &CartSummary{
@@ -814,13 +873,16 @@ func (s *CartService) recalculateCart(cart *Cart) error {
 func (s *CartService) UpdateCart(tenantID, cartID uuid.UUID, req UpdateCartRequest) (*CartResponse, error) {
 	// Validate request
 	if err := s.validator.Struct(req); err != nil {
-		return nil, err
+		return nil, sharedErrors.NewValidationError(err.Error(), nil)
 	}
 
 	// Get cart
 	cart, err := s.repo.FindCartByID(tenantID, cartID)
 	if err != nil {
-		return nil, ErrCartNotFound
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("cart not found")
+		}
+		return nil, fmt.Errorf("failed to get cart: %w", err)
 	}
 
 	// Check if cart can be modified
@@ -866,7 +928,7 @@ func (s *CartService) UpdateCart(tenantID, cartID uuid.UUID, req UpdateCartReque
 	// Update cart
 	updatedCart, err := s.repo.UpdateCart(cart)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update cart: %w", err)
 	}
 
 	return s.buildCartResponse(updatedCart), nil
@@ -876,13 +938,16 @@ func (s *CartService) UpdateCart(tenantID, cartID uuid.UUID, req UpdateCartReque
 func (s *CartService) GetEstimates(tenantID, cartID uuid.UUID, req EstimateRequest) (*EstimateResponse, error) {
 	// Validate request
 	if err := s.validator.Struct(req); err != nil {
-		return nil, err
+		return nil, sharedErrors.NewValidationError(err.Error(), nil)
 	}
 
 	// Get cart
 	cart, err := s.repo.FindCartByID(tenantID, cartID)
 	if err != nil {
-		return nil, ErrCartNotFound
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("cart not found")
+		}
+		return nil, fmt.Errorf("failed to get cart: %w", err)
 	}
 
 	// Create temporary cart with shipping address for calculations
@@ -936,23 +1001,26 @@ func (s *CartService) GetEstimates(tenantID, cartID uuid.UUID, req EstimateReque
 func (s *CartService) ProcessGuestCheckout(tenantID uuid.UUID, req GuestCheckoutRequest) (*GuestCheckoutResponse, error) {
 	// Validate request
 	if err := s.validator.Struct(req); err != nil {
-		return nil, err
+		return nil, sharedErrors.NewValidationError(err.Error(), nil)
 	}
 
 	// Get guest cart
 	cart, err := s.repo.FindCartBySessionID(tenantID, req.SessionID)
 	if err != nil {
-		return nil, ErrCartNotFound
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("cart not found")
+		}
+		return nil, fmt.Errorf("failed to get cart: %w", err)
 	}
 
 	// Check if cart can be modified
 	if tempErr := cart.CanModify(); tempErr != nil {
-		return nil, tempErr
+		return nil, sharedErrors.NewBadRequestError(tempErr.Error())
 	}
 
 	// Check if cart has items
 	if len(cart.Items) == 0 {
-		return nil, errors.New("cart is empty")
+		return nil, sharedErrors.NewBadRequestError("cart is empty")
 	}
 
 	// Update cart with checkout information
@@ -975,7 +1043,7 @@ func (s *CartService) ProcessGuestCheckout(tenantID uuid.UUID, req GuestCheckout
 	cart.MarkAsConverted()
 	_, err = s.repo.UpdateCart(cart)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update cart: %w", err)
 	}
 
 	return &GuestCheckoutResponse{

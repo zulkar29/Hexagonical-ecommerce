@@ -1,10 +1,12 @@
 package webhook
 
 import (
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	sharedErrors "ecommerce-saas/internal/shared/errors"
 )
 
 type Repository struct {
@@ -21,26 +23,32 @@ func NewRepository(db *gorm.DB) *Repository {
 
 func (r *Repository) CreateEndpoint(endpoint *WebhookEndpoint) (*WebhookEndpoint, error) {
 	if err := r.db.Create(endpoint).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to create webhook endpoint", err)
 	}
 	return endpoint, nil
 }
 
 func (r *Repository) UpdateEndpoint(endpoint *WebhookEndpoint) (*WebhookEndpoint, error) {
 	if err := r.db.Save(endpoint).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to update webhook endpoint", err)
 	}
 	return endpoint, nil
 }
 
 func (r *Repository) DeleteEndpoint(tenantID uuid.UUID, endpointID uuid.UUID) error {
-	return r.db.Where("tenant_id = ? AND id = ?", tenantID, endpointID).Delete(&WebhookEndpoint{}).Error
+	if err := r.db.Where("tenant_id = ? AND id = ?", tenantID, endpointID).Delete(&WebhookEndpoint{}).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to delete webhook endpoint", err)
+	}
+	return nil
 }
 
 func (r *Repository) GetEndpointByID(tenantID uuid.UUID, endpointID uuid.UUID) (*WebhookEndpoint, error) {
 	var endpoint WebhookEndpoint
 	if err := r.db.Where("tenant_id = ? AND id = ?", tenantID, endpointID).First(&endpoint).Error; err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("webhook endpoint not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get webhook endpoint", err)
 	}
 	return &endpoint, nil
 }
@@ -48,7 +56,7 @@ func (r *Repository) GetEndpointByID(tenantID uuid.UUID, endpointID uuid.UUID) (
 func (r *Repository) GetEndpoints(tenantID uuid.UUID) ([]*WebhookEndpoint, error) {
 	var endpoints []*WebhookEndpoint
 	if err := r.db.Where("tenant_id = ?", tenantID).Find(&endpoints).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get webhook endpoints", err)
 	}
 	return endpoints, nil
 }
@@ -56,7 +64,7 @@ func (r *Repository) GetEndpoints(tenantID uuid.UUID) ([]*WebhookEndpoint, error
 func (r *Repository) GetActiveEndpoints(tenantID uuid.UUID) ([]*WebhookEndpoint, error) {
 	var endpoints []*WebhookEndpoint
 	if err := r.db.Where("tenant_id = ? AND is_active = ?", tenantID, true).Find(&endpoints).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get active webhook endpoints", err)
 	}
 	return endpoints, nil
 }
@@ -64,7 +72,7 @@ func (r *Repository) GetActiveEndpoints(tenantID uuid.UUID) ([]*WebhookEndpoint,
 func (r *Repository) GetEndpointsByEvent(tenantID uuid.UUID, event WebhookEvent) ([]*WebhookEndpoint, error) {
 	var endpoints []*WebhookEndpoint
 	if err := r.db.Where("tenant_id = ? AND is_active = ? AND JSON_CONTAINS(events, ?)", tenantID, true, string(event)).Find(&endpoints).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get webhook endpoints by event", err)
 	}
 	return endpoints, nil
 }
@@ -73,14 +81,14 @@ func (r *Repository) GetEndpointsByEvent(tenantID uuid.UUID, event WebhookEvent)
 
 func (r *Repository) CreateDelivery(delivery *WebhookDelivery) (*WebhookDelivery, error) {
 	if err := r.db.Create(delivery).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to create webhook delivery", err)
 	}
 	return delivery, nil
 }
 
 func (r *Repository) UpdateDelivery(delivery *WebhookDelivery) (*WebhookDelivery, error) {
 	if err := r.db.Save(delivery).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to update webhook delivery", err)
 	}
 	return delivery, nil
 }
@@ -88,7 +96,10 @@ func (r *Repository) UpdateDelivery(delivery *WebhookDelivery) (*WebhookDelivery
 func (r *Repository) GetDeliveryByID(tenantID uuid.UUID, deliveryID uuid.UUID) (*WebhookDelivery, error) {
 	var delivery WebhookDelivery
 	if err := r.db.Where("tenant_id = ? AND id = ?", tenantID, deliveryID).First(&delivery).Error; err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("webhook delivery not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get webhook delivery", err)
 	}
 	return &delivery, nil
 }
@@ -104,7 +115,7 @@ func (r *Repository) GetDeliveries(tenantID uuid.UUID, endpointID uuid.UUID, lim
 		query = query.Where("endpoint_id = ?", endpointID)
 	}
 	if err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&deliveries).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get webhook deliveries", err)
 	}
 	return deliveries, nil
 }
@@ -112,7 +123,7 @@ func (r *Repository) GetDeliveries(tenantID uuid.UUID, endpointID uuid.UUID, lim
 func (r *Repository) GetFailedDeliveries(tenantID uuid.UUID, limit int) ([]*WebhookDelivery, error) {
 	var deliveries []*WebhookDelivery
 	if err := r.db.Where("tenant_id = ? AND status = ?", tenantID, "failed").Order("created_at DESC").Limit(limit).Find(&deliveries).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get failed webhook deliveries", err)
 	}
 	return deliveries, nil
 }
@@ -120,7 +131,7 @@ func (r *Repository) GetFailedDeliveries(tenantID uuid.UUID, limit int) ([]*Webh
 func (r *Repository) GetPendingRetries(limit int) ([]*WebhookDelivery, error) {
 	var deliveries []*WebhookDelivery
 	if err := r.db.Where("status = ? AND next_retry_at <= ?", "failed", time.Now()).Order("next_retry_at ASC").Limit(limit).Find(&deliveries).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get pending retry deliveries", err)
 	}
 	return deliveries, nil
 }
@@ -128,7 +139,7 @@ func (r *Repository) GetPendingRetries(limit int) ([]*WebhookDelivery, error) {
 func (r *Repository) GetDeliveriesByEvent(tenantID uuid.UUID, event WebhookEvent, limit int, offset int) ([]*WebhookDelivery, error) {
 	var deliveries []*WebhookDelivery
 	if err := r.db.Where("tenant_id = ? AND event = ?", tenantID, event).Order("created_at DESC").Limit(limit).Offset(offset).Find(&deliveries).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get webhook deliveries by event", err)
 	}
 	return deliveries, nil
 }
@@ -137,14 +148,14 @@ func (r *Repository) GetDeliveriesByEvent(tenantID uuid.UUID, event WebhookEvent
 
 func (r *Repository) CreateIncomingWebhook(webhook *WebhookIncoming) (*WebhookIncoming, error) {
 	if err := r.db.Create(webhook).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to create incoming webhook", err)
 	}
 	return webhook, nil
 }
 
 func (r *Repository) UpdateIncomingWebhook(webhook *WebhookIncoming) (*WebhookIncoming, error) {
 	if err := r.db.Save(webhook).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to update incoming webhook", err)
 	}
 	return webhook, nil
 }
@@ -152,7 +163,10 @@ func (r *Repository) UpdateIncomingWebhook(webhook *WebhookIncoming) (*WebhookIn
 func (r *Repository) GetIncomingWebhookByID(id uuid.UUID) (*WebhookIncoming, error) {
 	var webhook WebhookIncoming
 	if err := r.db.Where("id = ?", id).First(&webhook).Error; err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("incoming webhook not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get incoming webhook", err)
 	}
 	return &webhook, nil
 }
@@ -164,7 +178,7 @@ func (r *Repository) GetIncomingWebhooks(tenantID uuid.UUID, provider WebhookPro
 		query = query.Where("provider = ?", provider)
 	}
 	if err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&webhooks).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get incoming webhooks", err)
 	}
 	return webhooks, nil
 }
@@ -172,27 +186,30 @@ func (r *Repository) GetIncomingWebhooks(tenantID uuid.UUID, provider WebhookPro
 func (r *Repository) GetUnprocessedIncomingWebhooks(limit int) ([]*WebhookIncoming, error) {
 	var webhooks []*WebhookIncoming
 	if err := r.db.Where("processed = ?", false).Order("created_at ASC").Limit(limit).Find(&webhooks).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get unprocessed incoming webhooks", err)
 	}
 	return webhooks, nil
 }
 
 func (r *Repository) MarkIncomingWebhookProcessed(id uuid.UUID) error {
-	return r.db.Model(&WebhookIncoming{}).Where("id = ?", id).Update("processed", true).Error
+	if err := r.db.Model(&WebhookIncoming{}).Where("id = ?", id).Update("processed", true).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to mark incoming webhook as processed", err)
+	}
+	return nil
 }
 
 // Rate Limiting Repository Methods
 
 func (r *Repository) CreateRateLimit(rateLimit *WebhookRateLimit) (*WebhookRateLimit, error) {
 	if err := r.db.Create(rateLimit).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to create webhook rate limit", err)
 	}
 	return rateLimit, nil
 }
 
 func (r *Repository) UpdateRateLimit(rateLimit *WebhookRateLimit) (*WebhookRateLimit, error) {
 	if err := r.db.Save(rateLimit).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to update webhook rate limit", err)
 	}
 	return rateLimit, nil
 }
@@ -200,13 +217,19 @@ func (r *Repository) UpdateRateLimit(rateLimit *WebhookRateLimit) (*WebhookRateL
 func (r *Repository) GetRateLimit(tenantID uuid.UUID, endpointID uuid.UUID, windowStart time.Time) (*WebhookRateLimit, error) {
 	var rateLimit WebhookRateLimit
 	if err := r.db.Where("tenant_id = ? AND endpoint_id = ? AND window_start = ?", tenantID, endpointID, windowStart).First(&rateLimit).Error; err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("webhook rate limit not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get webhook rate limit", err)
 	}
 	return &rateLimit, nil
 }
 
 func (r *Repository) CleanupExpiredRateLimits() error {
-	return r.db.Where("window_start < ?", time.Now().Add(-24*time.Hour)).Delete(&WebhookRateLimit{}).Error
+	if err := r.db.Where("window_start < ?", time.Now().Add(-24*time.Hour)).Delete(&WebhookRateLimit{}).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to cleanup expired rate limits", err)
+	}
+	return nil
 }
 
 // Analytics Types
@@ -243,17 +266,17 @@ func (r *Repository) GetDeliveryStats(tenantID uuid.UUID, startDate, endDate tim
 
 	// Get total deliveries
 	if err := r.db.Model(&WebhookDelivery{}).Where("tenant_id = ? AND created_at BETWEEN ? AND ?", tenantID, startDate, endDate).Count(&stats.TotalDeliveries).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get total deliveries count", err)
 	}
 
 	// Get successful deliveries
 	if err := r.db.Model(&WebhookDelivery{}).Where("tenant_id = ? AND status = ? AND created_at BETWEEN ? AND ?", tenantID, StatusDelivered, startDate, endDate).Count(&stats.SuccessfulDeliveries).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get successful deliveries count", err)
 	}
 
 	// Get failed deliveries
 	if err := r.db.Model(&WebhookDelivery{}).Where("tenant_id = ? AND status = ? AND created_at BETWEEN ? AND ?", tenantID, StatusFailed, startDate, endDate).Count(&stats.FailedDeliveries).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get failed deliveries count", err)
 	}
 
 	// Calculate success rate
@@ -264,7 +287,7 @@ func (r *Repository) GetDeliveryStats(tenantID uuid.UUID, startDate, endDate tim
 	// Get average response time
 	var avgResponseTime float64
 	if err := r.db.Model(&WebhookDelivery{}).Where("tenant_id = ? AND status = ? AND created_at BETWEEN ? AND ?", tenantID, StatusDelivered, startDate, endDate).Select("AVG(response_time)").Scan(&avgResponseTime).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get average response time", err)
 	}
 	stats.AverageResponseTime = int(avgResponseTime)
 
@@ -281,17 +304,17 @@ func (r *Repository) GetEndpointHealth(tenantID uuid.UUID, endpointID uuid.UUID,
 
 	// Get total deliveries for endpoint
 	if err := r.db.Model(&WebhookDelivery{}).Where("tenant_id = ? AND endpoint_id = ? AND created_at BETWEEN ? AND ?", tenantID, endpointID, startDate, endDate).Count(&health.TotalDeliveries).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get total deliveries for endpoint", err)
 	}
 
 	// Get successful deliveries
 	if err := r.db.Model(&WebhookDelivery{}).Where("tenant_id = ? AND endpoint_id = ? AND status = ? AND created_at BETWEEN ? AND ?", tenantID, endpointID, StatusDelivered, startDate, endDate).Count(&health.SuccessfulDeliveries).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get successful deliveries for endpoint", err)
 	}
 
 	// Get failed deliveries
 	if err := r.db.Model(&WebhookDelivery{}).Where("tenant_id = ? AND endpoint_id = ? AND status = ? AND created_at BETWEEN ? AND ?", tenantID, endpointID, StatusFailed, startDate, endDate).Count(&health.FailedDeliveries).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get failed deliveries for endpoint", err)
 	}
 
 	// Calculate success rate
@@ -303,7 +326,7 @@ func (r *Repository) GetEndpointHealth(tenantID uuid.UUID, endpointID uuid.UUID,
 	// Get average response time
 	var avgResponseTime float64
 	if err := r.db.Model(&WebhookDelivery{}).Where("tenant_id = ? AND endpoint_id = ? AND status = ? AND created_at BETWEEN ? AND ?", tenantID, endpointID, StatusDelivered, startDate, endDate).Select("AVG(response_time)").Scan(&avgResponseTime).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get average response time for endpoint", err)
 	}
 	health.AverageResponseTime = int(avgResponseTime)
 
@@ -323,7 +346,7 @@ func (r *Repository) GetEventDistribution(tenantID uuid.UUID, startDate, endDate
 	}
 
 	if err := r.db.Model(&WebhookDelivery{}).Select("event, COUNT(*) as count").Where("tenant_id = ? AND created_at BETWEEN ? AND ?", tenantID, startDate, endDate).Group("event").Scan(&results).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get event distribution", err)
 	}
 
 	distribution := make(map[WebhookEvent]int)
@@ -341,7 +364,7 @@ func (r *Repository) GetProviderStats(tenantID uuid.UUID, startDate, endDate tim
 	}
 
 	if err := r.db.Model(&WebhookIncoming{}).Select("provider, COUNT(*) as count").Where("tenant_id = ? AND created_at BETWEEN ? AND ?", tenantID, startDate, endDate).Group("provider").Scan(&results).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get provider stats", err)
 	}
 
 	stats := make(map[WebhookProvider]int)
@@ -353,7 +376,10 @@ func (r *Repository) GetProviderStats(tenantID uuid.UUID, startDate, endDate tim
 }
 
 func (r *Repository) DeleteOldDeliveries(cutoffTime time.Time) error {
-	return r.db.Where("created_at < ?", cutoffTime).Delete(&WebhookDelivery{}).Error
+	if err := r.db.Where("created_at < ?", cutoffTime).Delete(&WebhookDelivery{}).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to delete old deliveries", err)
+	}
+	return nil
 }
 
 func (r *Repository) GetFailingEndpoints(failureRate float64, minAttempts int) ([]*WebhookEndpoint, error) {
@@ -366,7 +392,7 @@ func (r *Repository) GetFailingEndpoints(failureRate float64, minAttempts int) (
 		Having("COUNT(*) >= ? AND (SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) * 1.0 / COUNT(*)) >= ?", minAttempts, StatusFailed, failureRate)
 
 	if err := r.db.Where("id IN (?)", subquery.Select("endpoint_id")).Find(&endpoints).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get failing endpoints", err)
 	}
 
 	return endpoints, nil
@@ -380,7 +406,7 @@ func (r *Repository) GetFailureAnalysis(tenantID uuid.UUID, startDate, endDate t
 
 	// Get total failures
 	if err := r.db.Model(&WebhookDelivery{}).Where("tenant_id = ? AND status = ? AND created_at BETWEEN ? AND ?", tenantID, StatusFailed, startDate, endDate).Count(&analysis.TotalFailures).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get total failures count", err)
 	}
 
 	// Get failures by status code
@@ -389,7 +415,7 @@ func (r *Repository) GetFailureAnalysis(tenantID uuid.UUID, startDate, endDate t
 		Count          int `json:"count"`
 	}
 	if err := r.db.Model(&WebhookDelivery{}).Select("response_status, COUNT(*) as count").Where("tenant_id = ? AND status = ? AND created_at BETWEEN ? AND ?", tenantID, StatusFailed, startDate, endDate).Group("response_status").Scan(&statusResults).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get failure analysis by status code", err)
 	}
 	for _, result := range statusResults {
 		analysis.FailuresByStatus[result.ResponseStatus] = result.Count
@@ -401,7 +427,7 @@ func (r *Repository) GetFailureAnalysis(tenantID uuid.UUID, startDate, endDate t
 		Count      int       `json:"count"`
 	}
 	if err := r.db.Model(&WebhookDelivery{}).Select("endpoint_id, COUNT(*) as count").Where("tenant_id = ? AND status = ? AND created_at BETWEEN ? AND ?", tenantID, StatusFailed, startDate, endDate).Group("endpoint_id").Scan(&endpointResults).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get failure analysis by endpoint", err)
 	}
 	for _, result := range endpointResults {
 		analysis.FailuresByEndpoint[result.EndpointID] = result.Count
@@ -410,7 +436,7 @@ func (r *Repository) GetFailureAnalysis(tenantID uuid.UUID, startDate, endDate t
 	// Get common error messages
 	var errorMessages []string
 	if err := r.db.Model(&WebhookDelivery{}).Select("DISTINCT error_message").Where("tenant_id = ? AND status = ? AND error_message != '' AND created_at BETWEEN ? AND ?", tenantID, StatusFailed, startDate, endDate).Limit(10).Pluck("error_message", &errorMessages).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get common error messages", err)
 	}
 	analysis.CommonErrors = errorMessages
 
@@ -427,11 +453,17 @@ type DiskUsage struct {
 }
 
 func (r *Repository) CleanupOldDeliveries(tenantID uuid.UUID, olderThan time.Time) error {
-	return r.db.Where("tenant_id = ? AND created_at < ?", tenantID, olderThan).Delete(&WebhookDelivery{}).Error
+	if err := r.db.Where("tenant_id = ? AND created_at < ?", tenantID, olderThan).Delete(&WebhookDelivery{}).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to cleanup old deliveries", err)
+	}
+	return nil
 }
 
 func (r *Repository) CleanupOldIncomingWebhooks(tenantID uuid.UUID, olderThan time.Time) error {
-	return r.db.Where("tenant_id = ? AND created_at < ?", tenantID, olderThan).Delete(&WebhookIncoming{}).Error
+	if err := r.db.Where("tenant_id = ? AND created_at < ?", tenantID, olderThan).Delete(&WebhookIncoming{}).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to cleanup old incoming webhooks", err)
+	}
+	return nil
 }
 
 func (r *Repository) ArchiveDeliveries(tenantID uuid.UUID, olderThan time.Time) error {
@@ -441,7 +473,7 @@ func (r *Repository) ArchiveDeliveries(tenantID uuid.UUID, olderThan time.Time) 
 			LIKE webhook_deliveries INCLUDING ALL
 		)
 	`).Error; err != nil {
-		return err
+		return sharedErrors.NewInternalError("failed to create archive table", err)
 	}
 
 	// Move old records to archive
@@ -450,7 +482,7 @@ func (r *Repository) ArchiveDeliveries(tenantID uuid.UUID, olderThan time.Time) 
 		SELECT * FROM webhook_deliveries 
 		WHERE tenant_id = ? AND created_at < ?
 	`, tenantID, olderThan).Error; err != nil {
-		return err
+		return sharedErrors.NewInternalError("failed to archive deliveries", err)
 	}
 
 	// Delete from main table
@@ -463,13 +495,13 @@ func (r *Repository) GetDiskUsage(tenantID uuid.UUID) (*DiskUsage, error) {
 	// Count webhook deliveries
 	var deliveryCount int64
 	if err := r.db.Model(&WebhookDelivery{}).Where("tenant_id = ?", tenantID).Count(&deliveryCount).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to count webhook deliveries for disk usage", err)
 	}
 
 	// Count incoming webhooks
 	var incomingCount int64
 	if err := r.db.Model(&WebhookIncoming{}).Where("tenant_id = ?", tenantID).Count(&incomingCount).Error; err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to count incoming webhooks for disk usage", err)
 	}
 
 	usage.RecordCount = deliveryCount + incomingCount
@@ -485,12 +517,12 @@ func (r *Repository) GetDiskUsage(tenantID uuid.UUID) (*DiskUsage, error) {
 func (r *Repository) OptimizeDatabase() error {
 	// Analyze tables for better query performance
 	if err := r.db.Exec("ANALYZE webhook_endpoints, webhook_deliveries, webhook_incoming, webhook_rate_limits").Error; err != nil {
-		return err
+		return sharedErrors.NewInternalError("failed to analyze database tables", err)
 	}
 
 	// Vacuum tables to reclaim space (PostgreSQL specific)
 	if err := r.db.Exec("VACUUM ANALYZE webhook_endpoints, webhook_deliveries, webhook_incoming, webhook_rate_limits").Error; err != nil {
-		return err
+		return sharedErrors.NewInternalError("failed to vacuum database tables", err)
 	}
 
 	return nil

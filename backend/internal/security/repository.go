@@ -2,10 +2,13 @@ package security
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+
+	sharedErrors "ecommerce-saas/internal/shared/errors"
 )
 
 // Repository defines the interface for security data operations
@@ -131,7 +134,10 @@ func NewRepository(db *gorm.DB) Repository {
 
 // Password Policies
 func (r *gormSecurityRepository) CreatePasswordPolicy(ctx context.Context, policy *PasswordPolicy) error {
-	return r.db.WithContext(ctx).Create(policy).Error
+	if err := r.db.WithContext(ctx).Create(policy).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to create password policy", err)
+	}
+	return nil
 }
 
 func (r *gormSecurityRepository) GetPasswordPolicy(ctx context.Context, tenantID *uuid.UUID) (*PasswordPolicy, error) {
@@ -149,19 +155,25 @@ func (r *gormSecurityRepository) GetPasswordPolicy(ctx context.Context, tenantID
 	// Fall back to global policy
 	err := query.Where("tenant_id IS NULL").First(&policy).Error
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get password policy", err)
 	}
 
 	return &policy, nil
 }
 
 func (r *gormSecurityRepository) UpdatePasswordPolicy(ctx context.Context, policy *PasswordPolicy) error {
-	return r.db.WithContext(ctx).Save(policy).Error
+	if err := r.db.WithContext(ctx).Save(policy).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to update password policy", err)
+	}
+	return nil
 }
 
 // Login Attempts
 func (r *gormSecurityRepository) CreateLoginAttempt(ctx context.Context, attempt *LoginAttempt) error {
-	return r.db.WithContext(ctx).Create(attempt).Error
+	if err := r.db.WithContext(ctx).Create(attempt).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to create login attempt", err)
+	}
+	return nil
 }
 
 func (r *gormSecurityRepository) GetLoginAttempts(ctx context.Context, filter LoginAttemptFilter) ([]*LoginAttempt, error) {
@@ -198,7 +210,10 @@ func (r *gormSecurityRepository) GetLoginAttempts(ctx context.Context, filter Lo
 
 	var attempts []*LoginAttempt
 	err := query.Order("attempted_at DESC").Find(&attempts).Error
-	return attempts, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get login attempts", err)
+	}
+	return attempts, nil
 }
 
 func (r *gormSecurityRepository) GetFailedLoginCount(ctx context.Context, email string, since time.Time) (int, error) {
@@ -206,7 +221,10 @@ func (r *gormSecurityRepository) GetFailedLoginCount(ctx context.Context, email 
 	err := r.db.WithContext(ctx).Model(&LoginAttempt{}).
 		Where("email = ? AND status = ? AND attempted_at >= ?", email, LoginAttemptFailed, since).
 		Count(&count).Error
-	return int(count), err
+	if err != nil {
+		return 0, sharedErrors.NewInternalError("failed to get failed login count", err)
+	}
+	return int(count), nil
 }
 
 func (r *gormSecurityRepository) GetRecentLoginAttempts(ctx context.Context, userID uuid.UUID, limit int) ([]*LoginAttempt, error) {
@@ -216,12 +234,18 @@ func (r *gormSecurityRepository) GetRecentLoginAttempts(ctx context.Context, use
 		Order("attempted_at DESC").
 		Limit(limit).
 		Find(&attempts).Error
-	return attempts, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get recent login attempts", err)
+	}
+	return attempts, nil
 }
 
 // Trusted Devices
 func (r *gormSecurityRepository) CreateTrustedDevice(ctx context.Context, device *TrustedDevice) error {
-	return r.db.WithContext(ctx).Create(device).Error
+	if err := r.db.WithContext(ctx).Create(device).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to create trusted device", err)
+	}
+	return nil
 }
 
 func (r *gormSecurityRepository) GetTrustedDevice(ctx context.Context, userID uuid.UUID, fingerprint string) (*TrustedDevice, error) {
@@ -230,7 +254,10 @@ func (r *gormSecurityRepository) GetTrustedDevice(ctx context.Context, userID uu
 		Where("user_id = ? AND fingerprint = ? AND revoked_at IS NULL", userID, fingerprint).
 		First(&device).Error
 	if err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("trusted device not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get trusted device", err)
 	}
 	return &device, nil
 }
@@ -241,34 +268,49 @@ func (r *gormSecurityRepository) GetTrustedDevices(ctx context.Context, userID u
 		Where("user_id = ? AND revoked_at IS NULL", userID).
 		Order("last_seen_at DESC").
 		Find(&devices).Error
-	return devices, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get trusted devices", err)
+	}
+	return devices, nil
 }
 
 func (r *gormSecurityRepository) UpdateTrustedDevice(ctx context.Context, device *TrustedDevice) error {
-	return r.db.WithContext(ctx).Save(device).Error
+	if err := r.db.WithContext(ctx).Save(device).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to update trusted device", err)
+	}
+	return nil
 }
 
 func (r *gormSecurityRepository) RevokeTrustedDevice(ctx context.Context, deviceID uuid.UUID, reason string) error {
 	now := time.Now()
-	return r.db.WithContext(ctx).Model(&TrustedDevice{}).
+	if err := r.db.WithContext(ctx).Model(&TrustedDevice{}).
 		Where("id = ?", deviceID).
 		Updates(map[string]interface{}{
 			"revoked_at":     &now,
 			"revoked_reason": reason,
 			"status":         DeviceStatusBlocked,
-		}).Error
+		}).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to revoke trusted device", err)
+	}
+	return nil
 }
 
 func (r *gormSecurityRepository) CleanupExpiredDevices(ctx context.Context, days int) error {
 	cutoff := time.Now().AddDate(0, 0, -days)
-	return r.db.WithContext(ctx).
+	if err := r.db.WithContext(ctx).
 		Where("last_seen_at < ?", cutoff).
-		Delete(&TrustedDevice{}).Error
+		Delete(&TrustedDevice{}).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to cleanup expired devices", err)
+	}
+	return nil
 }
 
 // Security Events
 func (r *gormSecurityRepository) CreateSecurityEvent(ctx context.Context, event *SecurityEvent) error {
-	return r.db.WithContext(ctx).Create(event).Error
+	if err := r.db.WithContext(ctx).Create(event).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to create security event", err)
+	}
+	return nil
 }
 
 func (r *gormSecurityRepository) GetSecurityEvents(ctx context.Context, filter SecurityEventFilter) ([]*SecurityEvent, int64, error) {
@@ -300,7 +342,7 @@ func (r *gormSecurityRepository) GetSecurityEvents(ctx context.Context, filter S
 	var total int64
 	countQuery := query
 	if err := countQuery.Count(&total).Error; err != nil {
-		return nil, 0, err
+		return nil, 0, sharedErrors.NewInternalError("failed to count security events", err)
 	}
 
 	// Apply pagination
@@ -313,7 +355,10 @@ func (r *gormSecurityRepository) GetSecurityEvents(ctx context.Context, filter S
 
 	var events []*SecurityEvent
 	err := query.Order("occurred_at DESC").Find(&events).Error
-	return events, total, err
+	if err != nil {
+		return nil, 0, sharedErrors.NewInternalError("failed to get security events", err)
+	}
+	return events, total, nil
 }
 
 func (r *gormSecurityRepository) GetUnresolvedEvents(ctx context.Context, threatLevel ThreatLevel) ([]*SecurityEvent, error) {
@@ -322,16 +367,25 @@ func (r *gormSecurityRepository) GetUnresolvedEvents(ctx context.Context, threat
 		Where("is_resolved = ? AND threat_level >= ?", false, threatLevel).
 		Order("occurred_at DESC").
 		Find(&events).Error
-	return events, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get unresolved events", err)
+	}
+	return events, nil
 }
 
 func (r *gormSecurityRepository) UpdateSecurityEvent(ctx context.Context, event *SecurityEvent) error {
-	return r.db.WithContext(ctx).Save(event).Error
+	if err := r.db.WithContext(ctx).Save(event).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to update security event", err)
+	}
+	return nil
 }
 
 // Password History
 func (r *gormSecurityRepository) CreatePasswordHistory(ctx context.Context, history *PasswordHistory) error {
-	return r.db.WithContext(ctx).Create(history).Error
+	if err := r.db.WithContext(ctx).Create(history).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to create password history", err)
+	}
+	return nil
 }
 
 func (r *gormSecurityRepository) GetPasswordHistory(ctx context.Context, userID uuid.UUID, limit int) ([]*PasswordHistory, error) {
@@ -341,19 +395,28 @@ func (r *gormSecurityRepository) GetPasswordHistory(ctx context.Context, userID 
 		Order("created_at DESC").
 		Limit(limit).
 		Find(&history).Error
-	return history, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get password history", err)
+	}
+	return history, nil
 }
 
 func (r *gormSecurityRepository) CleanupOldPasswordHistory(ctx context.Context, userID uuid.UUID, keepCount int) error {
-	return r.db.WithContext(ctx).
+	if err := r.db.WithContext(ctx).
 		Where("user_id = ? AND id NOT IN (SELECT id FROM password_histories WHERE user_id = ? ORDER BY created_at DESC LIMIT ?)",
 			userID, userID, keepCount).
-		Delete(&PasswordHistory{}).Error
+		Delete(&PasswordHistory{}).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to cleanup old password history", err)
+	}
+	return nil
 }
 
 // Account Lockouts
 func (r *gormSecurityRepository) CreateAccountLockout(ctx context.Context, lockout *AccountLockout) error {
-	return r.db.WithContext(ctx).Create(lockout).Error
+	if err := r.db.WithContext(ctx).Create(lockout).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to create account lockout", err)
+	}
+	return nil
 }
 
 func (r *gormSecurityRepository) GetActiveAccountLockout(ctx context.Context, userID uuid.UUID) (*AccountLockout, error) {
@@ -363,7 +426,10 @@ func (r *gormSecurityRepository) GetActiveAccountLockout(ctx context.Context, us
 		Where("unlocks_at IS NULL OR unlocks_at > ?", time.Now()).
 		First(&lockout).Error
 	if err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, sharedErrors.NewInternalError("failed to get active account lockout", err)
 	}
 	return &lockout, nil
 }
@@ -374,26 +440,38 @@ func (r *gormSecurityRepository) GetAccountLockouts(ctx context.Context, userID 
 		Where("user_id = ?", userID).
 		Order("locked_at DESC").
 		Find(&lockouts).Error
-	return lockouts, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get account lockouts", err)
+	}
+	return lockouts, nil
 }
 
 func (r *gormSecurityRepository) UpdateAccountLockout(ctx context.Context, lockout *AccountLockout) error {
-	return r.db.WithContext(ctx).Save(lockout).Error
+	if err := r.db.WithContext(ctx).Save(lockout).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to update account lockout", err)
+	}
+	return nil
 }
 
 func (r *gormSecurityRepository) ExpireAccountLockouts(ctx context.Context) error {
 	now := time.Now()
-	return r.db.WithContext(ctx).Model(&AccountLockout{}).
+	if err := r.db.WithContext(ctx).Model(&AccountLockout{}).
 		Where("is_active = ? AND unlocks_at IS NOT NULL AND unlocks_at <= ? AND unlocked_at IS NULL", true, now).
 		Updates(map[string]interface{}{
 			"is_active":   false,
 			"unlocked_at": &now,
-		}).Error
+		}).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to expire account lockouts", err)
+	}
+	return nil
 }
 
 // Encryption Keys
 func (r *gormSecurityRepository) CreateEncryptionKey(ctx context.Context, key *EncryptionKey) error {
-	return r.db.WithContext(ctx).Create(key).Error
+	if err := r.db.WithContext(ctx).Create(key).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to create encryption key", err)
+	}
+	return nil
 }
 
 func (r *gormSecurityRepository) GetEncryptionKey(ctx context.Context, keyName string, tenantID *uuid.UUID) (*EncryptionKey, error) {
@@ -408,7 +486,10 @@ func (r *gormSecurityRepository) GetEncryptionKey(ctx context.Context, keyName s
 
 	err := query.Order("key_version DESC").First(&key).Error
 	if err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("encryption key not found")
+		}
+		return nil, sharedErrors.NewInternalError("failed to get encryption key", err)
 	}
 	return &key, nil
 }
@@ -424,21 +505,30 @@ func (r *gormSecurityRepository) GetActiveEncryptionKeys(ctx context.Context, te
 	}
 
 	err := query.Order("key_name, key_version DESC").Find(&keys).Error
-	return keys, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("failed to get active encryption keys", err)
+	}
+	return keys, nil
 }
 
 func (r *gormSecurityRepository) UpdateEncryptionKey(ctx context.Context, key *EncryptionKey) error {
-	return r.db.WithContext(ctx).Save(key).Error
+	if err := r.db.WithContext(ctx).Save(key).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to update encryption key", err)
+	}
+	return nil
 }
 
 func (r *gormSecurityRepository) RevokeEncryptionKey(ctx context.Context, keyID uuid.UUID) error {
 	now := time.Now()
-	return r.db.WithContext(ctx).Model(&EncryptionKey{}).
+	if err := r.db.WithContext(ctx).Model(&EncryptionKey{}).
 		Where("id = ?", keyID).
 		Updates(map[string]interface{}{
 			"is_active":  false,
 			"revoked_at": &now,
-		}).Error
+		}).Error; err != nil {
+		return sharedErrors.NewInternalError("failed to revoke encryption key", err)
+	}
+	return nil
 }
 
 // Analytics
@@ -468,7 +558,7 @@ func (r *gormSecurityRepository) GetSecurityMetrics(ctx context.Context, filter 
 		Where("attempted_at >= ? AND attempted_at <= ?", filter.StartTime, filter.EndTime).
 		Scan(&loginMetrics).Error
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get login metrics", err)
 	}
 
 	metrics.TotalLoginAttempts = loginMetrics.Total
@@ -486,7 +576,7 @@ func (r *gormSecurityRepository) GetSecurityMetrics(ctx context.Context, filter 
 		Distinct("user_id").
 		Count(&metrics.UniqueUsers).Error
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to count unique users", err)
 	}
 
 	// Security events by threat level
@@ -501,7 +591,7 @@ func (r *gormSecurityRepository) GetSecurityMetrics(ctx context.Context, filter 
 		Group("threat_level").
 		Scan(&threatLevelCounts).Error
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("failed to get threat level counts", err)
 	}
 
 	for _, tc := range threatLevelCounts {

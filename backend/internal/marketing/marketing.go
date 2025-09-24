@@ -260,6 +260,35 @@ type NewsletterSubscriber struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// AbandonedCartStats represents statistics for abandoned cart recovery
+type AbandonedCartStats struct {
+	TotalCarts      int     `json:"total_carts"`
+	RecoveredCarts  int     `json:"recovered_carts"`
+	RecoveryRate    float64 `json:"recovery_rate"`
+	TotalValue      float64 `json:"total_value"`
+	RecoveredValue  float64 `json:"recovered_value"`
+	EmailsSent      int     `json:"emails_sent"`
+	EmailsOpened    int     `json:"emails_opened"`
+	EmailsClicked   int     `json:"emails_clicked"`
+	AverageCartValue float64 `json:"average_cart_value"`
+}
+
+// MarketingOverview represents overall marketing statistics
+type MarketingOverview struct {
+	TotalCampaigns     int     `json:"total_campaigns"`
+	ActiveCampaigns    int     `json:"active_campaigns"`
+	TotalSubscribers   int     `json:"total_subscribers"`
+	ActiveSubscribers  int     `json:"active_subscribers"`
+	EmailsSent         int     `json:"emails_sent"`
+	EmailsOpened       int     `json:"emails_opened"`
+	EmailsClicked      int     `json:"emails_clicked"`
+	OpenRate           float64 `json:"open_rate"`
+	ClickRate          float64 `json:"click_rate"`
+	AbandonedCarts     int     `json:"abandoned_carts"`
+	RecoveredCarts     int     `json:"recovered_carts"`
+	RecoveryRate       float64 `json:"recovery_rate"`
+}
+
 // MarketingSettings represents marketing module settings
 type MarketingSettings struct {
 	ID       uuid.UUID `json:"id" gorm:"primarykey"`

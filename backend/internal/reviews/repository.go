@@ -2,11 +2,13 @@ package reviews
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+
+	sharedErrors "ecommerce-saas/internal/shared/errors"
 )
 
 // Repository defines the reviews repository interface
@@ -72,7 +74,10 @@ func NewRepository(db *gorm.DB) Repository {
 
 // Review operations
 func (r *repository) CreateReview(ctx context.Context, review *Review) error {
-	return r.db.WithContext(ctx).Create(review).Error
+	if err := r.db.WithContext(ctx).Create(review).Error; err != nil {
+		return sharedErrors.NewInternalError("Failed to create review", err)
+	}
+	return nil
 }
 
 func (r *repository) GetReviewByID(ctx context.Context, tenantID, reviewID uuid.UUID) (*Review, error) {
@@ -82,7 +87,13 @@ func (r *repository) GetReviewByID(ctx context.Context, tenantID, reviewID uuid.
 		Preload("Replies").
 		Preload("Reactions").
 		First(&review).Error
-	return &review, err
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("Review not found")
+		}
+		return nil, sharedErrors.NewInternalError("Failed to get review", err)
+	}
+	return &review, nil
 }
 
 func (r *repository) GetReviews(ctx context.Context, tenantID uuid.UUID, filter ReviewFilter) ([]Review, error) {
@@ -175,18 +186,28 @@ func (r *repository) GetReviews(ctx context.Context, tenantID uuid.UUID, filter 
 	query = query.Preload("Replies").Preload("Reactions")
 
 	err := query.Find(&reviews).Error
-	return reviews, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("Failed to get reviews", err)
+	}
+	return reviews, nil
 }
 
 func (r *repository) UpdateReview(ctx context.Context, tenantID, reviewID uuid.UUID, updates map[string]interface{}) error {
-	return r.db.WithContext(ctx).
+	result := r.db.WithContext(ctx).
 		Model(&Review{}).
 		Where("id = ? AND tenant_id = ?", reviewID, tenantID).
-		Updates(updates).Error
+		Updates(updates)
+	if result.Error != nil {
+		return sharedErrors.NewInternalError("Failed to update review", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return sharedErrors.NewNotFoundError("Review not found")
+	}
+	return nil
 }
 
 func (r *repository) DeleteReview(ctx context.Context, tenantID, reviewID uuid.UUID) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Delete related reactions
 		if err := tx.Where("review_id = ?", reviewID).Delete(&ReviewReaction{}).Error; err != nil {
 			return err
@@ -200,6 +221,10 @@ func (r *repository) DeleteReview(ctx context.Context, tenantID, reviewID uuid.U
 		// Delete the review
 		return tx.Where("id = ? AND tenant_id = ?", reviewID, tenantID).Delete(&Review{}).Error
 	})
+	if err != nil {
+		return sharedErrors.NewInternalError("Failed to delete review", err)
+	}
+	return nil
 }
 
 func (r *repository) GetReviewCount(ctx context.Context, tenantID uuid.UUID, filter ReviewFilter) (int64, error) {
@@ -218,12 +243,18 @@ func (r *repository) GetReviewCount(ctx context.Context, tenantID uuid.UUID, fil
 
 	var count int64
 	err := query.Count(&count).Error
-	return count, err
+	if err != nil {
+		return 0, sharedErrors.NewInternalError("Failed to get review count", err)
+	}
+	return count, nil
 }
 
 // Review reply operations
 func (r *repository) CreateReply(ctx context.Context, reply *ReviewReply) error {
-	return r.db.WithContext(ctx).Create(reply).Error
+	if err := r.db.WithContext(ctx).Create(reply).Error; err != nil {
+		return sharedErrors.NewInternalError("Failed to create review reply", err)
+	}
+	return nil
 }
 
 func (r *repository) GetRepliesByReviewID(ctx context.Context, tenantID, reviewID uuid.UUID) ([]ReviewReply, error) {
@@ -231,20 +262,26 @@ func (r *repository) GetRepliesByReviewID(ctx context.Context, tenantID, reviewI
 
 	// Verify review belongs to tenant first
 	var count int64
-	r.db.WithContext(ctx).Model(&Review{}).
+	err := r.db.WithContext(ctx).Model(&Review{}).
 		Where("id = ? AND tenant_id = ?", reviewID, tenantID).
-		Count(&count)
-
-	if count == 0 {
-		return nil, gorm.ErrRecordNotFound
+		Count(&count).Error
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("Failed to verify review ownership", err)
 	}
 
-	err := r.db.WithContext(ctx).
+	if count == 0 {
+		return nil, sharedErrors.NewNotFoundError("Review not found")
+	}
+
+	err = r.db.WithContext(ctx).
 		Where("review_id = ? AND is_visible = ?", reviewID, true).
 		Order("created_at ASC").
 		Find(&replies).Error
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("Failed to get review replies", err)
+	}
 
-	return replies, err
+	return replies, nil
 }
 
 func (r *repository) GetReplyByID(ctx context.Context, tenantID, replyID uuid.UUID) (*ReviewReply, error) {
@@ -257,31 +294,54 @@ func (r *repository) GetReplyByID(ctx context.Context, tenantID, replyID uuid.UU
 		Joins("JOIN reviews ON reviews.id = review_replies.review_id").
 		Where("review_replies.id = ? AND reviews.tenant_id = ?", replyID, tenantID).
 		First(&reply).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("Review reply not found")
+		}
+		return nil, sharedErrors.NewInternalError("Failed to get review reply", err)
+	}
 
-	return &reply, err
+	return &reply, nil
 }
 
 func (r *repository) UpdateReply(ctx context.Context, tenantID, replyID uuid.UUID, updates map[string]interface{}) error {
 	// Ensure tenant isolation through join
-	return r.db.WithContext(ctx).
+	result := r.db.WithContext(ctx).
 		Table("review_replies").
 		Joins("JOIN reviews ON reviews.id = review_replies.review_id").
 		Where("review_replies.id = ? AND reviews.tenant_id = ?", replyID, tenantID).
-		Updates(updates).Error
+		Updates(updates)
+	if result.Error != nil {
+		return sharedErrors.NewInternalError("Failed to update review reply", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return sharedErrors.NewNotFoundError("Review reply not found")
+	}
+	return nil
 }
 
 func (r *repository) DeleteReply(ctx context.Context, tenantID, replyID uuid.UUID) error {
 	// Ensure tenant isolation through join
-	return r.db.WithContext(ctx).
+	result := r.db.WithContext(ctx).
 		Table("review_replies").
 		Joins("JOIN reviews ON reviews.id = review_replies.review_id").
 		Where("review_replies.id = ? AND reviews.tenant_id = ?", replyID, tenantID).
-		Delete(&ReviewReply{}).Error
+		Delete(&ReviewReply{})
+	if result.Error != nil {
+		return sharedErrors.NewInternalError("Failed to delete review reply", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return sharedErrors.NewNotFoundError("Review reply not found")
+	}
+	return nil
 }
 
 // Review reaction operations
 func (r *repository) CreateReaction(ctx context.Context, reaction *ReviewReaction) error {
-	return r.db.WithContext(ctx).Create(reaction).Error
+	if err := r.db.WithContext(ctx).Create(reaction).Error; err != nil {
+		return sharedErrors.NewInternalError("Failed to create review reaction", err)
+	}
+	return nil
 }
 
 func (r *repository) GetReactionByReviewAndEmail(ctx context.Context, tenantID, reviewID uuid.UUID, email string) (*ReviewReaction, error) {
@@ -296,30 +356,50 @@ func (r *repository) GetReactionByReviewAndEmail(ctx context.Context, tenantID, 
 			reviewID, email, tenantID).
 		First(&reaction).Error
 
-	return &reaction, err
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("Review reaction not found")
+		}
+		return nil, sharedErrors.NewInternalError("Failed to get review reaction", err)
+	}
+	return &reaction, nil
 }
 
 func (r *repository) UpdateReaction(ctx context.Context, tenantID, reviewID uuid.UUID, email string, isHelpful bool) error {
 	// Verify tenant isolation and update
-	return r.db.WithContext(ctx).
+	result := r.db.WithContext(ctx).
 		Table("review_reactions").
 		Joins("JOIN reviews ON reviews.id = review_reactions.review_id").
 		Where("review_reactions.review_id = ? AND review_reactions.customer_email = ? AND reviews.tenant_id = ?",
 			reviewID, email, tenantID).
-		Update("is_helpful", isHelpful).Error
+		Update("is_helpful", isHelpful)
+	if result.Error != nil {
+		return sharedErrors.NewInternalError("Failed to update review reaction", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return sharedErrors.NewNotFoundError("Review reaction not found")
+	}
+	return nil
 }
 
 func (r *repository) DeleteReaction(ctx context.Context, tenantID, reviewID uuid.UUID, email string) error {
-	return r.db.WithContext(ctx).
+	result := r.db.WithContext(ctx).
 		Table("review_reactions").
 		Joins("JOIN reviews ON reviews.id = review_reactions.review_id").
 		Where("review_reactions.review_id = ? AND review_reactions.customer_email = ? AND reviews.tenant_id = ?",
 			reviewID, email, tenantID).
-		Delete(&ReviewReaction{}).Error
+		Delete(&ReviewReaction{})
+	if result.Error != nil {
+		return sharedErrors.NewInternalError("Failed to delete review reaction", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return sharedErrors.NewNotFoundError("Review reaction not found")
+	}
+	return nil
 }
 
 func (r *repository) UpdateReviewReactionCounts(ctx context.Context, reviewID uuid.UUID) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Count helpful reactions
 		var helpfulCount int64
 		if err := tx.Model(&ReviewReaction{}).
@@ -344,11 +424,18 @@ func (r *repository) UpdateReviewReactionCounts(ctx context.Context, reviewID uu
 				"unhelpful_count": unhelpfulCount,
 			}).Error
 	})
+	if err != nil {
+		return sharedErrors.NewInternalError("Failed to update review reaction counts", err)
+	}
+	return nil
 }
 
 // Review summary operations
 func (r *repository) CreateReviewSummary(ctx context.Context, summary *ReviewSummary) error {
-	return r.db.WithContext(ctx).Create(summary).Error
+	if err := r.db.WithContext(ctx).Create(summary).Error; err != nil {
+		return sharedErrors.NewInternalError("Failed to create review summary", err)
+	}
+	return nil
 }
 
 func (r *repository) GetReviewSummary(ctx context.Context, tenantID, productID uuid.UUID) (*ReviewSummary, error) {
@@ -368,21 +455,31 @@ func (r *repository) GetReviewSummary(ctx context.Context, tenantID, productID u
 		if createErr := r.CreateReviewSummary(ctx, &summary); createErr != nil {
 			return nil, createErr
 		}
-		err = nil // Clear the not found error since we created the record
+		return &summary, nil
 	}
 
-	return &summary, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("Failed to get review summary", err)
+	}
+	return &summary, nil
 }
 
 func (r *repository) UpdateReviewSummary(ctx context.Context, tenantID, productID uuid.UUID, updates map[string]interface{}) error {
-	return r.db.WithContext(ctx).
+	result := r.db.WithContext(ctx).
 		Model(&ReviewSummary{}).
 		Where("tenant_id = ? AND product_id = ? AND type = ?", tenantID, productID, TypeProduct).
-		Updates(updates).Error
+		Updates(updates)
+	if result.Error != nil {
+		return sharedErrors.NewInternalError("Failed to update review summary", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return sharedErrors.NewNotFoundError("Review summary not found")
+	}
+	return nil
 }
 
 func (r *repository) RecalculateReviewSummary(ctx context.Context, tenantID, productID uuid.UUID) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		type ratingCount struct {
 			Rating int `json:"rating"`
 			Count  int `json:"count"`
@@ -446,11 +543,18 @@ func (r *repository) RecalculateReviewSummary(ctx context.Context, tenantID, pro
 
 		return r.UpdateReviewSummary(ctx, tenantID, productID, updates)
 	})
+	if err != nil {
+		return sharedErrors.NewInternalError("Failed to recalculate review summary", err)
+	}
+	return nil
 }
 
 // Review invitation operations
 func (r *repository) CreateInvitation(ctx context.Context, invitation *ReviewInvitation) error {
-	return r.db.WithContext(ctx).Create(invitation).Error
+	if err := r.db.WithContext(ctx).Create(invitation).Error; err != nil {
+		return sharedErrors.NewInternalError("Failed to create review invitation", err)
+	}
+	return nil
 }
 
 func (r *repository) GetInvitationByID(ctx context.Context, tenantID, invitationID uuid.UUID) (*ReviewInvitation, error) {
@@ -458,7 +562,13 @@ func (r *repository) GetInvitationByID(ctx context.Context, tenantID, invitation
 	err := r.db.WithContext(ctx).
 		Where("id = ? AND tenant_id = ?", invitationID, tenantID).
 		First(&invitation).Error
-	return &invitation, err
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("Review invitation not found")
+		}
+		return nil, sharedErrors.NewInternalError("Failed to get review invitation", err)
+	}
+	return &invitation, nil
 }
 
 func (r *repository) GetInvitationByToken(ctx context.Context, token string) (*ReviewInvitation, error) {
@@ -466,7 +576,13 @@ func (r *repository) GetInvitationByToken(ctx context.Context, token string) (*R
 	err := r.db.WithContext(ctx).
 		Where("invitation_token = ?", token).
 		First(&invitation).Error
-	return &invitation, err
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, sharedErrors.NewNotFoundError("Review invitation not found")
+		}
+		return nil, sharedErrors.NewInternalError("Failed to get review invitation", err)
+	}
+	return &invitation, nil
 }
 
 func (r *repository) GetInvitationsByStatus(ctx context.Context, tenantID uuid.UUID, status string) ([]ReviewInvitation, error) {
@@ -475,20 +591,37 @@ func (r *repository) GetInvitationsByStatus(ctx context.Context, tenantID uuid.U
 		Where("tenant_id = ? AND status = ?", tenantID, status).
 		Order("created_at DESC").
 		Find(&invitations).Error
-	return invitations, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("Failed to get review invitations by status", err)
+	}
+	return invitations, nil
 }
 
 func (r *repository) UpdateInvitation(ctx context.Context, tenantID, invitationID uuid.UUID, updates map[string]interface{}) error {
-	return r.db.WithContext(ctx).
+	result := r.db.WithContext(ctx).
 		Model(&ReviewInvitation{}).
 		Where("id = ? AND tenant_id = ?", invitationID, tenantID).
-		Updates(updates).Error
+		Updates(updates)
+	if result.Error != nil {
+		return sharedErrors.NewInternalError("Failed to update review invitation", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return sharedErrors.NewNotFoundError("Review invitation not found")
+	}
+	return nil
 }
 
 func (r *repository) DeleteInvitation(ctx context.Context, tenantID, invitationID uuid.UUID) error {
-	return r.db.WithContext(ctx).
+	result := r.db.WithContext(ctx).
 		Where("id = ? AND tenant_id = ?", invitationID, tenantID).
-		Delete(&ReviewInvitation{}).Error
+		Delete(&ReviewInvitation{})
+	if result.Error != nil {
+		return sharedErrors.NewInternalError("Failed to delete review invitation", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return sharedErrors.NewNotFoundError("Review invitation not found")
+	}
+	return nil
 }
 
 func (r *repository) GetExpiredInvitations(ctx context.Context, tenantID uuid.UUID) ([]ReviewInvitation, error) {
@@ -496,12 +629,18 @@ func (r *repository) GetExpiredInvitations(ctx context.Context, tenantID uuid.UU
 	err := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND status = ? AND expires_at < ?", tenantID, "sent", time.Now()).
 		Find(&invitations).Error
-	return invitations, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("Failed to get expired review invitations", err)
+	}
+	return invitations, nil
 }
 
 // Settings operations
 func (r *repository) CreateSettings(ctx context.Context, settings *ReviewSettings) error {
-	return r.db.WithContext(ctx).Create(settings).Error
+	if err := r.db.WithContext(ctx).Create(settings).Error; err != nil {
+		return sharedErrors.NewInternalError("Failed to create review settings", err)
+	}
+	return nil
 }
 
 func (r *repository) GetSettings(ctx context.Context, tenantID uuid.UUID) (*ReviewSettings, error) {
@@ -520,23 +659,74 @@ func (r *repository) GetSettings(ctx context.Context, tenantID uuid.UUID) (*Revi
 		if createErr := r.CreateSettings(ctx, &settings); createErr != nil {
 			return nil, createErr
 		}
-		err = nil // Clear the not found error since we created the record
+		return &settings, nil
 	}
 
-	return &settings, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("Failed to get review settings", err)
+	}
+	return &settings, nil
 }
 
 func (r *repository) UpdateSettings(ctx context.Context, tenantID uuid.UUID, updates map[string]interface{}) error {
-	return r.db.WithContext(ctx).
+	result := r.db.WithContext(ctx).
 		Model(&ReviewSettings{}).
 		Where("tenant_id = ?", tenantID).
-		Updates(updates).Error
+		Updates(updates)
+	if result.Error != nil {
+		return sharedErrors.NewInternalError("Failed to update review settings", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return sharedErrors.NewNotFoundError("Review settings not found")
+	}
+	return nil
 }
 
 // Analytics operations
 func (r *repository) GetReviewStatsByPeriod(ctx context.Context, tenantID uuid.UUID, startDate, endDate time.Time) (*ReviewStats, error) {
-	// TODO: Implement comprehensive analytics query
-	return nil, fmt.Errorf("TODO: implement GetReviewStatsByPeriod")
+	var stats ReviewStats
+
+	// Get total reviews in period
+	var totalReviews int64
+	err := r.db.WithContext(ctx).
+		Model(&Review{}).
+		Where("tenant_id = ? AND created_at >= ? AND created_at <= ?", tenantID, startDate, endDate).
+		Count(&totalReviews).Error
+	stats.TotalReviews = int(totalReviews)
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("Failed to get total reviews count", err)
+	}
+
+	// Get approved reviews in period
+	var approvedReviews int64
+	err = r.db.WithContext(ctx).
+		Model(&Review{}).
+		Where("tenant_id = ? AND status = ? AND created_at >= ? AND created_at <= ?", tenantID, StatusApproved, startDate, endDate).
+		Count(&approvedReviews).Error
+	stats.ApprovedReviews = int(approvedReviews)
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("Failed to get approved reviews count", err)
+	}
+
+	// Get average rating in period
+	type avgResult struct {
+		AvgRating *float64 `json:"avg_rating"`
+	}
+	var result avgResult
+	err = r.db.WithContext(ctx).
+		Model(&Review{}).
+		Select("AVG(rating) as avg_rating").
+		Where("tenant_id = ? AND status = ? AND created_at >= ? AND created_at <= ?", tenantID, StatusApproved, startDate, endDate).
+		Scan(&result).Error
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("Failed to get average rating", err)
+	}
+
+	if result.AvgRating != nil {
+		stats.AverageRating = *result.AvgRating
+	}
+
+	return &stats, nil
 }
 
 func (r *repository) GetTopRatedProducts(ctx context.Context, tenantID uuid.UUID, limit int) ([]ProductRating, error) {
@@ -552,7 +742,10 @@ func (r *repository) GetTopRatedProducts(ctx context.Context, tenantID uuid.UUID
 		Limit(limit).
 		Find(&ratings).Error
 
-	return ratings, err
+	if err != nil {
+		return nil, sharedErrors.NewInternalError("Failed to get top rated products", err)
+	}
+	return ratings, nil
 }
 
 func (r *repository) GetReviewCountByStatus(ctx context.Context, tenantID uuid.UUID) (map[ReviewStatus]int, error) {
@@ -570,7 +763,7 @@ func (r *repository) GetReviewCountByStatus(ctx context.Context, tenantID uuid.U
 		Find(&results).Error
 
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("Failed to get review count by status", err)
 	}
 
 	counts := make(map[ReviewStatus]int)
@@ -596,7 +789,7 @@ func (r *repository) GetReviewCountByRating(ctx context.Context, tenantID uuid.U
 		Find(&results).Error
 
 	if err != nil {
-		return nil, err
+		return nil, sharedErrors.NewInternalError("Failed to get review count by rating", err)
 	}
 
 	counts := make(map[int]int)
