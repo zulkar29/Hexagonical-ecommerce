@@ -15,9 +15,9 @@ CREATE TABLE IF NOT EXISTS orders (
     payment_status VARCHAR(20) NOT NULL DEFAULT 'pending',
     fulfillment_status VARCHAR(20) NOT NULL DEFAULT 'unfulfilled',
     notes TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ
 );
 
 CREATE TABLE IF NOT EXISTS order_items (
@@ -32,9 +32,9 @@ CREATE TABLE IF NOT EXISTS order_items (
     product_name VARCHAR(255) NOT NULL,
     product_sku VARCHAR(100),
     product_image VARCHAR(500),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ
 );
 
 CREATE TABLE IF NOT EXISTS shipping_addresses (
@@ -51,9 +51,9 @@ CREATE TABLE IF NOT EXISTS shipping_addresses (
     postal_code VARCHAR(20),
     country VARCHAR(2) NOT NULL,
     phone VARCHAR(20),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ
 );
 
 -- Add foreign key constraints

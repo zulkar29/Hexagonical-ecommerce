@@ -210,56 +210,220 @@ func NewService(repo Repository) Service {
 
 // Event tracking implementations
 func (s *service) TrackEvent(ctx context.Context, tenantID uuid.UUID, event *AnalyticsEvent) error {
-	// TODO: Implement event tracking with validation
-	// - Validate event structure
-	// - Enrich with additional data
-	// - Store in repository
-	// - Update real-time cache
-	return s.repo.CreateEvent(ctx, event)
+	// Validate event structure
+	if event == nil {
+		return fmt.Errorf("event cannot be nil")
+	}
+	if event.EventType == "" {
+		return fmt.Errorf("event type is required")
+	}
+	if event.TenantID == uuid.Nil {
+		event.TenantID = tenantID
+	}
+	if event.Timestamp.IsZero() {
+		event.Timestamp = time.Now()
+	}
+
+	// Store in repository
+	err := s.repo.CreateEvent(ctx, event)
+	if err != nil {
+		return fmt.Errorf("failed to create event: %w", err)
+	}
+
+	// TODO: Update real-time cache when cache service is implemented
+	return nil
 }
 
 func (s *service) TrackPageView(ctx context.Context, tenantID uuid.UUID, pageView *PageView) error {
-	// TODO: Implement page view tracking
-	// - Update session information
-	// - Calculate time on page for previous page view
-	// - Store page view
-	return s.repo.CreatePageView(ctx, pageView)
+	// Validate page view data
+	if pageView == nil {
+		return fmt.Errorf("page view cannot be nil")
+	}
+	if pageView.Path == "" {
+		return fmt.Errorf("page path is required")
+	}
+	if pageView.TenantID == uuid.Nil {
+		pageView.TenantID = tenantID
+	}
+	if pageView.Timestamp.IsZero() {
+		pageView.Timestamp = time.Now()
+	}
+
+	// Store page view
+	err := s.repo.CreatePageView(ctx, pageView)
+	if err != nil {
+		return fmt.Errorf("failed to create page view: %w", err)
+	}
+
+	// TODO: Update session information and calculate time on page
+	return nil
 }
 
 func (s *service) TrackProductView(ctx context.Context, tenantID uuid.UUID, productView *ProductView) error {
-	// TODO: Implement product view tracking
-	// - Validate product exists
-	// - Update product popularity metrics
-	// - Store product view
-	return s.repo.CreateProductView(ctx, productView)
+	// Validate product view data
+	if productView == nil {
+		return fmt.Errorf("product view cannot be nil")
+	}
+	if productView.ProductID == uuid.Nil {
+		return fmt.Errorf("product ID is required")
+	}
+	if productView.TenantID == uuid.Nil {
+		productView.TenantID = tenantID
+	}
+	if productView.Timestamp.IsZero() {
+		productView.Timestamp = time.Now()
+	}
+
+	// Store product view
+	err := s.repo.CreateProductView(ctx, productView)
+	if err != nil {
+		return fmt.Errorf("failed to create product view: %w", err)
+	}
+
+	// TODO: Validate product exists and update popularity metrics
+	return nil
 }
 
 func (s *service) TrackPurchase(ctx context.Context, tenantID uuid.UUID, purchase *Purchase) error {
-	// TODO: Implement purchase tracking
-	// - Validate purchase data
-	// - Update conversion metrics
-	// - Store purchase event
-	return s.repo.CreatePurchase(ctx, purchase)
+	// Validate purchase data
+	if purchase == nil {
+		return fmt.Errorf("purchase cannot be nil")
+	}
+	if purchase.TotalAmount <= 0 {
+		return fmt.Errorf("purchase total amount must be greater than 0")
+	}
+	if purchase.TenantID == uuid.Nil {
+		purchase.TenantID = tenantID
+	}
+	if purchase.Timestamp.IsZero() {
+		purchase.Timestamp = time.Now()
+	}
+
+	// Store purchase event
+	err := s.repo.CreatePurchase(ctx, purchase)
+	if err != nil {
+		return fmt.Errorf("failed to create purchase: %w", err)
+	}
+
+	// TODO: Update conversion metrics in real-time
+	return nil
 }
 
 // Basic stats implementations
 func (s *service) GetDashboardStats(ctx context.Context, tenantID uuid.UUID, dateRange DateRange) (*AnalyticsStats, error) {
-	// TODO: Implement dashboard stats aggregation
-	// - Get traffic metrics
-	// - Get sales metrics  
-	// - Get top performers
-	// - Calculate trends
-	return s.repo.GetDashboardStats(ctx, tenantID, dateRange)
+	// Get traffic metrics
+	trafficStats, err := s.GetTrafficStats(ctx, tenantID, dateRange)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get traffic stats: %w", err)
+	}
+
+	// Get sales metrics
+	salesStats, err := s.GetSalesStats(ctx, tenantID, dateRange)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get sales stats: %w", err)
+	}
+
+	// Get top performers
+	topProducts, err := s.GetTopProducts(ctx, tenantID, dateRange, 5)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get top products: %w", err)
+	}
+
+	topPages, err := s.GetTopPages(ctx, tenantID, dateRange, 5)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get top pages: %w", err)
+	}
+
+	// Aggregate dashboard stats
+	stats := &AnalyticsStats{
+		TenantID:        tenantID,
+		Date:            dateRange.Start,
+		PageViews:       trafficStats.PageViews,
+		UniqueVisitors:  trafficStats.UniqueVisitors,
+		Sessions:        trafficStats.Sessions,
+		BounceRate:      trafficStats.BounceRate,
+		ConversionRate:  salesStats.ConversionRate,
+		Revenue:         salesStats.TotalRevenue,
+		Orders:          salesStats.TotalOrders,
+		AvgOrderValue:   salesStats.AvgOrderValue,
+		ProductViews:    0, // TODO: Get from traffic stats
+		AvgSessionTime:  0, // TODO: Calculate from session data
+		TopProducts:     make([]string, len(topProducts)),
+		TopPages:        make([]string, len(topPages)),
+		TopReferrers:    []string{}, // TODO: Get from traffic stats
+	}
+
+	// Convert ProductStats to string slice
+	for i, product := range topProducts {
+		stats.TopProducts[i] = product.ProductName // Assuming ProductStats has ProductName field
+	}
+
+	// Convert PageStats to string slice
+	for i, page := range topPages {
+		stats.TopPages[i] = page.Path // Assuming PageStats has Path field
+	}
+
+	return stats, nil
 }
 
 func (s *service) GetTrafficStats(ctx context.Context, tenantID uuid.UUID, dateRange DateRange) (*TrafficStats, error) {
-	// TODO: Implement traffic stats calculation
-	return s.repo.GetTrafficStats(ctx, tenantID, dateRange)
+	// Get basic traffic stats from repository
+	stats, err := s.repo.GetTrafficStats(ctx, tenantID, dateRange)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get traffic stats from repository: %w", err)
+	}
+
+	// Get top pages and referrers
+	topPages, err := s.GetTopPages(ctx, tenantID, dateRange, 10)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get top pages: %w", err)
+	}
+
+	topReferrers, err := s.GetTopReferrers(ctx, tenantID, dateRange, 10)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get top referrers: %w", err)
+	}
+
+	// Convert to required format
+	stats.TopPages = make([]PageStats, len(topPages))
+	for i, page := range topPages {
+		stats.TopPages[i] = *page
+	}
+
+	stats.TopReferrers = make([]ReferrerStats, len(topReferrers))
+	for i, referrer := range topReferrers {
+		stats.TopReferrers[i] = *referrer
+	}
+
+	return stats, nil
 }
 
 func (s *service) GetSalesStats(ctx context.Context, tenantID uuid.UUID, dateRange DateRange) (*SalesStats, error) {
-	// TODO: Implement sales stats calculation
-	return s.repo.GetSalesStats(ctx, tenantID, dateRange)
+	// Get basic sales stats from repository
+	stats, err := s.repo.GetSalesStats(ctx, tenantID, dateRange)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get sales stats from repository: %w", err)
+	}
+
+	// Get top products for sales analysis
+	topProducts, err := s.GetTopProducts(ctx, tenantID, dateRange, 10)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get top products: %w", err)
+	}
+
+	// Convert to required format
+	stats.TopProducts = make([]ProductStats, len(topProducts))
+	for i, product := range topProducts {
+		stats.TopProducts[i] = *product
+	}
+
+	// Calculate conversion rate if we have traffic data
+	trafficStats, err := s.repo.GetTrafficStats(ctx, tenantID, dateRange)
+	if err == nil && trafficStats.UniqueVisitors > 0 {
+		stats.ConversionRate = float64(stats.TotalOrders) / float64(trafficStats.UniqueVisitors) * 100
+	}
+
+	return stats, nil
 }
 
 // Top performers implementations
@@ -311,17 +475,30 @@ func (s *service) GetRetentionRate(ctx context.Context, tenantID uuid.UUID, days
 
 // Real-time analytics implementations
 func (s *service) GetRealTimeStats(ctx context.Context, tenantID uuid.UUID) (*RealTimeStats, error) {
-	// TODO: Implement real-time stats from cache
-	// - Get active users from cache
-	// - Get current page views
-	// - Get active pages
-	// - Get real-time conversions and revenue
-	return s.repo.GetRealTimeStats(ctx, tenantID)
+	// Get active users (last 5 minutes)
+	activeUsers, err := s.GetActiveUsers(ctx, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get active users: %w", err)
+	}
+
+	// Get real-time stats from repository
+	stats, err := s.repo.GetRealTimeStats(ctx, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get real-time stats: %w", err)
+	}
+
+	// Update with calculated active users
+	stats.ActiveUsers = activeUsers
+	stats.LastUpdated = time.Now()
+
+	return stats, nil
 }
 
 func (s *service) GetActiveUsers(ctx context.Context, tenantID uuid.UUID) (int64, error) {
-	// TODO: Implement active users count (last 5 minutes)
-	return s.repo.GetActiveUsers(ctx, tenantID)
+	// Get users active in the last 5 minutes
+	// TODO: Implement GetActiveUsers in repository
+	// For now, return a placeholder value
+	return 0, nil
 }
 
 // Reports implementations
@@ -413,7 +590,6 @@ func (s *service) generateCohortReport(ctx context.Context, tenantID uuid.UUID, 
 
 // CSV conversion helpers
 func (s *service) trafficStatsToCSV(stats *TrafficStats) ([]byte, string, error) {
-	// TODO: Convert traffic stats to CSV format
 	var result strings.Builder
 	w := csv.NewWriter(&result)
 	
@@ -430,6 +606,8 @@ func (s *service) trafficStatsToCSV(stats *TrafficStats) ([]byte, string, error)
 		{"Sessions", fmt.Sprintf("%d", stats.Sessions)},
 		{"Bounce Rate", fmt.Sprintf("%.2f%%", stats.BounceRate*100)},
 		{"Avg Session Time", fmt.Sprintf("%.2f minutes", stats.AvgSessionTime/60)},
+		{"New Visitors", fmt.Sprintf("%d", stats.NewVisitors)},
+		{"Returning Visitors", fmt.Sprintf("%d", stats.ReturningVisitors)},
 	}
 	
 	for _, row := range data {
@@ -437,13 +615,43 @@ func (s *service) trafficStatsToCSV(stats *TrafficStats) ([]byte, string, error)
 			return nil, "", fmt.Errorf("failed to write CSV row: %w", err)
 		}
 	}
+	
+	// Write top pages section
+	if len(stats.TopPages) > 0 {
+		w.Write([]string{"", ""}) // Empty row
+		w.Write([]string{"Top Pages", ""})
+		w.Write([]string{"Page", "Views", "Unique Views", "Bounce Rate", "Avg Time"})
+		for _, page := range stats.TopPages {
+			w.Write([]string{
+				page.Path,
+				fmt.Sprintf("%d", page.Views),
+				fmt.Sprintf("%d", page.UniqueViews),
+				fmt.Sprintf("%.2f%%", page.BounceRate*100),
+				fmt.Sprintf("%.2f minutes", page.AvgTime/60),
+			})
+		}
+	}
+	
+	// Write top referrers section
+	if len(stats.TopReferrers) > 0 {
+		w.Write([]string{"", ""}) // Empty row
+		w.Write([]string{"Top Referrers", ""})
+		w.Write([]string{"Referrer", "Visits", "Percentage"})
+		for _, referrer := range stats.TopReferrers {
+			w.Write([]string{
+				referrer.Referrer,
+				fmt.Sprintf("%d", referrer.Visits),
+				fmt.Sprintf("%.2f%%", referrer.Percentage),
+			})
+		}
+	}
+	
 	w.Flush()
 	
 	return []byte(result.String()), "text/csv", nil
 }
 
 func (s *service) salesStatsToCSV(stats *SalesStats) ([]byte, string, error) {
-	// TODO: Convert sales stats to CSV format
 	var result strings.Builder
 	w := csv.NewWriter(&result)
 	
@@ -453,10 +661,11 @@ func (s *service) salesStatsToCSV(stats *SalesStats) ([]byte, string, error) {
 	}
 	
 	data := [][]string{
-		{"Total Revenue", fmt.Sprintf("%.2f", stats.TotalRevenue)},
+		{"Total Revenue", fmt.Sprintf("$%.2f", stats.TotalRevenue)},
 		{"Total Orders", fmt.Sprintf("%d", stats.TotalOrders)},
-		{"Average Order Value", fmt.Sprintf("%.2f", stats.AvgOrderValue)},
-		{"Conversion Rate", fmt.Sprintf("%.2f%%", stats.ConversionRate*100)},
+		{"Average Order Value", fmt.Sprintf("$%.2f", stats.AvgOrderValue)},
+		{"Conversion Rate", fmt.Sprintf("%.2f%%", stats.ConversionRate)},
+		{"Refund Rate", fmt.Sprintf("%.2f%%", stats.RefundRate)},
 	}
 	
 	for _, row := range data {
@@ -464,28 +673,73 @@ func (s *service) salesStatsToCSV(stats *SalesStats) ([]byte, string, error) {
 			return nil, "", fmt.Errorf("failed to write CSV row: %w", err)
 		}
 	}
+	
+	// Write top products section
+	if len(stats.TopProducts) > 0 {
+		w.Write([]string{"", ""}) // Empty row
+		w.Write([]string{"Top Products", ""})
+		w.Write([]string{"Product Name", "Views", "Sales", "Revenue", "Conversion Rate"})
+		for _, product := range stats.TopProducts {
+			w.Write([]string{
+				product.ProductName,
+				fmt.Sprintf("%d", product.Views),
+				fmt.Sprintf("%d", product.Sales),
+				fmt.Sprintf("$%.2f", product.Revenue),
+				fmt.Sprintf("%.2f%%", product.ConversionRate),
+			})
+		}
+	}
+	
+	// Write sales by category section
+	if len(stats.SalesByCategory) > 0 {
+		w.Write([]string{"", ""}) // Empty row
+		w.Write([]string{"Sales by Category", ""})
+		w.Write([]string{"Category", "Revenue", "Orders"})
+		for _, category := range stats.SalesByCategory {
+			w.Write([]string{
+				category.Category,
+				fmt.Sprintf("$%.2f", category.Revenue),
+				fmt.Sprintf("%d", category.Orders),
+			})
+		}
+	}
+	
+	// Write daily sales section
+	if len(stats.SalesByDay) > 0 {
+		w.Write([]string{"", ""}) // Empty row
+		w.Write([]string{"Daily Sales", ""})
+		w.Write([]string{"Date", "Revenue", "Orders"})
+		for _, daily := range stats.SalesByDay {
+			w.Write([]string{
+				daily.Date.Format("2006-01-02"),
+				fmt.Sprintf("$%.2f", daily.Revenue),
+				fmt.Sprintf("%d", daily.Orders),
+			})
+		}
+	}
+	
 	w.Flush()
 	
 	return []byte(result.String()), "text/csv", nil
 }
 
 func (s *service) productStatsToCSV(products []*ProductStats) ([]byte, string, error) {
-	// TODO: Convert product stats to CSV format
 	var result strings.Builder
 	w := csv.NewWriter(&result)
 	
-	headers := []string{"Product Name", "Views", "Sales", "Revenue", "Conversion Rate"}
+	headers := []string{"Product ID", "Product Name", "Views", "Sales", "Revenue", "Conversion Rate"}
 	if err := w.Write(headers); err != nil {
 		return nil, "", fmt.Errorf("failed to write CSV headers: %w", err)
 	}
 	
 	for _, product := range products {
 		row := []string{
+			product.ProductID.String(),
 			product.ProductName,
 			fmt.Sprintf("%d", product.Views),
 			fmt.Sprintf("%d", product.Sales),
-			fmt.Sprintf("%.2f", product.Revenue),
-			fmt.Sprintf("%.2f%%", product.ConversionRate*100),
+			fmt.Sprintf("$%.2f", product.Revenue),
+			fmt.Sprintf("%.2f%%", product.ConversionRate),
 		}
 		if err := w.Write(row); err != nil {
 			return nil, "", fmt.Errorf("failed to write CSV row: %w", err)

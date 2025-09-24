@@ -7,6 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+
+	"ecommerce-saas/internal/shared/utils"
 )
 
 // Handler handles HTTP requests for finance operations
@@ -800,14 +802,13 @@ func (h *Handler) GetExpenseReport(c *gin.Context) {
 // Helper functions
 
 func getTenantIDFromContext(c *gin.Context) uuid.UUID {
-	// TODO: Extract tenant ID from context/JWT token
-	// For now, return a placeholder
-	if tenantID, exists := c.Get("tenant_id"); exists {
-		if id, ok := tenantID.(uuid.UUID); ok {
-			return id
-		}
+	// Extract tenant ID from context using shared utility
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		// Log error and return nil UUID - this should be handled by middleware
+		return uuid.Nil
 	}
-	return uuid.New() // Placeholder
+	return tenantID
 }
 
 func getIntQueryParam(c *gin.Context, key string, defaultValue int) int {

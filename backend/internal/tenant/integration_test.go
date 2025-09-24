@@ -14,7 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
+	"ecommerce-saas/internal/shared/config"
 	"ecommerce-saas/internal/shared/testhelpers"
 	"ecommerce-saas/internal/user"
 )
@@ -23,16 +23,23 @@ import (
 
 func TestTenantIntegration_CompleteOnboardingFlow(t *testing.T) {
 	// Setup test database
-	testDB := testhelpers.SetupSimpleTestDatabase(t)
+	testDB := testhelpers.SetupTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Tenant{}, &user.User{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
-	// Setup services
+	// Setup services with proper config
+	cfg, err := config.Load()
+	if err != nil {
+		// Fallback to default config for tests
+		cfg = &config.Config{
+			App: config.AppConfig{
+				Currency: "BDT",
+			},
+		}
+	}
 	tenantRepo := NewRepository(testDB.DB)
-	tenantService := NewService(tenantRepo)
+	tenantService := NewService(tenantRepo, cfg)
 	userRepo := user.NewRepository(testDB.DB)
 
 	t.Run("Complete tenant onboarding with admin user", func(t *testing.T) {
@@ -105,16 +112,23 @@ func TestTenantIntegration_CompleteOnboardingFlow(t *testing.T) {
 
 func TestTenantIntegration_MultiTenantIsolation(t *testing.T) {
 	// Setup test database
-	testDB := testhelpers.SetupSimpleTestDatabase(t)
+	testDB := testhelpers.SetupTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Tenant{}, &user.User{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
-	// Setup services
+	// Setup services with proper config
+	cfg, err := config.Load()
+	if err != nil {
+		// Fallback to default config for tests
+		cfg = &config.Config{
+			App: config.AppConfig{
+				Currency: "BDT",
+			},
+		}
+	}
 	tenantRepo := NewRepository(testDB.DB)
-	tenantService := NewService(tenantRepo)
+	tenantService := NewService(tenantRepo, cfg)
 	userRepo := user.NewRepository(testDB.DB)
 
 	t.Run("Ensure tenant isolation", func(t *testing.T) {
@@ -185,16 +199,23 @@ func TestTenantIntegration_MultiTenantIsolation(t *testing.T) {
 
 func TestTenantIntegration_SubdomainAndDomainHandling(t *testing.T) {
 	// Setup test database
-	testDB := testhelpers.SetupSimpleTestDatabase(t)
+	testDB := testhelpers.SetupTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Tenant{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
-	// Setup services
+	// Setup services with proper config
+	cfg, err := config.Load()
+	if err != nil {
+		// Fallback to default config for tests
+		cfg = &config.Config{
+			App: config.AppConfig{
+				Currency: "BDT",
+			},
+		}
+	}
 	tenantRepo := NewRepository(testDB.DB)
-	tenantService := NewService(tenantRepo)
+	tenantService := NewService(tenantRepo, cfg)
 
 	t.Run("Subdomain uniqueness and validation", func(t *testing.T) {
 		// Create first tenant
@@ -212,7 +233,7 @@ func TestTenantIntegration_SubdomainAndDomainHandling(t *testing.T) {
 			Email:     "admin@second.com",
 		})
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "subdomain already taken")
+		assert.Contains(t, err.Error(), "Subdomain already taken")
 
 		// Test subdomain validation - must be alphanumeric
 		tenant2, err := tenantService.CreateTenant(CreateTenantRequest{
@@ -260,16 +281,23 @@ func TestTenantIntegration_SubdomainAndDomainHandling(t *testing.T) {
 
 func TestTenantIntegration_PlanLimitsAndUpgrades(t *testing.T) {
 	// Setup test database
-	testDB := testhelpers.SetupSimpleTestDatabase(t)
+	testDB := testhelpers.SetupTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Tenant{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
-	// Setup services
+	// Setup services with proper config
+	cfg, err := config.Load()
+	if err != nil {
+		// Fallback to default config for tests
+		cfg = &config.Config{
+			App: config.AppConfig{
+				Currency: "BDT",
+			},
+		}
+	}
 	tenantRepo := NewRepository(testDB.DB)
-	tenantService := NewService(tenantRepo)
+	tenantService := NewService(tenantRepo, cfg)
 
 	t.Run("Plan limits and upgrades", func(t *testing.T) {
 		// Create tenant with starter plan
@@ -311,16 +339,23 @@ func TestTenantIntegration_PlanLimitsAndUpgrades(t *testing.T) {
 
 func TestTenantIntegration_StatusManagement(t *testing.T) {
 	// Setup test database
-	testDB := testhelpers.SetupSimpleTestDatabase(t)
+	testDB := testhelpers.SetupTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Tenant{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
-	// Setup services
+	// Setup services with proper config
+	cfg, err := config.Load()
+	if err != nil {
+		// Fallback to default config for tests
+		cfg = &config.Config{
+			App: config.AppConfig{
+				Currency: "BDT",
+			},
+		}
+	}
 	tenantRepo := NewRepository(testDB.DB)
-	tenantService := NewService(tenantRepo)
+	tenantService := NewService(tenantRepo, cfg)
 
 	t.Run("Tenant status lifecycle", func(t *testing.T) {
 		// Create active tenant
@@ -359,16 +394,23 @@ func TestTenantIntegration_StatusManagement(t *testing.T) {
 
 func TestTenantHTTPIntegration_CreateTenantAPI(t *testing.T) {
 	// Setup test database
-	testDB := testhelpers.SetupSimpleTestDatabase(t)
+	testDB := testhelpers.SetupTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Tenant{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
-	// Setup services and handlers
+	// Setup services and handlers with proper config
+	cfg, err := config.Load()
+	if err != nil {
+		// Fallback to default config for tests
+		cfg = &config.Config{
+			App: config.AppConfig{
+				Currency: "BDT",
+			},
+		}
+	}
 	tenantRepo := NewRepository(testDB.DB)
-	tenantService := NewService(tenantRepo)
+	tenantService := NewService(tenantRepo, cfg)
 	tenantHandler := NewHandler(tenantService)
 
 	// Setup Gin router
@@ -437,16 +479,23 @@ func TestTenantHTTPIntegration_CreateTenantAPI(t *testing.T) {
 
 func TestTenantIntegration_ConcurrentCreation(t *testing.T) {
 	// Setup test database
-	testDB := testhelpers.SetupSimpleTestDatabase(t)
+	testDB := testhelpers.SetupTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Tenant{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
-	// Setup services
+	// Setup services with proper config
+	cfg, err := config.Load()
+	if err != nil {
+		// Fallback to default config for tests
+		cfg = &config.Config{
+			App: config.AppConfig{
+				Currency: "BDT",
+			},
+		}
+	}
 	tenantRepo := NewRepository(testDB.DB)
-	tenantService := NewService(tenantRepo)
+	tenantService := NewService(tenantRepo, cfg)
 
 	t.Run("Concurrent tenant creation", func(t *testing.T) {
 		const numTenants = 10
@@ -503,18 +552,23 @@ func TestTenantIntegration_ConcurrentCreation(t *testing.T) {
 
 func BenchmarkTenantIntegration_CreateTenant(b *testing.B) {
 	// Setup test database
-	testDB := testhelpers.SetupSimpleTestDatabase(&testing.T{})
+	testDB := testhelpers.SetupTestDatabase(&testing.T{})
 	defer testDB.TeardownTestDatabase(&testing.T{})
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Tenant{})
-	if err != nil {
-		b.Fatal(err)
-	}
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
-	// Setup services
+	// Setup services with proper config
+	cfg, err := config.Load()
+	if err != nil {
+		// Fallback to default config for tests
+		cfg = &config.Config{
+			App: config.AppConfig{
+				Currency: "BDT",
+			},
+		}
+	}
 	tenantRepo := NewRepository(testDB.DB)
-	tenantService := NewService(tenantRepo)
+	tenantService := NewService(tenantRepo, cfg)
 
 	// Reset timer after setup
 	b.ResetTimer()

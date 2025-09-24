@@ -64,39 +64,31 @@ type Service interface {
 // Request/Response types
 
 type CreateComponentRequest struct {
-	Name         string                 `json:"name" validate:"required,min=1,max=100"`
-	Slug         string                 `json:"slug,omitempty"`
-	Type         ComponentType          `json:"type" validate:"required"`
-	Description  string                 `json:"description,omitempty"`
-	HTML         string                 `json:"html" validate:"required"`
-	CSS          string                 `json:"css,omitempty"`
-	JavaScript   string                 `json:"javascript,omitempty"`
-	Config       map[string]interface{} `json:"config,omitempty"`
-	Customizable bool                   `json:"customizable"`
-	Options      map[string]interface{} `json:"options,omitempty"`
-	Thumbnail    string                 `json:"thumbnail,omitempty"`
-	Tags         []string               `json:"tags,omitempty"`
-	Category     ComponentCategory      `json:"category,omitempty"`
-	IsFeatured   bool                   `json:"is_featured"`
-	IsDefault    bool                   `json:"is_default"`
+	Name        string                 `json:"name" validate:"required,min=1,max=100"`
+	Slug        string                 `json:"slug,omitempty"`
+	Type        ComponentType          `json:"type" validate:"required"`
+	Description string                 `json:"description,omitempty"`
+	HTML        string                 `json:"html" validate:"required"`
+	CSS         string                 `json:"css,omitempty"`
+	JavaScript  string                 `json:"javascript,omitempty"`
+	Config      map[string]interface{} `json:"config,omitempty"`
+	Tags        []string               `json:"tags,omitempty"`
+	Category    ComponentCategory      `json:"category,omitempty"`
+	IsFeatured  bool                   `json:"is_featured"`
 }
 
 type UpdateComponentRequest struct {
-	Name         *string                `json:"name,omitempty"`
-	Slug         *string                `json:"slug,omitempty"`
-	Status       *ComponentStatus       `json:"status,omitempty"`
-	Description  *string                `json:"description,omitempty"`
-	HTML         *string                `json:"html,omitempty"`
-	CSS          *string                `json:"css,omitempty"`
-	JavaScript   *string                `json:"javascript,omitempty"`
-	Config       map[string]interface{} `json:"config,omitempty"`
-	Customizable *bool                  `json:"customizable,omitempty"`
-	Options      map[string]interface{} `json:"options,omitempty"`
-	Thumbnail    *string                `json:"thumbnail,omitempty"`
-	Tags         []string               `json:"tags,omitempty"`
-	Category     *ComponentCategory     `json:"category,omitempty"`
-	IsFeatured   *bool                  `json:"is_featured,omitempty"`
-	IsDefault    *bool                  `json:"is_default,omitempty"`
+	Name        *string                `json:"name,omitempty"`
+	Slug        *string                `json:"slug,omitempty"`
+	Status      *ComponentStatus       `json:"status,omitempty"`
+	Description *string                `json:"description,omitempty"`
+	HTML        *string                `json:"html,omitempty"`
+	CSS         *string                `json:"css,omitempty"`
+	JavaScript  *string                `json:"javascript,omitempty"`
+	Config      map[string]interface{} `json:"config,omitempty"`
+	Tags        []string               `json:"tags,omitempty"`
+	Category    *ComponentCategory     `json:"category,omitempty"`
+	IsFeatured  *bool                  `json:"is_featured,omitempty"`
 }
 
 type CreateInstanceRequest struct {
@@ -317,26 +309,20 @@ func (s *service) CreateComponent(ctx context.Context, tenantID uuid.UUID, req C
 	}
 
 	component := &Component{
-		ID:           uuid.New(),
-		TenantID:     tenantID,
-		Name:         req.Name,
-		Slug:         slug,
-		Type:         req.Type,
-		Description:  req.Description,
-		HTML:         req.HTML,
-		CSS:          req.CSS,
-		JavaScript:   req.JavaScript,
-		Config:       req.Config,
-		Customizable: req.Customizable,
-		Options:      req.Options,
-		Thumbnail:    req.Thumbnail,
-		Tags:         req.Tags,
-		Category:     req.Category,
-		IsFeatured:   req.IsFeatured,
-		IsDefault:    req.IsDefault,
-		Status:       StatusDraft,
-		Version:      "1.0.0",
-		UsageCount:   0,
+		ID:          uuid.New(),
+		TenantID:    tenantID,
+		Name:        req.Name,
+		Slug:        slug,
+		Type:        req.Type,
+		Description: req.Description,
+		HTML:        req.HTML,
+		CSS:         req.CSS,
+		JavaScript:  req.JavaScript,
+		Config:      req.Config,
+		Tags:        req.Tags,
+		Category:    req.Category,
+		IsFeatured:  req.IsFeatured,
+		Status:      StatusDraft,
 	}
 
 	if err := s.repo.CreateComponent(ctx, tenantID, component); err != nil {
@@ -412,15 +398,6 @@ func (s *service) UpdateComponent(ctx context.Context, tenantID, id uuid.UUID, r
 	if req.Config != nil {
 		component.Config = req.Config
 	}
-	if req.Customizable != nil {
-		component.Customizable = *req.Customizable
-	}
-	if req.Options != nil {
-		component.Options = req.Options
-	}
-	if req.Thumbnail != nil {
-		component.Thumbnail = *req.Thumbnail
-	}
 	if req.Tags != nil {
 		component.Tags = req.Tags
 	}
@@ -429,9 +406,6 @@ func (s *service) UpdateComponent(ctx context.Context, tenantID, id uuid.UUID, r
 	}
 	if req.IsFeatured != nil {
 		component.IsFeatured = *req.IsFeatured
-	}
-	if req.IsDefault != nil {
-		component.IsDefault = *req.IsDefault
 	}
 
 	if err := s.repo.UpdateComponent(ctx, tenantID, component); err != nil {
@@ -484,26 +458,20 @@ func (s *service) DuplicateComponent(ctx context.Context, tenantID, id uuid.UUID
 
 	// Create duplicate with new name and slug
 	duplicate := &Component{
-		ID:           uuid.New(),
-		TenantID:     tenantID,
-		Name:         req.Name,
-		Slug:         generateSlug(req.Name),
-		Type:         original.Type,
-		Description:  original.Description,
-		HTML:         original.HTML,
-		CSS:          original.CSS,
-		JavaScript:   original.JavaScript,
-		Config:       original.Config,
-		Customizable: original.Customizable,
-		Options:      original.Options,
-		Thumbnail:    original.Thumbnail,
-		Tags:         original.Tags,
-		Category:     original.Category,
-		Status:       StatusDraft,
-		Version:      "1.0.0",
-		UsageCount:   0,
-		IsFeatured:   false,
-		IsDefault:    false,
+		ID:          uuid.New(),
+		TenantID:    tenantID,
+		Name:        req.Name,
+		Slug:        generateSlug(req.Name),
+		Type:        original.Type,
+		Description: original.Description,
+		HTML:        original.HTML,
+		CSS:         original.CSS,
+		JavaScript:  original.JavaScript,
+		Config:      original.Config,
+		Tags:        original.Tags,
+		Category:    original.Category,
+		Status:      StatusDraft,
+		IsFeatured:  false,
 	}
 
 	// Check slug uniqueness
@@ -544,14 +512,11 @@ func (s *service) CreateInstance(ctx context.Context, tenantID uuid.UUID, req Cr
 		TenantID:    tenantID,
 		ComponentID: req.ComponentID,
 		ThemeID:     req.ThemeID,
-		CustomHTML:  req.CustomHTML,
 		CustomCSS:   req.CustomCSS,
 		CustomJS:    req.CustomJS,
 		Settings:    req.Settings,
-		Position:    req.Position,
-		Zone:        req.Zone,
+		Position:    fmt.Sprintf("%d", req.Position), // Convert int to string
 		IsVisible:   req.IsVisible,
-		Breakpoints: req.Breakpoints,
 	}
 
 	if err := s.repo.CreateInstance(ctx, tenantID, instance); err != nil {
@@ -821,20 +786,20 @@ func (s *service) ListThemeTemplates(ctx context.Context, filters ThemeTemplateF
 // Component Template Service Methods
 func (s *service) CreateComponentTemplate(ctx context.Context, req CreateComponentTemplateRequest) (*ComponentTemplate, error) {
 	componentTemplate := &ComponentTemplate{
-		ID:          uuid.New(),
-		Name:        req.Name,
-		Slug:        req.Slug,
-		Type:        req.Type,
-		Description: req.Description,
-		HTML:        req.HTML,
-		CSS:         req.CSS,
-		JavaScript:  req.JavaScript,
-		Config:      req.Config,
-		Thumbnail:   req.Thumbnail,
-		Tags:        req.Tags,
-		Category:    req.Category,
-		IsFree:      req.IsFree,
-		IsFeatured:  req.IsFeatured,
+		ID:            uuid.New(),
+		Name:          req.Name,
+		Slug:          req.Slug,
+		Type:          req.Type,
+		Description:   req.Description,
+		HTML:          req.HTML,
+		CSS:           req.CSS,
+		JavaScript:    req.JavaScript,
+		ConfigSchema:  req.Config,      // Use ConfigSchema instead of Config
+		PreviewImage:  req.Thumbnail,   // Use PreviewImage instead of Thumbnail
+		Tags:          req.Tags,
+		Category:      req.Category,
+		IsFree:        req.IsFree,
+		IsFeatured:    req.IsFeatured,
 	}
 
 	if componentTemplate.Slug == "" {
@@ -891,10 +856,10 @@ func (s *service) UpdateComponentTemplate(ctx context.Context, id uuid.UUID, req
 		componentTemplate.JavaScript = *req.JavaScript
 	}
 	if req.Config != nil {
-		componentTemplate.Config = req.Config
+		componentTemplate.ConfigSchema = req.Config
 	}
 	if req.Thumbnail != nil {
-		componentTemplate.Thumbnail = *req.Thumbnail
+		componentTemplate.PreviewImage = *req.Thumbnail
 	}
 	if req.Tags != nil {
 		componentTemplate.Tags = req.Tags

@@ -592,19 +592,8 @@ func (s *Service) DeleteUserAccount(ctx context.Context, userID uuid.UUID) error
 	return s.repo.DeleteUser(ctx, userID)
 }
 
-// GetUserPreferences gets user preferences
-func (s *Service) GetUserPreferences(ctx context.Context, userID uuid.UUID) (map[string]interface{}, error) {
-	return s.repo.GetUserPreferences(ctx, userID)
-}
-
-// UpdateUserPreferences updates user preferences
-func (s *Service) UpdateUserPreferences(ctx context.Context, userID uuid.UUID, preferences map[string]interface{}) (map[string]interface{}, error) {
-	result, err := s.repo.UpdateUserPreferences(ctx, userID, preferences)
-	if err != nil {
-		return nil, sharedErrors.Wrap(err, sharedErrors.CodeInternal, "Failed to save user preferences", 500)
-	}
-	return result, nil
-}
+// Note: User preferences functionality has been removed due to JSONB complexity
+// If needed in the future, consider using a separate notification_preferences table
 
 // GetUserActivity gets user activity logs
 func (s *Service) GetUserActivity(_ uuid.UUID, _, _, _ string, _, _ int) ([]interface{}, int64, error) {

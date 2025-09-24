@@ -45,9 +45,4 @@ func (m *Module) GetRepository() Repository {
 	return m.repository
 }
 
-// Migrate runs database migrations for category module
-func (m *Module) Migrate() error {
-	// Skip GORM auto-migration to avoid conflicts with SQL migrations
-	// The database schema is managed by SQL migration files
-	return nil
-}
+// Note: Database schema is handled by raw SQL migrations in /migrations directory

@@ -18,9 +18,7 @@ func TestCategoryService_CategoryCRUD(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Category{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	categoryRepo := NewGormRepository(testDB.DB)
@@ -122,9 +120,7 @@ func TestCategoryService_HierarchicalCategories(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Category{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	categoryRepo := NewGormRepository(testDB.DB)
@@ -228,9 +224,7 @@ func TestCategoryService_CategoryFiltering(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Category{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	categoryRepo := NewGormRepository(testDB.DB)
@@ -352,9 +346,7 @@ func TestCategoryService_CategoryOrdering(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Category{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	categoryRepo := NewGormRepository(testDB.DB)
@@ -407,9 +399,7 @@ func TestCategoryService_BulkOperations(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Category{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	categoryRepo := NewGormRepository(testDB.DB)
@@ -462,9 +452,7 @@ func TestCategoryService_MultiTenantIsolation(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Category{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	categoryRepo := NewGormRepository(testDB.DB)

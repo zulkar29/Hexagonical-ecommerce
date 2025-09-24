@@ -46,16 +46,22 @@ type ServerConfig struct {
 	IdleTimeout  time.Duration `mapstructure:"idle_timeout"`
 }
 
+// DatabaseConfig holds PostgreSQL database configuration
 type DatabaseConfig struct {
-	Host     string `mapstructure:"host"`
-	Port     int    `mapstructure:"port"`
-	User     string `mapstructure:"user"`
-	Password string `mapstructure:"password"`
-	DBName   string `mapstructure:"dbname"`
-	SSLMode  string `mapstructure:"sslmode"`
-	MaxIdleConns int `mapstructure:"max_idle_conns"`
-	MaxOpenConns int `mapstructure:"max_open_conns"`
+	Host            string        `mapstructure:"host"`
+	Port            int           `mapstructure:"port"`
+	User            string        `mapstructure:"user"`
+	Password        string        `mapstructure:"password"`
+	DBName          string        `mapstructure:"dbname"`
+	SSLMode         string        `mapstructure:"sslmode"`
+	// PostgreSQL-specific connection pool settings
+	MaxIdleConns    int           `mapstructure:"max_idle_conns"`
+	MaxOpenConns    int           `mapstructure:"max_open_conns"`
 	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime"`
+	// PostgreSQL-specific parameters
+	TimeZone        string        `mapstructure:"timezone"`
+	ConnectTimeout  time.Duration `mapstructure:"connect_timeout"`
+	StatementTimeout time.Duration `mapstructure:"statement_timeout"`
 }
 
 type RedisConfig struct {
@@ -112,6 +118,7 @@ type AppConfig struct {
 	Debug       bool   `mapstructure:"debug"`
 	LogLevel    string `mapstructure:"log_level"`
 	Domain      string `mapstructure:"domain"`
+	Currency    string `mapstructure:"currency"`
 	CORS        CORSConfig `mapstructure:"cors"`
 	RateLimit   RateLimitConfig `mapstructure:"rate_limit"`
 }
@@ -177,7 +184,7 @@ func setDefaults() {
 	viper.SetDefault("server.write_timeout", "30s")
 	viper.SetDefault("server.idle_timeout", "120s")
 
-	// Database defaults
+	// PostgreSQL database defaults
 	viper.SetDefault("database.host", "localhost")
 	viper.SetDefault("database.port", 5432)
 	viper.SetDefault("database.user", "postgres")
@@ -187,6 +194,10 @@ func setDefaults() {
 	viper.SetDefault("database.max_idle_conns", 10)
 	viper.SetDefault("database.max_open_conns", 100)
 	viper.SetDefault("database.conn_max_lifetime", "1h")
+	// PostgreSQL-specific defaults
+	viper.SetDefault("database.timezone", "UTC")
+	viper.SetDefault("database.connect_timeout", "30s")
+	viper.SetDefault("database.statement_timeout", "30s")
 
 	// Redis defaults
 	viper.SetDefault("redis.host", "localhost")
@@ -211,6 +222,7 @@ func setDefaults() {
 	viper.SetDefault("app.debug", true)
 	viper.SetDefault("app.log_level", "debug")
 	viper.SetDefault("app.domain", "esass.com")
+	viper.SetDefault("app.currency", "BDT")
 
 	// CORS defaults
 	viper.SetDefault("app.cors.allowed_origins", []string{"*"})
@@ -290,6 +302,16 @@ func loadFromEnv() {
 			viper.Set("app.log_level", "info")
 		}
 	}
+
+	// Domain configuration
+	if domain := os.Getenv("DOMAIN"); domain != "" {
+		viper.Set("app.domain", domain)
+	}
+
+	// Currency configuration
+	if currency := os.Getenv("DEFAULT_CURRENCY"); currency != "" {
+		viper.Set("app.currency", currency)
+	}
 }
 
 // IsProduction returns true if running in production environment
@@ -302,16 +324,28 @@ func (c *Config) IsDevelopment() bool {
 	return c.App.Environment == "development"
 }
 
-// GetDSN returns the database connection string
+// GetDSN returns the PostgreSQL database connection string
+func (c *DatabaseConfig) GetDSN() string {
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		c.Host, c.Port, c.User, c.Password, c.DBName, c.SSLMode)
+	
+	// Add PostgreSQL-specific parameters if configured
+	if c.TimeZone != "" {
+		dsn += fmt.Sprintf(" TimeZone=%s", c.TimeZone)
+	}
+	if c.ConnectTimeout > 0 {
+		dsn += fmt.Sprintf(" connect_timeout=%d", int(c.ConnectTimeout.Seconds()))
+	}
+	if c.StatementTimeout > 0 {
+		dsn += fmt.Sprintf(" statement_timeout=%d", int(c.StatementTimeout.Milliseconds()))
+	}
+	
+	return dsn
+}
+
+// GetDSN returns the PostgreSQL database connection string
 func (c *Config) GetDSN() string {
-	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		c.Database.Host,
-		c.Database.Port,
-		c.Database.User,
-		c.Database.Password,
-		c.Database.DBName,
-		c.Database.SSLMode,
-	)
+	return c.Database.GetDSN()
 }
 
 // GetRedisAddr returns the Redis connection address

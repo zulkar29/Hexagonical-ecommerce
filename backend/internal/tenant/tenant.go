@@ -2,6 +2,7 @@ package tenant
 
 import (
 	"errors"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -34,6 +35,11 @@ type Tenant struct {
 	CustomDomain string    `json:"custom_domain,omitempty"`
 	Status       Status    `json:"status" gorm:"default:active"`
 	Plan         Plan      `json:"plan" gorm:"default:starter"`
+
+	// Trial Information
+	TrialStartDate *time.Time `json:"trial_start_date,omitempty"`
+	TrialEndDate   *time.Time `json:"trial_end_date,omitempty"`
+	IsTrialActive  bool       `json:"is_trial_active" gorm:"default:false"`
 
 	// Business Information
 	Description string `json:"description,omitempty"`
@@ -116,11 +122,29 @@ func (t *Tenant) HasCustomDomain() bool {
 }
 
 // GetDomain returns the primary domain (custom if available, otherwise subdomain)
+// Deprecated: Use GetDomainWithBase(baseDomain string) for configurable domains
+// This method is kept for backward compatibility but should be avoided
 func (t *Tenant) GetDomain() string {
 	if t.HasCustomDomain() {
 		return t.CustomDomain
 	}
-	return t.Subdomain + ".esass.com" // TODO: Use actual domain from config
+	// Use environment variable - no hardcoded fallback
+	baseDomain := os.Getenv("ESASS_DOMAIN")
+	if baseDomain == "" {
+		baseDomain = os.Getenv("DOMAIN")
+	}
+	if baseDomain == "" {
+		panic("Base domain must be configured via ESASS_DOMAIN or DOMAIN environment variable")
+	}
+	return t.Subdomain + "." + baseDomain
+}
+
+// GetDomainWithBase returns the primary domain with configurable base domain
+func (t *Tenant) GetDomainWithBase(baseDomain string) string {
+	if t.HasCustomDomain() {
+		return t.CustomDomain
+	}
+	return t.Subdomain + "." + baseDomain
 }
 
 // CanUsePremiumFeatures checks if tenant plan allows premium features
@@ -183,6 +207,17 @@ type TenantStatsResponse struct {
 	BandwidthLimit int      `json:"bandwidth_limit_mb"`
 	ProductLimit   int      `json:"product_limit"`
 	PlanFeatures   []string `json:"plan_features"`
+}
+
+// TrialStatusResponse represents trial status information
+type TrialStatusResponse struct {
+	TenantID        string     `json:"tenant_id"`
+	IsTrialActive   bool       `json:"is_trial_active"`
+	IsTrialExpired  bool       `json:"is_trial_expired"`
+	IsInTrialPeriod bool       `json:"is_in_trial_period"`
+	DaysRemaining   int        `json:"days_remaining"`
+	TrialStartDate  *time.Time `json:"trial_start_date,omitempty"`
+	TrialEndDate    *time.Time `json:"trial_end_date,omitempty"`
 }
 
 // TenantFilter represents filtering options for tenant listing
@@ -288,9 +323,41 @@ func (t *Tenant) GetFeatureList() []string {
 
 // IsTrialExpired checks if trial period has expired (if applicable)
 func (t *Tenant) IsTrialExpired() bool {
-	// TODO: Implement trial logic when trial system is added
-	// For now, assume no trials
-	return false
+	if !t.IsTrialActive || t.TrialEndDate == nil {
+		return false
+	}
+	return time.Now().After(*t.TrialEndDate)
+}
+
+// StartTrial initiates a trial period for the tenant
+func (t *Tenant) StartTrial(trialDurationDays int) {
+	now := time.Now()
+	t.TrialStartDate = &now
+	trialEnd := now.AddDate(0, 0, trialDurationDays)
+	t.TrialEndDate = &trialEnd
+	t.IsTrialActive = true
+}
+
+// EndTrial ends the trial period for the tenant
+func (t *Tenant) EndTrial() {
+	t.IsTrialActive = false
+}
+
+// GetTrialDaysRemaining returns the number of days remaining in the trial
+func (t *Tenant) GetTrialDaysRemaining() int {
+	if !t.IsTrialActive || t.TrialEndDate == nil {
+		return 0
+	}
+	if t.IsTrialExpired() {
+		return 0
+	}
+	duration := time.Until(*t.TrialEndDate)
+	return int(duration.Hours() / 24)
+}
+
+// IsInTrialPeriod checks if tenant is currently in trial period
+func (t *Tenant) IsInTrialPeriod() bool {
+	return t.IsTrialActive && !t.IsTrialExpired()
 }
 
 // GetBandwidthLimit returns bandwidth limit in MB based on plan

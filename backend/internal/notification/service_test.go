@@ -18,9 +18,7 @@ func TestNotificationService_NotificationLifecycle(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Notification{}, &NotificationTemplate{}, &NotificationPreference{}, &NotificationLog{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	notificationRepo := NewRepository(testDB.DB)
@@ -128,9 +126,7 @@ func TestNotificationService_TemplateManagement(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&NotificationTemplate{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	notificationRepo := NewRepository(testDB.DB)
@@ -239,9 +235,7 @@ func TestNotificationService_UserPreferences(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&NotificationPreference{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	notificationRepo := NewRepository(testDB.DB)
@@ -301,9 +295,7 @@ func TestNotificationService_Statistics(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Notification{}, &NotificationLog{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	notificationRepo := NewRepository(testDB.DB)
@@ -374,9 +366,7 @@ func TestNotificationService_MultiTenantIsolation(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Notification{}, &NotificationTemplate{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	notificationRepo := NewRepository(testDB.DB)

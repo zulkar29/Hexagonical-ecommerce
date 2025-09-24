@@ -1,6 +1,7 @@
 package wishlist
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -81,7 +82,11 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 // CreateWishlist creates a new wishlist
 func (h *Handler) CreateWishlist(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	var req CreateWishlistRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -103,7 +108,11 @@ func (h *Handler) CreateWishlist(c *gin.Context) {
 // CreateCustomerWishlist creates a new wishlist for a specific customer
 func (h *Handler) CreateCustomerWishlist(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	customerID, err := h.getUUIDParam(c, "customerID")
 	if err != nil {
@@ -132,7 +141,11 @@ func (h *Handler) CreateCustomerWishlist(c *gin.Context) {
 // GetWishlist retrieves a wishlist by ID
 func (h *Handler) GetWishlist(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	wishlistID, err := h.getUUIDParam(c, "wishlistID")
 	if err != nil {
@@ -171,7 +184,11 @@ func (h *Handler) GetWishlistByShareToken(c *gin.Context) {
 // UpdateWishlist updates an existing wishlist
 func (h *Handler) UpdateWishlist(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	wishlistID, err := h.getUUIDParam(c, "wishlistID")
 	if err != nil {
@@ -197,7 +214,11 @@ func (h *Handler) UpdateWishlist(c *gin.Context) {
 // DeleteWishlist deletes a wishlist
 func (h *Handler) DeleteWishlist(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	wishlistID, err := h.getUUIDParam(c, "wishlistID")
 	if err != nil {
@@ -216,7 +237,11 @@ func (h *Handler) DeleteWishlist(c *gin.Context) {
 // ListWishlists returns paginated wishlists
 func (h *Handler) ListWishlists(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	// Parse query parameters
 	filter := h.parseWishlistFilter(c)
@@ -241,7 +266,11 @@ func (h *Handler) ListWishlists(c *gin.Context) {
 // ShareWishlist makes a wishlist public/private
 func (h *Handler) ShareWishlist(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	wishlistID, err := h.getUUIDParam(c, "wishlistID")
 	if err != nil {
@@ -276,7 +305,11 @@ func (h *Handler) ShareWishlist(c *gin.Context) {
 // GetCustomerWishlists returns all wishlists for a customer
 func (h *Handler) GetCustomerWishlists(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	customerID, err := h.getUUIDParam(c, "customerID")
 	if err != nil {
@@ -296,7 +329,11 @@ func (h *Handler) GetCustomerWishlists(c *gin.Context) {
 // GetDefaultWishlist returns the default wishlist for a customer
 func (h *Handler) GetDefaultWishlist(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	customerID, err := h.getUUIDParam(c, "customerID")
 	if err != nil {
@@ -316,7 +353,11 @@ func (h *Handler) GetDefaultWishlist(c *gin.Context) {
 // SetDefaultWishlist sets a wishlist as default for a customer
 func (h *Handler) SetDefaultWishlist(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	customerID, err := h.getUUIDParam(c, "customerID")
 	if err != nil {
@@ -343,7 +384,11 @@ func (h *Handler) SetDefaultWishlist(c *gin.Context) {
 // AddItem adds an item to a wishlist
 func (h *Handler) AddItem(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	wishlistID, err := h.getUUIDParam(c, "wishlistID")
 	if err != nil {
@@ -371,7 +416,11 @@ func (h *Handler) AddItem(c *gin.Context) {
 // GetItem retrieves a wishlist item by ID
 func (h *Handler) GetItem(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	itemID, err := h.getUUIDParam(c, "itemID")
 	if err != nil {
@@ -391,7 +440,11 @@ func (h *Handler) GetItem(c *gin.Context) {
 // UpdateItem updates a wishlist item
 func (h *Handler) UpdateItem(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	itemID, err := h.getUUIDParam(c, "itemID")
 	if err != nil {
@@ -417,7 +470,11 @@ func (h *Handler) UpdateItem(c *gin.Context) {
 // RemoveItem removes an item from a wishlist
 func (h *Handler) RemoveItem(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	itemID, err := h.getUUIDParam(c, "itemID")
 	if err != nil {
@@ -436,7 +493,11 @@ func (h *Handler) RemoveItem(c *gin.Context) {
 // ListItems returns paginated wishlist items
 func (h *Handler) ListItems(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	// Parse query parameters
 	filter := h.parseWishlistItemFilter(c)
@@ -461,7 +522,11 @@ func (h *Handler) ListItems(c *gin.Context) {
 // ListWishlistItems returns items for a specific wishlist
 func (h *Handler) ListWishlistItems(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	wishlistID, err := h.getUUIDParam(c, "wishlistID")
 	if err != nil {
@@ -493,7 +558,11 @@ func (h *Handler) ListWishlistItems(c *gin.Context) {
 // MoveItem moves an item to another wishlist
 func (h *Handler) MoveItem(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	itemID, err := h.getUUIDParam(c, "itemID")
 	if err != nil {
@@ -520,7 +589,11 @@ func (h *Handler) MoveItem(c *gin.Context) {
 // CopyItem copies an item to another wishlist
 func (h *Handler) CopyItem(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	itemID, err := h.getUUIDParam(c, "itemID")
 	if err != nil {
@@ -547,7 +620,11 @@ func (h *Handler) CopyItem(c *gin.Context) {
 // ClearWishlist removes all items from a wishlist
 func (h *Handler) ClearWishlist(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	wishlistID, err := h.getUUIDParam(c, "wishlistID")
 	if err != nil {
@@ -568,7 +645,11 @@ func (h *Handler) ClearWishlist(c *gin.Context) {
 // BulkAddItems adds multiple items to a wishlist
 func (h *Handler) BulkAddItems(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	wishlistID, err := h.getUUIDParam(c, "wishlistID")
 	if err != nil {
@@ -601,7 +682,11 @@ func (h *Handler) BulkAddItems(c *gin.Context) {
 // BulkRemoveItems removes multiple items from wishlists
 func (h *Handler) BulkRemoveItems(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	var req struct {
 		ItemIDs []uuid.UUID `json:"item_ids"`
@@ -622,7 +707,11 @@ func (h *Handler) BulkRemoveItems(c *gin.Context) {
 // BulkUpdateItemPriority updates priority for multiple items
 func (h *Handler) BulkUpdateItemPriority(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	var req struct {
 		Updates map[uuid.UUID]int `json:"updates"`
@@ -643,7 +732,11 @@ func (h *Handler) BulkUpdateItemPriority(c *gin.Context) {
 // ReorderItems reorders items in a wishlist
 func (h *Handler) ReorderItems(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	wishlistID, err := h.getUUIDParam(c, "wishlistID")
 	if err != nil {
@@ -672,7 +765,11 @@ func (h *Handler) ReorderItems(c *gin.Context) {
 // MergeWishlists merges source wishlist into target wishlist
 func (h *Handler) MergeWishlists(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	sourceID, err := h.getUUIDParam(c, "sourceID")
 	if err != nil {
@@ -699,7 +796,11 @@ func (h *Handler) MergeWishlists(c *gin.Context) {
 // GetWishlistStats returns wishlist statistics
 func (h *Handler) GetWishlistStats(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	stats, err := h.service.GetWishlistStats(ctx, tenantID)
 	if err != nil {
@@ -713,7 +814,11 @@ func (h *Handler) GetWishlistStats(c *gin.Context) {
 // GetMostWishedProducts returns the most wished products
 func (h *Handler) GetMostWishedProducts(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	limit := h.getIntParam(c, "limit", 10)
 
@@ -729,7 +834,11 @@ func (h *Handler) GetMostWishedProducts(c *gin.Context) {
 // GetCustomerActivity returns customer wishlist activity
 func (h *Handler) GetCustomerActivity(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	customerID, err := h.getUUIDParam(c, "customerID")
 	if err != nil {
@@ -751,7 +860,11 @@ func (h *Handler) GetCustomerActivity(c *gin.Context) {
 // GetPopularWishlists returns popular public wishlists
 func (h *Handler) GetPopularWishlists(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	limit := h.getIntParam(c, "limit", 10)
 
@@ -769,7 +882,11 @@ func (h *Handler) GetPopularWishlists(c *gin.Context) {
 // CleanupEmptyWishlists removes empty wishlists older than specified days
 func (h *Handler) CleanupEmptyWishlists(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	days := h.getIntParam(c, "days", 30)
 
@@ -789,7 +906,11 @@ func (h *Handler) CleanupEmptyWishlists(c *gin.Context) {
 // CleanupOrphanedItems removes items for non-existent products
 func (h *Handler) CleanupOrphanedItems(c *gin.Context) {
 	ctx := c.Request.Context()
-	tenantID := h.getTenantID(c)
+	tenantID, err := h.getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found", "details": err.Error()})
+		return
+	}
 
 	count, err := h.service.CleanupOrphanedItems(ctx, tenantID)
 	if err != nil {
@@ -806,11 +927,22 @@ func (h *Handler) CleanupOrphanedItems(c *gin.Context) {
 
 // Helper methods
 
-// getTenantID extracts tenant ID from request context or headers
-func (h *Handler) getTenantID(_ *gin.Context) uuid.UUID {
-	// This would typically come from JWT token or request context
-	// For now, return a placeholder
-	return uuid.New()
+// getTenantID extracts tenant ID from request context
+func (h *Handler) getTenantID(c *gin.Context) (uuid.UUID, error) {
+	// Try to get tenant ID from context (set by tenant middleware)
+	if tenantID, exists := c.Get("tenant_id"); exists {
+		if id, ok := tenantID.(uuid.UUID); ok {
+			return id, nil
+		}
+		// Try string format and convert
+		if idStr, ok := tenantID.(string); ok {
+			if id, err := uuid.Parse(idStr); err == nil {
+				return id, nil
+			}
+		}
+	}
+	
+	return uuid.Nil, fmt.Errorf("tenant ID not found in context")
 }
 
 // getUUIDParam extracts UUID parameter from URL

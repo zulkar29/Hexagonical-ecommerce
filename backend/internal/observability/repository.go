@@ -39,6 +39,11 @@ type LogEntryModel struct {
 	CreatedAt time.Time `gorm:"autoCreateTime;index"`
 }
 
+// TableName specifies the table name for LogEntryModel
+func (LogEntryModel) TableName() string {
+	return "log_entries"
+}
+
 // MetricModel represents a metric in the database
 type MetricModel struct {
 	ID        string    `gorm:"primaryKey;type:uuid"`
@@ -49,6 +54,11 @@ type MetricModel struct {
 	Version   string    `gorm:"not null"`
 	Tags      string    `gorm:"type:jsonb"` // Tags as JSON
 	CreatedAt time.Time `gorm:"autoCreateTime;index"`
+}
+
+// TableName specifies the table name for MetricModel
+func (MetricModel) TableName() string {
+	return "metrics"
 }
 
 // TraceModel represents a trace in the database
@@ -63,6 +73,11 @@ type TraceModel struct {
 	SpanCount     int       `gorm:"default:0"`
 	Tags          string    `gorm:"type:jsonb"`
 	CreatedAt     time.Time `gorm:"autoCreateTime"`
+}
+
+// TableName specifies the table name for TraceModel
+func (TraceModel) TableName() string {
+	return "traces"
 }
 
 // SpanModel represents a span in the database
@@ -80,6 +95,11 @@ type SpanModel struct {
 	CreatedAt     time.Time `gorm:"autoCreateTime"`
 }
 
+// TableName specifies the table name for SpanModel
+func (SpanModel) TableName() string {
+	return "spans"
+}
+
 // AlertModel represents an alert in the database
 type AlertModel struct {
 	ID          int64     `gorm:"primaryKey;autoIncrement"`
@@ -94,16 +114,12 @@ type AlertModel struct {
 	ResolvedAt  *time.Time
 }
 
-// Migrate creates or updates the database tables
-func (r *observabilityRepository) Migrate() error {
-	return r.db.AutoMigrate(
-		&LogEntryModel{},
-		&MetricModel{},
-		&TraceModel{},
-		&SpanModel{},
-		&AlertModel{},
-	)
+// TableName specifies the table name for AlertModel
+func (AlertModel) TableName() string {
+	return "alerts"
 }
+
+// Note: Database schema is handled by raw SQL migrations in /migrations directory
 
 // Log storage methods
 

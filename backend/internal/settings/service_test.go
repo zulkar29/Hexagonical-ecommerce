@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -14,19 +15,21 @@ import (
 
 func TestSettingsService_SettingsManagement(t *testing.T) {
 	// Setup test database
-	testDB := testhelpers.SetupSimpleTestDatabase(t)
+	testDB := testhelpers.SetupTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Setting{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	settingsRepo := NewRepository(testDB.DB)
 	settingsService := NewService(settingsRepo)
 
 	ctx := context.Background()
-	tenantID := uint(1)
+	// Use the fixed test tenant ID from fixtures
+	tenantID, _ := uuid.Parse("11111111-1111-1111-1111-111111111111")
+	
+	// Seed test data to create the tenant
+	testhelpers.SeedMinimalTestData(t, testDB.DB)
 
 	t.Run("General settings CRUD operations", func(t *testing.T) {
 		// Step 1: Update general settings
@@ -172,19 +175,21 @@ func TestSettingsService_SettingsManagement(t *testing.T) {
 
 func TestSettingsService_PublicSettings(t *testing.T) {
 	// Setup test database
-	testDB := testhelpers.SetupSimpleTestDatabase(t)
+	testDB := testhelpers.SetupTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Setting{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	settingsRepo := NewRepository(testDB.DB)
 	settingsService := NewService(settingsRepo)
 
 	ctx := context.Background()
-	tenantID := uint(1)
+	// Use the fixed test tenant ID from fixtures
+	tenantID, _ := uuid.Parse("11111111-1111-1111-1111-111111111111")
+	
+	// Seed test data to create the tenant
+	testhelpers.SeedMinimalTestData(t, testDB.DB)
 
 	t.Run("Public settings retrieval", func(t *testing.T) {
 		// First, set up some public settings
@@ -225,20 +230,29 @@ func TestSettingsService_PublicSettings(t *testing.T) {
 
 func TestSettingsService_MultiTenantIsolation(t *testing.T) {
 	// Setup test database
-	testDB := testhelpers.SetupSimpleTestDatabase(t)
+	testDB := testhelpers.SetupTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Setting{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	settingsRepo := NewRepository(testDB.DB)
 	settingsService := NewService(settingsRepo)
 
 	ctx := context.Background()
-	tenant1ID := uint(1)
-	tenant2ID := uint(2)
+	// Use fixed test tenant IDs
+	tenant1ID, _ := uuid.Parse("11111111-1111-1111-1111-111111111111")
+	tenant2ID, _ := uuid.Parse("22222222-2222-2222-2222-222222222222")
+	
+	// Seed test data to create the tenants
+	testhelpers.SeedMinimalTestData(t, testDB.DB)
+	
+	// Create second tenant
+	result := testDB.DB.Exec(`
+		INSERT INTO tenants (id, name, subdomain, status, plan, currency, language, timezone, product_limit, storage_limit, bandwidth_limit, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+	`, tenant2ID, "Test Store 2", "test2", "active", "starter", "BDT", "en", "Asia/Dhaka", 100, 1024, 10240)
+	require.NoError(t, result.Error)
 
 	t.Run("Settings isolation between tenants", func(t *testing.T) {
 		// Update settings for tenant 1

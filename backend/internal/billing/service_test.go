@@ -19,9 +19,7 @@ func TestBillingService_BillingPlanManagement(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&BillingPlan{}, &TenantSubscription{}, &UsageTier{}, &UsageRecord{}, &Invoice{}, &InvoiceLineItem{}, &PaymentAttempt{}, &DunningProcess{}, &DunningAction{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	billingRepo := NewRepository(testDB.DB)
@@ -96,9 +94,7 @@ func TestBillingService_SubscriptionManagement(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&BillingPlan{}, &TenantSubscription{}, &UsageTier{}, &UsageRecord{}, &Invoice{}, &InvoiceLineItem{}, &PaymentAttempt{}, &DunningProcess{}, &DunningAction{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	billingRepo := NewRepository(testDB.DB)
@@ -160,9 +156,7 @@ func TestBillingService_UsageTracking(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas for usage tracking
-	err := testDB.DB.AutoMigrate(&BillingPlan{}, &TenantSubscription{}, &UsageTier{}, &UsageRecord{}, &Invoice{}, &InvoiceLineItem{}, &PaymentAttempt{}, &DunningProcess{}, &DunningAction{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	billingRepo := NewRepository(testDB.DB)
@@ -232,9 +226,7 @@ func TestBillingService_MultiTenantIsolation(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&BillingPlan{}, &TenantSubscription{}, &UsageTier{}, &UsageRecord{}, &Invoice{}, &InvoiceLineItem{}, &PaymentAttempt{}, &DunningProcess{}, &DunningAction{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	billingRepo := NewRepository(testDB.DB)

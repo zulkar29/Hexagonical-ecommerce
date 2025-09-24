@@ -769,3 +769,8 @@ func (s *Service) ProcessBackgroundTasks() error {
 
 	return nil
 }
+
+// GetPendingRetries returns webhook deliveries that need to be retried
+func (s *Service) GetPendingRetries(limit int) ([]*WebhookDelivery, error) {
+	return s.repo.GetPendingRetries(limit)
+}

@@ -2,6 +2,7 @@ package marketing
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -617,13 +618,49 @@ func (s *service) GetAbandonedCarts(ctx context.Context, tenantID uuid.UUID, fil
 }
 
 func (s *service) MarkCartRecovered(ctx context.Context, tenantID, cartID uuid.UUID, recoveredValue float64) error {
-	// TODO: Implement cart recovery logic
+	// Validate inputs
+	if tenantID == uuid.Nil {
+		return errors.New("tenant ID is required")
+	}
+	if cartID == uuid.Nil {
+		return errors.New("cart ID is required")
+	}
+	if recoveredValue < 0 {
+		return errors.New("recovered value cannot be negative")
+	}
+
+	// Get the abandoned cart to verify it exists and isn't already recovered
+	cart, err := s.repo.GetAbandonedCartByID(ctx, tenantID, cartID)
+	if err != nil {
+		return err
+	}
+
+	if cart.IsRecovered {
+		return errors.New("cart is already marked as recovered")
+	}
+
+	// Validate recovered value doesn't exceed original cart value
+	if recoveredValue > cart.CartValue {
+		return errors.New("recovered value cannot exceed original cart value")
+	}
+
+	// Mark cart as recovered
 	now := time.Now()
-	return s.repo.UpdateAbandonedCart(ctx, tenantID, cartID, map[string]interface{}{
+	err = s.repo.UpdateAbandonedCart(ctx, tenantID, cartID, map[string]interface{}{
 		"is_recovered":    true,
 		"recovered_at":    &now,
 		"recovered_value": recoveredValue,
+		"updated_at":      now,
 	})
+
+	if err != nil {
+		return err
+	}
+
+	// TODO: Send recovery confirmation email or webhook notification
+	// TODO: Update marketing analytics with recovery metrics
+
+	return nil
 }
 
 func (s *service) SendAbandonedCartEmail(ctx context.Context, tenantID, abandonedCartID uuid.UUID) error {

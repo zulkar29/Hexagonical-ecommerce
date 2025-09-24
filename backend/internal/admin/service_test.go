@@ -19,9 +19,7 @@ func TestAdminService_DashboardOperations(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Staff{}, &Role{}, &ActivityLog{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	adminRepo := NewRepository(testDB.DB)
@@ -64,9 +62,7 @@ func TestAdminService_StaffManagement(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Staff{}, &Role{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	adminRepo := NewRepository(testDB.DB)
@@ -167,9 +163,7 @@ func TestAdminService_RoleManagement(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Role{}, &Staff{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	adminRepo := NewRepository(testDB.DB)
@@ -225,8 +219,7 @@ func TestAdminService_MultiTenantIsolation(t *testing.T) {
 	defer testDB.TeardownTestDatabase(t)
 
 	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Staff{}, &Role{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	adminRepo := NewRepository(testDB.DB)

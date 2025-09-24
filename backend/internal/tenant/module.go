@@ -1,6 +1,7 @@
 package tenant
 
 import (
+	"ecommerce-saas/internal/shared/config"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -54,9 +55,9 @@ type Module struct {
 }
 
 // NewModule creates a new tenant module with all dependencies
-func NewModule(db *gorm.DB) *Module {
+func NewModule(db *gorm.DB, config *config.Config) *Module {
 	repository := NewRepository(db)
-	service := NewService(repository)
+	service := NewService(repository, config)
 	handler := NewHandler(service)
 
 	return &Module{

@@ -2,9 +2,9 @@ package settings
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // Handler handles HTTP requests for settings
@@ -41,12 +41,12 @@ func (h *Handler) GetSettings(c *gin.Context) {
 		return
 	}
 
-	tenantIDUint, ok := tenantID.(uint)
+	tenantIDUUID, ok := tenantID.(uuid.UUID)
 	if !ok {
 		// Try to convert from string
 		if tenantIDStr, ok := tenantID.(string); ok {
-			if id, err := strconv.ParseUint(tenantIDStr, 10, 32); err == nil {
-				tenantIDUint = uint(id)
+			if parsedUUID, err := uuid.Parse(tenantIDStr); err == nil {
+				tenantIDUUID = parsedUUID
 			} else {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID format"})
 				return
@@ -65,7 +65,7 @@ func (h *Handler) GetSettings(c *gin.Context) {
 	}
 
 	// Call service
-	response, err := h.service.GetSettings(c.Request.Context(), tenantIDUint, &req)
+	response, err := h.service.GetSettings(c.Request.Context(), tenantIDUUID, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get settings", "details": err.Error()})
 		return
@@ -83,12 +83,12 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 		return
 	}
 
-	tenantIDUint, ok := tenantID.(uint)
+	tenantIDUUID, ok := tenantID.(uuid.UUID)
 	if !ok {
 		// Try to convert from string
 		if tenantIDStr, ok := tenantID.(string); ok {
-			if id, err := strconv.ParseUint(tenantIDStr, 10, 32); err == nil {
-				tenantIDUint = uint(id)
+			if parsedUUID, err := uuid.Parse(tenantIDStr); err == nil {
+				tenantIDUUID = parsedUUID
 			} else {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID format"})
 				return
@@ -113,7 +113,7 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 	}
 
 	// Call service
-	response, err := h.service.UpdateSettings(c.Request.Context(), tenantIDUint, &req)
+	response, err := h.service.UpdateSettings(c.Request.Context(), tenantIDUUID, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update settings", "details": err.Error()})
 		return
@@ -131,12 +131,12 @@ func (h *Handler) GetPublicSettings(c *gin.Context) {
 		return
 	}
 
-	tenantIDUint, ok := tenantID.(uint)
+	tenantIDUUID, ok := tenantID.(uuid.UUID)
 	if !ok {
 		// Try to convert from string
 		if tenantIDStr, ok := tenantID.(string); ok {
-			if id, err := strconv.ParseUint(tenantIDStr, 10, 32); err == nil {
-				tenantIDUint = uint(id)
+			if parsedUUID, err := uuid.Parse(tenantIDStr); err == nil {
+				tenantIDUUID = parsedUUID
 			} else {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID format"})
 				return
@@ -148,7 +148,7 @@ func (h *Handler) GetPublicSettings(c *gin.Context) {
 	}
 
 	// Call service
-	response, err := h.service.GetPublicSettings(c.Request.Context(), tenantIDUint)
+	response, err := h.service.GetPublicSettings(c.Request.Context(), tenantIDUUID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get public settings", "details": err.Error()})
 		return

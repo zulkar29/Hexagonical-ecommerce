@@ -1,10 +1,13 @@
 package utils
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"os"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -165,33 +168,133 @@ func IsValidURL(url string) bool {
 
 // Formatting utilities
 
-// FormatCurrency formats amount as currency (BDT)
+// SettingsRepository interface for getting tenant settings
+type SettingsRepository interface {
+	GetSetting(ctx context.Context, tenantID uint, section, key string) (*Setting, error)
+}
+
+// Setting represents a setting value
+type Setting struct {
+	Value string `json:"value"`
+}
+
+// SettingsRepositoryAdapter adapts settings.Repository to utils.SettingsRepository
+type SettingsRepositoryAdapter struct {
+	repo interface {
+		GetSetting(tenantID uint, section, key string) (interface{}, error)
+	}
+}
+
+// NewSettingsRepositoryAdapter creates a new adapter
+func NewSettingsRepositoryAdapter(repo interface{}) SettingsRepository {
+	return &DirectSettingsRepositoryAdapter{repo: repo}
+}
+
+// DirectSettingsRepositoryAdapter adapts concrete settings.Repository
+type DirectSettingsRepositoryAdapter struct {
+	repo interface{}
+}
+
+// GetSetting implements SettingsRepository interface for concrete repository
+func (a *DirectSettingsRepositoryAdapter) GetSetting(ctx context.Context, tenantID uint, section, key string) (*Setting, error) {
+	// Use reflection to call GetSetting method
+	v := reflect.ValueOf(a.repo)
+	method := v.MethodByName("GetSetting")
+	if !method.IsValid() {
+		return nil, fmt.Errorf("GetSetting method not found")
+	}
+	
+	// Call the method with parameters
+	args := []reflect.Value{
+		reflect.ValueOf(tenantID),
+		reflect.ValueOf(section),
+		reflect.ValueOf(key),
+	}
+	
+	results := method.Call(args)
+	if len(results) != 2 {
+		return nil, fmt.Errorf("unexpected number of return values")
+	}
+	
+	// Check for error
+	if !results[1].IsNil() {
+		err, ok := results[1].Interface().(error)
+		if ok {
+			return nil, err
+		}
+	}
+	
+	// Check if result is nil
+	if results[0].IsNil() {
+		return nil, nil
+	}
+	
+	// Extract Value field from the result
+	settingValue := results[0].Elem()
+	valueField := settingValue.FieldByName("Value")
+	if valueField.IsValid() && valueField.Kind() == reflect.String {
+		return &Setting{Value: valueField.String()}, nil
+	}
+	
+	return &Setting{Value: ""}, nil
+}
+
+// GetSetting implements SettingsRepository interface
+func (a *SettingsRepositoryAdapter) GetSetting(ctx context.Context, tenantID uint, section, key string) (*Setting, error) {
+	result, err := a.repo.GetSetting(tenantID, section, key)
+	if err != nil {
+		return nil, err
+	}
+	
+	if result == nil {
+		return nil, nil
+	}
+	
+	// Use reflection to extract the Value field from settings.Setting
+	v := reflect.ValueOf(result)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	
+	if v.Kind() == reflect.Struct {
+		valueField := v.FieldByName("Value")
+		if valueField.IsValid() && valueField.Kind() == reflect.String {
+			return &Setting{Value: valueField.String()}, nil
+		}
+	}
+	
+	return &Setting{Value: ""}, nil
+}
+
+// GetTenantCurrency retrieves currency from tenant settings or returns default
+func GetTenantCurrency(ctx context.Context, tenantID uuid.UUID, settingsRepo SettingsRepository) string {
+	if settingsRepo != nil {
+		// Convert UUID to uint for settings repository compatibility
+		// TODO: Update settings repository to use UUID consistently
+		tenantIDUint := uint(tenantID.ID())
+		if setting, err := settingsRepo.GetSetting(ctx, tenantIDUint, "general", "currency"); err == nil && setting != nil && setting.Value != "" {
+			return setting.Value
+		}
+	}
+	
+	// Fallback to default currency from environment
+	currency := os.Getenv("DEFAULT_CURRENCY")
+	if currency == "" {
+		panic("DEFAULT_CURRENCY environment variable is required")
+	}
+	return currency
+}
+
+// FormatCurrency formats a float64 amount as currency string
 func FormatCurrency(amount float64, currency string) string {
 	if currency == "" {
-		currency = "BDT"
-	}
-
-	// Format with 2 decimal places
-	formatted := fmt.Sprintf("%.2f", amount)
-
-	// Add thousand separators
-	parts := strings.Split(formatted, ".")
-	intPart := parts[0]
-	decPart := parts[1]
-
-	// Add commas for thousands
-	if len(intPart) > 3 {
-		var result []string
-		for i, char := range intPart {
-			if i > 0 && (len(intPart)-i)%3 == 0 {
-				result = append(result, ",")
-			}
-			result = append(result, string(char))
+		// Get default currency from environment variable
+		currency = os.Getenv("DEFAULT_CURRENCY")
+		if currency == "" {
+			panic("DEFAULT_CURRENCY environment variable is required")
 		}
-		intPart = strings.Join(result, "")
 	}
-
-	return fmt.Sprintf("%s %s.%s", currency, intPart, decPart)
+	return fmt.Sprintf("%.2f %s", amount, currency)
 }
 
 // FormatPhone formats phone number for display

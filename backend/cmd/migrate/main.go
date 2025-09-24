@@ -18,7 +18,7 @@ func main() {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	// Connect to database
+	// Connect to PostgreSQL database
 	db, err := database.Connect(cfg)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
@@ -26,11 +26,11 @@ func main() {
 
 	switch *action {
 	case "up":
-		log.Println("Running migrations...")
-		if parseErr := database.AutoMigrate(db); parseErr != nil {
+		log.Println("Running raw SQL migrations...")
+		if parseErr := database.RunMigrations(db); parseErr != nil {
 			log.Fatalf("Failed to run migrations: %v", parseErr)
 		}
-		log.Println("Migrations completed successfully")
+		log.Println("Raw SQL migrations completed successfully")
 
 	case "seed":
 		log.Println("Seeding database...")
@@ -41,8 +41,10 @@ func main() {
 
 	case "reset":
 		log.Println("Resetting database...")
-		// TODO: Implement database reset
-		log.Println("Database reset - TODO: implement")
+		if parseErr := database.ResetDatabase(db); parseErr != nil {
+			log.Fatalf("Failed to reset database: %v", parseErr)
+		}
+		log.Println("Database reset completed successfully")
 
 	default:
 		log.Printf("Unknown action: %s", *action)

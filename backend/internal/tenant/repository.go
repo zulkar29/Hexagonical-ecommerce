@@ -1,6 +1,10 @@
 package tenant
 
 import (
+	"errors"
+	"strings"
+	"time"
+
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -20,7 +24,17 @@ func NewRepository(db *gorm.DB) Repository {
 // Save creates a new tenant in the database
 func (r *RepositoryImpl) Save(tenant *Tenant) (*Tenant, error) {
 	if err := r.db.Create(tenant).Error; err != nil {
-		return nil, err
+		// Check for unique constraint violations
+		if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "UNIQUE constraint") {
+			if strings.Contains(err.Error(), "subdomain") {
+				return nil, NewConflictError("Subdomain already exists")
+			}
+			if strings.Contains(err.Error(), "custom_domain") {
+				return nil, NewConflictError("Custom domain already exists")
+			}
+			return nil, NewConflictError("Tenant already exists")
+		}
+		return nil, NewInternalError("Failed to create tenant")
 	}
 	return tenant, nil
 }
@@ -29,7 +43,10 @@ func (r *RepositoryImpl) Save(tenant *Tenant) (*Tenant, error) {
 func (r *RepositoryImpl) FindByID(id uuid.UUID) (*Tenant, error) {
 	var tenant Tenant
 	if err := r.db.First(&tenant, "id = ?", id).Error; err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, NewNotFoundError("Tenant not found")
+		}
+		return nil, NewInternalError("Failed to retrieve tenant")
 	}
 	return &tenant, nil
 }
@@ -38,7 +55,10 @@ func (r *RepositoryImpl) FindByID(id uuid.UUID) (*Tenant, error) {
 func (r *RepositoryImpl) FindBySubdomain(subdomain string) (*Tenant, error) {
 	var tenant Tenant
 	if err := r.db.First(&tenant, "subdomain = ?", subdomain).Error; err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, NewNotFoundError("Tenant not found")
+		}
+		return nil, NewInternalError("Failed to retrieve tenant by subdomain")
 	}
 	return &tenant, nil
 }
@@ -47,7 +67,10 @@ func (r *RepositoryImpl) FindBySubdomain(subdomain string) (*Tenant, error) {
 func (r *RepositoryImpl) FindByCustomDomain(domain string) (*Tenant, error) {
 	var tenant Tenant
 	if err := r.db.First(&tenant, "custom_domain = ?", domain).Error; err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, NewNotFoundError("Tenant not found")
+		}
+		return nil, NewInternalError("Failed to retrieve tenant by custom domain")
 	}
 	return &tenant, nil
 }
@@ -55,28 +78,48 @@ func (r *RepositoryImpl) FindByCustomDomain(domain string) (*Tenant, error) {
 // Update updates an existing tenant
 func (r *RepositoryImpl) Update(tenant *Tenant) (*Tenant, error) {
 	if err := r.db.Save(tenant).Error; err != nil {
-		return nil, err
+		// Check for unique constraint violations
+		if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "UNIQUE constraint") {
+			if strings.Contains(err.Error(), "subdomain") {
+				return nil, NewConflictError("Subdomain already exists")
+			}
+			if strings.Contains(err.Error(), "custom_domain") {
+				return nil, NewConflictError("Custom domain already exists")
+			}
+		}
+		return nil, NewInternalError("Failed to update tenant")
 	}
 	return tenant, nil
 }
 
 // UpdateStatus updates only the status field
 func (r *RepositoryImpl) UpdateStatus(id uuid.UUID, status Status) error {
-	return r.db.Model(&Tenant{}).Where("id = ?", id).Update("status", status).Error
+	result := r.db.Model(&Tenant{}).Where("id = ?", id).Update("status", status)
+	if result.Error != nil {
+		return NewInternalError("Failed to update tenant status")
+	}
+	if result.RowsAffected == 0 {
+		return NewNotFoundError("Tenant not found")
+	}
+	return nil
 }
 
 // SubdomainExists checks if a subdomain is already taken
 func (r *RepositoryImpl) SubdomainExists(subdomain string) (bool, error) {
 	var count int64
-	err := r.db.Model(&Tenant{}).Where("subdomain = ?", subdomain).Count(&count).Error
-	return count > 0, err
+	if err := r.db.Model(&Tenant{}).Where("subdomain = ?", subdomain).Count(&count).Error; err != nil {
+		return false, NewInternalError("Failed to check subdomain existence")
+	}
+	return count > 0, nil
 }
 
 // CustomDomainExists checks if a custom domain is already taken
 func (r *RepositoryImpl) CustomDomainExists(domain string) (bool, error) {
 	var count int64
-	err := r.db.Model(&Tenant{}).Where("custom_domain = ?", domain).Count(&count).Error
-	return count > 0, err
+	if err := r.db.Model(&Tenant{}).Where("custom_domain = ?", domain).Count(&count).Error; err != nil {
+		return false, NewInternalError("Failed to check custom domain existence")
+	}
+	return count > 0, nil
 }
 
 // List retrieves tenants with pagination
@@ -181,8 +224,15 @@ func (r *RepositoryImpl) Search(query string, offset, limit int) ([]*Tenant, int
 
 // GetExpiringTrials returns tenants whose trials are expiring soon
 func (r *RepositoryImpl) GetExpiringTrials(days int) ([]*Tenant, error) {
-	// TODO: Implement trial logic when trial system is added
 	var tenants []*Tenant
+	expiryDate := time.Now().AddDate(0, 0, days)
+	
+	err := r.db.Where("is_trial_active = ? AND trial_end_date <= ? AND trial_end_date > ?", 
+		true, expiryDate, time.Now()).Find(&tenants).Error
+	if err != nil {
+		return nil, NewInternalError("failed to get expiring trials")
+	}
+	
 	return tenants, nil
 }
 

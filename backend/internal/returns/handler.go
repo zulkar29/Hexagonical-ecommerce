@@ -7,6 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+
+	"ecommerce-saas/internal/shared/utils"
 )
 
 // Handler handles HTTP requests for returns
@@ -1171,10 +1173,14 @@ func (h *Handler) HandleReturnOperation(c *gin.Context) {
 }
 
 // Helper functions
-func getTenantIDFromContext(_ *gin.Context) uuid.UUID {
-	// TODO: Extract tenant ID from context/middleware
-	// This should be set by authentication middleware
-	return uuid.New() // Placeholder
+func getTenantIDFromContext(c *gin.Context) uuid.UUID {
+	// Extract tenant ID from context using shared utility
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		// Log error and return nil UUID - this should be handled by middleware
+		return uuid.Nil
+	}
+	return tenantID
 }
 
 func getIntQueryParam(c *gin.Context, key string, defaultValue int) int {

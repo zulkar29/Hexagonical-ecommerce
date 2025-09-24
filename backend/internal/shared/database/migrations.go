@@ -38,12 +38,8 @@ func RunMigrations(db *gorm.DB) error {
 }
 
 // MigrationRecord tracks applied migrations
-type MigrationRecord struct {
-	ID        uint      `gorm:"primarykey"`
-	Version   string    `gorm:"uniqueIndex;not null"`
-	Name      string    `gorm:"not null"`
-	AppliedAt time.Time `gorm:"not null"`
-}
+// Note: The migration_records table is managed through raw SQL
+// to ensure consistency with our file-based migration system
 
 // createMigrationTable creates the migration tracking table
 func createMigrationTable(db *gorm.DB) error {
@@ -106,9 +102,11 @@ func runMigrationFile(db *gorm.DB, filePath string) error {
 	filename := filepath.Base(filePath)
 	migrationID := strings.TrimSuffix(filename, ".sql")
 
-	// Check if migration already applied
+	// Check if migration already applied using raw SQL
 	var count int64
-	db.Model(&MigrationRecord{}).Where("version = ?", migrationID).Count(&count)
+	if err := db.Raw("SELECT COUNT(*) FROM migration_records WHERE version = ?", migrationID).Scan(&count).Error; err != nil {
+		return fmt.Errorf("failed to check migration status: %w", err)
+	}
 	if count > 0 {
 		return nil // Already applied
 	}
@@ -126,13 +124,13 @@ func runMigrationFile(db *gorm.DB, filePath string) error {
 			return fmt.Errorf("failed to execute migration SQL from %s: %w", filename, err)
 		}
 
-		// Record the migration
-		record := MigrationRecord{
-			Version:   migrationID,
-			Name:      filename,
-			AppliedAt: time.Now(),
+		// Record the migration using raw SQL
+		insertSQL := "INSERT INTO migration_records (version, name, applied_at) VALUES (?, ?, ?)"
+		if err := tx.Exec(insertSQL, migrationID, filename, time.Now()).Error; err != nil {
+			return fmt.Errorf("failed to record migration: %w", err)
 		}
-		return tx.Create(&record).Error
+
+		return nil
 	})
 }
 

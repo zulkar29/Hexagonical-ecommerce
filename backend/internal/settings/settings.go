@@ -2,12 +2,14 @@ package settings
 
 import (
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Setting represents a configuration setting
 type Setting struct {
-	ID        uint      `json:"id" gorm:"primaryKey"`
-	TenantID  uint      `json:"tenant_id" gorm:"not null;index"`
+	ID        uuid.UUID `json:"id" gorm:"primaryKey"`
+	TenantID  uuid.UUID `json:"tenant_id" gorm:"not null;index"`
 	Section   string    `json:"section" gorm:"not null;index"` // general, seo, appearance, integrations
 	Key       string    `json:"key" gorm:"not null;index"`
 	Value     string    `json:"value" gorm:"type:text"`

@@ -70,20 +70,35 @@ CREATE TABLE IF NOT EXISTS products (
 -- Create product_variants table
 CREATE TABLE IF NOT EXISTS product_variants (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     sku VARCHAR(100),
+    barcode VARCHAR(100),
     price DECIMAL(10,2),
+    compare_price DECIMAL(10,2),
+    cost_price DECIMAL(10,2),
     
     -- Variant-specific inventory
     inventory_quantity INTEGER DEFAULT 0,
+    track_quantity BOOLEAN DEFAULT TRUE,
     allow_backorder BOOLEAN DEFAULT FALSE,
+    
+    -- Physical properties
+    weight DECIMAL(8,2),
+    length DECIMAL(8,2),
+    width DECIMAL(8,2),
+    height DECIMAL(8,2),
     
     -- Variant options (e.g., size: "Large", color: "Red")
     options JSONB,
     
     -- Images specific to this variant
     images JSONB,
+    image VARCHAR(500), -- Primary variant image
+    
+    -- Default variant flag
+    is_default BOOLEAN DEFAULT FALSE,
     
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -103,8 +118,10 @@ CREATE INDEX IF NOT EXISTS idx_products_type ON products(type);
 CREATE INDEX IF NOT EXISTS idx_products_sku ON products(sku);
 CREATE INDEX IF NOT EXISTS idx_products_price ON products(price);
 
+CREATE INDEX IF NOT EXISTS idx_product_variants_tenant_id ON product_variants(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_product_variants_product_id ON product_variants(product_id);
 CREATE INDEX IF NOT EXISTS idx_product_variants_sku ON product_variants(sku);
+CREATE INDEX IF NOT EXISTS idx_product_variants_barcode ON product_variants(barcode);
 
 -- Create GIN indexes for JSONB columns
 CREATE INDEX IF NOT EXISTS idx_products_images ON products USING GIN (images);

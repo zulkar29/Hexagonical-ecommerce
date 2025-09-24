@@ -50,9 +50,4 @@ func (m *Module) GetRepository() Repository {
 	return m.repository
 }
 
-// Migrate runs database migrations for the billing module
-func (m *Module) Migrate() error {
-	// Note: This method signature changed to match interface requirements
-	// Database migrations should be handled externally
-	return nil
-}
+// Note: Database schema is handled by raw SQL migrations in /migrations directory

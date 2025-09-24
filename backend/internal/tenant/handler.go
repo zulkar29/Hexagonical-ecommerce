@@ -13,6 +13,64 @@ type Handler struct {
 	service ServiceInterface
 }
 
+// handleError maps tenant errors to appropriate HTTP responses
+func (h *Handler) handleError(c *gin.Context, err error) {
+	if tenantErr, ok := err.(*TenantError); ok {
+		switch tenantErr.Type {
+		case ErrorTypeValidation:
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": tenantErr.Message,
+				"type":  tenantErr.Type,
+				"code":  tenantErr.Code,
+				"field": tenantErr.Field,
+			})
+		case ErrorTypeNotFound:
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": tenantErr.Message,
+				"type":  tenantErr.Type,
+				"code":  tenantErr.Code,
+			})
+		case ErrorTypeConflict:
+			c.JSON(http.StatusConflict, gin.H{
+				"error": tenantErr.Message,
+				"type":  tenantErr.Type,
+				"code":  tenantErr.Code,
+			})
+		case ErrorTypeUnauthorized:
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": tenantErr.Message,
+				"type":  tenantErr.Type,
+				"code":  tenantErr.Code,
+			})
+		case ErrorTypeForbidden:
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": tenantErr.Message,
+				"type":  tenantErr.Type,
+				"code":  tenantErr.Code,
+			})
+		case ErrorTypeInternal:
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": tenantErr.Message,
+				"type":  tenantErr.Type,
+				"code":  tenantErr.Code,
+			})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "An unexpected error occurred",
+				"type":  "internal",
+				"code":  "UNKNOWN_ERROR",
+			})
+		}
+	} else {
+		// Handle non-tenant errors
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "An unexpected error occurred",
+			"type":  "internal",
+			"code":  "UNKNOWN_ERROR",
+		})
+	}
+}
+
 // NewHandler creates a new tenant handler
 func NewHandler(service ServiceInterface) *Handler {
 	return &Handler{
@@ -66,8 +124,7 @@ func (h *Handler) CreateTenant(c *gin.Context) {
 
 	tenant, err := h.service.CreateTenant(req)
 	if err != nil {
-		// TODO: Implement proper error handling with custom error types
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.handleError(c, err)
 		return
 	}
 
@@ -83,7 +140,7 @@ func (h *Handler) GetTenant(c *gin.Context) {
 
 	tenant, err := h.service.GetTenant(tenantID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Tenant not found"})
+		h.handleError(c, err)
 		return
 	}
 
@@ -98,7 +155,7 @@ func (h *Handler) GetTenantBySubdomain(c *gin.Context) {
 
 	tenant, err := h.service.GetTenantBySubdomain(subdomain)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Tenant not found"})
+		h.handleError(c, err)
 		return
 	}
 
@@ -119,7 +176,7 @@ func (h *Handler) UpdateTenant(c *gin.Context) {
 
 	tenant, err := h.service.UpdateTenant(tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.handleError(c, err)
 		return
 	}
 
@@ -141,7 +198,7 @@ func (h *Handler) UpdatePlan(c *gin.Context) {
 
 	tenant, err := h.service.UpdatePlan(tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.handleError(c, err)
 		return
 	}
 
@@ -179,7 +236,7 @@ func (h *Handler) ListTenants(c *gin.Context) {
 
 	tenants, total, err := h.service.ListTenants(offset, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch tenants"})
+		h.handleError(c, err)
 		return
 	}
 
@@ -199,7 +256,7 @@ func (h *Handler) DeactivateTenant(c *gin.Context) {
 
 	err := h.service.DeactivateTenant(tenantID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.handleError(c, err)
 		return
 	}
 
@@ -214,7 +271,7 @@ func (h *Handler) ActivateTenant(c *gin.Context) {
 
 	err := h.service.ActivateTenant(tenantID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.handleError(c, err)
 		return
 	}
 
@@ -229,7 +286,7 @@ func (h *Handler) GetTenantStats(c *gin.Context) {
 
 	stats, err := h.service.GetTenantStats(tenantID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		h.handleError(c, err)
 		return
 	}
 
@@ -244,7 +301,7 @@ func (h *Handler) CheckSubdomainAvailability(c *gin.Context) {
 
 	available, err := h.service.CheckSubdomainAvailability(subdomain)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.handleError(c, err)
 		return
 	}
 

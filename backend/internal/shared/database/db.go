@@ -15,6 +15,8 @@ import (
 // DB holds the database connection
 var DB *gorm.DB
 
+// Note: NoOpMigrator removed - no longer needed since we use raw SQL migrations exclusively
+
 // Connect establishes database connection
 func Connect(cfg *config.Config) (*gorm.DB, error) {
 	// Configure GORM logger
@@ -25,12 +27,21 @@ func Connect(cfg *config.Config) (*gorm.DB, error) {
 		gormLogger = logger.Default.LogMode(logger.Silent)
 	}
 
-	// Configure GORM
+	// Configure GORM to prevent any schema modifications
 	gormConfig := &gorm.Config{
 		Logger: gormLogger,
 		NowFunc: func() time.Time {
 			return time.Now().UTC()
 		},
+		DisableForeignKeyConstraintWhenMigrating: true,
+		DisableAutomaticPing: true,
+		SkipDefaultTransaction: true,
+		CreateBatchSize: 0,
+		QueryFields: true,
+		DryRun: false,
+		DisableNestedTransaction: true,
+		AllowGlobalUpdate: false,
+		PrepareStmt: false,
 	}
 
 	// Connect to database
@@ -38,6 +49,9 @@ func Connect(cfg *config.Config) (*gorm.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
+
+	// NoOpMigrator is defined above but not used here since we use
+// raw SQL migrations exclusively for schema management
 
 	// Get underlying sql.DB
 	sqlDB, err := db.DB()
@@ -63,18 +77,8 @@ func Connect(cfg *config.Config) (*gorm.DB, error) {
 	return db, nil
 }
 
-// AutoMigrate runs database migrations
-func AutoMigrate(db *gorm.DB) error {
-	log.Println("Running SQL migrations...")
-
-	// Run SQL migrations
-	if err := RunMigrations(db); err != nil {
-		return fmt.Errorf("failed to run SQL migrations: %w", err)
-	}
-
-	log.Println("Database migrations completed successfully")
-	return nil
-}
+// Note: Database migrations are handled exclusively by raw SQL files
+// in the /migrations directory via RunMigrations function
 
 // Close closes the database connection
 func Close() error {
@@ -114,43 +118,8 @@ func Transaction(fn func(*gorm.DB) error) error {
 	return DB.Transaction(fn)
 }
 
-// SetupTestDB sets up a test database (for testing)
-func SetupTestDB() (*gorm.DB, error) {
-	// Use SQLite for testing
-	db, err := gorm.Open(postgres.Open("postgres://test:test@localhost/esass_test?sslmode=disable"), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Silent),
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// Run migrations
-	if err := AutoMigrate(db); err != nil {
-		return nil, err
-	}
-
-	return db, nil
-}
-
-// TearDownTestDB cleans up test database
-func TearDownTestDB(db *gorm.DB) error {
-	// Drop all tables
-	tables := []string{
-		"tenants",
-		"products",
-		"product_variants",
-		"categories",
-		// Add more tables as needed
-	}
-
-	for _, table := range tables {
-		if err := db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE", table)).Error; err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
+// Note: Test database setup is handled by testhelpers package
+// which uses PostgreSQL containers for consistent testing environment
 
 // Seed populates the database with initial data
 func Seed(db *gorm.DB) error {
@@ -204,8 +173,77 @@ func Search(fields []string, query string) func(*gorm.DB) *gorm.DB {
 	}
 }
 
-// TODO: Add more database helpers
-// - BulkInsert(db *gorm.DB, models interface{}) error
-// - BulkUpdate(db *gorm.DB, model interface{}, updates map[string]interface{}) error
-// - GetTableStats(db *gorm.DB, tableName string) (map[string]interface{}, error)
-// - BackupDatabase(db *gorm.DB, path string) error
+// ResetDatabase drops all tables and recreates the schema
+func ResetDatabase(db *gorm.DB) error {
+	log.Println("Dropping all tables...")
+	
+	// Get the underlying SQL database
+	sqlDB, err := db.DB()
+	if err != nil {
+		return fmt.Errorf("failed to get underlying sql.DB: %w", err)
+	}
+	
+	// Drop all tables in the public schema
+	dropTablesSQL := `
+		DO $$ DECLARE
+			r RECORD;
+		BEGIN
+			FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
+				EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
+			END LOOP;
+		END $$;
+	`
+	
+	if _, err := sqlDB.Exec(dropTablesSQL); err != nil {
+		return fmt.Errorf("failed to drop tables: %w", err)
+	}
+	
+	log.Println("All tables dropped successfully")
+	
+	// Run migrations to recreate schema
+	log.Println("Recreating schema with migrations...")
+	if err := RunMigrations(db); err != nil {
+		return fmt.Errorf("failed to run migrations after reset: %w", err)
+	}
+	
+	log.Println("Database reset completed successfully")
+	return nil
+}
+
+// BulkInsert performs bulk insert operation for better performance
+func BulkInsert(db *gorm.DB, models interface{}) error {
+	return db.CreateInBatches(models, 100).Error
+}
+
+// BulkUpdate performs bulk update operation
+func BulkUpdate(db *gorm.DB, model interface{}, updates map[string]interface{}) error {
+	return db.Model(model).Updates(updates).Error
+}
+
+// GetTableStats returns statistics for a given table
+func GetTableStats(db *gorm.DB, tableName string) (map[string]interface{}, error) {
+	stats := make(map[string]interface{})
+	
+	// Get row count
+	var count int64
+	if err := db.Raw("SELECT COUNT(*) FROM ?", tableName).Scan(&count).Error; err != nil {
+		return nil, err
+	}
+	stats["row_count"] = count
+	
+	// Get table size
+	var size string
+	if err := db.Raw("SELECT pg_size_pretty(pg_total_relation_size(?)) as size", tableName).Scan(&size).Error; err != nil {
+		return nil, err
+	}
+	stats["table_size"] = size
+	
+	return stats, nil
+}
+
+// BackupPostgreSQL creates a database backup using pg_dump
+func BackupPostgreSQL(db *gorm.DB, path string) error {
+	// This would require executing pg_dump command
+	// Implementation depends on system requirements
+	return fmt.Errorf("backup functionality not implemented - use pg_dump directly")
+}

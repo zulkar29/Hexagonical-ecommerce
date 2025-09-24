@@ -110,7 +110,7 @@ func (h *Handler) GetSecurityLogs(c *gin.Context) {
 	// Get limit from query parameter, default to 50
 	limit := 50
 	if limitStr := c.Query("limit"); limitStr != "" {
-		if parsedLimit, err := strconv.Atoi(limitStr); err == nil {
+		if parsedLimit, limitError := strconv.Atoi(limitStr); limitError == nil {
 			limit = parsedLimit
 		}
 	}
@@ -138,7 +138,7 @@ func (h *Handler) CheckAccountLockout(c *gin.Context) {
 	tenantIDStr := c.GetHeader("X-Tenant-ID")
 	var tenantID *uuid.UUID
 	if tenantIDStr != "" {
-		if parsed, err := uuid.Parse(tenantIDStr); err == nil {
+		if parsed, tenantIDError := uuid.Parse(tenantIDStr); tenantIDError == nil {
 			tenantID = &parsed
 		}
 	}
@@ -232,8 +232,8 @@ func (h *Handler) Setup2FA(c *gin.Context) {
 	}
 
 	var req Setup2FARequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindError := c.ShouldBindJSON(&req); bindError != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindError.Error()})
 		return
 	}
 
@@ -241,7 +241,7 @@ func (h *Handler) Setup2FA(c *gin.Context) {
 	tenantIDStr := c.GetHeader("X-Tenant-ID")
 	var tenantID *uuid.UUID
 	if tenantIDStr != "" {
-		if parsed, err := uuid.Parse(tenantIDStr); err == nil {
+		if parsed, tenantIDError := uuid.Parse(tenantIDStr); tenantIDError == nil {
 			tenantID = &parsed
 		}
 	}
@@ -415,8 +415,8 @@ func (h *Handler) UpdateSecuritySettings(c *gin.Context) {
 	}
 
 	var req UpdateSecuritySettingsRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if bindError := c.ShouldBindJSON(&req); bindError != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": bindError.Error()})
 		return
 	}
 

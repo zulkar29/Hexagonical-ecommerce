@@ -77,11 +77,10 @@ func OptionalAuthMiddleware(jwtManager *utils.JWTManager) gin.HandlerFunc {
 
 
 
-// TenantMiddleware is deprecated - use TenantIsolationMiddleware instead
-// This function is kept for backward compatibility but should be replaced
-func TenantMiddleware(db *gorm.DB) gin.HandlerFunc {
-	// Create new tenant isolation middleware
-	tim := NewTenantIsolationMiddleware(db, "esass.com") // TODO: Make base domain configurable
+// TenantMiddleware creates tenant isolation middleware with configurable domain
+// Updated to use domain from configuration instead of hardcoded value
+func TenantMiddleware(db *gorm.DB, domain string) gin.HandlerFunc {
+	tim := NewTenantIsolationMiddleware(db, domain)
 	return tim.ResolveTenantWithIsolation()
 }
 

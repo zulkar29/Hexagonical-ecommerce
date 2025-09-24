@@ -54,10 +54,10 @@ func NewService(repo Repository) Service {
 
 // Search performs global search across all content types
 func (s *service) Search(ctx context.Context, req *SearchQuery) (*SearchResponse, error) {
-	// Get tenant ID from context
-	tenantID, ok := ctx.Value("tenant_id").(uuid.UUID)
-	if !ok {
-		return nil, fmt.Errorf("tenant ID not found in context")
+	// Get tenant ID from context using shared utility
+	tenantID, err := s.getTenantIDFromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("tenant ID not found in context: %w", err)
 	}
 
 	// Validate request
@@ -119,10 +119,10 @@ func (s *service) Search(ctx context.Context, req *SearchQuery) (*SearchResponse
 
 // SearchProducts performs product-specific search with advanced filters
 func (s *service) SearchProducts(ctx context.Context, req *ProductSearchRequest) (*SearchResponse, error) {
-	// Get tenant ID from context
-	tenantID, ok := ctx.Value("tenant_id").(uuid.UUID)
-	if !ok {
-		return nil, fmt.Errorf("tenant ID not found in context")
+	// Get tenant ID from context using shared utility
+	tenantID, err := s.getTenantIDFromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("tenant ID not found in context: %w", err)
 	}
 
 	// Validate request
@@ -180,10 +180,10 @@ func (s *service) SearchProducts(ctx context.Context, req *ProductSearchRequest)
 
 // GetSuggestions returns search suggestions/autocomplete
 func (s *service) GetSuggestions(ctx context.Context, req *SuggestionRequest) (*SuggestionResponse, error) {
-	// Get tenant ID from context
-	tenantID, ok := ctx.Value("tenant_id").(uuid.UUID)
-	if !ok {
-		return nil, fmt.Errorf("tenant ID not found in context")
+	// Get tenant ID from context using shared utility
+	tenantID, err := s.getTenantIDFromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("tenant ID not found in context: %w", err)
 	}
 
 	// Validate request
@@ -210,10 +210,10 @@ func (s *service) GetSuggestions(ctx context.Context, req *SuggestionRequest) (*
 
 // GetAnalytics returns search analytics and metrics
 func (s *service) GetAnalytics(ctx context.Context, req *SearchAnalyticsRequest) (*SearchAnalyticsResponse, error) {
-	// Get tenant ID from context
-	tenantID, ok := ctx.Value("tenant_id").(uuid.UUID)
-	if !ok {
-		return nil, fmt.Errorf("tenant ID not found in context")
+	// Get tenant ID from context using shared utility
+	tenantID, err := s.getTenantIDFromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("tenant ID not found in context: %w", err)
 	}
 
 	// Set defaults
@@ -240,10 +240,10 @@ func (s *service) GetAnalytics(ctx context.Context, req *SearchAnalyticsRequest)
 
 // ManageFilters manages search filters (create, update, delete)
 func (s *service) ManageFilters(ctx context.Context, req *FilterRequest) (*FilterResponse, error) {
-	// Get tenant ID from context
-	tenantID, ok := ctx.Value("tenant_id").(uuid.UUID)
-	if !ok {
-		return nil, fmt.Errorf("tenant ID not found in context")
+	// Get tenant ID from context using shared utility
+	tenantID, err := s.getTenantIDFromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("tenant ID not found in context: %w", err)
 	}
 
 	// Validate request
@@ -262,10 +262,10 @@ func (s *service) ManageFilters(ctx context.Context, req *FilterRequest) (*Filte
 
 // GetFilters returns available search filters
 func (s *service) GetFilters(ctx context.Context, searchType string) (*FilterResponse, error) {
-	// Get tenant ID from context
-	tenantID, ok := ctx.Value("tenant_id").(uuid.UUID)
-	if !ok {
-		return nil, fmt.Errorf("tenant ID not found in context")
+	// Get tenant ID from context using shared utility
+	tenantID, err := s.getTenantIDFromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("tenant ID not found in context: %w", err)
 	}
 
 	// Get filters
@@ -322,4 +322,21 @@ func (s *service) getSessionIDFromContext(ctx context.Context) string {
 		return sessionID
 	}
 	return "anonymous"
+}
+
+// getTenantIDFromContext extracts tenant ID from context using the proper middleware key
+func (s *service) getTenantIDFromContext(ctx context.Context) (uuid.UUID, error) {
+	// Try the middleware context key first
+	if tenantID, ok := ctx.Value("tenant_id").(uuid.UUID); ok {
+		return tenantID, nil
+	}
+	
+	// Try string format and convert
+	if tenantIDStr, ok := ctx.Value("tenant_id").(string); ok {
+		if tenantID, err := uuid.Parse(tenantIDStr); err == nil {
+			return tenantID, nil
+		}
+	}
+	
+	return uuid.Nil, fmt.Errorf("tenant ID not found or invalid in context")
 }

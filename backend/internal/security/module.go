@@ -29,12 +29,7 @@ func (m *Module) RegisterRoutes(router gin.IRouter) {
 	m.handler.SetupRoutes(securityGroup)
 }
 
-// Migrate runs the security module migrations
-func (m *Module) Migrate() error {
-	// For now, return nil. In practice, you'd migrate security tables here
-	// or delegate to the database migration system
-	return nil
-}
+// Note: Database schema is handled by raw SQL migrations in /migrations directory
 
 // GetService returns the security service
 func (m *Module) GetService() *SecurityService {

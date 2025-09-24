@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"math/rand"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -80,7 +81,7 @@ func (s *Service) CreateOrder(ctx context.Context, tenantID uuid.UUID, order *Or
 
 	// Set default currency if not provided
 	if order.Currency == "" {
-		order.Currency = "BDT"
+		order.Currency = s.getDefaultCurrency()
 	}
 
 	// Set billing address to shipping address if not provided
@@ -182,6 +183,16 @@ func (s *Service) CreateOrder(ctx context.Context, tenantID uuid.UUID, order *Or
 	}()
 
 	return order, nil
+}
+
+// getDefaultCurrency returns the default currency for orders
+func (s *Service) getDefaultCurrency() string {
+	// Get default currency from environment variable
+	currency := os.Getenv("DEFAULT_CURRENCY")
+	if currency == "" {
+		currency = "BDT" // fallback default
+	}
+	return currency
 }
 
 // GetOrderTracking retrieves order tracking information with public access support

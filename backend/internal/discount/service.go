@@ -139,6 +139,7 @@ type DiscountFilter struct {
 }
 
 type ValidateDiscountRequest struct {
+	TenantID         uuid.UUID  `json:"tenant_id" validate:"required"`
 	Code             string     `json:"code" validate:"required"`
 	CustomerID       *uuid.UUID `json:"customer_id"`
 	CustomerEmail    string     `json:"customer_email"`
@@ -453,8 +454,11 @@ func (s *service) DeleteDiscount(ctx context.Context, tenantID, discountID uuid.
 }
 
 func (s *service) ValidateDiscountCode(ctx context.Context, req ValidateDiscountRequest) (*DiscountValidation, error) {
+	// Use tenant ID from request
+	tenantID := req.TenantID
+
 	// Get discount by code
-	discount, err := s.repo.GetDiscountByCode(ctx, uuid.Nil, req.Code) // TODO: Add tenantID to request
+	discount, err := s.repo.GetDiscountByCode(ctx, tenantID, req.Code)
 	if err != nil {
 		return &DiscountValidation{
 			Valid:   false,
@@ -513,6 +517,7 @@ func (s *service) ValidateDiscountCode(ctx context.Context, req ValidateDiscount
 func (s *service) ApplyDiscount(ctx context.Context, req ApplyDiscountRequest) (*DiscountApplication, error) {
 	// First validate the discount code
 	validationReq := ValidateDiscountRequest{
+		TenantID:      req.TenantID,
 		Code:          req.Code,
 		CustomerID:    req.CustomerID,
 		CustomerEmail: req.CustomerEmail,

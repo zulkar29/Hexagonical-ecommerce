@@ -143,14 +143,7 @@ func (m *Module) RegisterRoutes(router *gin.RouterGroup) {
 	m.Handler.RegisterRoutes(router)
 }
 
-// Migrate runs database migrations for the order module
-func (m *Module) Migrate(db *gorm.DB) error {
-	return db.AutoMigrate(
-		&Order{},
-		&OrderItem{},
-		&OrderDispute{},
-	)
-}
+
 
 // GetService returns the order service for integration with other modules
 func (m *Module) GetService() *Service {

@@ -345,8 +345,37 @@ func (d *Discount) CalculateDiscount(orderAmount float64, itemQuantity int) (flo
 		// This would need shipping amount to calculate
 		discountAmount = 0 // Handled separately in shipping calculation
 	case TypeBuyXGetY:
-		// Complex BOGO calculation - would need item details
-		discountAmount = 0 // TODO: Implement BOGO logic
+		// BOGO calculation: Buy X items, get Y items at discount
+		if d.BuyQuantity != nil && d.GetQuantity != nil {
+			buyQty := *d.BuyQuantity
+			getQty := *d.GetQuantity
+			
+			// Calculate how many complete BOGO sets we can apply
+			// For "Buy 2 Get 1", if customer has 5 items:
+			// - They need to pay for at least 2 items to get 1 free
+			// - Total items per set = buyQty + getQty = 3
+			// - Complete sets = 5 / 3 = 1 set
+			// - So they get 1 free item
+			setSize := buyQty + getQty
+			bogoSets := itemQuantity / setSize
+			
+			// Calculate discount amount
+			if bogoSets > 0 {
+				// Assume uniform item pricing for basic calculation
+				itemPrice := orderAmount / float64(itemQuantity)
+				
+				// Calculate discount based on GetValue (percentage off get items)
+				getValue := float64(100) // Default to 100% off (free)
+				if d.GetValue != nil {
+					getValue = *d.GetValue
+				}
+				
+				// Calculate total free/discounted items
+				totalDiscountedItems := bogoSets * getQty
+				
+				discountAmount = float64(totalDiscountedItems) * itemPrice * (getValue / 100)
+			}
+		}
 	}
 
 	return discountAmount, nil

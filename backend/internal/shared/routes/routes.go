@@ -26,7 +26,6 @@ import (
 	"ecommerce-saas/internal/returns"
 	"ecommerce-saas/internal/reviews"
 	"ecommerce-saas/internal/search"
-
 	"ecommerce-saas/internal/settings"
 	"ecommerce-saas/internal/shared/config"
 	"ecommerce-saas/internal/shared/middleware"
@@ -56,6 +55,7 @@ type ServiceContainer struct {
 	ShippingRepo  *shipping.Repository
 	PaymentRepo   payment.Repository
 	ReferralRepo  referral.Repository
+	SettingsRepo  settings.Repository
 
 	// Services
 	ProductService   *product.Service
@@ -71,7 +71,10 @@ type ServiceContainer struct {
 func NewServiceContainer(cfg *RouteConfig) *ServiceContainer {
 	// Initialize repositories
 	productRepo := product.NewRepository(cfg.DB)
-	discountRepo := discount.NewRepository(cfg.DB)
+	settingsRepo := settings.NewRepository(cfg.DB)
+	// Create adapter for settings repository to match utils.SettingsRepository interface
+	settingsAdapter := utils.NewSettingsRepositoryAdapter(settingsRepo)
+	discountRepo := discount.NewRepository(cfg.DB, settingsAdapter)
 	contactRepo := contact.NewRepository(cfg.DB)
 	analyticsRepo := analytics.NewRepository(cfg.DB)
 	shippingRepo := shipping.NewRepository(cfg.DB)
@@ -95,6 +98,7 @@ func NewServiceContainer(cfg *RouteConfig) *ServiceContainer {
 		ShippingRepo:     shippingRepo,
 		PaymentRepo:      paymentRepo,
 		ReferralRepo:     referralRepo,
+		SettingsRepo:     settingsRepo,
 		ProductService:   productService,
 		DiscountService:  discountService,
 		ContactService:   contactService,
@@ -153,7 +157,7 @@ func SetupRoutes(r *gin.Engine, cfg *RouteConfig) {
 	protected.Use(middleware.AuthMiddleware(cfg.JWTManager))
 
 	// Create tenant isolation middleware
-	tenantIsolation := middleware.NewTenantIsolationMiddleware(cfg.DB, "esass.com") // TODO: Make configurable
+	tenantIsolation := middleware.NewTenantIsolationMiddleware(cfg.DB, cfg.Config.App.Domain)
 	protected.Use(tenantIsolation.ResolveTenantWithIsolation())
 	protected.Use(tenantIsolation.ValidateTenantAccess())
 	{
@@ -208,7 +212,7 @@ func SetupRoutes(r *gin.Engine, cfg *RouteConfig) {
 	// Public routes (for storefront)
 	storefront := v1.Group("/public")
 	// Create tenant isolation middleware for public routes
-	publicTenantIsolation := middleware.NewTenantIsolationMiddleware(cfg.DB, "esass.com") // TODO: Make configurable
+	publicTenantIsolation := middleware.NewTenantIsolationMiddleware(cfg.DB, cfg.Config.App.Domain)
 	storefront.Use(publicTenantIsolation.ResolveTenantWithIsolation())
 	{
 		// Public product routes (no auth needed for browsing)
@@ -223,7 +227,7 @@ func SetupRoutes(r *gin.Engine, cfg *RouteConfig) {
 // Setup tenant routes
 func setupTenantRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 	// Initialize tenant module
-	tenantModule := tenant.NewModule(cfg.DB)
+	tenantModule := tenant.NewModule(cfg.DB, cfg.Config)
 
 	// Register tenant routes
 	tenantModule.Handler.RegisterRoutes(v1)
@@ -477,8 +481,6 @@ func setupWishlistRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 func setupComponentsRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 	// Initialize components module
 	componentsModule := components.NewModule(cfg.DB)
-
-	// Register components routes
 	componentsModule.RegisterRoutes(v1)
 }
 

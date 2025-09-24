@@ -97,37 +97,30 @@ const (
 
 // Component represents a customizable component template
 type Component struct {
-	ID          uuid.UUID       `json:"id" gorm:"primarykey"`
-	TenantID    uuid.UUID       `json:"tenant_id" gorm:"not null;index"`
+	ID          uuid.UUID       `json:"id" gorm:"type:uuid;primarykey;default:gen_random_uuid()"`
+	TenantID    uuid.UUID       `json:"tenant_id" gorm:"type:uuid;not null;index"`
+	TemplateID  *uuid.UUID      `json:"template_id,omitempty" gorm:"index"`
 	Name        string          `json:"name" gorm:"not null"`
 	Slug        string          `json:"slug" gorm:"not null;index"`
 	Type        ComponentType   `json:"type" gorm:"not null"`
 	Status      ComponentStatus `json:"status" gorm:"default:draft"`
 	Description string          `json:"description,omitempty"`
+	Category    ComponentCategory `json:"category,omitempty"`
 
 	// Component structure and styling
-	HTML       string                 `json:"html" gorm:"type:text"`
-	CSS        string                 `json:"css" gorm:"type:text"`
-	JavaScript string                 `json:"javascript,omitempty" gorm:"type:text"`
+	HTML       string                 `json:"html" gorm:"column:html_content;type:text"`
+	CSS        string                 `json:"css" gorm:"column:css_content;type:text"`
+	JavaScript string                 `json:"javascript,omitempty" gorm:"column:js_content;type:text"`
 	Config     map[string]interface{} `json:"config" gorm:"serializer:json"`
 
-	// Customization options
-	Customizable bool                   `json:"customizable" gorm:"default:true"`
-	Options      map[string]interface{} `json:"options" gorm:"serializer:json"`
-
-	// Preview and thumbnail
-	Thumbnail  string `json:"thumbnail,omitempty"`
-	PreviewURL string `json:"preview_url,omitempty"`
-
 	// Metadata
-	Tags     []string          `json:"tags,omitempty" gorm:"serializer:json"`
-	Category ComponentCategory `json:"category,omitempty"`
-	Version  string            `json:"version" gorm:"default:1.0.0"`
+	Tags         []string `json:"tags,omitempty" gorm:"serializer:json"`
+	IsFeatured   bool     `json:"is_featured" gorm:"default:false"`
+	PreviewImage string   `json:"preview_image,omitempty" gorm:"column:preview_image"`
 
-	// Usage tracking
-	UsageCount int  `json:"usage_count" gorm:"default:0"`
-	IsFeatured bool `json:"is_featured" gorm:"default:false"`
-	IsDefault  bool `json:"is_default" gorm:"default:false"`
+	// SEO
+	MetaTitle       string `json:"meta_title,omitempty" gorm:"column:meta_title"`
+	MetaDescription string `json:"meta_description,omitempty" gorm:"column:meta_description"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -138,24 +131,23 @@ type Component struct {
 
 // ComponentInstance represents an instance of a component used in a specific page/theme
 type ComponentInstance struct {
-	ID          uuid.UUID `json:"id" gorm:"primarykey"`
-	TenantID    uuid.UUID `json:"tenant_id" gorm:"not null;index"`
-	ComponentID uuid.UUID `json:"component_id" gorm:"not null;index"`
-	ThemeID     uuid.UUID `json:"theme_id" gorm:"not null;index"`
+	ID          uuid.UUID `json:"id" gorm:"type:uuid;primarykey;default:gen_random_uuid()"`
+	TenantID    uuid.UUID `json:"tenant_id" gorm:"type:uuid;not null;index"`
+	ComponentID uuid.UUID `json:"component_id" gorm:"type:uuid;not null;index"`
+	ThemeID     uuid.UUID `json:"theme_id" gorm:"type:uuid;not null;index"`
 
 	// Instance-specific customizations
-	CustomHTML string                 `json:"custom_html,omitempty" gorm:"type:text"`
-	CustomCSS  string                 `json:"custom_css,omitempty" gorm:"type:text"`
-	CustomJS   string                 `json:"custom_js,omitempty" gorm:"type:text"`
-	Settings   map[string]interface{} `json:"settings" gorm:"serializer:json"`
+	CustomCSS  string                 `json:"custom_css,omitempty" gorm:"column:custom_css;type:text"`
+	CustomJS   string                 `json:"custom_js,omitempty" gorm:"column:custom_js;type:text"`
+	Settings   map[string]interface{} `json:"settings" gorm:"column:instance_config;serializer:json"`
 
 	// Layout and positioning
-	Position  int    `json:"position" gorm:"default:0"`
-	Zone      string `json:"zone" gorm:"default:main"` // header, footer, main, sidebar
-	IsVisible bool   `json:"is_visible" gorm:"default:true"`
+	Position  string `json:"position" gorm:"column:position;not null"`
+	SortOrder int    `json:"sort_order" gorm:"column:sort_order;default:0"`
+	IsVisible bool   `json:"is_visible" gorm:"column:is_visible;default:true"`
 
-	// Responsive settings
-	Breakpoints map[string]interface{} `json:"breakpoints" gorm:"serializer:json"`
+	// Visibility rules
+	VisibilityRules map[string]interface{} `json:"visibility_rules" gorm:"column:visibility_rules;serializer:json"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -167,28 +159,22 @@ type ComponentInstance struct {
 
 // Theme represents a collection of component instances forming a complete design
 type Theme struct {
-	ID          uuid.UUID       `json:"id" gorm:"primarykey"`
-	TenantID    uuid.UUID       `json:"tenant_id" gorm:"not null;index"`
+	ID          uuid.UUID       `json:"id" gorm:"type:uuid;primarykey;default:gen_random_uuid()"`
+	TenantID    uuid.UUID       `json:"tenant_id" gorm:"type:uuid;not null;index"`
 	Name        string          `json:"name" gorm:"not null"`
 	Slug        string          `json:"slug" gorm:"not null;index"`
 	Description string          `json:"description,omitempty"`
 	Status      ComponentStatus `json:"status" gorm:"default:draft"`
 
 	// Theme settings
-	GlobalCSS string                 `json:"global_css,omitempty" gorm:"type:text"`
-	GlobalJS  string                 `json:"global_js,omitempty" gorm:"type:text"`
-	Settings  map[string]interface{} `json:"settings" gorm:"serializer:json"`
+	GlobalStyles map[string]interface{} `json:"global_styles,omitempty" gorm:"column:global_styles;serializer:json"`
+	LayoutConfig map[string]interface{} `json:"layout_config,omitempty" gorm:"column:layout_config;serializer:json"`
 
 	// Theme metadata
-	Thumbnail  string   `json:"thumbnail,omitempty"`
-	PreviewURL string   `json:"preview_url,omitempty"`
-	Tags       []string `json:"tags,omitempty" gorm:"serializer:json"`
-	Version    string   `json:"version" gorm:"default:1.0.0"`
+	PreviewImage string `json:"preview_image,omitempty" gorm:"column:preview_image"`
 
 	// Publishing
-	IsActive    bool       `json:"is_active" gorm:"default:false"`
-	IsDefault   bool       `json:"is_default" gorm:"default:false"`
-	PublishedAt *time.Time `json:"published_at,omitempty"`
+	IsActive bool `json:"is_active" gorm:"default:false"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -199,24 +185,31 @@ type Theme struct {
 
 // ComponentTemplate represents predefined component templates
 type ComponentTemplate struct {
-	ID          uuid.UUID     `json:"id" gorm:"primarykey"`
+	ID          uuid.UUID     `json:"id" gorm:"type:uuid;primarykey;default:gen_random_uuid()"`
+	TenantID    uuid.UUID     `json:"tenant_id" gorm:"type:uuid;not null;index"`
 	Name        string        `json:"name" gorm:"not null"`
-	Slug        string        `json:"slug" gorm:"unique;not null"`
+	Slug        string        `json:"slug" gorm:"not null"`
 	Type        ComponentType `json:"type" gorm:"not null"`
 	Description string        `json:"description,omitempty"`
 
 	// Template content
-	HTML       string                 `json:"html" gorm:"type:text"`
-	CSS        string                 `json:"css" gorm:"type:text"`
-	JavaScript string                 `json:"javascript,omitempty" gorm:"type:text"`
-	Config     map[string]interface{} `json:"config" gorm:"serializer:json"`
+	HTML       string                 `json:"html" gorm:"column:html_template;type:text"`
+	CSS        string                 `json:"css" gorm:"column:css_template;type:text"`
+	JavaScript string                 `json:"javascript,omitempty" gorm:"column:js_template;type:text"`
+	ConfigSchema map[string]interface{} `json:"config_schema" gorm:"column:config_schema;serializer:json"`
+	DefaultConfig map[string]interface{} `json:"default_config" gorm:"column:default_config;serializer:json"`
 
 	// Template metadata
-	Thumbnail  string            `json:"thumbnail,omitempty"`
+	PreviewImage string            `json:"preview_image,omitempty" gorm:"column:preview_image"`
 	Tags       []string          `json:"tags,omitempty" gorm:"serializer:json"`
 	Category   ComponentCategory `json:"category,omitempty"`
 	IsFree     bool              `json:"is_free" gorm:"default:true"`
 	IsFeatured bool              `json:"is_featured" gorm:"default:false"`
+	Price      float64           `json:"price" gorm:"default:0.00"`
+
+	// SEO
+	MetaTitle       string `json:"meta_title,omitempty" gorm:"column:meta_title"`
+	MetaDescription string `json:"meta_description,omitempty" gorm:"column:meta_description"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -224,25 +217,26 @@ type ComponentTemplate struct {
 
 // ThemeTemplate represents complete theme templates with multiple components
 type ThemeTemplate struct {
-	ID          uuid.UUID `json:"id" gorm:"primarykey"`
+	ID          uuid.UUID `json:"id" gorm:"type:uuid;primarykey;default:gen_random_uuid()"`
+	TenantID    uuid.UUID `json:"tenant_id" gorm:"type:uuid;not null;index"`
 	Name        string    `json:"name" gorm:"not null"`
-	Slug        string    `json:"slug" gorm:"unique;not null"`
+	Slug        string    `json:"slug" gorm:"not null"`
 	Description string    `json:"description,omitempty"`
 
 	// Theme template content
 	Components []ThemeTemplateComponent `json:"components" gorm:"foreignKey:ThemeTemplateID"`
-	GlobalCSS  string                   `json:"global_css,omitempty" gorm:"type:text"`
-	GlobalJS   string                   `json:"global_js,omitempty" gorm:"type:text"`
+	GlobalCSS  string                   `json:"global_css,omitempty" gorm:"column:global_css;type:text"`
+	GlobalJS   string                   `json:"global_js,omitempty" gorm:"column:global_js;type:text"`
 	Settings   map[string]interface{}   `json:"settings" gorm:"serializer:json"`
 
 	// Template metadata
 	Thumbnail  string   `json:"thumbnail,omitempty"`
-	PreviewURL string   `json:"preview_url,omitempty"`
+	PreviewURL string   `json:"preview_url,omitempty" gorm:"column:preview_url"`
 	Tags       []string `json:"tags,omitempty" gorm:"serializer:json"`
 	Category   string   `json:"category,omitempty"`
-	IsFree     bool     `json:"is_free" gorm:"default:true"`
-	IsFeatured bool     `json:"is_featured" gorm:"default:false"`
-	IsDefault  bool     `json:"is_default" gorm:"default:false"`
+	IsFree     bool     `json:"is_free" gorm:"column:is_free;default:true"`
+	IsFeatured bool     `json:"is_featured" gorm:"column:is_featured;default:false"`
+	IsDefault  bool     `json:"is_default" gorm:"column:is_default;default:false"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -250,17 +244,18 @@ type ThemeTemplate struct {
 
 // ThemeTemplateComponent represents a component within a theme template
 type ThemeTemplateComponent struct {
-	ID                  uuid.UUID `json:"id" gorm:"primarykey"`
-	ThemeTemplateID     uuid.UUID `json:"theme_template_id" gorm:"not null;index"`
-	ComponentTemplateID uuid.UUID `json:"component_template_id" gorm:"not null;index"`
+	ID                  uuid.UUID `json:"id" gorm:"type:uuid;primarykey;default:gen_random_uuid()"`
+	TenantID            uuid.UUID `json:"tenant_id" gorm:"type:uuid;not null;index"`
+	ThemeTemplateID     uuid.UUID `json:"theme_template_id" gorm:"type:uuid;not null;index"`
+	ComponentTemplateID uuid.UUID `json:"component_template_id" gorm:"type:uuid;not null;index"`
 
 	// Component positioning and configuration
 	Zone      string                 `json:"zone" gorm:"default:main"` // header, footer, main, sidebar
 	Position  int                    `json:"position" gorm:"default:0"`
 	Settings  map[string]interface{} `json:"settings" gorm:"serializer:json"`
-	CustomCSS string                 `json:"custom_css,omitempty" gorm:"type:text"`
-	CustomJS  string                 `json:"custom_js,omitempty" gorm:"type:text"`
-	IsVisible bool                   `json:"is_visible" gorm:"default:true"`
+	CustomCSS string                 `json:"custom_css,omitempty" gorm:"column:custom_css;type:text"`
+	CustomJS  string                 `json:"custom_js,omitempty" gorm:"column:custom_js;type:text"`
+	IsVisible bool                   `json:"is_visible" gorm:"column:is_visible;default:true"`
 
 	// Responsive settings
 	Breakpoints map[string]interface{} `json:"breakpoints" gorm:"serializer:json"`
@@ -280,33 +275,22 @@ func (c *Component) IsActive() bool {
 	return c.Status == StatusActive
 }
 
-// CanBeCustomized checks if component allows customization
-func (c *Component) CanBeCustomized() bool {
-	return c.Customizable
-}
 
-// IncrementUsage increments the usage count
-func (c *Component) IncrementUsage() {
-	c.UsageCount++
-}
 
 // IsPublished checks if theme is published and active
 func (t *Theme) IsPublished() bool {
-	return t.IsActive && t.PublishedAt != nil
+	return t.IsActive && t.Status == StatusActive
 }
 
 // Publish marks theme as published
 func (t *Theme) Publish() {
-	now := time.Now()
 	t.IsActive = true
-	t.PublishedAt = &now
 	t.Status = StatusActive
 }
 
 // Unpublish marks theme as unpublished
 func (t *Theme) Unpublish() {
 	t.IsActive = false
-	t.PublishedAt = nil
 	t.Status = StatusInactive
 }
 

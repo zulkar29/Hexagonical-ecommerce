@@ -10,8 +10,7 @@ import (
 
 // Repository defines the interface for security data operations
 type Repository interface {
-	// Migration
-	Migrate() error
+	// Note: Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Password Policies
 	CreatePasswordPolicy(ctx context.Context, policy *PasswordPolicy) error
@@ -128,18 +127,7 @@ func NewRepository(db *gorm.DB) Repository {
 	return &gormSecurityRepository{db: db}
 }
 
-// Migrate runs the security module migrations
-func (r *gormSecurityRepository) Migrate() error {
-	return r.db.AutoMigrate(
-		&PasswordPolicy{},
-		&LoginAttempt{},
-		&TrustedDevice{},
-		&SecurityEvent{},
-		&PasswordHistory{},
-		&AccountLockout{},
-		&EncryptionKey{},
-	)
-}
+// Note: Database schema is handled by raw SQL migrations in /migrations directory
 
 // Password Policies
 func (r *gormSecurityRepository) CreatePasswordPolicy(ctx context.Context, policy *PasswordPolicy) error {

@@ -168,10 +168,10 @@ func (td *TestDatabase) CleanupTables(t *testing.T) {
 	td.DB.Exec("SET session_replication_role = DEFAULT;")
 }
 
-// InMemoryTestDB creates an in-memory SQLite database for unit tests
+// InMemoryTestDB creates a PostgreSQL test database for unit tests
+// Note: Uses PostgreSQL containers to maintain consistency with production environment
 func InMemoryTestDB(t *testing.T) *gorm.DB {
-	// For simple unit tests, we might want to use SQLite
-	// However, since we're using PostgreSQL-specific features, we'll use the container approach
+	// Always use PostgreSQL containers to ensure feature compatibility
 	return SetupTestDatabase(t).DB
 }
 

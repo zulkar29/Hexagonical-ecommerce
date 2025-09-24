@@ -1,6 +1,6 @@
 # E-commerce SaaS Backend
 
-Go Fiber backend with hexagonal architecture for multi-tenant e-commerce SaaS platform.
+Go Fiber backend with hexagonal architecture for multi-tenant e-commerce SaaS platform using PostgreSQL.
 
 ## 🏗️ Architecture
 
@@ -17,12 +17,12 @@ backend/
 │   │   └── output/       # External dependencies (what app needs)
 │   ├── adapters/         # External service implementations
 │   │   ├── http/         # HTTP handlers (Fiber)
-│   │   ├── database/     # Database repositories (GORM)
+│   │   ├── database/     # PostgreSQL repositories (GORM)
 │   │   ├── cache/        # Redis adapters
 │   │   └── email/        # Email service adapters
 │   └── infrastructure/   # Framework and external concerns
 │       ├── config/       # Configuration management
-│       ├── database/     # Database connection
+│       ├── database/     # PostgreSQL connection
 │       ├── middleware/   # HTTP middleware
 │       └── routes/       # Route definitions
 └── pkg/                  # Public utilities
@@ -68,7 +68,7 @@ All files contain TODO comments for actual implementation:
 
 ### 🚧 TODO Implementation
 - Actual Go Fiber setup
-- GORM database models
+- GORM PostgreSQL models
 - JWT authentication
 - Business logic implementation
 - API handlers with request/response
@@ -116,7 +116,7 @@ docker run -p 8080:8080 ecommerce-saas-backend
 - JWT authentication
 - Role-based access control
 - RESTful API with Fiber
-- Database per tenant strategy
+- PostgreSQL database per tenant strategy
 - Redis caching
 - Stripe payment integration
 - Email notifications

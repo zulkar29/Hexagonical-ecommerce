@@ -30,9 +30,4 @@ func (m *Module) RegisterRoutes(router *gin.RouterGroup) {
 	m.Handler.RegisterRoutes(router)
 }
 
-// Migrate runs database migrations for product module
-func (m *Module) Migrate() error {
-	// Skip GORM auto-migration to avoid conflicts with SQL migrations
-	// The database schema is managed by SQL migration files
-	return nil
-}
+// Note: Database schema is handled by raw SQL migrations in /migrations directory

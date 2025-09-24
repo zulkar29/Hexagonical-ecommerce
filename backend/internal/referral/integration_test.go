@@ -27,15 +27,7 @@ func TestReferralIntegration(t *testing.T) {
 	})
 	defer testDB.TeardownTestDatabase(t)
 
-	// Run migrations
-	err := testDB.DB.AutoMigrate(
-		&tenant.Tenant{},
-		&user.User{},
-		&Referral{},
-		&ReferralCommission{},
-		&ReferralStats{},
-	)
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Create test tenant
 	testTenant := &tenant.Tenant{
@@ -304,15 +296,7 @@ func TestReferralService(t *testing.T) {
 	})
 	defer testDB.TeardownTestDatabase(t)
 
-	// Run migrations
-	err := testDB.DB.AutoMigrate(
-		&tenant.Tenant{},
-		&user.User{},
-		&Referral{},
-		&ReferralCommission{},
-		&ReferralStats{},
-	)
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Create test data
 	testTenant := &tenant.Tenant{

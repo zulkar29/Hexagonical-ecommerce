@@ -21,9 +21,7 @@ func TestOrderIntegration_BasicOrderOperations(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownSimpleTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&tenant.Tenant{}, &user.User{}, &Order{}, &OrderItem{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	tenantRepo := tenant.NewRepository(testDB.DB)
@@ -99,9 +97,7 @@ func TestOrderIntegration_OrderItems(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownSimpleTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&tenant.Tenant{}, &user.User{}, &Order{}, &OrderItem{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup repositories
 	tenantRepo := tenant.NewRepository(testDB.DB)
@@ -195,9 +191,7 @@ func TestOrderIntegration_MultiTenantIsolation(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownSimpleTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&tenant.Tenant{}, &user.User{}, &Order{}, &OrderItem{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup repositories
 	tenantRepo := tenant.NewRepository(testDB.DB)
@@ -314,9 +308,7 @@ func TestOrderIntegration_OrderStatusManagement(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownSimpleTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&tenant.Tenant{}, &user.User{}, &Order{}, &OrderItem{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup repositories
 	tenantRepo := tenant.NewRepository(testDB.DB)
@@ -396,8 +388,7 @@ func BenchmarkOrderIntegration_CreateOrder(b *testing.B) {
 	testDB := testhelpers.SetupSimpleTestDatabase(&testing.T{})
 	defer testDB.TeardownSimpleTestDatabase(&testing.T{})
 
-	// Migrate schemas
-	testDB.DB.AutoMigrate(&tenant.Tenant{}, &user.User{}, &Order{}, &OrderItem{})
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup repositories
 	tenantRepo := tenant.NewRepository(testDB.DB)

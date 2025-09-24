@@ -223,47 +223,6 @@ CREATE TRIGGER ensure_single_active_theme_trigger
     FOR EACH ROW
     EXECUTE FUNCTION ensure_single_active_theme();
 
--- Insert some default component templates
-INSERT INTO component_templates (tenant_id, name, slug, description, type, category, html_template, css_template, config_schema, default_config, is_featured, tags) VALUES
-(
-    '00000000-0000-0000-0000-000000000001',
-    'Simple Header',
-    'simple-header',
-    'A clean and simple header with logo and navigation',
-    'header',
-    'basic',
-    '<header class="simple-header"><div class="container"><div class="logo">{{logo}}</div><nav class="nav">{{navigation}}</nav></div></header>',
-    '.simple-header { background: {{backgroundColor}}; padding: 1rem 0; } .container { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; } .logo { font-size: 1.5rem; font-weight: bold; color: {{logoColor}}; } .nav a { margin-left: 2rem; color: {{linkColor}}; text-decoration: none; }',
-    '{"type": "object", "properties": {"backgroundColor": {"type": "string", "default": "#ffffff"}, "logoColor": {"type": "string", "default": "#333333"}, "linkColor": {"type": "string", "default": "#666666"}, "logo": {"type": "string", "default": "Your Logo"}, "navigation": {"type": "string", "default": "<a href=\"/\">Home</a><a href=\"/products\">Products</a><a href=\"/contact\">Contact</a>"}}}',
-    '{"backgroundColor": "#ffffff", "logoColor": "#333333", "linkColor": "#666666", "logo": "Your Logo", "navigation": "<a href=\"/\">Home</a><a href=\"/products\">Products</a><a href=\"/contact\">Contact</a>"}',
-    true,
-    '["header", "simple", "navigation", "logo"]'
-),
-(
-    '00000000-0000-0000-0000-000000000001',
-    'Simple Footer',
-    'simple-footer',
-    'A basic footer with copyright and links',
-    'footer',
-    'basic',
-    '<footer class="simple-footer"><div class="container"><div class="footer-content"><p>{{copyright}}</p><div class="footer-links">{{links}}</div></div></div></footer>',
-    '.simple-footer { background: {{backgroundColor}}; color: {{textColor}}; padding: 2rem 0; margin-top: auto; } .container { max-width: 1200px; margin: 0 auto; } .footer-content { display: flex; justify-content: space-between; align-items: center; } .footer-links a { margin-left: 1rem; color: {{linkColor}}; text-decoration: none; }',
-    '{"type": "object", "properties": {"backgroundColor": {"type": "string", "default": "#f8f9fa"}, "textColor": {"type": "string", "default": "#666666"}, "linkColor": {"type": "string", "default": "#007bff"}, "copyright": {"type": "string", "default": "© 2024 Your Company. All rights reserved."}, "links": {"type": "string", "default": "<a href=\"/privacy\">Privacy</a><a href=\"/terms\">Terms</a><a href=\"/support\">Support</a>"}}}',
-    '{"backgroundColor": "#f8f9fa", "textColor": "#666666", "linkColor": "#007bff", "copyright": "© 2024 Your Company. All rights reserved.", "links": "<a href=\"/privacy\">Privacy</a><a href=\"/terms\">Terms</a><a href=\"/support\">Support</a>"}',
-    true,
-    '["footer", "simple", "copyright", "links"]'
-),
-(
-    '00000000-0000-0000-0000-000000000001',
-    'Hero Banner',
-    'hero-banner',
-    'A prominent hero section with title, subtitle and call-to-action',
-    'hero',
-    'marketing',
-    '<section class="hero-banner"><div class="container"><div class="hero-content"><h1>{{title}}</h1><p>{{subtitle}}</p><a href="{{ctaLink}}" class="cta-button">{{ctaText}}</a></div></div></section>',
-    '.hero-banner { background: {{backgroundColor}}; background-image: url({{backgroundImage}}); background-size: cover; background-position: center; padding: 4rem 0; text-align: center; color: {{textColor}}; } .container { max-width: 1200px; margin: 0 auto; } .hero-content h1 { font-size: 3rem; margin-bottom: 1rem; } .hero-content p { font-size: 1.2rem; margin-bottom: 2rem; } .cta-button { background: {{ctaBackgroundColor}}; color: {{ctaTextColor}}; padding: 1rem 2rem; text-decoration: none; border-radius: 5px; font-weight: bold; }',
-    '{"type": "object", "properties": {"backgroundColor": {"type": "string", "default": "#007bff"}, "backgroundImage": {"type": "string", "default": ""}, "textColor": {"type": "string", "default": "#ffffff"}, "title": {"type": "string", "default": "Welcome to Our Store"}, "subtitle": {"type": "string", "default": "Discover amazing products at great prices"}, "ctaText": {"type": "string", "default": "Shop Now"}, "ctaLink": {"type": "string", "default": "/products"}, "ctaBackgroundColor": {"type": "string", "default": "#ffffff"}, "ctaTextColor": {"type": "string", "default": "#007bff"}}}',
-    '{"backgroundColor": "#007bff", "backgroundImage": "", "textColor": "#ffffff", "title": "Welcome to Our Store", "subtitle": "Discover amazing products at great prices", "ctaText": "Shop Now", "ctaLink": "/products", "ctaBackgroundColor": "#ffffff", "ctaTextColor": "#007bff"}',
-    true,
-    '["hero", "banner", "cta", "marketing"]'
-);
+-- Note: Default component templates should be created through the application API
+-- rather than hardcoded in migrations to avoid foreign key constraint violations.
+-- This ensures proper tenant validation and data integrity.

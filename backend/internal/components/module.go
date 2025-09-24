@@ -70,15 +70,7 @@ func (m *Module) RegisterRoutes(router *gin.RouterGroup) {
 	}
 }
 
-// Migrate runs the database migrations for components
-func (m *Module) Migrate() error {
-	return m.db.AutoMigrate(
-		&Component{},
-		&ComponentTemplate{},
-		&ComponentInstance{},
-		&Theme{},
-	)
-}
+// Note: Database schema is handled by raw SQL migrations in /migrations directory
 
 // GetService returns the components service
 func (m *Module) GetService() Service {

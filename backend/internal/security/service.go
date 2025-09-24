@@ -427,8 +427,8 @@ func (s *SecurityService) getOrCreateLockout(ctx context.Context, userID uuid.UU
 				UserID:   userID,
 				TenantID: tenantID,
 			}
-			if err := s.db.WithContext(ctx).Create(&lockout).Error; err != nil {
-				return nil, err
+			if createError := s.db.WithContext(ctx).Create(&lockout).Error; createError != nil {
+				return nil, createError
 			}
 		} else {
 			return nil, err

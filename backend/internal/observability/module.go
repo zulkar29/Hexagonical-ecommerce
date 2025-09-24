@@ -57,8 +57,4 @@ func (m *Module) GetRepository() Repository {
 	return m.repository
 }
 
-// Migrate runs database migrations for observability module
-func (m *Module) Migrate() error {
-	// No migrations needed for observability module
-	return nil
-}
+// Note: Database schema is handled by raw SQL migrations in /migrations directory

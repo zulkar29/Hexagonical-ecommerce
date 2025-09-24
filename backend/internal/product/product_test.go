@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"ecommerce-saas/internal/shared/testhelpers"
 )
@@ -210,6 +211,20 @@ func BenchmarkProductProfitCalculation(b *testing.B) {
 }
 
 // Integration tests with real database
+func createTestTenant(t *testing.T, db *gorm.DB, tenantID uuid.UUID) {
+	// Create a test tenant to satisfy foreign key constraints
+	tenant := map[string]interface{}{
+		"id":         tenantID,
+		"name":       "Test Tenant",
+		"subdomain":  "test-" + tenantID.String()[:8],
+		"status":     "active",
+		"created_at": "NOW()",
+		"updated_at": "NOW()",
+	}
+	err := db.Table("tenants").Create(tenant).Error
+	require.NoError(t, err)
+}
+
 func createDefaultCategory(t *testing.T, repo Repository, tenantID uuid.UUID) *Category {
 	defaultCategory := &Category{
 		ID:          uuid.New(),
@@ -226,23 +241,20 @@ func createDefaultCategory(t *testing.T, repo Repository, tenantID uuid.UUID) *C
 }
 
 func TestProductIntegration_ProductLifecycle(t *testing.T) {
-	// Setup test database
-	testDB := testhelpers.SetupSimpleTestDatabase(t)
+	// Setup test database with migrations
+	testDB := testhelpers.SetupTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(
-		&Product{},
-		&ProductVariant{},
-		&Category{},
-	)
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup repository
 	repo := NewRepository(testDB.DB)
 
 	t.Run("Complete product lifecycle", func(t *testing.T) {
 		tenantID := uuid.New()
+
+		// Create test tenant first
+		createTestTenant(t, testDB.DB, tenantID)
 
 		// Create a default category first to avoid foreign key constraint
 		defaultCategory := &Category{
@@ -338,6 +350,9 @@ func TestProductIntegration_ProductLifecycle(t *testing.T) {
 	t.Run("Product category management", func(t *testing.T) {
 		tenantID := uuid.New()
 
+		// Create test tenant first
+		createTestTenant(t, testDB.DB, tenantID)
+
 		// Create parent category
 		parentCategory := &Category{
 			ID:          uuid.New(),
@@ -403,6 +418,9 @@ func TestProductIntegration_ProductLifecycle(t *testing.T) {
 
 	t.Run("Product variants management", func(t *testing.T) {
 		tenantID := uuid.New()
+
+		// Create test tenant first
+		createTestTenant(t, testDB.DB, tenantID)
 
 		// Create default category first
 		defaultCategory := createDefaultCategory(t, repo, tenantID)
@@ -495,6 +513,9 @@ func TestProductIntegration_ProductLifecycle(t *testing.T) {
 	t.Run("Product search and filtering", func(t *testing.T) {
 		tenantID := uuid.New()
 
+		// Create test tenant first
+		createTestTenant(t, testDB.DB, tenantID)
+
 		// Create default category first
 		defaultCategory := createDefaultCategory(t, repo, tenantID)
 
@@ -577,6 +598,10 @@ func TestProductIntegration_ProductLifecycle(t *testing.T) {
 		tenant1 := uuid.New()
 		tenant2 := uuid.New()
 
+		// Create test tenants first
+		createTestTenant(t, testDB.DB, tenant1)
+		createTestTenant(t, testDB.DB, tenant2)
+
 		// Create default categories for both tenants
 		defaultCategory1 := createDefaultCategory(t, repo, tenant1)
 		defaultCategory2 := createDefaultCategory(t, repo, tenant2)
@@ -639,6 +664,9 @@ func TestProductIntegration_ProductLifecycle(t *testing.T) {
 
 	t.Run("Low stock and bulk operations", func(t *testing.T) {
 		tenantID := uuid.New()
+
+		// Create test tenant first
+		createTestTenant(t, testDB.DB, tenantID)
 
 		// Create default category first
 		defaultCategory := createDefaultCategory(t, repo, tenantID)
@@ -720,6 +748,9 @@ func TestProductIntegration_ProductLifecycle(t *testing.T) {
 
 	t.Run("Product statistics", func(t *testing.T) {
 		tenantID := uuid.New()
+
+		// Create test tenant first
+		createTestTenant(t, testDB.DB, tenantID)
 
 		// Create default category first
 		defaultCategory := createDefaultCategory(t, repo, tenantID)

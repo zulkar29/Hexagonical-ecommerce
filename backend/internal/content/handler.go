@@ -4,10 +4,10 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"ecommerce-saas/internal/shared/utils"
 )
 
 type Handler struct {
@@ -1001,8 +1001,8 @@ func (h *Handler) SearchContent(c *gin.Context) {
 // Public API Endpoints (no auth required)
 
 func (h *Handler) GetPublicPage(c *gin.Context) {
-	// Extract tenant from subdomain or domain
-	tenantID, err := h.extractTenantFromRequest(c)
+	// Extract tenant ID from context (set by middleware)
+	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant"})
 		return
@@ -1031,8 +1031,8 @@ func (h *Handler) GetPublicPage(c *gin.Context) {
 }
 
 func (h *Handler) GetPublicMenu(c *gin.Context) {
-	// Extract tenant from subdomain or domain
-	tenantID, err := h.extractTenantFromRequest(c)
+	// Extract tenant ID from context (set by middleware)
+	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant"})
 		return
@@ -1054,8 +1054,8 @@ func (h *Handler) GetPublicMenu(c *gin.Context) {
 }
 
 func (h *Handler) GetPublicSitemap(c *gin.Context) {
-	// Extract tenant from subdomain or domain
-	tenantID, err := h.extractTenantFromRequest(c)
+	// Extract tenant ID from context (set by middleware)
+	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant"})
 		return
@@ -1072,8 +1072,8 @@ func (h *Handler) GetPublicSitemap(c *gin.Context) {
 }
 
 func (h *Handler) GetPublicRobotsTxt(c *gin.Context) {
-	// Extract tenant from subdomain or domain
-	tenantID, err := h.extractTenantFromRequest(c)
+	// Extract tenant ID from context (set by middleware)
+	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant"})
 		return
@@ -1090,31 +1090,7 @@ func (h *Handler) GetPublicRobotsTxt(c *gin.Context) {
 }
 
 // Helper methods
-
-func (h *Handler) extractTenantFromRequest(c *gin.Context) (uuid.UUID, error) {
-	// Try to get tenant from header first
-	tenantIDStr := c.GetHeader("X-Tenant-ID")
-
-	// If not in header, try to extract from subdomain
-	if tenantIDStr == "" {
-		host := c.GetHeader("Host")
-		if host != "" {
-			parts := strings.Split(host, ".")
-			if len(parts) > 2 {
-				// Assume first part is the tenant slug
-				// You would need a method to convert slug to UUID
-				// For now, we'll expect UUID in header
-				return uuid.Nil, nil
-			}
-		}
-	}
-
-	if tenantIDStr == "" {
-		return uuid.Nil, nil
-	}
-
-	return uuid.Parse(tenantIDStr)
-}
+// Note: Tenant extraction is now handled by middleware and accessed via utils.GetTenantIDFromContext
 
 // Route registration
 func (h *Handler) RegisterRoutes(router gin.IRouter) {

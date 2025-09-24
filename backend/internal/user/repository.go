@@ -28,9 +28,7 @@ type Repository interface {
 	GetUserPermissions(userID uuid.UUID) ([]*Permission, error)
 	CheckUserPermission(userID uuid.UUID, resource, action string) (bool, error)
 
-	// Preferences operations
-	GetUserPreferences(ctx context.Context, userID uuid.UUID) (map[string]interface{}, error)
-	UpdateUserPreferences(ctx context.Context, userID uuid.UUID, preferences map[string]interface{}) (map[string]interface{}, error)
+	// Note: User preferences functionality has been removed due to JSONB complexity
 }
 
 // repository implements Repository interface
@@ -206,28 +204,8 @@ func (r *repository) CheckUserPermission(userID uuid.UUID, resource, action stri
 	return count > 0, err
 }
 
-// Preferences operations
-
-func (r *repository) GetUserPreferences(ctx context.Context, userID uuid.UUID) (map[string]interface{}, error) {
-	var user User
-	if err := r.db.WithContext(ctx).Select("preferences").Where("id = ?", userID).First(&user).Error; err != nil {
-		return nil, err
-	}
-
-	if user.Preferences == nil {
-		return make(map[string]interface{}), nil
-	}
-
-	return user.Preferences, nil
-}
-
-func (r *repository) UpdateUserPreferences(ctx context.Context, userID uuid.UUID, preferences map[string]interface{}) (map[string]interface{}, error) {
-	if err := r.db.WithContext(ctx).Model(&User{}).Where("id = ?", userID).Update("preferences", preferences).Error; err != nil {
-		return nil, err
-	}
-
-	return preferences, nil
-}
+// Note: User preferences functionality has been removed due to JSONB complexity
+// If needed in the future, consider using a separate notification_preferences table
 
 // GetByID is an alias for GetUserByID for compatibility
 func (r *repository) GetByID(ctx context.Context, userID uuid.UUID) (*User, error) {

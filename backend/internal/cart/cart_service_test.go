@@ -153,9 +153,7 @@ func TestCartIntegration_CartLifecycle(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Cart{}, &CartItem{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup repository
 	repo := NewRepository(testDB.DB)

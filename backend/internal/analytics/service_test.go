@@ -19,9 +19,7 @@ func TestAnalyticsService_EventTracking(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&AnalyticsEvent{}, &PageView{}, &ProductView{}, &Purchase{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	analyticsRepo := NewRepository(testDB.DB)
@@ -179,9 +177,7 @@ func TestAnalyticsService_TrafficAnalytics(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&PageView{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	analyticsRepo := NewRepository(testDB.DB)
@@ -261,9 +257,7 @@ func TestAnalyticsService_SalesAnalytics(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&Purchase{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	analyticsRepo := NewRepository(testDB.DB)
@@ -343,9 +337,7 @@ func TestAnalyticsService_TopPerformers(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&ProductView{}, &PageView{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	analyticsRepo := NewRepository(testDB.DB)
@@ -457,9 +449,7 @@ func TestAnalyticsService_RealTimeAnalytics(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&AnalyticsEvent{}, &PageView{}, &Purchase{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	analyticsRepo := NewRepository(testDB.DB)
@@ -514,9 +504,7 @@ func TestAnalyticsService_MultiTenantIsolation(t *testing.T) {
 	testDB := testhelpers.SetupSimpleTestDatabase(t)
 	defer testDB.TeardownTestDatabase(t)
 
-	// Migrate schemas
-	err := testDB.DB.AutoMigrate(&AnalyticsEvent{}, &Purchase{})
-	require.NoError(t, err)
+	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
 	analyticsRepo := NewRepository(testDB.DB)

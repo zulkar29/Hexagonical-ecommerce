@@ -69,8 +69,11 @@ func (s *service) CreateAccount(ctx context.Context, account *Account) (*Account
 		return nil, err
 	}
 
-	// Set tenant ID from context
-	// account.TenantID = getTenantIDFromContext(ctx) // TODO: Pass tenant ID as parameter or extract from context
+	// Set tenant ID - should be passed as parameter or extracted from gin context
+	// For now, we'll assume it's already set in the account object
+	if account.TenantID == uuid.Nil {
+		return nil, fmt.Errorf("tenant ID is required")
+	}
 	account.ID = uuid.New()
 
 	// Create account

@@ -48,9 +48,7 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 		users.POST("/change-password", h.ChangePassword)
 		users.DELETE("/account", h.DeleteAccount)
 
-		// User preferences
-		users.GET("/preferences", h.GetPreferences)
-		users.PUT("/preferences", h.UpdatePreferences)
+		// User preferences functionality removed due to JSONB complexity
 
 		// Two-Factor Authentication
 		users.POST("/2fa/setup", h.Setup2FA)
@@ -451,48 +449,8 @@ func (h *Handler) DeleteAccount(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Account deleted successfully"})
 }
 
-// GetPreferences gets user preferences
-func (h *Handler) GetPreferences(c *gin.Context) {
-	userID := h.getUserIDFromContext(c)
-	if userID == uuid.Nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return
-	}
-
-	preferences, err := h.service.GetUserPreferences(c.Request.Context(), userID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"preferences": preferences})
-}
-
-// UpdatePreferences updates user preferences
-func (h *Handler) UpdatePreferences(c *gin.Context) {
-	userID := h.getUserIDFromContext(c)
-	if userID == uuid.Nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return
-	}
-
-	var preferences map[string]interface{}
-	if err := c.ShouldBindJSON(&preferences); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	updatedPreferences, err := h.service.UpdateUserPreferences(c.Request.Context(), userID, preferences)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message":     "Preferences updated successfully",
-		"preferences": updatedPreferences,
-	})
-}
+// Note: User preferences functionality has been removed due to JSONB complexity
+// If needed in the future, consider using a separate notification_preferences table
 
 // GetUserActivity gets user activity logs (admin only)
 func (h *Handler) GetUserActivity(c *gin.Context) {

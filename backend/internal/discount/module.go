@@ -1,6 +1,7 @@
 package discount
 
 import (
+	"ecommerce-saas/internal/shared/utils"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -13,8 +14,8 @@ type Module struct {
 }
 
 // NewModule creates a new discount module instance
-func NewModule(db *gorm.DB) *Module {
-	repo := NewRepository(db)
+func NewModule(db *gorm.DB, settingsRepo utils.SettingsRepository) *Module {
+	repo := NewRepository(db, settingsRepo)
 	svc := NewService(repo)
 	handler := NewHandler(svc)
 

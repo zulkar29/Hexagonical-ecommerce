@@ -1,11 +1,10 @@
-# TODO: Implement actual Makefile commands during development
-
-.PHONY: help build run test clean docker-build docker-run migrate seed setup
+.PHONY: help build run test clean docker-build docker-run migrate seed setup worker lint fmt
 
 help: ## Show help message
 	@echo "Available commands:"
 	@echo "  build        - Build the application"
 	@echo "  run          - Run the application"
+	@echo "  worker       - Run the background worker"
 	@echo "  test         - Run all tests"
 	@echo "  test-unit    - Run unit tests only"
 	@echo "  test-user    - Run user module tests"
@@ -13,6 +12,8 @@ help: ## Show help message
 	@echo "  test-coverage- Run tests with coverage report"
 	@echo "  test-bench   - Run benchmark tests"
 	@echo "  test-race    - Run tests with race detection"
+	@echo "  lint         - Run linter"
+	@echo "  fmt          - Format code"
 	@echo "  clean        - Clean build artifacts"
 	@echo "  docker-build - Build Docker image"
 	@echo "  docker-run   - Run Docker container"
@@ -24,6 +25,7 @@ help: ## Show help message
 build: ## Build the application
 	go build -o bin/api ./cmd/api
 	go build -o bin/migrate ./cmd/migrate
+	go build -o bin/worker ./cmd/worker
 
 run: ## Run the application
 	go run ./cmd/api/main.go
@@ -71,3 +73,13 @@ setup: ## Run migrations and seed data
 
 dev: ## Run in development mode with hot reload
 	air -c .air.toml
+
+worker: ## Run the background worker
+	go run ./cmd/worker/main.go
+
+lint: ## Run linter
+	golangci-lint run
+
+fmt: ## Format code
+	go fmt ./...
+	goimports -w .

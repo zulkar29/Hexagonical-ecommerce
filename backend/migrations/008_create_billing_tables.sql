@@ -14,9 +14,9 @@ CREATE TABLE IF NOT EXISTS billing_plans (
     trial_period_days INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT true,
     is_public BOOLEAN DEFAULT true,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ
 );
 
 -- Usage Tiers Table (for usage-based pricing)
@@ -30,8 +30,8 @@ CREATE TABLE IF NOT EXISTS usage_tiers (
     min_units BIGINT NOT NULL DEFAULT 0,
     max_units BIGINT, -- NULL for unlimited
     price_per_unit DECIMAL(10,6) NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     
     FOREIGN KEY (billing_plan_id) REFERENCES billing_plans(id) ON DELETE CASCADE
 );
@@ -45,27 +45,27 @@ CREATE TABLE IF NOT EXISTS tenant_subscriptions (
         'active', 'pending', 'suspended', 'canceled', 'expired'
     )),
     billing_cycle VARCHAR(20) NOT NULL CHECK (billing_cycle IN ('monthly', 'quarterly', 'yearly')),
-    current_period_start TIMESTAMP NOT NULL,
-    current_period_end TIMESTAMP NOT NULL,
-    trial_end TIMESTAMP,
+    current_period_start TIMESTAMPTZ NOT NULL,
+    current_period_end TIMESTAMPTZ NOT NULL,
+    trial_end TIMESTAMPTZ,
     base_amount DECIMAL(10,2) NOT NULL,
     currency VARCHAR(3) NOT NULL DEFAULT 'BDT',
     
     -- Plan change management
     pending_new_plan_id UUID,
-    pending_effective_date TIMESTAMP,
+    pending_effective_date TIMESTAMPTZ,
     pending_proration_amount DECIMAL(10,2),
     pending_change_reason VARCHAR(255),
     
     -- Payment and billing
     payment_method_id VARCHAR(255),
-    next_billing_date TIMESTAMP NOT NULL,
-    canceled_at TIMESTAMP,
+    next_billing_date TIMESTAMPTZ NOT NULL,
+    canceled_at TIMESTAMPTZ,
     cancellation_reason TEXT,
     
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ,
     
     FOREIGN KEY (plan_id) REFERENCES billing_plans(id),
     FOREIGN KEY (pending_new_plan_id) REFERENCES billing_plans(id),
@@ -82,12 +82,12 @@ CREATE TABLE IF NOT EXISTS usage_records (
     )),
     quantity BIGINT NOT NULL,
     units VARCHAR(50) NOT NULL,
-    billing_period_start TIMESTAMP NOT NULL,
-    billing_period_end TIMESTAMP NOT NULL,
+    billing_period_start TIMESTAMPTZ NOT NULL,
+    billing_period_end TIMESTAMPTZ NOT NULL,
     resource_id VARCHAR(255), -- ID of resource that generated usage
     metadata JSONB DEFAULT '{}',
-    recorded_at TIMESTAMP NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    recorded_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Invoices Table
@@ -99,18 +99,18 @@ CREATE TABLE IF NOT EXISTS invoices (
     status VARCHAR(20) NOT NULL DEFAULT 'draft' CHECK (status IN (
         'draft', 'pending', 'paid', 'overdue', 'voided', 'refunded'
     )),
-    period_start TIMESTAMP NOT NULL,
-    period_end TIMESTAMP NOT NULL,
+    period_start TIMESTAMPTZ NOT NULL,
+    period_end TIMESTAMPTZ NOT NULL,
     subtotal_amount DECIMAL(10,2) NOT NULL,
     total_amount DECIMAL(10,2) NOT NULL,
     paid_amount DECIMAL(10,2) DEFAULT 0.00,
     currency VARCHAR(3) NOT NULL DEFAULT 'BDT',
-    due_date TIMESTAMP NOT NULL,
-    paid_at TIMESTAMP,
+    due_date TIMESTAMPTZ NOT NULL,
+    paid_at TIMESTAMPTZ,
     payment_method VARCHAR(255),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ,
     
     FOREIGN KEY (subscription_id) REFERENCES tenant_subscriptions(id)
 );
@@ -125,11 +125,11 @@ CREATE TABLE IF NOT EXISTS invoice_line_items (
     total_price DECIMAL(10,2) NOT NULL,
     item_type VARCHAR(20) NOT NULL CHECK (item_type IN ('subscription', 'usage', 'addon', 'discount')),
     usage_type VARCHAR(50), -- NULL for non-usage items
-    period_start TIMESTAMP,
-    period_end TIMESTAMP,
+    period_start TIMESTAMPTZ,
+    period_end TIMESTAMPTZ,
     metadata JSONB DEFAULT '{}',
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     
     FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
 );
@@ -148,13 +148,13 @@ CREATE TABLE IF NOT EXISTS payment_attempts (
     provider_id VARCHAR(100), -- e.g., 'stripe', 'bkash'
     provider_charge_id VARCHAR(255),
     provider_response JSONB,
-    attempted_at TIMESTAMP NOT NULL,
-    completed_at TIMESTAMP,
+    attempted_at TIMESTAMPTZ NOT NULL,
+    completed_at TIMESTAMPTZ,
     failure_reason TEXT,
     retry_count INTEGER DEFAULT 0,
-    next_retry_at TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    next_retry_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     
     FOREIGN KEY (invoice_id) REFERENCES invoices(id)
 );
@@ -169,15 +169,15 @@ CREATE TABLE IF NOT EXISTS dunning_processes (
     total_steps INTEGER NOT NULL DEFAULT 5,
     is_completed BOOLEAN DEFAULT false,
     is_abandoned BOOLEAN DEFAULT false,
-    started_at TIMESTAMP NOT NULL,
-    next_action_at TIMESTAMP,
-    completed_at TIMESTAMP,
+    started_at TIMESTAMPTZ NOT NULL,
+    next_action_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
     emails_sent INTEGER DEFAULT 0,
     payment_attempts INTEGER DEFAULT 0,
     service_suspended BOOLEAN DEFAULT false,
-    service_suspended_at TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    service_suspended_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     
     FOREIGN KEY (invoice_id) REFERENCES invoices(id),
     FOREIGN KEY (subscription_id) REFERENCES tenant_subscriptions(id),
@@ -194,10 +194,10 @@ CREATE TABLE IF NOT EXISTS dunning_actions (
     status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'failed')),
     result JSONB,
     error_message TEXT,
-    scheduled_at TIMESTAMP NOT NULL,
-    executed_at TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    scheduled_at TIMESTAMPTZ NOT NULL,
+    executed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     
     FOREIGN KEY (dunning_process_id) REFERENCES dunning_processes(id) ON DELETE CASCADE
 );
@@ -246,7 +246,7 @@ CREATE INDEX IF NOT EXISTS idx_dunning_actions_scheduled ON dunning_actions(stat
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
+    NEW.updated_at = NOW();
     RETURN NEW;
 END;
 $$ language 'plpgsql';

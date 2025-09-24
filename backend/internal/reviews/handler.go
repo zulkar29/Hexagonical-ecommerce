@@ -616,8 +616,11 @@ func (h *Handler) updateSettings(c *gin.Context) {
 		return
 	}
 
-	// TODO: Get tenant ID from context
-	tenantID := uuid.New() // Placeholder
+	tenantID, err := utils.GetTenantIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid tenant context"})
+		return
+	}
 
 	settings, err := h.service.UpdateSettings(c.Request.Context(), tenantID, req)
 	if err != nil {

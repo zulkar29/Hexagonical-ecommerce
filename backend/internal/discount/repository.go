@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"ecommerce-saas/internal/shared/utils"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -58,12 +59,13 @@ type Repository interface {
 
 // repository implements the Repository interface
 type repository struct {
-	db *gorm.DB
+	db           *gorm.DB
+	settingsRepo utils.SettingsRepository
 }
 
 // NewRepository creates a new discount repository
-func NewRepository(db *gorm.DB) Repository {
-	return &repository{db: db}
+func NewRepository(db *gorm.DB, settingsRepo utils.SettingsRepository) Repository {
+	return &repository{db: db, settingsRepo: settingsRepo}
 }
 
 // Discount operations
@@ -388,8 +390,10 @@ func (r *repository) GetStoreCredit(ctx context.Context, tenantID, customerID uu
 			TenantID:       tenantID,
 			CustomerID:     customerID,
 			CurrentBalance: 0,
-			Currency:       "BDT", // TODO: Get from tenant settings
+			Currency:       "", // Will be set below
 		}
+		// Get currency from tenant settings
+		storeCredit.Currency = utils.GetTenantCurrency(ctx, tenantID, r.settingsRepo)
 		if createErr := r.CreateStoreCredit(ctx, &storeCredit); createErr != nil {
 			return nil, createErr
 		}

@@ -240,8 +240,7 @@ type Repository interface {
 	SaveAlert(ctx context.Context, alert *Alert) error
 	GetAlerts(ctx context.Context, filters map[string]interface{}, limit, offset int) ([]*Alert, error)
 
-	// Migration
-	Migrate() error
+	// Note: Database schema is handled by raw SQL migrations in /migrations directory
 }
 
 // logger implements the Logger interface

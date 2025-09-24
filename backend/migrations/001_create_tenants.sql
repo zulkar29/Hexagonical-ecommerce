@@ -9,6 +9,11 @@ CREATE TABLE IF NOT EXISTS tenants (
     status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'suspended')),
     plan VARCHAR(20) DEFAULT 'starter' CHECK (plan IN ('starter', 'professional', 'premium', 'enterprise')),
     
+    -- Trial Information
+    trial_start_date TIMESTAMPTZ,
+    trial_end_date TIMESTAMPTZ,
+    is_trial_active BOOLEAN DEFAULT false,
+    
     -- Business Information
     description TEXT,
     phone VARCHAR(20),

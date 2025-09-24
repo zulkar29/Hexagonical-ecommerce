@@ -5,23 +5,25 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+
+	"github.com/google/uuid"
 )
 
 // Service defines the settings service interface
 type Service interface {
-	GetSettings(ctx context.Context, tenantID uint, req *GetSettingsRequest) (*GetSettingsResponse, error)
-	UpdateSettings(ctx context.Context, tenantID uint, req *UpdateSettingsRequest) (*UpdateSettingsResponse, error)
-	GetPublicSettings(ctx context.Context, tenantID uint) (*PublicSettingsResponse, error)
+	GetSettings(ctx context.Context, tenantID uuid.UUID, req *GetSettingsRequest) (*GetSettingsResponse, error)
+	UpdateSettings(ctx context.Context, tenantID uuid.UUID, req *UpdateSettingsRequest) (*UpdateSettingsResponse, error)
+	GetPublicSettings(ctx context.Context, tenantID uuid.UUID) (*PublicSettingsResponse, error)
 }
 
 // Repository defines the settings repository interface
 type Repository interface {
-	GetSettings(tenantID uint, section string) ([]Setting, error)
-	GetSetting(tenantID uint, section, key string) (*Setting, error)
+	GetSettings(tenantID uuid.UUID, section string) ([]Setting, error)
+	GetSetting(tenantID uuid.UUID, section, key string) (*Setting, error)
 	CreateSetting(setting *Setting) error
 	UpdateSetting(setting *Setting) error
-	DeleteSetting(tenantID uint, section, key string) error
-	GetPublicSettings(tenantID uint) ([]Setting, error)
+	DeleteSetting(tenantID uuid.UUID, section, key string) error
+	GetPublicSettings(tenantID uuid.UUID) ([]Setting, error)
 }
 
 // service implements the Service interface
@@ -37,7 +39,7 @@ func NewService(repo Repository) Service {
 }
 
 // GetSettings retrieves settings for a tenant
-func (s *service) GetSettings(ctx context.Context, tenantID uint, req *GetSettingsRequest) (*GetSettingsResponse, error) {
+func (s *service) GetSettings(ctx context.Context, tenantID uuid.UUID, req *GetSettingsRequest) (*GetSettingsResponse, error) {
 	log.Printf("Getting settings for tenant %d, section: %s", tenantID, req.Section)
 
 	settings, err := s.repo.GetSettings(tenantID, req.Section)
@@ -92,7 +94,7 @@ func (s *service) GetSettings(ctx context.Context, tenantID uint, req *GetSettin
 }
 
 // UpdateSettings updates settings for a tenant
-func (s *service) UpdateSettings(ctx context.Context, tenantID uint, req *UpdateSettingsRequest) (*UpdateSettingsResponse, error) {
+func (s *service) UpdateSettings(ctx context.Context, tenantID uuid.UUID, req *UpdateSettingsRequest) (*UpdateSettingsResponse, error) {
 	log.Printf("Updating settings for tenant %d", tenantID)
 
 	if len(req.Settings) == 0 {
@@ -198,7 +200,7 @@ func (s *service) UpdateSettings(ctx context.Context, tenantID uint, req *Update
 }
 
 // GetPublicSettings retrieves public settings for a tenant
-func (s *service) GetPublicSettings(ctx context.Context, tenantID uint) (*PublicSettingsResponse, error) {
+func (s *service) GetPublicSettings(ctx context.Context, tenantID uuid.UUID) (*PublicSettingsResponse, error) {
 	log.Printf("Getting public settings for tenant %d", tenantID)
 
 	settings, err := s.repo.GetPublicSettings(tenantID)
