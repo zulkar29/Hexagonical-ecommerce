@@ -26,13 +26,15 @@ type ProductListFilter struct {
 // Service handles product business logic
 type Service struct {
 	repo      Repository
+	db        *gorm.DB
 	validator *validator.Validate
 }
 
 // NewService creates a new product service
-func NewService(repo Repository) *Service {
+func NewService(repo Repository, db *gorm.DB) *Service {
 	return &Service{
 		repo:      repo,
+		db:        db,
 		validator: validator.New(),
 	}
 }
@@ -272,49 +274,117 @@ func (s *Service) UpdateInventory(tenantID uuid.UUID, id string, quantity int) e
 	return nil
 }
 
-// ReserveStock reserves inventory for a product (decrements inventory)
+// ReserveStock reserves inventory for a product (decrements inventory) with transaction safety
 func (s *Service) ReserveStock(tenantID uuid.UUID, productID uuid.UUID, quantity int) error {
-	// Get the product first
-	product, err := s.repo.GetProductByID(tenantID, productID)
+	// Start transaction
+	tx := s.db.Begin()
+	if tx.Error != nil {
+		return fmt.Errorf("failed to begin transaction: %w", tx.Error)
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Lock and get the product for update to prevent race conditions
+	var product Product
+	err := tx.Set("gorm:query_option", "FOR UPDATE").
+		Where("id = ? AND tenant_id = ?", productID, tenantID).
+		First(&product).Error
+
 	if err != nil {
+		tx.Rollback()
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return sharedErrors.NewNotFoundError("product not found")
 		}
-		return fmt.Errorf("failed to get product: %w", err)
+		return fmt.Errorf("failed to get product with lock: %w", err)
 	}
 
 	// Check if we can decrement inventory
 	if !product.CanDecrementInventory(quantity) {
-		return fmt.Errorf("insufficient inventory for product %s. Available: %d, Requested: %d", product.Name, product.InventoryQuantity, quantity)
+		tx.Rollback()
+		return sharedErrors.NewBadRequestError(fmt.Sprintf("insufficient inventory for product %s. Available: %d, Requested: %d", product.Name, product.InventoryQuantity, quantity))
 	}
 
 	// Decrement inventory
 	if decrementErr := product.DecrementInventory(quantity); decrementErr != nil {
+		tx.Rollback()
 		return decrementErr
 	}
 
-	// Save the updated product
-	_, err = s.repo.UpdateProduct(product)
-	return err
+	// Update the product inventory directly in the transaction
+	result := tx.Model(&product).
+		Where("id = ? AND tenant_id = ?", productID, tenantID).
+		Updates(map[string]interface{}{
+			"inventory_quantity": product.InventoryQuantity,
+			"updated_at":        time.Now(),
+		})
+
+	if result.Error != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to update product inventory: %w", result.Error)
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("failed to commit inventory reservation: %w", err)
+	}
+
+	return nil
 }
 
-// RestoreStock restores inventory for a product (increments inventory)
+// RestoreStock restores inventory for a product (increments inventory) with transaction safety
 func (s *Service) RestoreStock(tenantID uuid.UUID, productID uuid.UUID, quantity int) error {
-	// Get the product first
-	product, err := s.repo.GetProductByID(tenantID, productID)
+	// Start transaction
+	tx := s.db.Begin()
+	if tx.Error != nil {
+		return fmt.Errorf("failed to begin transaction: %w", tx.Error)
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Lock and get the product for update to prevent race conditions
+	var product Product
+	err := tx.Set("gorm:query_option", "FOR UPDATE").
+		Where("id = ? AND tenant_id = ?", productID, tenantID).
+		First(&product).Error
+
 	if err != nil {
+		tx.Rollback()
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return sharedErrors.NewNotFoundError("product not found")
 		}
-		return fmt.Errorf("failed to get product: %w", err)
+		return fmt.Errorf("failed to get product with lock: %w", err)
 	}
 
 	// Increment inventory
 	product.IncrementInventory(quantity)
 
-	// Save the updated product
-	_, err = s.repo.UpdateProduct(product)
-	return err
+	// Update the product inventory directly in the transaction
+	result := tx.Model(&product).
+		Where("id = ? AND tenant_id = ?", productID, tenantID).
+		Updates(map[string]interface{}{
+			"inventory_quantity": product.InventoryQuantity,
+			"updated_at":        time.Now(),
+		})
+
+	if result.Error != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to update product inventory: %w", result.Error)
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("failed to commit inventory restoration: %w", err)
+	}
+
+	return nil
 }
 
 // CheckAvailability checks if sufficient inventory is available

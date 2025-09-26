@@ -88,6 +88,15 @@ type GuestCheckoutResponse struct {
 	Status      string    `json:"status"`
 }
 
+type OrderConversionResult struct {
+	OrderID      uuid.UUID `json:"order_id"`
+	OrderNumber  string    `json:"order_number"`
+	Total        float64   `json:"total"`
+	ItemCount    int       `json:"item_count"`
+	Success      bool      `json:"success"`
+	Error        string    `json:"error,omitempty"`
+}
+
 // Response structures
 type CartResponse struct {
 	*Cart
@@ -128,6 +137,18 @@ type ShippingService interface {
 	GetShippingZones(tenantID uuid.UUID) ([]shipping.ShippingZone, error)
 }
 
+type OrderService interface {
+	CreateOrderFromCart(ctx context.Context, tenantID, cartID uuid.UUID) (*OrderFromCartResult, error)
+}
+
+// OrderFromCartResult represents the result of creating an order from a cart
+type OrderFromCartResult struct {
+	OrderID      uuid.UUID `json:"order_id"`
+	OrderNumber  string    `json:"order_number"`
+	Total        float64   `json:"total"`
+	ItemCount    int       `json:"item_count"`
+}
+
 // External service data structures
 
 
@@ -164,6 +185,7 @@ type ServiceInterface interface {
 	GetEstimates(tenantID, cartID uuid.UUID, req EstimateRequest) (*EstimateResponse, error)
 	ClearCart(tenantID, cartID uuid.UUID) error
 	DeleteCart(tenantID, cartID uuid.UUID) error
+	ConvertToOrder(tenantID, cartID uuid.UUID) (*OrderConversionResult, error)
 	ProcessGuestCheckout(tenantID uuid.UUID, req GuestCheckoutRequest) (*GuestCheckoutResponse, error)
 	ListCarts(tenantID uuid.UUID, filter CartListFilter, offset, limit int) ([]*CartResponse, int64, error)
 	GetCartStats(tenantID uuid.UUID) (*CartStats, error)
@@ -179,24 +201,26 @@ type CartService struct {
 	productService  ProductService
 	discountService DiscountService
 	shippingService ShippingService
+	orderService    OrderService
 	cartExpiration  time.Duration
 }
 
 // NewCartService creates a new cart service implementation
-func NewCartService(repo Repository, productService ProductService, discountService DiscountService, shippingService ShippingService) *CartService {
+func NewCartService(repo Repository, productService ProductService, discountService DiscountService, shippingService ShippingService, orderService OrderService) *CartService {
 	return &CartService{
 		repo:            repo,
 		validator:       validator.New(),
 		productService:  productService,
 		discountService: discountService,
 		shippingService: shippingService,
+		orderService:    orderService,
 		cartExpiration:  24 * time.Hour * 30, // 30 days default
 	}
 }
 
 // NewService creates a new cart service (interface compatibility)
-func NewService(repo Repository, productService ProductService, discountService DiscountService, shippingService ShippingService) Service {
-	return NewCartService(repo, productService, discountService, shippingService)
+func NewService(repo Repository, productService ProductService, discountService DiscountService, shippingService ShippingService, orderService OrderService) Service {
+	return NewCartService(repo, productService, discountService, shippingService, orderService)
 }
 
 // CreateCart creates a new cart
@@ -800,6 +824,74 @@ func (s *CartService) ConvertCart(tenantID, cartID uuid.UUID) error {
 // DeleteCart soft deletes a cart
 func (s *CartService) DeleteCart(tenantID, cartID uuid.UUID) error {
 	return s.repo.DeleteCart(tenantID, cartID)
+}
+
+// ConvertToOrder converts a cart to an order
+func (s *CartService) ConvertToOrder(tenantID, cartID uuid.UUID) (*OrderConversionResult, error) {
+	// Get the cart first
+	cart, err := s.repo.GetCartByID(tenantID, cartID)
+	if err != nil {
+		return &OrderConversionResult{
+			Success: false,
+			Error:   fmt.Sprintf("Cart not found: %v", err),
+		}, nil
+	}
+
+	// Validate cart has items
+	if len(cart.Items) == 0 {
+		return &OrderConversionResult{
+			Success: false,
+			Error:   "Cart is empty",
+		}, nil
+	}
+
+	// Validate cart has required information for order creation
+	if cart.ShippingAddress.Address1 == "" {
+		return &OrderConversionResult{
+			Success: false,
+			Error:   "Shipping address is required",
+		}, nil
+	}
+
+	// Check inventory availability for all items
+	for _, item := range cart.Items {
+		available, err := s.productService.CheckAvailability(tenantID, item.ProductID, item.VariantID, item.Quantity)
+		if err != nil {
+			return &OrderConversionResult{
+				Success: false,
+				Error:   fmt.Sprintf("Failed to check availability for product %s: %v", item.ProductID, err),
+			}, nil
+		}
+		if !available {
+			return &OrderConversionResult{
+				Success: false,
+				Error:   fmt.Sprintf("Product %s is not available in requested quantity", item.ProductName),
+			}, nil
+		}
+	}
+
+	// Convert cart to order using order service
+	ctx := context.Background()
+	orderResult, err := s.orderService.CreateOrderFromCart(ctx, tenantID, cartID)
+	if err != nil {
+		return &OrderConversionResult{
+			Success: false,
+			Error:   fmt.Sprintf("Failed to create order: %v", err),
+		}, nil
+	}
+
+	// Clear the cart after successful order creation
+	if err := s.ClearCart(tenantID, cartID); err != nil {
+		log.Printf("Warning: Failed to clear cart %s after order creation: %v", cartID, err)
+	}
+
+	return &OrderConversionResult{
+		OrderID:     orderResult.OrderID,
+		OrderNumber: orderResult.OrderNumber,
+		Total:       orderResult.Total,
+		ItemCount:   orderResult.ItemCount,
+		Success:     true,
+	}, nil
 }
 
 // GetCartSummary returns a summary of the cart

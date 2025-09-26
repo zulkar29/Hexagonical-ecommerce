@@ -14,6 +14,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/go-playground/validator/v10"
 	"gorm.io/gorm"
+
+	"ecommerce-saas/internal/shared/email"
 )
 
 type Service interface {
@@ -36,29 +38,29 @@ type Service interface {
 	
 	// Stats
 	GetStats(tenantID uuid.UUID) (*NotificationStatsResponse, error)
+
+	// Convenience methods for specific notification types
+	SendOrderConfirmationEmail(email, orderNumber string, orderDetails interface{}) error
+	SendPaymentSuccessEmail(email, orderNumber string, paymentDetails interface{}) error
+	SendPaymentFailedEmail(email, orderNumber, reason string) error
+	SendEmailVerificationEmail(email, token string) error
+	SendPasswordResetEmail(email, token string) error
 }
 
 type service struct {
-	repository Repository
-	validator  *validator.Validate
-	
-	// Email configuration
-	emailProvider EmailProvider
-	
-	// SMS configuration
+	repository   Repository
+	validator    *validator.Validate
+	emailService email.EmailService
+
+	// SMS configuration - keeping legacy SMS provider for now
 	smsProvider SMSProvider
 }
 
-func NewService(repository Repository) Service {
+func NewService(repository Repository, emailService email.EmailService) Service {
 	return &service{
-		repository: repository,
-		validator:  validator.New(),
-		emailProvider: EmailProvider{
-			Name:      getEnvOrDefault("EMAIL_PROVIDER", "sendgrid"),
-			APIKey:    getEnvOrDefault("SENDGRID_API_KEY", ""),
-			FromEmail: getEnvOrDefault("FROM_EMAIL", "noreply@yourdomain.com"),
-			FromName:  getEnvOrDefault("FROM_NAME", "Your Platform"),
-		},
+		repository:   repository,
+		validator:    validator.New(),
+		emailService: emailService,
 		smsProvider: SMSProvider{
 			Name:      getEnvOrDefault("SMS_PROVIDER", "local_bd"),
 			APIKey:    getEnvOrDefault("SMS_API_KEY", ""),
@@ -160,12 +162,22 @@ func (s *service) sendNotificationAsync(notification *Notification) {
 }
 
 func (s *service) sendEmailNotification(notification *Notification) error {
-	switch s.emailProvider.Name {
-	case "sendgrid":
-		return s.sendEmailViaSendGrid(notification)
-	default:
-		return fmt.Errorf("unsupported email provider: %s", s.emailProvider.Name)
+	// Use our integrated email service
+	emailRequest := &email.EmailRequest{
+		To:      []string{notification.Recipient},
+		Subject: notification.Subject,
+		Content: notification.Content,
 	}
+
+	// Send email through our email service
+	_, err := s.emailService.SendEmail(emailRequest)
+	if err != nil {
+		log.Printf("Failed to send email notification to %s: %v", notification.Recipient, err)
+		return err
+	}
+
+	log.Printf("Email notification sent successfully to %s", notification.Recipient)
+	return nil
 }
 
 func (s *service) sendEmailViaSendGrid(notification *Notification) error {
@@ -585,4 +597,31 @@ func getEnvOrDefault(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+// Convenience methods for specific email types
+
+// SendOrderConfirmationEmail sends order confirmation email
+func (s *service) SendOrderConfirmationEmail(email, orderNumber string, orderDetails interface{}) error {
+	return s.emailService.SendOrderConfirmationEmail(email, orderNumber, orderDetails)
+}
+
+// SendPaymentSuccessEmail sends payment success email
+func (s *service) SendPaymentSuccessEmail(email, orderNumber string, paymentDetails interface{}) error {
+	return s.emailService.SendPaymentSuccessEmail(email, orderNumber, paymentDetails)
+}
+
+// SendPaymentFailedEmail sends payment failed email
+func (s *service) SendPaymentFailedEmail(email, orderNumber, reason string) error {
+	return s.emailService.SendPaymentFailedEmail(email, orderNumber, reason)
+}
+
+// SendEmailVerificationEmail sends email verification email
+func (s *service) SendEmailVerificationEmail(email, token string) error {
+	return s.emailService.SendVerificationEmail(email, token)
+}
+
+// SendPasswordResetEmail sends password reset email
+func (s *service) SendPasswordResetEmail(email, token string) error {
+	return s.emailService.SendPasswordResetEmail(email, token)
 }

@@ -377,7 +377,7 @@ func TestCategoryService_CategoryOrdering(t *testing.T) {
 			createdCategories[2].ID: 2, // C -> 2
 		}
 
-		err = categoryService.ReorderCategories(ctx, tenantID, newOrders)
+		err := categoryService.ReorderCategories(ctx, tenantID, newOrders)
 		require.NoError(t, err)
 
 		// Verify new order
@@ -424,7 +424,7 @@ func TestCategoryService_BulkOperations(t *testing.T) {
 		}
 
 		// Bulk update status to inactive
-		err = categoryService.BulkUpdateStatus(ctx, tenantID, categoryIDs, StatusInactive)
+		err := categoryService.BulkUpdateStatus(ctx, tenantID, categoryIDs, StatusInactive)
 		require.NoError(t, err)
 
 		// Verify all categories are now inactive

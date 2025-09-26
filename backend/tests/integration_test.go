@@ -10,17 +10,17 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"gorm.io/gorm"
 
-	"ecommerce-saas/internal/config"
+	"ecommerce-saas/internal/shared/config"
 	"ecommerce-saas/internal/shared/database"
 )
 
 // IntegrationTestSuite provides setup and teardown for integration tests
 type IntegrationTestSuite struct {
 	suite.Suite
-	db     *database.DB
+	db     *gorm.DB
 	config *config.Config
 	router *gin.Engine
 	server *httptest.Server
@@ -65,7 +65,7 @@ func (suite *IntegrationTestSuite) TearDownSuite() {
 		// Reset database for clean state
 		err := database.ResetDatabase(suite.db)
 		suite.Require().NoError(err)
-		err = database.Close(suite.db)
+		err = database.Close()
 		suite.Require().NoError(err)
 	}
 }

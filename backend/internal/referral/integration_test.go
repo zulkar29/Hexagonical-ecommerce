@@ -37,7 +37,7 @@ func TestReferralIntegration(t *testing.T) {
 		Status:    "active",
 		Plan:      "professional",
 	}
-	err = testDB.DB.Create(testTenant).Error
+	err := testDB.DB.Create(testTenant).Error
 	require.NoError(t, err)
 
 	// Create test users
@@ -305,7 +305,7 @@ func TestReferralService(t *testing.T) {
 		Subdomain: "test-service",
 		Status:    "active",
 	}
-	err = testDB.DB.Create(testTenant).Error
+	err := testDB.DB.Create(testTenant).Error
 	require.NoError(t, err)
 
 	referrer := &user.User{

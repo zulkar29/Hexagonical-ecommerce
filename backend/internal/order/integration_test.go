@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"ecommerce-saas/internal/shared/config"
 	"ecommerce-saas/internal/shared/testhelpers"
 	"ecommerce-saas/internal/tenant"
 	"ecommerce-saas/internal/user"
@@ -24,8 +25,9 @@ func TestOrderIntegration_BasicOrderOperations(t *testing.T) {
 	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup services
+	cfg := &config.Config{} // Use default config for tests
 	tenantRepo := tenant.NewRepository(testDB.DB)
-	tenantService := tenant.NewService(tenantRepo)
+	tenantService := tenant.NewService(tenantRepo, cfg)
 	userRepo := user.NewRepository(testDB.DB)
 	orderRepo := NewRepository(testDB.DB)
 
@@ -100,8 +102,9 @@ func TestOrderIntegration_OrderItems(t *testing.T) {
 	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup repositories
+	cfg := &config.Config{} // Use default config for tests
 	tenantRepo := tenant.NewRepository(testDB.DB)
-	tenantService := tenant.NewService(tenantRepo)
+	tenantService := tenant.NewService(tenantRepo, cfg)
 	userRepo := user.NewRepository(testDB.DB)
 	orderRepo := NewRepository(testDB.DB)
 
@@ -194,8 +197,9 @@ func TestOrderIntegration_MultiTenantIsolation(t *testing.T) {
 	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup repositories
+	cfg := &config.Config{} // Use default config for tests
 	tenantRepo := tenant.NewRepository(testDB.DB)
-	tenantService := tenant.NewService(tenantRepo)
+	tenantService := tenant.NewService(tenantRepo, cfg)
 	userRepo := user.NewRepository(testDB.DB)
 	orderRepo := NewRepository(testDB.DB)
 
@@ -311,8 +315,9 @@ func TestOrderIntegration_OrderStatusManagement(t *testing.T) {
 	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup repositories
+	cfg := &config.Config{} // Use default config for tests
 	tenantRepo := tenant.NewRepository(testDB.DB)
-	tenantService := tenant.NewService(tenantRepo)
+	tenantService := tenant.NewService(tenantRepo, cfg)
 	userRepo := user.NewRepository(testDB.DB)
 	orderRepo := NewRepository(testDB.DB)
 
@@ -361,7 +366,7 @@ func TestOrderIntegration_OrderStatusManagement(t *testing.T) {
 		createdOrder, _ := orderRepo.CreateOrder(order)
 
 		// Update status to confirmed
-		err = orderRepo.UpdateOrderStatus(testTenant.ID, createdOrder.ID, StatusConfirmed)
+		err := orderRepo.UpdateOrderStatus(testTenant.ID, createdOrder.ID, StatusConfirmed)
 		require.NoError(t, err)
 
 		// Verify status update
@@ -391,8 +396,9 @@ func BenchmarkOrderIntegration_CreateOrder(b *testing.B) {
 	// Database schema is handled by raw SQL migrations in /migrations directory
 
 	// Setup repositories
+	cfg := &config.Config{} // Use default config for tests
 	tenantRepo := tenant.NewRepository(testDB.DB)
-	tenantService := tenant.NewService(tenantRepo)
+	tenantService := tenant.NewService(tenantRepo, cfg)
 	userRepo := user.NewRepository(testDB.DB)
 	orderRepo := NewRepository(testDB.DB)
 

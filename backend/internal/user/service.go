@@ -13,31 +13,28 @@ import (
 	"gorm.io/gorm"
 
 	"ecommerce-saas/internal/security"
+	"ecommerce-saas/internal/shared/email"
 	sharedErrors "ecommerce-saas/internal/shared/errors" // Import shared errors
 	"ecommerce-saas/internal/shared/utils"
 )
 
-// ResetTokenData represents password reset token data
-type ResetTokenData struct {
-	UserID    uuid.UUID
-	ExpiresAt time.Time
-}
-
 // Service handles user business logic
 type Service struct {
 	repo            Repository
+	tokenRepo       TokenRepository
 	jwtManager      *utils.JWTManager
 	securityService *security.SecurityService
-	resetTokens     map[string]ResetTokenData
+	emailService    email.EmailService
 }
 
 // NewService creates a new user service
-func NewService(repo Repository, jwtManager *utils.JWTManager, securityService *security.SecurityService) *Service {
+func NewService(repo Repository, tokenRepo TokenRepository, jwtManager *utils.JWTManager, securityService *security.SecurityService, emailService email.EmailService) *Service {
 	return &Service{
 		repo:            repo,
+		tokenRepo:       tokenRepo,
 		jwtManager:      jwtManager,
 		securityService: securityService,
-		resetTokens:     make(map[string]ResetTokenData),
+		emailService:    emailService,
 	}
 }
 
@@ -96,7 +93,10 @@ func (s *Service) RegisterUser(ctx context.Context, user *User) (*User, error) {
 	})
 
 	// Send verification email
-	s.sendVerificationEmail(user)
+	if err := s.sendVerificationEmail(ctx, user); err != nil {
+		// Log error but don't fail registration
+		log.Printf("Failed to send verification email to %s: %v", user.Email, err)
+	}
 
 	return user, nil
 }
@@ -210,33 +210,6 @@ func (s *Service) LogoutUser(userID uuid.UUID, refreshToken string) error {
 	return nil
 }
 
-// VerifyEmail verifies user email with token
-func (s *Service) VerifyEmail(userID uuid.UUID, token string) error {
-	user, err := s.repo.GetUserByID(context.Background(), userID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return sharedErrors.NewNotFoundError("User not found")
-		}
-		return fmt.Errorf("failed to get user: %w", err)
-	}
-
-	// Validate verification token (email verification service integration needed)
-	// For now, just mark as verified if token is provided
-	if token == "" {
-		return errors.New("verification token is required")
-	}
-
-	now := time.Now()
-	user.EmailVerified = true
-	user.EmailVerifiedAt = &now
-	user.Status = StatusActive
-	user.UpdatedAt = now
-
-	if _, err := s.repo.UpdateUser(context.Background(), user); err != nil {
-		return sharedErrors.Wrap(err, sharedErrors.CodeInternal, "Failed to update user", 500)
-	}
-	return nil
-}
 
 // ChangePassword changes user password
 func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) error {
@@ -298,26 +271,19 @@ func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassw
 }
 
 // ResetPassword resets user password with token
-func (s *Service) ResetPassword(ctx context.Context, token, newPassword string) error {
-	// Validate token
-	tokenData, exists := s.resetTokens[token]
-	if !exists {
-		return sharedErrors.NewBadRequestError("Invalid reset token")
-	}
-
-	// Check if token is expired
-	if time.Now().After(tokenData.ExpiresAt) {
-		delete(s.resetTokens, token)
-		return sharedErrors.NewBadRequestError("Reset token has expired")
-	}
-
-	// Get user
-	user, err := s.repo.GetUserByID(ctx, tokenData.UserID)
+func (s *Service) ResetPassword(ctx context.Context, tokenValue, newPassword string) error {
+	// Validate and get token from database
+	resetToken, err := s.tokenRepo.GetValidToken(ctx, tokenValue, TokenTypePasswordReset)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return sharedErrors.NewNotFoundError("User not found")
+			return sharedErrors.NewBadRequestError("Invalid or expired reset token")
 		}
-		return fmt.Errorf("failed to get user: %w", err)
+		return fmt.Errorf("failed to validate reset token: %w", err)
+	}
+
+	// Validate new password with security policies
+	if passwordErr := s.securityService.ValidatePassword(ctx, resetToken.User.TenantID, newPassword); passwordErr != nil {
+		return passwordErr
 	}
 
 	// Hash new password
@@ -326,7 +292,8 @@ func (s *Service) ResetPassword(ctx context.Context, token, newPassword string) 
 		return fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	// Update password
+	// Update user password
+	user := &resetToken.User
 	user.Password = string(hashedPassword)
 	user.PasswordChangedAt = &time.Time{}
 	*user.PasswordChangedAt = time.Now()
@@ -337,8 +304,47 @@ func (s *Service) ResetPassword(ctx context.Context, token, newPassword string) 
 		return fmt.Errorf("failed to update user password: %w", err)
 	}
 
-	// Remove used token
-	delete(s.resetTokens, token)
+	// Mark token as used
+	if err := s.tokenRepo.MarkTokenAsUsed(ctx, resetToken.ID); err != nil {
+		log.Printf("Warning: failed to mark reset token as used: %v", err)
+	}
+
+	return nil
+}
+
+// VerifyEmail verifies user email with token
+func (s *Service) VerifyEmail(ctx context.Context, tokenValue string) error {
+	// Validate and get token from database
+	verifyToken, err := s.tokenRepo.GetValidToken(ctx, tokenValue, TokenTypeEmailVerification)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return sharedErrors.NewBadRequestError("Invalid or expired verification token")
+		}
+		return fmt.Errorf("failed to validate verification token: %w", err)
+	}
+
+	// Update user email verification status
+	user := &verifyToken.User
+	user.EmailVerified = true
+	user.EmailVerifiedAt = &time.Time{}
+	*user.EmailVerifiedAt = time.Now()
+	user.UpdatedAt = time.Now()
+
+	// Save user
+	if _, err := s.repo.UpdateUser(ctx, user); err != nil {
+		return fmt.Errorf("failed to update user email verification: %w", err)
+	}
+
+	// Mark token as used
+	if err := s.tokenRepo.MarkTokenAsUsed(ctx, verifyToken.ID); err != nil {
+		log.Printf("Warning: failed to mark verification token as used: %v", err)
+	}
+
+	// Log security event
+	s.securityService.LogSecurityEvent(ctx, user.ID, user.TenantID, security.EventEmailVerified, "", "", map[string]interface{}{
+		"message": "User email verified",
+		"email":   user.Email,
+	})
 
 	return nil
 }
@@ -580,10 +586,31 @@ func (s *Service) CheckUserPermission(userID uuid.UUID, resource, action string)
 }
 
 // sendVerificationEmail sends email verification email
-func (s *Service) sendVerificationEmail(user *User) {
-	// Send verification email (email service integration needed)
-	// For now, just log that verification email would be sent
-	log.Printf("Verification email would be sent to: %s", user.Email)
+func (s *Service) sendVerificationEmail(ctx context.Context, user *User) error {
+	// Generate secure token
+	tokenValue, err := GenerateSecureToken()
+	if err != nil {
+		return fmt.Errorf("failed to generate verification token: %w", err)
+	}
+
+	// Create token record
+	token := &ResetToken{
+		ID:        uuid.New(),
+		UserID:    user.ID,
+		Token:     tokenValue,
+		Type:      TokenTypeEmailVerification,
+		ExpiresAt: time.Now().Add(TokenExpirationDuration(TokenTypeEmailVerification)),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	// Save token to database
+	if err := s.tokenRepo.CreateToken(ctx, token); err != nil {
+		return fmt.Errorf("failed to save verification token: %w", err)
+	}
+
+	// Send email
+	return s.emailService.SendVerificationEmail(user.Email, tokenValue)
 }
 
 // ForgotPassword initiates password reset process
@@ -597,18 +624,37 @@ func (s *Service) ForgotPassword(ctx context.Context, email string) error {
 		return fmt.Errorf("failed to get user by email: %w", err)
 	}
 
-	// Generate reset token
-	resetToken := uuid.New().String()
-	expiresAt := time.Now().Add(24 * time.Hour) // 24 hour expiry
-
-	// Store reset token
-	s.resetTokens[resetToken] = ResetTokenData{
-		UserID:    user.ID,
-		ExpiresAt: expiresAt,
+	// Delete any existing password reset tokens for this user
+	if err := s.tokenRepo.DeleteUserTokens(ctx, user.ID, TokenTypePasswordReset); err != nil {
+		log.Printf("Warning: failed to delete existing reset tokens for user %s: %v", user.ID, err)
 	}
 
-	// Send reset email with token (email service integration needed)
-	log.Printf("Password reset email would be sent to: %s with token: %s", user.Email, resetToken)
+	// Generate secure reset token
+	tokenValue, err := GenerateSecureToken()
+	if err != nil {
+		return fmt.Errorf("failed to generate reset token: %w", err)
+	}
+
+	// Create token record
+	token := &ResetToken{
+		ID:        uuid.New(),
+		UserID:    user.ID,
+		Token:     tokenValue,
+		Type:      TokenTypePasswordReset,
+		ExpiresAt: time.Now().Add(TokenExpirationDuration(TokenTypePasswordReset)),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	// Save token to database
+	if err := s.tokenRepo.CreateToken(ctx, token); err != nil {
+		return fmt.Errorf("failed to save reset token: %w", err)
+	}
+
+	// Send reset email
+	if err := s.emailService.SendPasswordResetEmail(user.Email, tokenValue); err != nil {
+		log.Printf("Warning: failed to send password reset email to %s: %v", user.Email, err)
+	}
 
 	return nil
 }
