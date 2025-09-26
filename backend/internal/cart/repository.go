@@ -15,6 +15,7 @@ type Repository interface {
 	// Cart operations
 	SaveCart(cart *Cart) (*Cart, error)
 	FindCartByID(tenantID, cartID uuid.UUID) (*Cart, error)
+	GetCartByID(tenantID, cartID uuid.UUID) (*Cart, error)
 	FindCartByCustomerID(tenantID, customerID uuid.UUID) (*Cart, error)
 	FindCartBySessionID(tenantID uuid.UUID, sessionID string) (*Cart, error)
 	UpdateCart(cart *Cart) (*Cart, error)
@@ -104,6 +105,11 @@ func (r *repository) FindCartByID(tenantID, cartID uuid.UUID) (*Cart, error) {
 		return nil, sharedErrors.NewInternalError("Failed to find cart", err)
 	}
 	return &cart, nil
+}
+
+// GetCartByID retrieves a cart by ID with items (alias for FindCartByID)
+func (r *repository) GetCartByID(tenantID, cartID uuid.UUID) (*Cart, error) {
+	return r.FindCartByID(tenantID, cartID)
 }
 
 // FindCartByCustomerID retrieves active cart for a customer

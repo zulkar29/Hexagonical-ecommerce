@@ -5,6 +5,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"ecommerce-saas/internal/shared/config"
+	"ecommerce-saas/internal/shared/email"
 )
 
 type Module struct {
@@ -13,9 +16,10 @@ type Module struct {
 	handler    *Handler
 }
 
-func NewModule(db *gorm.DB) *Module {
+func NewModule(db *gorm.DB, cfg *config.Config) *Module {
 	repository := NewRepository(db)
-	service := NewService(repository)
+	emailService := email.NewService(cfg)
+	service := NewService(repository, emailService)
 	handler := NewHandler(service)
 
 	log.Println("✅ Notification module initialized successfully")

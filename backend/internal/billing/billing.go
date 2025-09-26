@@ -38,14 +38,14 @@ const (
 	InvoiceStatusPending  = constants.InvoiceStatusPending
 	InvoiceStatusPaid     = constants.InvoiceStatusPaid
 	InvoiceStatusOverdue  = constants.InvoiceStatusOverdue
-	InvoiceStatusVoided   = constants.InvoiceStatusVoided
+	InvoiceStatusVoided   = constants.InvoiceStatusVoid
 	InvoiceStatusRefunded = constants.InvoiceStatusRefunded
 
 	// Payment status aliases
 	PaymentStatusPending   = constants.PaymentStatusPending
-	PaymentStatusSuccess   = constants.PaymentStatusSuccess
+	PaymentStatusSuccess   = constants.PaymentStatusCompleted
 	PaymentStatusFailed    = constants.PaymentStatusFailed
-	PaymentStatusRetrying  = constants.PaymentStatusRetrying
+	PaymentStatusRetrying  = constants.PaymentStatusPending
 	PaymentStatusAbandoned = constants.PaymentStatusAbandoned
 
 	// Dunning action status aliases

@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"ecommerce-saas/internal/security"
+	"ecommerce-saas/internal/shared/email"
 	"ecommerce-saas/internal/shared/utils"
 )
 
@@ -59,8 +60,10 @@ type Module struct {
 // NewModule creates a new user module instance
 func NewModule(db *gorm.DB, jwtManager *utils.JWTManager) *Module {
 	repo := NewRepository(db)
+	tokenRepo := NewTokenRepository(db)
 	securityService := security.NewSecurityService(db, &userRepositoryAdapter{repo: repo})
-	svc := NewService(repo, jwtManager, securityService)
+	emailService := email.NewService(nil) // TODO: Pass proper config
+	svc := NewService(repo, tokenRepo, jwtManager, securityService, emailService)
 	handler := NewHandler(svc)
 
 	return &Module{

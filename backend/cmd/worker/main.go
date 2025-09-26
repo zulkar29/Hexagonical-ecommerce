@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"ecommerce-saas/internal/shared/config"
 	"ecommerce-saas/internal/shared/database"
+	"ecommerce-saas/internal/shared/email"
 	"ecommerce-saas/internal/notification"
 	"ecommerce-saas/internal/webhook"
 	"gorm.io/gorm"
@@ -321,7 +322,8 @@ func main() {
 
 	// Initialize repositories and services
 	notificationRepo := notification.NewRepository(dbConn)
-	notificationService := notification.NewService(notificationRepo)
+	emailService := email.NewService(cfg)
+	notificationService := notification.NewService(notificationRepo, emailService)
 
 	// Initialize webhook repository and service
 	webhookRepo := webhook.NewRepository(dbConn)

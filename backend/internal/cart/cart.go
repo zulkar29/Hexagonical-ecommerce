@@ -56,9 +56,10 @@ type Cart struct {
 
 // CartItem represents an item in a shopping cart
 type CartItem struct {
-	ID        uuid.UUID `json:"id" gorm:"primarykey"`
-	CartID    uuid.UUID `json:"cart_id" gorm:"not null;index"`
-	ProductID uuid.UUID `json:"product_id" gorm:"not null;index"`
+	ID        uuid.UUID  `json:"id" gorm:"primarykey"`
+	CartID    uuid.UUID  `json:"cart_id" gorm:"not null;index"`
+	ProductID uuid.UUID  `json:"product_id" gorm:"not null;index"`
+	VariantID *uuid.UUID `json:"variant_id,omitempty" gorm:"index"`
 
 	// Item details (snapshot at time of adding)
 	ProductName  string  `json:"product_name" gorm:"not null"`

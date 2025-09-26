@@ -35,6 +35,7 @@ type PageStatus string
 type LoginAttemptStatus string
 type DeviceStatus string
 type AlertStatus string
+type DunningActionStatus string
 
 // Common Status Values
 const (
@@ -71,6 +72,7 @@ const (
 	PaymentStatusRefunded   PaymentStatus = "refunded"
 	PaymentStatusPartial    PaymentStatus = "partial"
 	PaymentStatusExpired    PaymentStatus = "expired"
+	PaymentStatusAbandoned  PaymentStatus = "abandoned"
 )
 
 // User Status Values
@@ -149,6 +151,7 @@ var (
 		string(PaymentStatusRefunded),
 		string(PaymentStatusPartial),
 		string(PaymentStatusExpired),
+		string(PaymentStatusAbandoned),
 	}
 
 	ValidUserStatuses = []string{
@@ -303,6 +306,7 @@ const (
 const (
 	SubscriptionStatusActive    SubscriptionStatus = "active"
 	SubscriptionStatusPending   SubscriptionStatus = "pending"
+	SubscriptionStatusTrialing  SubscriptionStatus = "trialing"
 	SubscriptionStatusCancelled SubscriptionStatus = "cancelled"
 	SubscriptionStatusSuspended SubscriptionStatus = "suspended"
 	SubscriptionStatusExpired   SubscriptionStatus = "expired"
@@ -370,6 +374,13 @@ const (
 	AlertStatusActive   AlertStatus = "active"
 	AlertStatusResolved AlertStatus = "resolved"
 	AlertStatusIgnored  AlertStatus = "ignored"
+)
+
+// Dunning Action Status Values
+const (
+	DunningActionStatusPending   DunningActionStatus = "pending"
+	DunningActionStatusCompleted DunningActionStatus = "completed"
+	DunningActionStatusFailed    DunningActionStatus = "failed"
 )
 
 // Helper functions to check valid statuses
@@ -527,6 +538,7 @@ func IsValidSegmentStatus(status string) bool {
 func IsValidSubscriptionStatus(status string) bool {
 	return status == string(SubscriptionStatusActive) ||
 		status == string(SubscriptionStatusPending) ||
+		status == string(SubscriptionStatusTrialing) ||
 		status == string(SubscriptionStatusCancelled) ||
 		status == string(SubscriptionStatusSuspended) ||
 		status == string(SubscriptionStatusExpired)
@@ -586,4 +598,10 @@ func IsValidAlertStatus(status string) bool {
 	return status == string(AlertStatusActive) ||
 		status == string(AlertStatusResolved) ||
 		status == string(AlertStatusIgnored)
+}
+
+func IsValidDunningActionStatus(status string) bool {
+	return status == string(DunningActionStatusPending) ||
+		status == string(DunningActionStatusCompleted) ||
+		status == string(DunningActionStatusFailed)
 }

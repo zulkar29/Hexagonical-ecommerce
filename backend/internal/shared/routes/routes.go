@@ -1,7 +1,9 @@
 package routes
 
 import (
+	"context"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	"ecommerce-saas/internal/address"
@@ -26,8 +28,10 @@ import (
 	"ecommerce-saas/internal/returns"
 	"ecommerce-saas/internal/reviews"
 	"ecommerce-saas/internal/search"
+
 	"ecommerce-saas/internal/settings"
 	"ecommerce-saas/internal/shared/config"
+	"ecommerce-saas/internal/shared/email"
 	"ecommerce-saas/internal/shared/middleware"
 	"ecommerce-saas/internal/shared/utils"
 	"ecommerce-saas/internal/shipping"
@@ -47,24 +51,100 @@ type RouteConfig struct {
 
 // ServiceContainer holds shared service instances to avoid duplications
 type ServiceContainer struct {
-	// Repositories
-	ProductRepo   product.Repository
-	DiscountRepo  discount.Repository
-	ContactRepo   contact.Repository
-	AnalyticsRepo analytics.Repository
-	ShippingRepo  *shipping.Repository
-	PaymentRepo   payment.Repository
-	ReferralRepo  referral.Repository
-	SettingsRepo  settings.Repository
+	ProductRepo         product.Repository
+	DiscountRepo        discount.Repository
+	ContactRepo         contact.Repository
+	AnalyticsRepo       analytics.Repository
+	ShippingRepo        *shipping.Repository
+	PaymentRepo         payment.Repository
+	ReferralRepo        referral.Repository
+	SettingsRepo        settings.Repository
+	OrderRepo           order.Repository
+	NotificationRepo    notification.Repository
+	ProductService      *product.Service
+	DiscountService     discount.Service
+	ContactService      contact.Service
+	AnalyticsService    analytics.Service
+	ShippingService     *shipping.Service
+	PaymentService      payment.Service
+	ReferralService     referral.Service
+	OrderService        *order.Service
+	NotificationService notification.Service
+}
 
-	// Services
-	ProductService   *product.Service
-	DiscountService  discount.Service
-	ContactService   contact.Service
-	AnalyticsService analytics.Service
-	ShippingService  *shipping.Service
-	PaymentService   payment.Service
-	ReferralService  referral.Service
+// OrderServiceAdapter adapts order.Service to cart.OrderService interface
+type OrderServiceAdapter struct {
+	orderService *order.Service
+}
+
+func (a *OrderServiceAdapter) CreateOrderFromCart(ctx context.Context, tenantID, cartID uuid.UUID) (*cart.OrderFromCartResult, error) {
+	result, err := a.orderService.CreateOrderFromCart(ctx, tenantID, cartID)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Convert order.OrderFromCartResult to cart.OrderFromCartResult
+	return &cart.OrderFromCartResult{
+		OrderID:     result.OrderID,
+		OrderNumber: result.OrderNumber,
+		Total:       result.Total,
+		ItemCount:   result.ItemCount,
+	}, nil
+}
+
+// SettingsRepositoryWrapper wraps settings.Repository to provide adapter functionality
+type SettingsRepositoryWrapper struct {
+	repo settings.Repository
+	adapter *utils.SettingsRepositoryAdapter
+}
+
+func NewSettingsRepositoryWrapper(repo settings.Repository) *SettingsRepositoryWrapper {
+	// Create an adapter that converts settings.Repository to the expected interface
+	adapterRepo := &settingsRepoAdapter{repo: repo}
+	adapter := utils.NewSettingsRepositoryAdapter(adapterRepo)
+	return &SettingsRepositoryWrapper{
+		repo: repo,
+		adapter: adapter,
+	}
+}
+
+// settingsRepoAdapter adapts settings.Repository to match the interface expected by utils.NewSettingsRepositoryAdapter
+type settingsRepoAdapter struct {
+	repo settings.Repository
+}
+
+func (s *settingsRepoAdapter) GetSetting(tenantID uuid.UUID, section, key string) (interface{}, error) {
+	return s.repo.GetSetting(tenantID, section, key)
+}
+
+// Implement settings.Repository interface by delegating to the wrapped repo
+func (w *SettingsRepositoryWrapper) GetSettings(tenantID uuid.UUID, section string) ([]settings.Setting, error) {
+	return w.repo.GetSettings(tenantID, section)
+}
+
+func (w *SettingsRepositoryWrapper) GetSetting(tenantID uuid.UUID, section, key string) (*settings.Setting, error) {
+	return w.repo.GetSetting(tenantID, section, key)
+}
+
+func (w *SettingsRepositoryWrapper) CreateSetting(setting *settings.Setting) error {
+	return w.repo.CreateSetting(setting)
+}
+
+func (w *SettingsRepositoryWrapper) UpdateSetting(setting *settings.Setting) error {
+	return w.repo.UpdateSetting(setting)
+}
+
+func (w *SettingsRepositoryWrapper) DeleteSetting(tenantID uuid.UUID, section, key string) error {
+	return w.repo.DeleteSetting(tenantID, section, key)
+}
+
+func (w *SettingsRepositoryWrapper) GetPublicSettings(tenantID uuid.UUID) ([]settings.Setting, error) {
+	return w.repo.GetPublicSettings(tenantID)
+}
+
+// GetAdapter returns the utils adapter for use with discount service
+func (w *SettingsRepositoryWrapper) GetAdapter() *utils.SettingsRepositoryAdapter {
+	return w.adapter
 }
 
 // NewServiceContainer creates and initializes shared services
@@ -72,23 +152,28 @@ func NewServiceContainer(cfg *RouteConfig) *ServiceContainer {
 	// Initialize repositories
 	productRepo := product.NewRepository(cfg.DB)
 	settingsRepo := settings.NewRepository(cfg.DB)
-	// Create adapter for settings repository to match utils.SettingsRepository interface
-	settingsAdapter := utils.NewSettingsRepositoryAdapter(settingsRepo)
-	discountRepo := discount.NewRepository(cfg.DB, settingsAdapter)
+	// Create wrapper for settings repository that provides both interfaces
+	settingsWrapper := NewSettingsRepositoryWrapper(settingsRepo)
+	discountRepo := discount.NewRepository(cfg.DB, settingsWrapper.GetAdapter())
 	contactRepo := contact.NewRepository(cfg.DB)
 	analyticsRepo := analytics.NewRepository(cfg.DB)
 	shippingRepo := shipping.NewRepository(cfg.DB)
 	paymentRepo := payment.NewRepository(cfg.DB)
 	referralRepo := referral.NewGormRepository(cfg.DB)
+	orderRepo := order.NewRepository(cfg.DB)
+	notificationRepo := notification.NewRepository(cfg.DB)
 
 	// Initialize services
-	productService := product.NewService(productRepo)
+	productService := product.NewService(productRepo, cfg.DB)
 	discountService := discount.NewService(discountRepo)
 	contactService := contact.NewService(contactRepo)
 	analyticsService := analytics.NewService(analyticsRepo)
 	shippingService := shipping.NewService(shippingRepo)
 	paymentService := payment.NewService(paymentRepo, cfg.Config)
 	referralService := referral.NewService(referralRepo)
+	emailService := email.NewService(cfg.Config)
+	notificationService := notification.NewService(notificationRepo, emailService)
+	orderService := order.NewService(orderRepo, cfg.DB, productService, discountService, paymentService, notificationService)
 
 	return &ServiceContainer{
 		ProductRepo:      productRepo,
@@ -98,14 +183,18 @@ func NewServiceContainer(cfg *RouteConfig) *ServiceContainer {
 		ShippingRepo:     shippingRepo,
 		PaymentRepo:      paymentRepo,
 		ReferralRepo:     referralRepo,
-		SettingsRepo:     settingsRepo,
-		ProductService:   productService,
+		SettingsRepo:        settingsWrapper,
+		OrderRepo:           orderRepo,
+		NotificationRepo:    notificationRepo,
+		ProductService:      productService,
 		DiscountService:  discountService,
 		ContactService:   contactService,
 		AnalyticsService: analyticsService,
 		ShippingService:  shippingService,
 		PaymentService:   paymentService,
-		ReferralService:  referralService,
+		ReferralService:     referralService,
+		OrderService:        orderService,
+		NotificationService: notificationService,
 	}
 }
 
@@ -279,7 +368,7 @@ func setupPublicProductRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 
 func setupOrderRoutes(v1 *gin.RouterGroup, cfg *RouteConfig, services *ServiceContainer) {
 	// Initialize notification module (not in shared container as it's less commonly used)
-	notificationModule := notification.NewModule(cfg.DB)
+	notificationModule := notification.NewModule(cfg.DB, cfg.Config)
 	notificationService := notificationModule.GetService()
 
 	// Initialize order module using shared services
@@ -299,7 +388,7 @@ func setupPaymentRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 
 func setupNotificationRoutes(v1 *gin.RouterGroup, cfg *RouteConfig) {
 	// Initialize notification module
-	notificationModule := notification.NewModule(cfg.DB)
+	notificationModule := notification.NewModule(cfg.DB, cfg.Config)
 
 	// Register notification routes
 	notificationModule.RegisterRoutes(v1)
@@ -423,8 +512,11 @@ func setupReferralRoutes(v1 *gin.RouterGroup, cfg *RouteConfig, services *Servic
 
 // Setup cart routes
 func setupCartRoutes(v1 *gin.RouterGroup, cfg *RouteConfig, services *ServiceContainer) {
+	// Create adapter for order service to match cart.OrderService interface
+	orderServiceAdapter := &OrderServiceAdapter{orderService: services.OrderService}
+	
 	// Initialize cart module using shared services
-	cartModule := cart.NewModule(cfg.DB, services.ProductService, services.DiscountService, services.ShippingService)
+	cartModule := cart.NewModule(cfg.DB, services.ProductService, services.DiscountService, services.ShippingService, orderServiceAdapter)
 
 	// Register cart routes
 	cartModule.RegisterRoutes(v1)

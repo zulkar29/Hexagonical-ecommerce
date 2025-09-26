@@ -1,15 +1,15 @@
 package contact
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
+	"ecommerce-saas/internal/shared/handlers"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-
-	"ecommerce-saas/internal/shared/utils"
 )
 
 type Handler struct {
@@ -84,15 +84,14 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 
 // Contact management handlers
 func (h *Handler) CreateContact(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	var req CreateContactRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": bindErr.Error()})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
@@ -102,24 +101,23 @@ func (h *Handler) CreateContact(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, contact)
+	handlers.RespondWithCreated(c, contact)
 }
 
 func (h *Handler) ListContacts(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	filter := h.parseContactFilter(c)
 	contacts, total, err := h.service.ListContacts(c.Request.Context(), tenantID, filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{
 		"data":   contacts,
 		"total":  total,
 		"limit":  filter.Limit,
@@ -128,464 +126,446 @@ func (h *Handler) ListContacts(c *gin.Context) {
 }
 
 func (h *Handler) GetContact(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	contactID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contact ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid contact ID"))
 		return
 	}
 
 	contact, err := h.service.GetContactByID(c.Request.Context(), tenantID, contactID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Contact not found"})
+		handlers.HandleError(c, fmt.Errorf("contact not found"))
 		return
 	}
 
-	c.JSON(http.StatusOK, contact)
+	handlers.RespondWithSuccess(c, http.StatusOK, contact)
 }
 
 func (h *Handler) UpdateContact(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	contactID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contact ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid contact ID"))
 		return
 	}
 
 	var req UpdateContactRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
 	contact, err := h.service.UpdateContact(c.Request.Context(), tenantID, contactID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, contact)
+	handlers.RespondWithSuccess(c, http.StatusOK, contact)
 }
 
 func (h *Handler) DeleteContact(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	contactID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contact ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid contact ID"))
 		return
 	}
 
 	err = h.service.DeleteContact(c.Request.Context(), tenantID, contactID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusNoContent, nil)
+	handlers.RespondWithSuccess(c, http.StatusNoContent, nil)
 }
 
 func (h *Handler) BulkUpdateContacts(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	var req BulkUpdateContactsRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
 	result, err := h.service.BulkUpdateContacts(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, result)
+	handlers.RespondWithSuccess(c, http.StatusOK, result)
 }
 
 func (h *Handler) ExportContacts(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	var req ExportContactsRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
 	exportData, err := h.service.ExportContacts(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, exportData)
+	handlers.RespondWithSuccess(c, http.StatusOK, exportData)
 }
 
 // Contact status management handlers
 func (h *Handler) UpdateContactStatus(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	contactID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contact ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid contact ID"))
 		return
 	}
 
 	var req UpdateContactStatusRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
 	err = h.service.UpdateContactStatus(c.Request.Context(), tenantID, contactID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Status updated successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Status updated successfully"})
 }
 
 func (h *Handler) AssignContact(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	contactID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contact ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid contact ID"))
 		return
 	}
 
 	var req AssignContactRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
 	err = h.service.AssignContact(c.Request.Context(), tenantID, contactID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Contact assigned successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Contact assigned successfully"})
 }
 
 func (h *Handler) UpdateContactPriority(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	contactID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contact ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid contact ID"))
 		return
 	}
 
 	var req UpdateContactPriorityRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
 	err = h.service.UpdateContactPriority(c.Request.Context(), tenantID, contactID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Priority updated successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Priority updated successfully"})
 }
 
 func (h *Handler) AddContactTags(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	contactID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contact ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid contact ID"))
 		return
 	}
 
 	var req AddContactTagsRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
 	err = h.service.AddContactTags(c.Request.Context(), tenantID, contactID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Tags added successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Tags added successfully"})
 }
 
 func (h *Handler) RemoveContactTags(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	contactID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contact ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid contact ID"))
 		return
 	}
 
 	var req RemoveContactTagsRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
 	err = h.service.RemoveContactTags(c.Request.Context(), tenantID, contactID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Tags removed successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Tags removed successfully"})
 }
 
 // Contact reply handlers
 func (h *Handler) CreateContactReply(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	contactID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contact ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid contact ID"))
 		return
 	}
 
 	var req CreateContactReplyRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
 	reply, err := h.service.CreateContactReply(c.Request.Context(), tenantID, contactID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, reply)
+	handlers.RespondWithCreated(c, reply)
 }
 
 func (h *Handler) ListContactReplies(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	contactID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contact ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid contact ID"))
 		return
 	}
 
 	replies, err := h.service.ListContactReplies(c.Request.Context(), tenantID, contactID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": replies})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": replies})
 }
 
 func (h *Handler) DeleteContactReply(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	contactID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contact ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid contact ID"))
 		return
 	}
 
 	replyID, err := uuid.Parse(c.Param("reply_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid reply ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid reply ID"))
 		return
 	}
 
 	err = h.service.DeleteContactReply(c.Request.Context(), tenantID, contactID, replyID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusNoContent, nil)
+	handlers.RespondWithSuccess(c, http.StatusNoContent, nil)
 }
 
 // Contact form handlers
 func (h *Handler) CreateContactForm(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	var req CreateContactFormRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
 	form, err := h.service.CreateContactForm(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, form)
+	handlers.RespondWithCreated(c, form)
 }
 
 func (h *Handler) ListContactForms(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	forms, err := h.service.ListContactForms(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{
 		"data":  forms,
 		"total": len(forms),
 	})
 }
 
 func (h *Handler) GetContactForm(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	formID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid form ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid form ID"))
 		return
 	}
 
 	form, err := h.service.GetContactFormByID(c.Request.Context(), tenantID, formID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Form not found"})
+		handlers.HandleError(c, fmt.Errorf("form not found"))
 		return
 	}
 
-	c.JSON(http.StatusOK, form)
+	handlers.RespondWithSuccess(c, http.StatusOK, form)
 }
 
 func (h *Handler) UpdateContactForm(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	formID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid form ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid form ID"))
 		return
 	}
 
 	var req UpdateContactFormRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
 	form, err := h.service.UpdateContactForm(c.Request.Context(), tenantID, formID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, form)
+	handlers.RespondWithSuccess(c, http.StatusOK, form)
 }
 
 func (h *Handler) DeleteContactForm(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	formID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid form ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid form ID"))
 		return
 	}
 
 	err = h.service.DeleteContactForm(c.Request.Context(), tenantID, formID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusNoContent, nil)
+	handlers.RespondWithSuccess(c, http.StatusNoContent, nil)
 }
 
 func (h *Handler) GetPublicContactForm(c *gin.Context) {
 	formType := c.Param("form_type")
 	form, err := h.service.GetPublicContactForm(c.Request.Context(), formType)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Form not found"})
+		handlers.HandleError(c, fmt.Errorf("form not found"))
 		return
 	}
 
-	c.JSON(http.StatusOK, form)
+	handlers.RespondWithSuccess(c, http.StatusOK, form)
 }
 
 func (h *Handler) SubmitPublicContactForm(c *gin.Context) {
@@ -593,24 +573,23 @@ func (h *Handler) SubmitPublicContactForm(c *gin.Context) {
 
 	var req SubmitContactFormRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
 	contact, err := h.service.SubmitPublicContactForm(c.Request.Context(), formType, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, contact)
+	handlers.RespondWithCreated(c, contact)
 }
 
 // Contact template handlers
 func (h *Handler) CreateContactTemplate(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -622,90 +601,85 @@ func (h *Handler) CreateContactTemplate(c *gin.Context) {
 
 	template, err := h.service.CreateContactTemplate(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, template)
+	handlers.RespondWithCreated(c, template)
 }
 
 func (h *Handler) GetContactTemplate(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	templateID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid template ID"))
 		return
 	}
 
 	template, err := h.service.GetContactTemplateByID(c.Request.Context(), tenantID, templateID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Template not found"})
+		handlers.HandleError(c, fmt.Errorf("template not found"))
 		return
 	}
 
-	c.JSON(http.StatusOK, template)
+	handlers.RespondWithSuccess(c, http.StatusOK, template)
 }
 
 // Analytics handlers
 func (h *Handler) GetContactAnalytics(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	period := AnalyticsPeriod(c.DefaultQuery("period", "month"))
 	analytics, err := h.service.GetContactAnalytics(c.Request.Context(), tenantID, period)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, analytics)
+	handlers.RespondWithSuccess(c, http.StatusOK, analytics)
 }
 
 func (h *Handler) GetContactMetrics(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	metrics, err := h.service.GetContactMetrics(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, metrics)
+	handlers.RespondWithSuccess(c, http.StatusOK, metrics)
 }
 
 // Settings handlers
 func (h *Handler) GetContactSettings(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	settings, err := h.service.GetContactSettings(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, settings)
+	handlers.RespondWithSuccess(c, http.StatusOK, settings)
 }
 
 func (h *Handler) UpdateContactSettings(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -717,11 +691,11 @@ func (h *Handler) UpdateContactSettings(c *gin.Context) {
 
 	settings, err := h.service.UpdateContactSettings(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, settings)
+	handlers.RespondWithSuccess(c, http.StatusOK, settings)
 }
 
 // Helper methods for parsing filters
@@ -792,166 +766,158 @@ func (h *Handler) parseContactFilter(c *gin.Context) ContactFilter {
 // Additional handlers for missing methods
 
 func (h *Handler) ActivateContactForm(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	formID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid form ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid form ID"))
 		return
 	}
 
 	err = h.service.ActivateContactForm(c.Request.Context(), tenantID, formID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Form activated successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Form activated successfully"})
 }
 
 func (h *Handler) DeactivateContactForm(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	formID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid form ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid form ID"))
 		return
 	}
 
 	err = h.service.DeactivateContactForm(c.Request.Context(), tenantID, formID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Form deactivated successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Form deactivated successfully"})
 }
 
 func (h *Handler) ListContactTemplates(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	templates, err := h.service.ListContactTemplates(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{
 		"data":  templates,
 		"total": len(templates),
 	})
 }
 
 func (h *Handler) UpdateContactTemplate(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	templateID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid template ID"))
 		return
 	}
 
 	var req UpdateContactTemplateRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
 	template, err := h.service.UpdateContactTemplate(c.Request.Context(), tenantID, templateID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, template)
+	handlers.RespondWithSuccess(c, http.StatusOK, template)
 }
 
 func (h *Handler) DeleteContactTemplate(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	templateID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid template ID"))
 		return
 	}
 
 	err = h.service.DeleteContactTemplate(c.Request.Context(), tenantID, templateID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusNoContent, nil)
+	handlers.RespondWithSuccess(c, http.StatusNoContent, nil)
 }
 
 func (h *Handler) ActivateContactTemplate(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	templateID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid template ID"))
 		return
 	}
 
 	err = h.service.ActivateContactTemplate(c.Request.Context(), tenantID, templateID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Template activated successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Template activated successfully"})
 }
 
 func (h *Handler) DeactivateContactTemplate(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	templateID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid template ID"))
 		return
 	}
 
 	err = h.service.DeactivateContactTemplate(c.Request.Context(), tenantID, templateID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Template deactivated successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Template deactivated successfully"})
 }
 
 func (h *Handler) GetAgentPerformance(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -961,7 +927,7 @@ func (h *Handler) GetAgentPerformance(c *gin.Context) {
 	if agentIDStr != "" {
 		parsedID, parseErr := uuid.Parse(agentIDStr)
 		if parseErr != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid agent ID"})
+			handlers.HandleError(c, fmt.Errorf("invalid agent ID"))
 			return
 		}
 		agentID = &parsedID
@@ -969,17 +935,16 @@ func (h *Handler) GetAgentPerformance(c *gin.Context) {
 
 	performance, err := h.service.GetAgentPerformance(c.Request.Context(), tenantID, period, agentID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, performance)
+	handlers.RespondWithSuccess(c, http.StatusOK, performance)
 }
 
 func (h *Handler) GetCustomerSatisfaction(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -987,17 +952,16 @@ func (h *Handler) GetCustomerSatisfaction(c *gin.Context) {
 
 	satisfaction, err := h.service.GetCustomerSatisfaction(c.Request.Context(), tenantID, period)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, satisfaction)
+	handlers.RespondWithSuccess(c, http.StatusOK, satisfaction)
 }
 
 func (h *Handler) GetResolutionTimeAnalytics(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -1005,17 +969,16 @@ func (h *Handler) GetResolutionTimeAnalytics(c *gin.Context) {
 
 	analytics, err := h.service.GetResolutionTimeAnalytics(c.Request.Context(), tenantID, period)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, analytics)
+	handlers.RespondWithSuccess(c, http.StatusOK, analytics)
 }
 
 func (h *Handler) GetResponseTimeAnalytics(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -1027,7 +990,7 @@ func (h *Handler) GetResponseTimeAnalytics(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, analytics)
+	handlers.RespondWithSuccess(c, http.StatusOK, analytics)
 }
 
 // Helper methods removed - using utils.GetTenantIDFromContext instead

@@ -7,6 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+
+	"ecommerce-saas/internal/shared/handlers"
 )
 
 // Handler handles HTTP requests for product operations
@@ -24,49 +26,42 @@ func NewHandler(service *Service) *Handler {
 // CreateProduct handles POST /api/products
 func (h *Handler) CreateProduct(c *gin.Context) {
 	// Extract tenant ID from context (set by middleware)
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	var product Product
 	if bindErr := c.ShouldBindJSON(&product); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
-	createdProduct, err := h.service.CreateProduct(tenantID.(uuid.UUID), &product)
+	createdProduct, err := h.service.CreateProduct(tenantID, &product)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "Product created successfully",
-		"data":    createdProduct,
-	})
+	handlers.RespondWithCreated(c, createdProduct, "Product created successfully")
 }
 
 // GetProduct handles GET /api/products/:id
 func (h *Handler) GetProduct(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	productIDStr := c.Param("id")
 	// Note: Service already handles string to UUID conversion
-	product, err := h.service.GetProduct(tenantID.(uuid.UUID), productIDStr)
+	product, err := h.service.GetProduct(tenantID, productIDStr)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data": product,
-	})
+	handlers.RespondWithSuccess(c, http.StatusOK, product)
 }
 
 // GetProductBySlug handles GET /api/products/slug/:slug

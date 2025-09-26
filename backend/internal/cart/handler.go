@@ -1,6 +1,7 @@
 package cart
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -8,6 +9,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+
+	"ecommerce-saas/internal/shared/handlers"
 )
 
 // Handler handles HTTP requests for cart operations
@@ -39,118 +42,109 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 
 // CreateCart creates a new cart
 func (h *Handler) CreateCart(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	var req CreateCartRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
-	cart, err := h.service.CreateCart(tenantID.(uuid.UUID), req)
+	cart, err := h.service.CreateCart(tenantID, req)
 	if err != nil {
-		if strings.Contains(err.Error(), "validation") {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create cart"})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": cart})
+	handlers.RespondWithCreated(c, cart, "Cart created successfully")
 }
 
 // AddItem adds an item to the cart
 func (h *Handler) AddItem(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
-	userID, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "user authentication required"})
+	userID, ok := handlers.RequireUserID(c)
+	if !ok {
 		return
 	}
 
 	var req AddItemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
 	// Get user's cart
-	userUUID := userID.(uuid.UUID)
-	cart, err := h.service.GetCartByCustomer(tenantID.(uuid.UUID), userUUID)
+	userUUID := userID
+	cart, err := h.service.GetCartByCustomer(tenantID, userUUID)
 	if err != nil {
 		if err == ErrCartNotFound {
 			// Create new cart if none exists
-			cart, err = h.service.CreateCart(tenantID.(uuid.UUID), CreateCartRequest{
+			cart, err = h.service.CreateCart(tenantID, CreateCartRequest{
 				CustomerID: &userUUID,
 			})
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create cart"})
+				handlers.HandleError(c, fmt.Errorf("failed to create cart"))
 				return
 			}
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve cart"})
+			handlers.HandleError(c, fmt.Errorf("failed to retrieve cart"))
 			return
 		}
 	}
 
-	item, err := h.service.AddItem(tenantID.(uuid.UUID), cart.ID, req)
+	item, err := h.service.AddItem(tenantID, cart.ID, req)
 	if err != nil {
 		if strings.Contains(err.Error(), "validation") {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			handlers.HandleError(c, fmt.Errorf(err.Error()))
 			return
 		}
 		if strings.Contains(err.Error(), "inventory") {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add item to cart"})
+		handlers.HandleError(c, fmt.Errorf("failed to add item to cart"))
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": item})
+	handlers.RespondWithCreated(c, item)
 }
 
 // GetCart retrieves current user's cart with optional includes
 func (h *Handler) GetCart(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
-	userID, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "user authentication required"})
+	userID, ok := handlers.RequireUserID(c)
+	if !ok {
 		return
 	}
 
 	// Parse include parameter
 	include := c.Query("include")
 
-	userUUID := userID.(uuid.UUID)
-	cart, err := h.service.GetCartByCustomer(tenantID.(uuid.UUID), userUUID)
+	userUUID := userID
+	cart, err := h.service.GetCartByCustomer(tenantID, userUUID)
 	if err != nil {
 		if err == ErrCartNotFound {
 			// Create new cart if none exists
-			cart, err = h.service.CreateCart(tenantID.(uuid.UUID), CreateCartRequest{
+			cart, err = h.service.CreateCart(tenantID, CreateCartRequest{
 				CustomerID: &userUUID,
 			})
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create cart"})
+				handlers.HandleError(c, fmt.Errorf("failed to create cart"))
 				return
 			}
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve cart"})
+			handlers.HandleError(c, fmt.Errorf("failed to retrieve cart"))
 			return
 		}
 	}
@@ -158,7 +152,7 @@ func (h *Handler) GetCart(c *gin.Context) {
 	// Handle include options
 	response := gin.H{"data": cart}
 	if strings.Contains(include, "summary") {
-		summary, err := h.service.GetCartSummary(tenantID.(uuid.UUID), cart.ID)
+		summary, err := h.service.GetCartSummary(tenantID, cart.ID)
 		if err != nil {
 			log.Printf("Failed to get cart summary: %v", err)
 			summary = nil
@@ -176,148 +170,141 @@ func (h *Handler) GetCart(c *gin.Context) {
 
 // UpdateCartItem updates a specific item in the cart
 func (h *Handler) UpdateCartItem(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
-	userID, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "user authentication required"})
+	userID, ok := handlers.RequireUserID(c)
+	if !ok {
 		return
 	}
 
 	itemIDStr := c.Param("id")
 	itemID, err := uuid.Parse(itemIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid item ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid item ID"))
 		return
 	}
 
 	var req UpdateItemRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+		handlers.HandleError(c, fmt.Errorf("validation error: %s", bindErr.Error()))
 		return
 	}
 
 	// Get user's cart
-	cart, err := h.service.GetCartByCustomer(tenantID.(uuid.UUID), userID.(uuid.UUID))
+	cart, err := h.service.GetCartByCustomer(tenantID, userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Cart not found"})
 		return
 	}
 
-	item, err := h.service.UpdateItem(tenantID.(uuid.UUID), cart.ID, itemID, req)
+	item, err := h.service.UpdateItem(tenantID, cart.ID, itemID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update item"})
+		handlers.HandleError(c, fmt.Errorf("failed to update item"))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": item})
+	handlers.RespondWithSuccess(c, http.StatusOK, item)
 }
 
 // UpdateCart updates cart properties (shipping, billing, etc.)
 func (h *Handler) UpdateCart(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
-	userID, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "user authentication required"})
+	userID, ok := handlers.RequireUserID(c)
+	if !ok {
 		return
 	}
 
 	var req UpdateCartRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
 	// Get user's cart
-	cart, err := h.service.GetCartByCustomer(tenantID.(uuid.UUID), userID.(uuid.UUID))
+	cart, err := h.service.GetCartByCustomer(tenantID, userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Cart not found"})
 		return
 	}
 
-	updatedCart, err := h.service.UpdateCart(tenantID.(uuid.UUID), cart.ID, req)
+	updatedCart, err := h.service.UpdateCart(tenantID, cart.ID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update cart"})
+		handlers.HandleError(c, fmt.Errorf("failed to update cart"))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": updatedCart})
+	handlers.RespondWithSuccess(c, http.StatusOK, updatedCart)
 }
 
 // GetEstimates calculates shipping estimates
 func (h *Handler) GetEstimates(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
-	userID, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "user authentication required"})
+	userID, ok := handlers.RequireUserID(c)
+	if !ok {
 		return
 	}
 
 	var req EstimateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
 	// Get user's cart
-	cart, err := h.service.GetCartByCustomer(tenantID.(uuid.UUID), userID.(uuid.UUID))
+	cart, err := h.service.GetCartByCustomer(tenantID, userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Cart not found"})
 		return
 	}
 
-	estimates, err := h.service.GetEstimates(tenantID.(uuid.UUID), cart.ID, req)
+	estimates, err := h.service.GetEstimates(tenantID, cart.ID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get estimates"})
+		handlers.HandleError(c, fmt.Errorf("failed to get estimates"))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": estimates})
+	handlers.RespondWithSuccess(c, http.StatusOK, estimates)
 }
 
 // GetGuestCart retrieves guest cart by session
 func (h *Handler) GetGuestCart(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	sessionID := c.Query("session_id")
 	if sessionID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "session_id is required"})
+		handlers.HandleError(c, fmt.Errorf("session_id is required"))
 		return
 	}
 
 	include := c.Query("include")
 
-	cart, err := h.service.GetCartBySession(tenantID.(uuid.UUID), sessionID)
+	cart, err := h.service.GetCartBySession(tenantID, sessionID)
 	if err != nil {
 		if err == ErrCartNotFound {
 			// Create new guest cart
-			cart, err = h.service.CreateCart(tenantID.(uuid.UUID), CreateCartRequest{
+			cart, err = h.service.CreateCart(tenantID, CreateCartRequest{
 				SessionID: sessionID,
 			})
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create cart"})
+				handlers.HandleError(c, fmt.Errorf("failed to create cart"))
 				return
 			}
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve cart"})
+			handlers.HandleError(c, fmt.Errorf("failed to retrieve cart"))
 			return
 		}
 	}
@@ -325,7 +312,7 @@ func (h *Handler) GetGuestCart(c *gin.Context) {
 	// Handle include options
 	response := gin.H{"data": cart}
 	if strings.Contains(include, "summary") {
-		summary, err := h.service.GetCartSummary(tenantID.(uuid.UUID), cart.ID)
+		summary, err := h.service.GetCartSummary(tenantID, cart.ID)
 		if err != nil {
 			log.Printf("Failed to get cart summary: %v", err)
 			summary = nil
@@ -338,78 +325,75 @@ func (h *Handler) GetGuestCart(c *gin.Context) {
 
 // UpdateGuestCart updates guest cart
 func (h *Handler) UpdateGuestCart(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	sessionID := c.Query("session_id")
 	if sessionID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "session_id is required"})
+		handlers.HandleError(c, fmt.Errorf("session_id is required"))
 		return
 	}
 
 	var req UpdateCartRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
-	cart, err := h.service.GetCartBySession(tenantID.(uuid.UUID), sessionID)
+	cart, err := h.service.GetCartBySession(tenantID, sessionID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Cart not found"})
 		return
 	}
 
-	updatedCart, err := h.service.UpdateCart(tenantID.(uuid.UUID), cart.ID, req)
+	updatedCart, err := h.service.UpdateCart(tenantID, cart.ID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update cart"})
+		handlers.HandleError(c, fmt.Errorf("failed to update cart"))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": updatedCart})
+	handlers.RespondWithSuccess(c, http.StatusOK, updatedCart)
 }
 
 // ProcessGuestCheckout processes guest checkout
 func (h *Handler) ProcessGuestCheckout(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	var req GuestCheckoutRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
-	result, err := h.service.ProcessGuestCheckout(tenantID.(uuid.UUID), req)
+	result, err := h.service.ProcessGuestCheckout(tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process checkout"})
+		handlers.HandleError(c, fmt.Errorf("failed to process checkout"))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": result})
+	handlers.RespondWithSuccess(c, http.StatusOK, result)
 }
 
 // GetCartByCustomer retrieves cart for a customer
 func (h *Handler) GetCartByCustomer(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	customerIDStr := c.Param("customer_id")
 	customerID, err := uuid.Parse(customerIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid customer ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid customer ID"))
 		return
 	}
 
-	cart, err := h.service.GetCartByCustomer(tenantID.(uuid.UUID), customerID)
+	cart, err := h.service.GetCartByCustomer(tenantID, customerID)
 	if err != nil {
 		if err == ErrCartNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Cart not found"})
@@ -419,28 +403,27 @@ func (h *Handler) GetCartByCustomer(c *gin.Context) {
 			c.JSON(http.StatusGone, gin.H{"error": "Cart has expired"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve cart"})
+		handlers.HandleError(c, fmt.Errorf("failed to retrieve cart"))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": cart})
+	handlers.RespondWithSuccess(c, http.StatusOK, cart)
 }
 
 // GetCartBySession retrieves cart for a guest session
 func (h *Handler) GetCartBySession(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	sessionID := c.Param("session_id")
 	if sessionID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Session ID is required"})
+		handlers.HandleError(c, fmt.Errorf("session ID is required"))
 		return
 	}
 
-	cart, err := h.service.GetCartBySession(tenantID.(uuid.UUID), sessionID)
+	cart, err := h.service.GetCartBySession(tenantID, sessionID)
 	if err != nil {
 		if err == ErrCartNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Cart not found"})
@@ -450,57 +433,55 @@ func (h *Handler) GetCartBySession(c *gin.Context) {
 			c.JSON(http.StatusGone, gin.H{"error": "Cart has expired"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve cart"})
+		handlers.HandleError(c, fmt.Errorf("failed to retrieve cart"))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": cart})
+	handlers.RespondWithSuccess(c, http.StatusOK, cart)
 }
 
 // GetCartSummary retrieves cart summary
 func (h *Handler) GetCartSummary(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	cartIDStr := c.Param("cart_id")
 	cartID, err := uuid.Parse(cartIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid cart ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid cart ID"))
 		return
 	}
 
-	summary, err := h.service.GetCartSummary(tenantID.(uuid.UUID), cartID)
+	summary, err := h.service.GetCartSummary(tenantID, cartID)
 	if err != nil {
 		if err == ErrCartNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Cart not found"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve cart summary"})
+		handlers.HandleError(c, fmt.Errorf("failed to retrieve cart summary"))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": summary})
+	handlers.RespondWithSuccess(c, http.StatusOK, summary)
 }
 
 // ListCarts lists carts with filtering and pagination, or returns stats when type=stats
 func (h *Handler) ListCarts(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	// Check if stats are requested
 	if c.Query("type") == "stats" {
-		stats, err := h.service.GetCartStats(tenantID.(uuid.UUID))
+		stats, err := h.service.GetCartStats(tenantID)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve cart statistics"})
+			handlers.HandleError(c, fmt.Errorf("failed to retrieve cart statistics"))
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"data": stats})
+		handlers.RespondWithSuccess(c, http.StatusOK, stats)
 		return
 	}
 
@@ -544,9 +525,9 @@ func (h *Handler) ListCarts(c *gin.Context) {
 		}
 	}
 
-	carts, total, err := h.service.ListCarts(tenantID.(uuid.UUID), filter, offset, limit)
+	carts, total, err := h.service.ListCarts(tenantID, filter, offset, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list carts"})
+		handlers.HandleError(c, fmt.Errorf("failed to list carts"))
 		return
 	}
 

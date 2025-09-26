@@ -15,7 +15,7 @@ type Module struct {
 // NewModule creates a new product module with all dependencies
 func NewModule(db *gorm.DB) *Module {
 	repository := NewRepository(db)
-	service := NewService(repository)
+	service := NewService(repository, db)
 	handler := NewHandler(service)
 
 	return &Module{

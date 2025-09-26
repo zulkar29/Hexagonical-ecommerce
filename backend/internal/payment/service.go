@@ -117,11 +117,12 @@ func (s *service) CreatePayment(ctx context.Context, req *CreatePaymentRequest) 
 	
 	// Create payment record
 	payment := &Payment{
+		ID:       uuid.New(),
 		TenantID: tenantID,
 		OrderID:  orderID,
 		Amount:   req.Amount,
 		Currency: req.Currency,
-		Status:   StatusPending,
+		Status:   string(StatusPending),
 		Gateway:  req.Gateway,
 	}
 
@@ -239,7 +240,7 @@ func (s *service) ProcessPayment(ctx context.Context, req *ProcessPaymentRequest
 	case GatewaySSLCommerz:
 		// Validate with SSLCommerz
 		// This would typically involve validating the transaction with SSLCommerz API
-		payment.Status = StatusSucceeded
+		payment.Status = string(StatusSucceeded)
 		now := time.Now()
 		payment.ProcessedAt = &now
 		
@@ -278,14 +279,14 @@ func (s *service) ValidateSSLCommerzPayment(ctx context.Context, ipnData *SSLCom
 	// Update payment status based on IPN data
 	switch ipnData.Status {
 	case "VALID":
-		payment.Status = StatusSucceeded
+		payment.Status = string(StatusSucceeded)
 		now := time.Now()
 		payment.ProcessedAt = &now
 	case "FAILED":
-		payment.Status = StatusFailed
+		payment.Status = string(StatusFailed)
 		payment.FailureReason = ipnData.Error
 	case "CANCELLED":
-		payment.Status = StatusCancelled
+		payment.Status = string(StatusCancelled)
 	default:
 		return fmt.Errorf("invalid payment status: %s", ipnData.Status)
 	}
@@ -342,7 +343,7 @@ func (s *service) RefundPayment(ctx context.Context, req *RefundPaymentRequest) 
 		return nil, fmt.Errorf("payment not found: %w", err)
 	}
 
-	if payment.Status != StatusSucceeded {
+	if payment.Status != string(StatusSucceeded) {
 		return nil, errors.New("can only refund succeeded payments")
 	}
 
@@ -354,7 +355,7 @@ func (s *service) RefundPayment(ctx context.Context, req *RefundPaymentRequest) 
 		Amount:    req.Amount,
 		Currency:  payment.Currency,
 		Reason:    req.Reason,
-		Status:    StatusPending,
+		Status:    string(StatusPending),
 	}
 
 	if err := s.repository.CreateRefund(refund); err != nil {
@@ -364,7 +365,7 @@ func (s *service) RefundPayment(ctx context.Context, req *RefundPaymentRequest) 
 	// Update payment
 	payment.RefundedAmount += req.Amount
 	if payment.RefundedAmount >= payment.Amount {
-		payment.Status = StatusRefunded
+		payment.Status = string(StatusRefunded)
 		now := time.Now()
 		payment.RefundedAt = &now
 	}

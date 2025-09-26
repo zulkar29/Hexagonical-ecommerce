@@ -1,10 +1,13 @@
 package settings
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+
+	"ecommerce-saas/internal/shared/handlers"
 )
 
 // Handler handles HTTP requests for settings
@@ -37,7 +40,7 @@ func (h *Handler) GetSettings(c *gin.Context) {
 	// Get tenant ID from context
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Tenant ID not found"})
+		handlers.HandleError(c, fmt.Errorf("tenant ID not found"))
 		return
 	}
 
@@ -48,11 +51,11 @@ func (h *Handler) GetSettings(c *gin.Context) {
 			if parsedUUID, err := uuid.Parse(tenantIDStr); err == nil {
 				tenantIDUUID = parsedUUID
 			} else {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID format"})
+				handlers.HandleError(c, fmt.Errorf("invalid tenant ID format"))
 				return
 			}
 		} else {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID type"})
+			handlers.HandleError(c, fmt.Errorf("invalid tenant ID type"))
 			return
 		}
 	}
@@ -60,18 +63,18 @@ func (h *Handler) GetSettings(c *gin.Context) {
 	// Parse query parameters
 	var req GetSettingsRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameters", "details": err.Error()})
+		handlers.HandleError(c, fmt.Errorf("invalid query parameters: %w", err))
 		return
 	}
 
 	// Call service
 	response, err := h.service.GetSettings(c.Request.Context(), tenantIDUUID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get settings", "details": err.Error()})
+		handlers.HandleError(c, fmt.Errorf("failed to get settings: %w", err))
 		return
 	}
 
-	c.JSON(http.StatusOK, response)
+	handlers.RespondWithSuccess(c, http.StatusOK,response)
 }
 
 // UpdateSettings handles PATCH /settings
@@ -79,7 +82,7 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 	// Get tenant ID from context
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Tenant ID not found"})
+		handlers.HandleError(c, fmt.Errorf("tenant ID not found"))
 		return
 	}
 
@@ -90,11 +93,11 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 			if parsedUUID, err := uuid.Parse(tenantIDStr); err == nil {
 				tenantIDUUID = parsedUUID
 			} else {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID format"})
+				handlers.HandleError(c, fmt.Errorf("invalid tenant ID format"))
 				return
 			}
 		} else {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID type"})
+			handlers.HandleError(c, fmt.Errorf("invalid tenant ID type"))
 			return
 		}
 	}
@@ -102,24 +105,24 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 	// Parse request body
 	var req UpdateSettingsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+		handlers.HandleError(c, fmt.Errorf("invalid request body: %w", err))
 		return
 	}
 
 	// Validate request
 	if len(req.Settings) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No settings provided"})
+		handlers.HandleError(c, fmt.Errorf("no settings provided"))
 		return
 	}
 
 	// Call service
 	response, err := h.service.UpdateSettings(c.Request.Context(), tenantIDUUID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update settings", "details": err.Error()})
+		handlers.HandleError(c, fmt.Errorf("failed to update settings: %w", err))
 		return
 	}
 
-	c.JSON(http.StatusOK, response)
+	handlers.RespondWithSuccess(c, http.StatusOK,response)
 }
 
 // GetPublicSettings handles GET /public/settings
@@ -127,7 +130,7 @@ func (h *Handler) GetPublicSettings(c *gin.Context) {
 	// Get tenant ID from context (should be set by tenant resolution middleware)
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Tenant ID not found"})
+		handlers.HandleError(c, fmt.Errorf("tenant ID not found"))
 		return
 	}
 
@@ -138,11 +141,11 @@ func (h *Handler) GetPublicSettings(c *gin.Context) {
 			if parsedUUID, err := uuid.Parse(tenantIDStr); err == nil {
 				tenantIDUUID = parsedUUID
 			} else {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID format"})
+				handlers.HandleError(c, fmt.Errorf("invalid tenant ID format"))
 				return
 			}
 		} else {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID type"})
+			handlers.HandleError(c, fmt.Errorf("invalid tenant ID type"))
 			return
 		}
 	}
@@ -150,11 +153,11 @@ func (h *Handler) GetPublicSettings(c *gin.Context) {
 	// Call service
 	response, err := h.service.GetPublicSettings(c.Request.Context(), tenantIDUUID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get public settings", "details": err.Error()})
+		handlers.HandleError(c, fmt.Errorf("failed to get public settings: %w", err))
 		return
 	}
 
-	c.JSON(http.StatusOK, response)
+	handlers.RespondWithSuccess(c, http.StatusOK,response)
 }
 
 // GetHandler returns the handler instance

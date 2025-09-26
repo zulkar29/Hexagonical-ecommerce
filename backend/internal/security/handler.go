@@ -1,9 +1,11 @@
 package security
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
+	"ecommerce-saas/internal/shared/handlers"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -56,7 +58,7 @@ func (h *Handler) SetupRoutes(rg *gin.RouterGroup) {
 func (h *Handler) ValidatePassword(c *gin.Context) {
 	var req PasswordValidationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
@@ -76,7 +78,7 @@ func (h *Handler) ValidatePassword(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"valid": true})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"valid": true})
 }
 
 // GetSecuritySettings retrieves security settings for a user
@@ -84,18 +86,18 @@ func (h *Handler) GetSecuritySettings(c *gin.Context) {
 	userIDStr := c.Param("user_id")
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid user ID"))
 		return
 	}
 
 	ctx := c.Request.Context()
 	settings, err := h.service.GetSecuritySettings(ctx, userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, settings)
+	handlers.RespondWithSuccess(c, http.StatusOK, settings)
 }
 
 // GetSecurityLogs retrieves security logs for a user
@@ -103,7 +105,7 @@ func (h *Handler) GetSecurityLogs(c *gin.Context) {
 	userIDStr := c.Param("user_id")
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid user ID"))
 		return
 	}
 
@@ -118,11 +120,11 @@ func (h *Handler) GetSecurityLogs(c *gin.Context) {
 	ctx := c.Request.Context()
 	logs, err := h.service.GetSecurityLogs(ctx, userID, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, logs)
+	handlers.RespondWithSuccess(c, http.StatusOK, logs)
 }
 
 // CheckAccountLockout checks if an account is currently locked
@@ -130,7 +132,7 @@ func (h *Handler) CheckAccountLockout(c *gin.Context) {
 	userIDStr := c.Param("user_id")
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid user ID"))
 		return
 	}
 
@@ -146,11 +148,11 @@ func (h *Handler) CheckAccountLockout(c *gin.Context) {
 	ctx := c.Request.Context()
 	isLocked, err := h.service.IsAccountLocked(ctx, userID, tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"locked": isLocked})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"locked": isLocked})
 }
 
 // LoginAttemptRequest represents a login attempt request
@@ -165,36 +167,36 @@ type LoginAttemptRequest struct {
 func (h *Handler) RecordFailedLogin(c *gin.Context) {
 	var req LoginAttemptRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
 	ctx := c.Request.Context()
 	err := h.service.RecordFailedLogin(ctx, req.UserID, req.TenantID, req.IPAddress, req.UserAgent)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Failed login recorded"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Failed login recorded"})
 }
 
 // RecordSuccessfulLogin records a successful login attempt
 func (h *Handler) RecordSuccessfulLogin(c *gin.Context) {
 	var req LoginAttemptRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
 	ctx := c.Request.Context()
 	err := h.service.RecordSuccessfulLogin(ctx, req.UserID, req.TenantID, req.IPAddress, req.UserAgent)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Successful login recorded"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Successful login recorded"})
 }
 
 // ResetFailedLogins resets failed login attempts for a user
@@ -202,18 +204,18 @@ func (h *Handler) ResetFailedLogins(c *gin.Context) {
 	userIDStr := c.Param("user_id")
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid user ID"))
 		return
 	}
 
 	ctx := c.Request.Context()
 	err = h.service.ResetFailedLogins(ctx, userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Failed logins reset"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Failed logins reset"})
 }
 
 // Setup2FARequest represents a 2FA setup request
@@ -227,7 +229,7 @@ func (h *Handler) Setup2FA(c *gin.Context) {
 	userIDStr := c.Param("user_id")
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid user ID"))
 		return
 	}
 
@@ -249,11 +251,11 @@ func (h *Handler) Setup2FA(c *gin.Context) {
 	ctx := c.Request.Context()
 	twoFA, qrURL, err := h.service.Setup2FA(ctx, userID, tenantID, req.Issuer, req.AccountName)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{
 		"two_factor_auth": twoFA,
 		"qr_url":          qrURL,
 	})
@@ -270,36 +272,36 @@ type Verify2FARequest struct {
 func (h *Handler) Verify2FA(c *gin.Context) {
 	var req Verify2FARequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
 	ctx := c.Request.Context()
 	valid, err := h.service.Verify2FA(ctx, req.UserID, req.TenantID, req.Token)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"valid": valid})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"valid": valid})
 }
 
 // Enable2FA enables 2FA for a user after verification
 func (h *Handler) Enable2FA(c *gin.Context) {
 	var req Verify2FARequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
 	ctx := c.Request.Context()
 	err := h.service.Enable2FA(ctx, req.UserID, req.TenantID, req.Token)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "2FA enabled successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "2FA enabled successfully"})
 }
 
 // Disable2FA disables 2FA for a user
@@ -307,18 +309,18 @@ func (h *Handler) Disable2FA(c *gin.Context) {
 	userIDStr := c.Param("user_id")
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid user ID"))
 		return
 	}
 
 	ctx := c.Request.Context()
 	err = h.service.Disable2FA(ctx, userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "2FA disabled successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "2FA disabled successfully"})
 }
 
 // VerifyBackupCodeRequest represents a backup code verification request
@@ -331,18 +333,18 @@ type VerifyBackupCodeRequest struct {
 func (h *Handler) VerifyBackupCode(c *gin.Context) {
 	var req VerifyBackupCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
 	ctx := c.Request.Context()
 	valid, err := h.service.VerifyBackupCode(ctx, req.UserID, req.Code)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"valid": valid})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"valid": valid})
 }
 
 // SavePasswordHistoryRequest represents a password history save request
@@ -355,18 +357,18 @@ type SavePasswordHistoryRequest struct {
 func (h *Handler) SavePasswordHistory(c *gin.Context) {
 	var req SavePasswordHistoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
 	ctx := c.Request.Context()
 	err := h.service.SavePasswordHistory(ctx, req.UserID, req.PasswordHash)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Password history saved"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Password history saved"})
 }
 
 // CheckPasswordReuseRequest represents a password reuse check request
@@ -380,18 +382,18 @@ type CheckPasswordReuseRequest struct {
 func (h *Handler) CheckPasswordReuse(c *gin.Context) {
 	var req CheckPasswordReuseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
 	ctx := c.Request.Context()
 	reused, err := h.service.IsPasswordReused(ctx, req.UserID, req.TenantID, req.Password)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"reused": reused})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"reused": reused})
 }
 
 // UpdateSecuritySettingsRequest represents a security settings update request
@@ -410,7 +412,7 @@ func (h *Handler) UpdateSecuritySettings(c *gin.Context) {
 	userIDStr := c.Param("user_id")
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid user ID"))
 		return
 	}
 
@@ -435,9 +437,9 @@ func (h *Handler) UpdateSecuritySettings(c *gin.Context) {
 	ctx := c.Request.Context()
 	err = h.service.UpdateSecuritySettings(ctx, userID, settings)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Security settings updated successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Security settings updated successfully"})
 }

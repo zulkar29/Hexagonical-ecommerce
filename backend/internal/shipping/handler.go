@@ -1,11 +1,14 @@
 package shipping
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+
+	"ecommerce-saas/internal/shared/handlers"
 )
 
 type Handler struct {
@@ -29,17 +32,17 @@ func (h *Handler) CreateShippingZone(c *gin.Context) {
 
 	var req CreateShippingZoneRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleError(c, fmt.Errorf("Invalid request format"))
 		return
 	}
 
 	zone, err := h.service.CreateShippingZone(tenantID.(uuid.UUID), req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
+	handlers.RespondWithCreated(c, gin.H{
 		"message": "Shipping zone created successfully",
 		"data":    zone,
 	})
@@ -54,11 +57,11 @@ func (h *Handler) GetShippingZones(c *gin.Context) {
 
 	zones, err := h.service.GetShippingZones(tenantID.(uuid.UUID))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch shipping zones"})
+		handlers.HandleError(c, fmt.Errorf("Failed to fetch shipping zones"))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": zones})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": zones})
 }
 
 func (h *Handler) GetShippingZone(c *gin.Context) {
@@ -75,7 +78,7 @@ func (h *Handler) GetShippingZone(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": zone})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": zone})
 }
 
 func (h *Handler) UpdateShippingZone(c *gin.Context) {
@@ -88,17 +91,17 @@ func (h *Handler) UpdateShippingZone(c *gin.Context) {
 	zoneID := c.Param("id")
 	var req UpdateShippingZoneRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleError(c, fmt.Errorf("Invalid request format"))
 		return
 	}
 
 	zone, err := h.service.UpdateShippingZone(tenantID.(uuid.UUID), zoneID, req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{
 		"message": "Shipping zone updated successfully",
 		"data":    zone,
 	})
@@ -114,11 +117,11 @@ func (h *Handler) DeleteShippingZone(c *gin.Context) {
 	zoneID := c.Param("id")
 	err := h.service.DeleteShippingZone(tenantID.(uuid.UUID), zoneID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Shipping zone deleted successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Shipping zone deleted successfully"})
 }
 
 // Shipping Rates
@@ -132,17 +135,17 @@ func (h *Handler) GetShippingRates(c *gin.Context) {
 
 	var req ShippingRateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleError(c, fmt.Errorf("Invalid request format"))
 		return
 	}
 
 	rates, err := h.service.CalculateShippingRates(tenantID.(uuid.UUID), req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": rates})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": rates})
 }
 
 func (h *Handler) CreateShippingRate(c *gin.Context) {
@@ -154,17 +157,17 @@ func (h *Handler) CreateShippingRate(c *gin.Context) {
 
 	var req CreateShippingRateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleError(c, fmt.Errorf("Invalid request format"))
 		return
 	}
 
 	rate, err := h.service.CreateShippingRate(tenantID.(uuid.UUID), req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
+	handlers.RespondWithCreated(c, gin.H{
 		"message": "Shipping rate created successfully",
 		"data":    rate,
 	})
@@ -181,17 +184,17 @@ func (h *Handler) CreateShippingLabel(c *gin.Context) {
 
 	var req CreateShippingLabelRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleError(c, fmt.Errorf("Invalid request format"))
 		return
 	}
 
 	label, err := h.service.CreateShippingLabel(tenantID.(uuid.UUID), req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
+	handlers.RespondWithCreated(c,gin.H{
 		"message": "Shipping label created successfully",
 		"data":    label,
 	})
@@ -211,7 +214,7 @@ func (h *Handler) GetShippingLabel(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": label})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": label})
 }
 
 func (h *Handler) GetShippingLabels(c *gin.Context) {
@@ -228,13 +231,13 @@ func (h *Handler) GetShippingLabels(c *gin.Context) {
 
 	offset, err := strconv.Atoi(offsetStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid offset parameter"})
+		handlers.HandleError(c, fmt.Errorf("Invalid offset parameter"))
 		return
 	}
 
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid limit parameter"})
+		handlers.HandleError(c, fmt.Errorf("Invalid limit parameter"))
 		return
 	}
 
@@ -247,17 +250,17 @@ func (h *Handler) GetShippingLabels(c *gin.Context) {
 	case "stats":
 		stats, err := h.service.GetShippingStats(tenantID.(uuid.UUID))
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch shipping statistics"})
+			handlers.HandleError(c, fmt.Errorf("Failed to fetch shipping statistics"))
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"data": stats})
+		handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": stats})
 	case "history":
 		history, total, err := h.service.GetShippingHistory(tenantID.(uuid.UUID), offset, limit)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch shipping history"})
+			handlers.HandleError(c, fmt.Errorf("Failed to fetch shipping history"))
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{
+		handlers.RespondWithSuccess(c, http.StatusOK, gin.H{
 			"data": gin.H{
 				"history": history,
 				"total":   total,
@@ -268,10 +271,10 @@ func (h *Handler) GetShippingLabels(c *gin.Context) {
 	default:
 		labels, total, err := h.service.GetShippingLabels(tenantID.(uuid.UUID), offset, limit)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch shipping labels"})
+			handlers.HandleError(c, fmt.Errorf("Failed to fetch shipping labels"))
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{
+		handlers.RespondWithSuccess(c, http.StatusOK, gin.H{
 			"data": gin.H{
 				"labels": labels,
 				"total":  total,
@@ -292,11 +295,11 @@ func (h *Handler) CancelShipment(c *gin.Context) {
 	labelID := c.Param("id")
 	err := h.service.CancelShipment(tenantID.(uuid.UUID), labelID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Shipment cancelled successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK,gin.H{"message": "Shipment cancelled successfully"})
 }
 
 // Package Tracking
@@ -310,7 +313,7 @@ func (h *Handler) TrackPackage(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": tracking})
+	handlers.RespondWithSuccess(c, http.StatusOK,gin.H{"data": tracking})
 }
 
 func (h *Handler) GetTrackingHistory(c *gin.Context) {
@@ -322,7 +325,7 @@ func (h *Handler) GetTrackingHistory(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": history})
+	handlers.RespondWithSuccess(c, http.StatusOK,gin.H{"data": history})
 }
 
 // Address Validation
@@ -330,17 +333,17 @@ func (h *Handler) GetTrackingHistory(c *gin.Context) {
 func (h *Handler) ValidateAddress(c *gin.Context) {
 	var req AddressValidationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleError(c, fmt.Errorf("Invalid request format"))
 		return
 	}
 
 	result, err := h.service.ValidateAddress(req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": result})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": result})
 }
 
 // Delivery Estimates
@@ -348,17 +351,17 @@ func (h *Handler) ValidateAddress(c *gin.Context) {
 func (h *Handler) GetDeliveryEstimate(c *gin.Context) {
 	var req DeliveryEstimateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleError(c, fmt.Errorf("Invalid request format"))
 		return
 	}
 
 	estimate, err := h.service.GetDeliveryEstimate(req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": estimate})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": estimate})
 }
 
 // Provider Management
@@ -372,11 +375,11 @@ func (h *Handler) GetShippingProviders(c *gin.Context) {
 
 	providers, err := h.service.GetShippingProviders(tenantID.(uuid.UUID))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch shipping providers"})
+		handlers.HandleError(c, fmt.Errorf("Failed to fetch shipping providers"))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": providers})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": providers})
 }
 
 func (h *Handler) ConfigureProvider(c *gin.Context) {
@@ -389,17 +392,17 @@ func (h *Handler) ConfigureProvider(c *gin.Context) {
 	provider := c.Param("provider")
 	var req ProviderConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleError(c, fmt.Errorf("Invalid request format"))
 		return
 	}
 
 	err := h.service.ConfigureProvider(tenantID.(uuid.UUID), provider, req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Provider configured successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Provider configured successfully"})
 }
 
 // Provider Webhooks
@@ -407,81 +410,81 @@ func (h *Handler) ConfigureProvider(c *gin.Context) {
 func (h *Handler) PathaoWebhook(c *gin.Context) {
 	var payload map[string]interface{}
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid webhook payload"})
+		handlers.HandleError(c, fmt.Errorf("Invalid webhook payload"))
 		return
 	}
 
 	err := h.service.ProcessPathaoWebhook(payload)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process webhook"})
+		handlers.HandleError(c, fmt.Errorf("Failed to process webhook"))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Webhook processed successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Webhook processed successfully"})
 }
 
 func (h *Handler) RedXWebhook(c *gin.Context) {
 	var payload map[string]interface{}
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid webhook payload"})
+		handlers.HandleError(c, fmt.Errorf("Invalid webhook payload"))
 		return
 	}
 
 	err := h.service.ProcessRedXWebhook(payload)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process webhook"})
+		handlers.HandleError(c, fmt.Errorf("Failed to process webhook"))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Webhook processed successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Webhook processed successfully"})
 }
 
 func (h *Handler) PaperflyWebhook(c *gin.Context) {
 	var payload map[string]interface{}
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid webhook payload"})
+		handlers.HandleError(c, fmt.Errorf("Invalid webhook payload"))
 		return
 	}
 
 	err := h.service.ProcessPaperflyWebhook(payload)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process webhook"})
+		handlers.HandleError(c, fmt.Errorf("Failed to process webhook"))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Webhook processed successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Webhook processed successfully"})
 }
 
 func (h *Handler) DHLWebhook(c *gin.Context) {
 	var payload map[string]interface{}
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid webhook payload"})
+		handlers.HandleError(c, fmt.Errorf("Invalid webhook payload"))
 		return
 	}
 
 	err := h.service.ProcessDHLWebhook(payload)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process webhook"})
+		handlers.HandleError(c, fmt.Errorf("Failed to process webhook"))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Webhook processed successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Webhook processed successfully"})
 }
 
 func (h *Handler) FedExWebhook(c *gin.Context) {
 	var payload map[string]interface{}
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid webhook payload"})
+		handlers.HandleError(c, fmt.Errorf("Invalid webhook payload"))
 		return
 	}
 
 	err := h.service.ProcessFedExWebhook(payload)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process webhook"})
+		handlers.HandleError(c, fmt.Errorf("Failed to process webhook"))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Webhook processed successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Webhook processed successfully"})
 }
 
 // RegisterRoutes registers all shipping routes

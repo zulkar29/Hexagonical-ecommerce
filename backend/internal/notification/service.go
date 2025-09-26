@@ -192,8 +192,8 @@ func (s *service) sendEmailViaSendGrid(notification *Notification) error {
 			},
 		},
 		"from": map[string]string{
-			"email": s.emailProvider.FromEmail,
-			"name":  s.emailProvider.FromName,
+			"email": "noreply@example.com", // TODO: Get from config
+			"name":  "E-commerce SaaS",     // TODO: Get from config
 		},
 		"content": []map[string]string{
 			{
@@ -210,7 +210,7 @@ func (s *service) sendEmailViaSendGrid(notification *Notification) error {
 		return err
 	}
 
-	req.Header.Set("Authorization", "Bearer "+s.emailProvider.APIKey)
+	req.Header.Set("Authorization", "Bearer "+getEnvOrDefault("SENDGRID_API_KEY", ""))
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{Timeout: 10 * time.Second}

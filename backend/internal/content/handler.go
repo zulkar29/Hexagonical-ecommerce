@@ -1,13 +1,15 @@
 package content
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 
+	"ecommerce-saas/internal/shared/handlers"
+	"ecommerce-saas/internal/shared/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"ecommerce-saas/internal/shared/utils"
 )
 
 type Handler struct {
@@ -23,37 +25,34 @@ func NewHandler(service *Service) *Handler {
 // Page Management Endpoints
 
 func (h *Handler) CreatePage(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
-	userID, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+	userID, ok := handlers.RequireUserID(c)
+	if !ok {
 		return
 	}
 
 	var req CreatePageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
-	page, err := h.service.CreatePage(tenantID.(uuid.UUID), userID.(uuid.UUID), req)
+	page, err := h.service.CreatePage(tenantID, userID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": page})
+	handlers.RespondWithCreated(c, gin.H{"data": page})
 }
 
 func (h *Handler) UpdatePage(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -65,23 +64,22 @@ func (h *Handler) UpdatePage(c *gin.Context) {
 
 	var req UpdatePageRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
-	page, err := h.service.UpdatePage(tenantID.(uuid.UUID), pageID, req)
+	page, err := h.service.UpdatePage(tenantID, pageID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": page})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": page})
 }
 
 func (h *Handler) DeletePage(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -91,18 +89,17 @@ func (h *Handler) DeletePage(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.DeletePage(tenantID.(uuid.UUID), pageID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err := h.service.DeletePage(tenantID, pageID); err != nil {
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Page deleted successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Page deleted successfully"})
 }
 
 func (h *Handler) GetPage(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -112,50 +109,48 @@ func (h *Handler) GetPage(c *gin.Context) {
 		return
 	}
 
-	page, err := h.service.GetPage(tenantID.(uuid.UUID), pageID)
+	page, err := h.service.GetPage(tenantID, pageID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": page})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": page})
 }
 
 func (h *Handler) GetPageBySlug(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	slug := c.Param("slug")
 	if slug == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Slug is required"})
+		handlers.HandleError(c, fmt.Errorf("slug is required"))
 		return
 	}
 
-	page, err := h.service.GetPageBySlug(tenantID.(uuid.UUID), slug)
+	page, err := h.service.GetPageBySlug(tenantID, slug)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
 	// Increment view count for published pages
 	if page.IsPublished() {
 		go func() {
-			if err := h.service.IncrementPageViews(tenantID.(uuid.UUID), page.ID); err != nil {
+			if err := h.service.IncrementPageViews(tenantID, page.ID); err != nil {
 				log.Printf("Failed to increment page views: %v", err)
 			}
 		}()
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": page})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": page})
 }
 
 func (h *Handler) GetPages(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -174,13 +169,13 @@ func (h *Handler) GetPages(c *gin.Context) {
 		Search: search,
 	}
 
-	pages, total, err := h.service.GetPages(tenantID.(uuid.UUID), filter)
+	pages, total, err := h.service.GetPages(tenantID, filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{
 		"data": pages,
 		"meta": gin.H{
 			"total": total,
@@ -191,9 +186,8 @@ func (h *Handler) GetPages(c *gin.Context) {
 }
 
 func (h *Handler) PublishPage(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -203,19 +197,18 @@ func (h *Handler) PublishPage(c *gin.Context) {
 		return
 	}
 
-	page, err := h.service.PublishPage(tenantID.(uuid.UUID), pageID)
+	page, err := h.service.PublishPage(tenantID, pageID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": page})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": page})
 }
 
 func (h *Handler) UnpublishPage(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -225,25 +218,23 @@ func (h *Handler) UnpublishPage(c *gin.Context) {
 		return
 	}
 
-	page, err := h.service.UnpublishPage(tenantID.(uuid.UUID), pageID)
+	page, err := h.service.UnpublishPage(tenantID, pageID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": page})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": page})
 }
 
 func (h *Handler) DuplicatePage(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
-	userID, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+	userID, ok := handlers.RequireUserID(c)
+	if !ok {
 		return
 	}
 
@@ -255,37 +246,35 @@ func (h *Handler) DuplicatePage(c *gin.Context) {
 
 	var req DuplicatePageRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
-	page, err := h.service.DuplicatePage(tenantID.(uuid.UUID), userID.(uuid.UUID), pageID, req)
+	page, err := h.service.DuplicatePage(tenantID, userID, pageID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": page})
+	handlers.RespondWithCreated(c, gin.H{"data": page})
 }
 
 // Media Management Endpoints
 
 func (h *Handler) UploadMedia(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
-	userID, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+	userID, ok := handlers.RequireUserID(c)
+	if !ok {
 		return
 	}
 
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No file uploaded"})
+		handlers.HandleError(c, fmt.Errorf("no file uploaded"))
 		return
 	}
 	defer file.Close()
@@ -303,19 +292,18 @@ func (h *Handler) UploadMedia(c *gin.Context) {
 		AltText:     altText,
 	}
 
-	media, err := h.service.UploadMedia(tenantID.(uuid.UUID), userID.(uuid.UUID), req)
+	media, err := h.service.UploadMedia(tenantID, userID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": media})
+	handlers.RespondWithCreated(c, gin.H{"data": media})
 }
 
 func (h *Handler) UpdateMedia(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -327,23 +315,22 @@ func (h *Handler) UpdateMedia(c *gin.Context) {
 
 	var req UpdateMediaRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
-	media, err := h.service.UpdateMedia(tenantID.(uuid.UUID), mediaID, req)
+	media, err := h.service.UpdateMedia(tenantID, mediaID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": media})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": media})
 }
 
 func (h *Handler) DeleteMedia(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -353,18 +340,17 @@ func (h *Handler) DeleteMedia(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.DeleteMedia(tenantID.(uuid.UUID), mediaID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err := h.service.DeleteMedia(tenantID, mediaID); err != nil {
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Media deleted successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Media deleted successfully"})
 }
 
 func (h *Handler) GetMedia(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -374,19 +360,18 @@ func (h *Handler) GetMedia(c *gin.Context) {
 		return
 	}
 
-	media, err := h.service.GetMedia(tenantID.(uuid.UUID), mediaID)
+	media, err := h.service.GetMedia(tenantID, mediaID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": media})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": media})
 }
 
 func (h *Handler) GetMediaLibrary(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -403,13 +388,13 @@ func (h *Handler) GetMediaLibrary(c *gin.Context) {
 		Search: search,
 	}
 
-	media, total, err := h.service.GetMediaLibrary(tenantID.(uuid.UUID), filter)
+	media, total, err := h.service.GetMediaLibrary(tenantID, filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{
 		"data": media,
 		"meta": gin.H{
 			"total": total,
@@ -422,31 +407,29 @@ func (h *Handler) GetMediaLibrary(c *gin.Context) {
 // Menu Management Endpoints
 
 func (h *Handler) CreateMenu(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	var req CreateMenuRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
-	menu, err := h.service.CreateMenu(tenantID.(uuid.UUID), req)
+	menu, err := h.service.CreateMenu(tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": menu})
+	handlers.RespondWithCreated(c, gin.H{"data": menu})
 }
 
 func (h *Handler) UpdateMenu(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -458,23 +441,22 @@ func (h *Handler) UpdateMenu(c *gin.Context) {
 
 	var req UpdateMenuRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
-	menu, err := h.service.UpdateMenu(tenantID.(uuid.UUID), menuID, req)
+	menu, err := h.service.UpdateMenu(tenantID, menuID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": menu})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": menu})
 }
 
 func (h *Handler) DeleteMenu(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -484,18 +466,17 @@ func (h *Handler) DeleteMenu(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.DeleteMenu(tenantID.(uuid.UUID), menuID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err := h.service.DeleteMenu(tenantID, menuID); err != nil {
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Menu deleted successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Menu deleted successfully"})
 }
 
 func (h *Handler) GetMenu(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -505,62 +486,59 @@ func (h *Handler) GetMenu(c *gin.Context) {
 		return
 	}
 
-	menu, err := h.service.GetMenu(tenantID.(uuid.UUID), menuID)
+	menu, err := h.service.GetMenu(tenantID, menuID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": menu})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": menu})
 }
 
 func (h *Handler) GetMenus(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	location := c.Query("location")
 	activeOnly := c.DefaultQuery("active_only", "false") == "true"
 
-	menus, err := h.service.GetMenus(tenantID.(uuid.UUID), location, activeOnly)
+	menus, err := h.service.GetMenus(tenantID, location, activeOnly)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": menus})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": menus})
 }
 
 func (h *Handler) GetMenuByLocation(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	location := c.Param("location")
 	if location == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Location is required"})
+		handlers.HandleError(c, fmt.Errorf("location is required"))
 		return
 	}
 
-	menu, err := h.service.GetMenuByLocation(tenantID.(uuid.UUID), location)
+	menu, err := h.service.GetMenuByLocation(tenantID, location)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": menu})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": menu})
 }
 
 // Menu Item Management Endpoints
 
 func (h *Handler) CreateMenuItem(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -572,23 +550,22 @@ func (h *Handler) CreateMenuItem(c *gin.Context) {
 
 	var req CreateMenuItemRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
-	menuItem, err := h.service.CreateMenuItem(tenantID.(uuid.UUID), menuID, req)
+	menuItem, err := h.service.CreateMenuItem(tenantID, menuID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": menuItem})
+	handlers.RespondWithCreated(c, gin.H{"data": menuItem})
 }
 
 func (h *Handler) UpdateMenuItem(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -600,23 +577,22 @@ func (h *Handler) UpdateMenuItem(c *gin.Context) {
 
 	var req UpdateMenuItemRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
-	menuItem, err := h.service.UpdateMenuItem(tenantID.(uuid.UUID), itemID, req)
+	menuItem, err := h.service.UpdateMenuItem(tenantID, itemID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": menuItem})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": menuItem})
 }
 
 func (h *Handler) DeleteMenuItem(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -626,18 +602,17 @@ func (h *Handler) DeleteMenuItem(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.DeleteMenuItem(tenantID.(uuid.UUID), itemID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err := h.service.DeleteMenuItem(tenantID, itemID); err != nil {
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Menu item deleted successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Menu item deleted successfully"})
 }
 
 func (h *Handler) ReorderMenuItems(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -649,46 +624,44 @@ func (h *Handler) ReorderMenuItems(c *gin.Context) {
 
 	var req ReorderMenuItemsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
-	if err := h.service.ReorderMenuItems(tenantID.(uuid.UUID), menuID, req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err := h.service.ReorderMenuItems(tenantID, menuID, req); err != nil {
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Menu items reordered successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Menu items reordered successfully"})
 }
 
 // Tag Management Endpoints
 
 func (h *Handler) CreateTag(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	var req CreateTagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
-	tag, err := h.service.CreateTag(tenantID.(uuid.UUID), req)
+	tag, err := h.service.CreateTag(tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": tag})
+	handlers.RespondWithCreated(c, gin.H{"data": tag})
 }
 
 func (h *Handler) UpdateTag(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -700,23 +673,22 @@ func (h *Handler) UpdateTag(c *gin.Context) {
 
 	var req UpdateTagRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
-	tag, err := h.service.UpdateTag(tenantID.(uuid.UUID), tagID, req)
+	tag, err := h.service.UpdateTag(tenantID, tagID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": tag})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": tag})
 }
 
 func (h *Handler) DeleteTag(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -726,60 +698,57 @@ func (h *Handler) DeleteTag(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.DeleteTag(tenantID.(uuid.UUID), tagID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err := h.service.DeleteTag(tenantID, tagID); err != nil {
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Tag deleted successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Tag deleted successfully"})
 }
 
 func (h *Handler) GetTags(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	search := c.Query("search")
 
-	tags, err := h.service.GetTags(tenantID.(uuid.UUID), search)
+	tags, err := h.service.GetTags(tenantID, search)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": tags})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": tags})
 }
 
 // Category Management Endpoints
 
 func (h *Handler) CreateCategory(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	var req CreateCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
-	category, err := h.service.CreateCategory(tenantID.(uuid.UUID), req)
+	category, err := h.service.CreateCategory(tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": category})
+	handlers.RespondWithCreated(c, gin.H{"data": category})
 }
 
 func (h *Handler) UpdateCategory(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -791,23 +760,22 @@ func (h *Handler) UpdateCategory(c *gin.Context) {
 
 	var req UpdateCategoryRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
-	category, err := h.service.UpdateCategory(tenantID.(uuid.UUID), categoryID, req)
+	category, err := h.service.UpdateCategory(tenantID, categoryID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": category})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": category})
 }
 
 func (h *Handler) DeleteCategory(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -817,82 +785,78 @@ func (h *Handler) DeleteCategory(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.DeleteCategory(tenantID.(uuid.UUID), categoryID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err := h.service.DeleteCategory(tenantID, categoryID); err != nil {
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Category deleted successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Category deleted successfully"})
 }
 
 func (h *Handler) GetCategories(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	activeOnly := c.DefaultQuery("active_only", "false") == "true"
 
-	categories, err := h.service.GetCategories(tenantID.(uuid.UUID), activeOnly)
+	categories, err := h.service.GetCategories(tenantID, activeOnly)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": categories})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": categories})
 }
 
 // SEO Management Endpoints
 
 func (h *Handler) UpdateSEOSettings(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	var req UpdateSEOSettingsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
-	seoSettings, err := h.service.UpdateSEOSettings(tenantID.(uuid.UUID), req)
+	seoSettings, err := h.service.UpdateSEOSettings(tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": seoSettings})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": seoSettings})
 }
 
 func (h *Handler) GetSEOSettings(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
-	seoSettings, err := h.service.GetSEOSettings(tenantID.(uuid.UUID))
+	seoSettings, err := h.service.GetSEOSettings(tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": seoSettings})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": seoSettings})
 }
 
 func (h *Handler) GenerateSitemap(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
-	sitemap, err := h.service.GenerateSitemap(tenantID.(uuid.UUID))
+	sitemap, err := h.service.GenerateSitemap(tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
@@ -901,15 +865,14 @@ func (h *Handler) GenerateSitemap(c *gin.Context) {
 }
 
 func (h *Handler) GetRobotsTxt(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
-	robots, err := h.service.GetRobotsTxt(tenantID.(uuid.UUID))
+	robots, err := h.service.GetRobotsTxt(tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
@@ -920,52 +883,49 @@ func (h *Handler) GetRobotsTxt(c *gin.Context) {
 // Content Analytics Endpoints
 
 func (h *Handler) GetContentAnalytics(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
-	analytics, err := h.service.GetContentAnalytics(tenantID.(uuid.UUID))
+	analytics, err := h.service.GetContentAnalytics(tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": analytics})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": analytics})
 }
 
 func (h *Handler) GetPopularContent(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	contentType := c.Query("type")
 
-	content, err := h.service.GetPopularContent(tenantID.(uuid.UUID), limit, contentType)
+	content, err := h.service.GetPopularContent(tenantID, limit, contentType)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": content})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": content})
 }
 
 // Content Search Endpoints
 
 func (h *Handler) SearchContent(c *gin.Context) {
-	tenantID, exists := c.Get("tenant_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	query := c.Query("q")
 	if query == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Search query is required"})
+		handlers.HandleError(c, fmt.Errorf("search query is required"))
 		return
 	}
 
@@ -981,13 +941,13 @@ func (h *Handler) SearchContent(c *gin.Context) {
 		Limit: limit,
 	}
 
-	results, total, err := h.service.SearchContent(tenantID.(uuid.UUID), searchFilter)
+	results, total, err := h.service.SearchContent(tenantID, searchFilter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{
 		"data": results,
 		"meta": gin.H{
 			"total": total,
@@ -1004,19 +964,19 @@ func (h *Handler) GetPublicPage(c *gin.Context) {
 	// Extract tenant ID from context (set by middleware)
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant"})
+		handlers.HandleError(c, fmt.Errorf("invalid tenant"))
 		return
 	}
 
 	slug := c.Param("slug")
 	if slug == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Slug is required"})
+		handlers.HandleError(c, fmt.Errorf("slug is required"))
 		return
 	}
 
 	page, err := h.service.GetPublishedPageBySlug(tenantID, slug)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Page not found"})
+		handlers.HandleError(c, fmt.Errorf("page not found"))
 		return
 	}
 
@@ -1027,43 +987,43 @@ func (h *Handler) GetPublicPage(c *gin.Context) {
 		}
 	}()
 
-	c.JSON(http.StatusOK, gin.H{"data": page})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": page})
 }
 
 func (h *Handler) GetPublicMenu(c *gin.Context) {
 	// Extract tenant ID from context (set by middleware)
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant"})
+		handlers.HandleError(c, fmt.Errorf("invalid tenant"))
 		return
 	}
 
 	location := c.Param("location")
 	if location == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Location is required"})
+		handlers.HandleError(c, fmt.Errorf("location is required"))
 		return
 	}
 
 	menu, err := h.service.GetPublicMenuByLocation(tenantID, location)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Menu not found"})
+		handlers.HandleError(c, fmt.Errorf("menu not found"))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": menu})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": menu})
 }
 
 func (h *Handler) GetPublicSitemap(c *gin.Context) {
 	// Extract tenant ID from context (set by middleware)
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant"})
+		handlers.HandleError(c, fmt.Errorf("invalid tenant"))
 		return
 	}
 
 	sitemap, err := h.service.GenerateSitemap(tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate sitemap"})
+		handlers.HandleError(c, fmt.Errorf("failed to generate sitemap"))
 		return
 	}
 
@@ -1075,13 +1035,13 @@ func (h *Handler) GetPublicRobotsTxt(c *gin.Context) {
 	// Extract tenant ID from context (set by middleware)
 	tenantID, err := utils.GetTenantIDFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant"})
+		handlers.HandleError(c, fmt.Errorf("invalid tenant"))
 		return
 	}
 
 	robots, err := h.service.GetRobotsTxt(tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get robots.txt"})
+		handlers.HandleError(c, fmt.Errorf("failed to get robots.txt"))
 		return
 	}
 

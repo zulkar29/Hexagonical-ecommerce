@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -633,14 +632,6 @@ func (s *Service) TrackOrder(tenantID uuid.UUID, orderNumber string) (map[string
 }
 
 // Helper methods
-
-// generateOrderNumber generates a unique order number
-func (s *Service) generateOrderNumber(_ uuid.UUID) string {
-	timestamp := time.Now().Unix()
-	random := rand.Intn(1000)
-	return fmt.Sprintf("ORD-%d-%03d", timestamp, random)
-}
-
 
 
 // calculateShipping calculates shipping cost
@@ -1378,7 +1369,7 @@ func (s *Service) DeleteOrder(ctx context.Context, tenantID uuid.UUID, orderID u
 	}
 	
 	// Check if order can be deleted (only pending/draft orders)
-	if order.Status != OrderStatusPending && order.Status != OrderStatusDraft {
+	if order.Status != OrderStatusPending {
 		return fmt.Errorf("cannot delete order in status %s", order.Status)
 	}
 	
@@ -1415,7 +1406,7 @@ func (s *Service) BulkDeleteOrders(ctx context.Context, tenantID uuid.UUID, orde
 		}
 		
 		// Check if order can be deleted (only pending/draft orders)
-		if order.Status != OrderStatusPending && order.Status != OrderStatusDraft {
+		if order.Status != OrderStatusPending {
 			failedDeletes++
 			errors = append(errors, fmt.Sprintf("Order %s: cannot delete order in status %s", orderID, order.Status))
 			continue
@@ -1452,7 +1443,7 @@ func (s *Service) CreateOrderDispute(ctx context.Context, tenantID, orderID, cus
 	}
 
 	// Check if order can have disputes (e.g., must be completed or shipped)
-	if order.Status != StatusCompleted && order.Status != StatusShipped {
+	if order.Status != StatusDelivered && order.Status != StatusShipped {
 		return nil, fmt.Errorf("disputes can only be created for completed or shipped orders")
 	}
 

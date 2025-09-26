@@ -22,11 +22,12 @@ const (
 
 // Use shared user status constants
 const (
-	StatusActive    = constants.UserStatusActive
-	StatusInactive  = constants.UserStatusInactive
-	StatusSuspended = constants.UserStatusSuspended
-	StatusPending   = constants.UserStatusPending
-	StatusClosed    = constants.UserStatusClosed
+	StatusActive      = constants.UserStatusActive
+	StatusInactive    = constants.UserStatusInactive
+	StatusSuspended   = constants.UserStatusSuspended
+	StatusPending     = constants.UserStatusPending
+	StatusBlocked     = constants.UserStatusBlocked
+	StatusDeactivated = constants.UserStatusDeactivated
 )
 
 // User represents a user in the system

@@ -149,6 +149,7 @@ const (
 	EventBackupCodeUsed  = "backup_code_used"
 	EventPasswordReset   = "password_reset"
 	EventEmailChanged    = "email_changed"
+	EventEmailVerified   = "email_verified"
 	EventRoleChanged     = "role_changed"
 	EventSessionCreated  = "session_created"
 	EventSessionExpired  = "session_expired"

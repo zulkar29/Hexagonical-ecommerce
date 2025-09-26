@@ -118,6 +118,7 @@ type AppConfig struct {
 	Debug       bool   `mapstructure:"debug"`
 	LogLevel    string `mapstructure:"log_level"`
 	Domain      string `mapstructure:"domain"`
+	BaseURL     string `mapstructure:"base_url"`
 	Currency    string `mapstructure:"currency"`
 	CORS        CORSConfig `mapstructure:"cors"`
 	RateLimit   RateLimitConfig `mapstructure:"rate_limit"`

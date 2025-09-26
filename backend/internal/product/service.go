@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	sharedErrors "ecommerce-saas/internal/shared/errors"
+	"ecommerce-saas/internal/shared/utils"
 )
 
 type ProductListFilter struct {

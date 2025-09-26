@@ -1,9 +1,11 @@
 package payment
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
+	"ecommerce-saas/internal/shared/handlers"
 	"github.com/gin-gonic/gin"
 )
 
@@ -20,17 +22,17 @@ func (h *Handler) CreatePayment(c *gin.Context) {
 
 	var req CreatePaymentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
 	response, err := h.service.CreatePayment(c.Request.Context(), &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": response})
+	handlers.RespondWithCreated(c, gin.H{"data": response})
 }
 
 // GetPayment handles GET /payments/:id
@@ -40,18 +42,18 @@ func (h *Handler) GetPayment(c *gin.Context) {
 	
 	payment, err := h.service.GetPayment(c.Request.Context(), paymentID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Payment not found"})
+		handlers.HandleError(c, fmt.Errorf("payment not found"))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": payment})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": payment})
 }
 
 // ListPayments handles GET /payments
 func (h *Handler) ListPayments(c *gin.Context) {
 	userID := c.GetString("user_id")
 	if userID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		handlers.HandleError(c, fmt.Errorf("user not authenticated"))
 		return
 	}
 
@@ -71,81 +73,81 @@ func (h *Handler) ListPayments(c *gin.Context) {
 
 	response, err := h.service.ListPayments(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, response)
+	handlers.RespondWithSuccess(c, http.StatusOK, response)
 }
 
 // UpdatePayment handles PATCH /payments/:id
 func (h *Handler) UpdatePayment(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Payment ID is required"})
+		handlers.HandleError(c, fmt.Errorf("payment ID is required"))
 		return
 	}
 
 	var updates map[string]interface{}
 	if err := c.ShouldBindJSON(&updates); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
 	payment, err := h.service.UpdatePayment(c.Request.Context(), id, updates)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, payment)
+	handlers.RespondWithSuccess(c, http.StatusOK, payment)
 }
 
 // GetPaymentMethods handles GET /payments/methods
 func (h *Handler) GetPaymentMethods(c *gin.Context) {
 	userID := c.GetString("user_id")
 	if userID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		handlers.HandleError(c, fmt.Errorf("user not authenticated"))
 		return
 	}
 
 	methods, err := h.service.GetPaymentMethods(c.Request.Context(), userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"payment_methods": methods})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"payment_methods": methods})
 }
 
 // UpdatePaymentMethod handles PATCH /payments/methods/:id
 func (h *Handler) UpdatePaymentMethod(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Payment method ID is required"})
+		handlers.HandleError(c, fmt.Errorf("payment method ID is required"))
 		return
 	}
 
 	var req UpdatePaymentMethodRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
 	method, err := h.service.UpdatePaymentMethod(c.Request.Context(), id, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, method)
+	handlers.RespondWithSuccess(c, http.StatusOK, method)
 }
 
 // PaymentWebhook handles POST /webhooks/payment/:provider
 func (h *Handler) PaymentWebhook(c *gin.Context) {
 	provider := c.Param("provider")
 	if provider == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Provider is required"})
+		handlers.HandleError(c, fmt.Errorf("provider is required"))
 		return
 	}
 
@@ -154,23 +156,23 @@ func (h *Handler) PaymentWebhook(c *gin.Context) {
 		h.handleSSLCommerzWebhook(c)
 
 	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported payment provider"})
+		handlers.HandleError(c, fmt.Errorf("unsupported payment provider"))
 	}
 }
 
 func (h *Handler) handleSSLCommerzWebhook(c *gin.Context) {
 	var ipnData SSLCommerzIPNResponse
 	if err := c.ShouldBindJSON(&ipnData); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		handlers.HandleValidationError(c, err)
 		return
 	}
 
 	if err := h.service.ValidateSSLCommerzPayment(c.Request.Context(), &ipnData); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "success"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"status": "success"})
 }
 
 

@@ -1,10 +1,11 @@
 package admin
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
-	"ecommerce-saas/internal/shared/utils"
+	"ecommerce-saas/internal/shared/handlers"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -63,36 +64,34 @@ func (h *Handler) GetDashboard(c *gin.Context) {
 		Metrics: metrics,
 	}
 
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	stats, err := h.service.GetDashboardStats(c.Request.Context(), &tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": stats})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": stats})
 }
 
 // GetQuickStats handles GET /admin/quick-stats
 func (h *Handler) GetQuickStats(c *gin.Context) {
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	stats, err := h.service.GetQuickStats(c.Request.Context(), &tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": stats})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": stats})
 }
 
 // ListStaff handles GET /admin/staff
@@ -100,19 +99,18 @@ func (h *Handler) ListStaff(c *gin.Context) {
 	role := c.Query("role")
 	status := c.Query("status")
 
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	staff, err := h.service.ListStaff(c.Request.Context(), &tenantID, role, status)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": staff})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": staff})
 }
 
 // ManageStaff handles PATCH /admin/staff/:id
@@ -120,19 +118,18 @@ func (h *Handler) ManageStaff(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := uuid.Parse(idParam)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid staff ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid staff ID"))
 		return
 	}
 
 	action := c.Query("action")
 	if action == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Action parameter is required"})
+		handlers.HandleError(c, fmt.Errorf("action parameter is required"))
 		return
 	}
 
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -146,11 +143,11 @@ func (h *Handler) ManageStaff(c *gin.Context) {
 
 		staff, err := h.service.CreateStaff(c.Request.Context(), &tenantID, req)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			handlers.HandleError(c, err)
 			return
 		}
 
-		c.JSON(http.StatusCreated, gin.H{"data": staff})
+		handlers.RespondWithCreated(c, gin.H{"data": staff})
 
 	case "update":
 		var req StaffRequest
@@ -161,20 +158,20 @@ func (h *Handler) ManageStaff(c *gin.Context) {
 
 		staff, err := h.service.UpdateStaff(c.Request.Context(), &tenantID, id, req)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			handlers.HandleError(c, err)
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"data": staff})
+		handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": staff})
 
 	case "delete":
 		err := h.service.DeleteStaff(c.Request.Context(), &tenantID, id)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			handlers.HandleError(c, err)
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "Staff deleted successfully"})
+		handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Staff deleted successfully"})
 
 	case "assign_roles":
 		var req struct {
@@ -187,11 +184,11 @@ func (h *Handler) ManageStaff(c *gin.Context) {
 
 		err := h.service.AssignRoles(c.Request.Context(), &tenantID, id, req.Roles)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			handlers.HandleError(c, err)
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "Roles assigned successfully"})
+		handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Roles assigned successfully"})
 
 	case "change_status":
 		var req struct {
@@ -204,14 +201,14 @@ func (h *Handler) ManageStaff(c *gin.Context) {
 
 		err := h.service.ChangeStaffStatus(c.Request.Context(), &tenantID, id, req.Status)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			handlers.HandleError(c, err)
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "Status changed successfully"})
+		handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Status changed successfully"})
 
 	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid action"})
+		handlers.HandleError(c, fmt.Errorf("invalid action"))
 	}
 }
 
@@ -219,19 +216,18 @@ func (h *Handler) ManageStaff(c *gin.Context) {
 func (h *Handler) ListRoles(c *gin.Context) {
 	includePermissions := c.Query("include_permissions") == "true"
 
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	roles, err := h.service.ListRoles(c.Request.Context(), &tenantID, includePermissions)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": roles})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": roles})
 }
 
 // ManageRoles handles PATCH /admin/roles/:id
@@ -239,19 +235,18 @@ func (h *Handler) ManageRoles(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := uuid.Parse(idParam)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid role ID"))
 		return
 	}
 
 	action := c.Query("action")
 	if action == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Action parameter is required"})
+		handlers.HandleError(c, fmt.Errorf("action parameter is required"))
 		return
 	}
 
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Tenant ID not found"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -265,11 +260,11 @@ func (h *Handler) ManageRoles(c *gin.Context) {
 
 		role, err := h.service.CreateRole(c.Request.Context(), &tenantID, req)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			handlers.HandleError(c, err)
 			return
 		}
 
-		c.JSON(http.StatusCreated, gin.H{"data": role})
+		handlers.RespondWithCreated(c, gin.H{"data": role})
 
 	case "update":
 		var req RoleRequest
@@ -280,20 +275,20 @@ func (h *Handler) ManageRoles(c *gin.Context) {
 
 		role, err := h.service.UpdateRole(c.Request.Context(), &tenantID, id, req)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			handlers.HandleError(c, err)
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"data": role})
+		handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": role})
 
 	case "delete":
 		err := h.service.DeleteRole(c.Request.Context(), &tenantID, id)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			handlers.HandleError(c, err)
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "Role deleted successfully"})
+		handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Role deleted successfully"})
 
 	case "assign_permissions":
 		var req struct {
@@ -306,14 +301,14 @@ func (h *Handler) ManageRoles(c *gin.Context) {
 
 		err := h.service.AssignPermissions(c.Request.Context(), &tenantID, id, req.Permissions)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			handlers.HandleError(c, err)
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "Permissions assigned successfully"})
+		handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Permissions assigned successfully"})
 
 	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid action"})
+		handlers.HandleError(c, fmt.Errorf("invalid action"))
 	}
 }
 
@@ -350,30 +345,29 @@ func (h *Handler) GetActivityLogs(c *gin.Context) {
 		filter.Limit = 50
 	}
 
-	tenantID, err := utils.GetTenantIDFromContext(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
 	logs, err := h.service.GetActivityLogs(c.Request.Context(), &tenantID, filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": logs})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": logs})
 }
 
 // GetSystemHealth handles GET /admin/system-health
 func (h *Handler) GetSystemHealth(c *gin.Context) {
 	health, err := h.service.GetSystemHealth(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": health})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": health})
 }
 
 // Helper methods

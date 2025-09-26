@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -402,6 +403,47 @@ func GetUserRoleFromContext(c *gin.Context) (string, error) {
 	}
 
 	return role, nil
+}
+
+// SettingsRepositoryAdapter adapts settings.Repository to utils.SettingsRepository
+type SettingsRepositoryAdapter struct {
+	repo interface {
+		GetSetting(tenantID uuid.UUID, section, key string) (interface{}, error)
+	}
+}
+
+// NewSettingsRepositoryAdapter creates a new settings repository adapter
+func NewSettingsRepositoryAdapter(repo interface {
+	GetSetting(tenantID uuid.UUID, section, key string) (interface{}, error)
+}) *SettingsRepositoryAdapter {
+	return &SettingsRepositoryAdapter{repo: repo}
+}
+
+// GetSetting implements utils.SettingsRepository interface
+func (a *SettingsRepositoryAdapter) GetSetting(ctx context.Context, tenantID uuid.UUID, section, key string) (*Setting, error) {
+	// Note: ignoring context since the underlying repo doesn't use it
+	result, err := a.repo.GetSetting(tenantID, section, key)
+	if err != nil {
+		return nil, err
+	}
+	if result == nil {
+		return nil, nil
+	}
+	
+	// Use reflection to extract the Value field from settings.Setting
+	v := reflect.ValueOf(result)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	
+	if v.Kind() == reflect.Struct {
+		valueField := v.FieldByName("Value")
+		if valueField.IsValid() && valueField.Kind() == reflect.String {
+			return &Setting{Value: valueField.String()}, nil
+		}
+	}
+	
+	return &Setting{Value: ""}, nil
 }
 
 // TODO: Add more utility functions

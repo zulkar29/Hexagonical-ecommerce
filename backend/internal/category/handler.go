@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"ecommerce-saas/internal/shared/handlers"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -50,9 +51,8 @@ func (h *Handler) CreateCategory(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// Extract tenant ID from context
-	tenantID, err := h.extractTenantID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -78,9 +78,8 @@ func (h *Handler) GetCategory(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -106,9 +105,8 @@ func (h *Handler) GetCategoryBySlug(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -134,9 +132,8 @@ func (h *Handler) UpdateCategory(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -169,9 +166,8 @@ func (h *Handler) DeleteCategory(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -196,9 +192,8 @@ func (h *Handler) ListCategories(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -229,9 +224,8 @@ func (h *Handler) GetCategoryTree(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -261,9 +255,8 @@ func (h *Handler) GetCategoryPath(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -289,9 +282,8 @@ func (h *Handler) MoveCategory(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -325,9 +317,8 @@ func (h *Handler) ReorderCategories(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -352,9 +343,8 @@ func (h *Handler) BulkUpdateStatus(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -382,9 +372,8 @@ func (h *Handler) AddProductToCategory(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -416,9 +405,8 @@ func (h *Handler) RemoveProductFromCategory(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -450,9 +438,8 @@ func (h *Handler) GetCategoryProducts(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -481,9 +468,8 @@ func (h *Handler) GetCategoryStats(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -502,9 +488,8 @@ func (h *Handler) GetFeaturedCategories(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 
@@ -531,9 +516,8 @@ func (h *Handler) GetPopularCategories(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// Extract tenant ID
-	tenantID, err := h.extractTenantID(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID", "details": err.Error()})
+	tenantID, ok := handlers.RequireTenantID(c)
+	if !ok {
 		return
 	}
 

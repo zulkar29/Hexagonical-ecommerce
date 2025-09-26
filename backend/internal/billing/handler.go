@@ -2,11 +2,13 @@ package billing
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
 	"ecommerce-saas/internal/payment"
+	"ecommerce-saas/internal/shared/handlers"
 	"ecommerce-saas/internal/shared/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -164,18 +166,18 @@ func (h *BillingHandler) GetBillingPlans(c *gin.Context) {
 
 	plans, err := h.service.GetBillingPlans(c.Request.Context(), filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get billing plans"})
+		handlers.HandleError(c, fmt.Errorf("Failed to get billing plans"))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": plans})
+	handlers.RespondWithSuccess(c, http.StatusOK, plans)
 }
 
 func (h *BillingHandler) GetBillingPlan(c *gin.Context) {
 	planIDStr := c.Param("planId")
 	planID, err := uuid.Parse(planIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid plan ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid plan ID"))
 		return
 	}
 
@@ -185,13 +187,13 @@ func (h *BillingHandler) GetBillingPlan(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": plan})
+	handlers.RespondWithSuccess(c, http.StatusOK, plan)
 }
 
 func (h *BillingHandler) CreateBillingPlan(c *gin.Context) {
 	var req CreateBillingPlanRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
@@ -218,7 +220,7 @@ func (h *BillingHandler) CreateBillingPlan(c *gin.Context) {
 
 	err := h.service.CreateBillingPlan(c.Request.Context(), plan)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create billing plan"})
+		handlers.HandleError(c, fmt.Errorf("Failed to create billing plan"))
 		return
 	}
 
@@ -235,25 +237,25 @@ func (h *BillingHandler) CreateBillingPlan(c *gin.Context) {
 
 		err := h.service.CreateUsageTier(c.Request.Context(), tier)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create usage tier"})
+			handlers.HandleError(c, fmt.Errorf("Failed to create usage tier"))
 			return
 		}
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": plan})
+	handlers.RespondWithCreated(c, plan)
 }
 
 func (h *BillingHandler) UpdateBillingPlan(c *gin.Context) {
 	planIDStr := c.Param("planId")
 	planID, err := uuid.Parse(planIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid plan ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid plan ID"))
 		return
 	}
 
 	var req CreateBillingPlanRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
@@ -281,24 +283,24 @@ func (h *BillingHandler) UpdateBillingPlan(c *gin.Context) {
 
 	err = h.service.UpdateBillingPlan(c.Request.Context(), plan)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update billing plan"})
+		handlers.HandleError(c, fmt.Errorf("Failed to update billing plan"))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": plan})
+	handlers.RespondWithSuccess(c, http.StatusOK, plan)
 }
 
 func (h *BillingHandler) DeleteBillingPlan(c *gin.Context) {
 	planIDStr := c.Param("planId")
 	planID, err := uuid.Parse(planIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid plan ID"})
+		handlers.HandleError(c, fmt.Errorf("invalid plan ID"))
 		return
 	}
 
 	err = h.service.DeleteBillingPlan(c.Request.Context(), planID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete billing plan"})
+		handlers.HandleError(c, fmt.Errorf("Failed to delete billing plan"))
 		return
 	}
 
@@ -315,17 +317,17 @@ func (h *BillingHandler) CreateSubscription(c *gin.Context) {
 
 	var req CreateSubscriptionRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
 	subscription, err := h.service.CreateSubscription(c.Request.Context(), tenantID, req.PlanID, req.PaymentMethodID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": subscription})
+	handlers.RespondWithCreated(c, subscription)
 }
 
 func (h *BillingHandler) GetSubscription(c *gin.Context) {
@@ -341,7 +343,7 @@ func (h *BillingHandler) GetSubscription(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": subscription})
+	handlers.RespondWithSuccess(c, http.StatusOK, subscription)
 }
 
 func (h *BillingHandler) UpdateSubscription(c *gin.Context) {
@@ -353,7 +355,7 @@ func (h *BillingHandler) UpdateSubscription(c *gin.Context) {
 
 	var req UpdateSubscriptionRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
@@ -364,11 +366,11 @@ func (h *BillingHandler) UpdateSubscription(c *gin.Context) {
 
 	subscription, err := h.service.UpdateSubscription(c.Request.Context(), tenantID, updates)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": subscription})
+	handlers.RespondWithSuccess(c, http.StatusOK, subscription)
 }
 
 func (h *BillingHandler) CancelSubscription(c *gin.Context) {
@@ -380,13 +382,13 @@ func (h *BillingHandler) CancelSubscription(c *gin.Context) {
 
 	var req CancelSubscriptionRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
 	err := h.service.CancelSubscription(c.Request.Context(), tenantID, req.Reason, req.Immediately)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
@@ -402,17 +404,17 @@ func (h *BillingHandler) UpgradePlan(c *gin.Context) {
 
 	var req ChangePlanRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
 	subscription, err := h.service.UpgradePlan(c.Request.Context(), tenantID, req.NewPlanID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": subscription})
+	handlers.RespondWithSuccess(c, http.StatusOK, subscription)
 }
 
 func (h *BillingHandler) DowngradePlan(c *gin.Context) {
@@ -424,17 +426,17 @@ func (h *BillingHandler) DowngradePlan(c *gin.Context) {
 
 	var req ChangePlanRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
 	subscription, err := h.service.DowngradePlan(c.Request.Context(), tenantID, req.NewPlanID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": subscription})
+	handlers.RespondWithSuccess(c, http.StatusOK, subscription)
 }
 
 // Usage endpoints
@@ -447,13 +449,13 @@ func (h *BillingHandler) RecordUsage(c *gin.Context) {
 
 	var req RecordUsageRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
 	err := h.service.RecordUsage(c.Request.Context(), tenantID, req.UsageType, req.Quantity, req.Metadata)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
@@ -477,7 +479,7 @@ func (h *BillingHandler) GetUsageSummary(c *gin.Context) {
 	if startDateStr != "" {
 		startDate, err = time.Parse("2006-01-02", startDateStr)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid start_date format. Use YYYY-MM-DD"})
+			handlers.HandleError(c, fmt.Errorf("Invalid start_date format. Use YYYY-MM-DD"))
 			return
 		}
 	} else {
@@ -489,7 +491,7 @@ func (h *BillingHandler) GetUsageSummary(c *gin.Context) {
 	if endDateStr != "" {
 		endDate, err = time.Parse("2006-01-02", endDateStr)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid end_date format. Use YYYY-MM-DD"})
+			handlers.HandleError(c, fmt.Errorf("Invalid end_date format. Use YYYY-MM-DD"))
 			return
 		}
 	} else {
@@ -499,7 +501,7 @@ func (h *BillingHandler) GetUsageSummary(c *gin.Context) {
 
 	summary, err := h.service.GetUsageSummary(c.Request.Context(), tenantID, startDate, endDate)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
@@ -521,11 +523,11 @@ func (h *BillingHandler) CheckUsageLimits(c *gin.Context) {
 
 	status, err := h.service.CheckUsageLimits(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": status})
+	handlers.RespondWithSuccess(c, http.StatusOK, status)
 }
 
 // Invoice endpoints
@@ -562,7 +564,7 @@ func (h *BillingHandler) GetInvoices(c *gin.Context) {
 
 	invoices, total, err := h.service.GetInvoices(c.Request.Context(), tenantID, filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
@@ -586,7 +588,7 @@ func (h *BillingHandler) GetInvoice(c *gin.Context) {
 	invoiceIDStr := c.Param("invoiceId")
 	invoiceID, err := uuid.Parse(invoiceIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid invoice ID"})
+		handlers.HandleError(c, fmt.Errorf("Invalid invoice ID"))
 		return
 	}
 
@@ -596,7 +598,7 @@ func (h *BillingHandler) GetInvoice(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": invoice})
+	handlers.RespondWithSuccess(c, http.StatusOK, invoice)
 }
 
 func (h *BillingHandler) ProcessPayment(c *gin.Context) {
@@ -609,42 +611,42 @@ func (h *BillingHandler) ProcessPayment(c *gin.Context) {
 	invoiceIDStr := c.Param("invoiceId")
 	invoiceID, err := uuid.Parse(invoiceIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid invoice ID"})
+		handlers.HandleError(c, fmt.Errorf("Invalid invoice ID"))
 		return
 	}
 
 	var req payment.ProcessPaymentRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
 	attempt, err := h.service.ProcessPayment(c.Request.Context(), invoiceID, req.PaymentID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": attempt})
+	handlers.RespondWithSuccess(c, http.StatusOK, attempt)
 }
 
 func (h *BillingHandler) RefundPayment(c *gin.Context) {
 	invoiceIDStr := c.Param("invoiceId")
 	invoiceID, err := uuid.Parse(invoiceIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid invoice ID"})
+		handlers.HandleError(c, fmt.Errorf("Invalid invoice ID"))
 		return
 	}
 
 	var req payment.RefundPaymentRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
 	err = h.service.RefundPayment(c.Request.Context(), invoiceID, req.Amount, req.Reason)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
@@ -657,11 +659,11 @@ func (h *BillingHandler) GetBillingAnalytics(c *gin.Context) {
 
 	analytics, err := h.service.GetBillingAnalytics(c.Request.Context(), filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": analytics})
+	handlers.RespondWithSuccess(c, http.StatusOK, analytics)
 }
 
 func (h *BillingHandler) GetRevenueReport(c *gin.Context) {
@@ -669,11 +671,11 @@ func (h *BillingHandler) GetRevenueReport(c *gin.Context) {
 
 	report, err := h.service.GetRevenueReport(c.Request.Context(), filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": report})
+	handlers.RespondWithSuccess(c, http.StatusOK, report)
 }
 
 func (h *BillingHandler) GetChurnAnalysis(c *gin.Context) {
@@ -693,24 +695,24 @@ func (h *BillingHandler) GetChurnAnalysis(c *gin.Context) {
 	case "1y":
 		period = 365 * 24 * time.Hour
 	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid period. Use 7d, 30d, 90d, or 1y"})
+		handlers.HandleError(c, fmt.Errorf("Invalid period. Use 7d, 30d, 90d, or 1y"))
 		return
 	}
 
 	analysis, err := h.service.GetChurnAnalysis(c.Request.Context(), period)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": analysis})
+	handlers.RespondWithSuccess(c, http.StatusOK, analysis)
 }
 
 // Admin endpoints
 func (h *BillingHandler) ProcessRecurringBilling(c *gin.Context) {
 	err := h.service.ProcessRecurringBilling(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
@@ -720,7 +722,7 @@ func (h *BillingHandler) ProcessRecurringBilling(c *gin.Context) {
 func (h *BillingHandler) RetryFailedPayments(c *gin.Context) {
 	err := h.service.RetryFailedPayments(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
@@ -730,7 +732,7 @@ func (h *BillingHandler) RetryFailedPayments(c *gin.Context) {
 func (h *BillingHandler) ProcessDunning(c *gin.Context) {
 	err := h.service.ProcessDunning(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
@@ -741,7 +743,7 @@ func (h *BillingHandler) SuspendService(c *gin.Context) {
 	tenantIDStr := c.Param("tenantId")
 	tenantID, err := uuid.Parse(tenantIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		handlers.HandleError(c, fmt.Errorf("Invalid tenant ID"))
 		return
 	}
 
@@ -752,7 +754,7 @@ func (h *BillingHandler) SuspendService(c *gin.Context) {
 
 	err = h.service.SuspendService(c.Request.Context(), tenantID, reason)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
@@ -763,13 +765,13 @@ func (h *BillingHandler) ReactivateService(c *gin.Context) {
 	tenantIDStr := c.Param("tenantId")
 	tenantID, err := uuid.Parse(tenantIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid tenant ID"})
+		handlers.HandleError(c, fmt.Errorf("Invalid tenant ID"))
 		return
 	}
 
 	err = h.service.ReactivateService(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 

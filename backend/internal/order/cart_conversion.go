@@ -3,11 +3,11 @@ package order
 import (
 	"context"
 	"fmt"
+	"log"
+	"math/rand"
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
-	sharedErrors "ecommerce-saas/internal/shared/errors"
 )
 
 // CartRepository interface to access cart data
@@ -99,9 +99,9 @@ func (s *Service) CreateOrderFromCart(ctx context.Context, tenantID, cartID uuid
 	// 6. Calculate taxes and shipping
 
 	// For now, create a placeholder implementation
-	order.Total = 0.0           // Would be calculated from cart
-	order.SubTotal = 0.0        // Would be calculated from cart items
-	order.ShippingCost = 0.0    // Would be from cart shipping calculation
+	order.TotalAmount = 0.0           // Would be calculated from cart
+	order.SubtotalAmount = 0.0        // Would be calculated from cart items
+	order.ShippingAmount = 0.0    // Would be from cart shipping calculation
 	order.TaxAmount = 0.0       // Would be calculated based on address
 	order.DiscountAmount = 0.0  // Would be from applied coupons
 
@@ -119,7 +119,7 @@ func (s *Service) CreateOrderFromCart(ctx context.Context, tenantID, cartID uuid
 	return &OrderFromCartResult{
 		OrderID:     order.ID,
 		OrderNumber: order.OrderNumber,
-		Total:       order.Total,
+		Total:       order.TotalAmount,
 		ItemCount:   len(order.Items), // Would be from converted cart items
 	}, nil
 }
@@ -149,7 +149,7 @@ func (s *Service) CreateOrderFromCartWithItems(ctx context.Context, tenantID uui
 	order := &Order{
 		ID:                uuid.New(),
 		TenantID:          tenantID,
-		CustomerID:        cart.CustomerID,
+		UserID:            *cart.CustomerID, // Assuming CustomerID maps to UserID
 		OrderNumber:       s.generateOrderNumber(tenantID),
 		Status:            StatusPending,
 		PaymentStatus:     PaymentPending,
@@ -157,12 +157,11 @@ func (s *Service) CreateOrderFromCartWithItems(ctx context.Context, tenantID uui
 		Currency:          cart.Currency,
 		ShippingAddress:   cart.ShippingAddress,
 		BillingAddress:    cart.BillingAddress,
-		SubTotal:          0.0, // Will be calculated from items
-		ShippingCost:      cart.ShippingCost,
+		SubtotalAmount:    0.0, // Will be calculated from items
+		ShippingAmount:    cart.ShippingCost,
 		TaxAmount:         cart.TaxAmount,
 		DiscountAmount:    cart.DiscountAmount,
-		Total:             cart.Total,
-		CouponCode:        cart.CouponCode,
+		TotalAmount:       cart.Total,
 		CreatedAt:         time.Now(),
 		UpdatedAt:         time.Now(),
 	}
@@ -179,17 +178,18 @@ func (s *Service) CreateOrderFromCartWithItems(ctx context.Context, tenantID uui
 		}
 
 		orderItem := OrderItem{
-			ID:             uuid.New(),
-			OrderID:        order.ID,
-			ProductID:      cartItem.ProductID,
-			VariantID:      cartItem.VariantID,
-			ProductName:    cartItem.ProductName,
-			ProductSKU:     cartItem.ProductSKU,
-			Quantity:       cartItem.Quantity,
-			UnitPrice:      cartItem.UnitPrice,
-			Total:          cartItem.Total,
-			Customizations: cartItem.Customizations,
-			Notes:          cartItem.Notes,
+			ID:          uuid.New(),
+			TenantID:    tenantID,
+			OrderID:     order.ID,
+			ProductID:   cartItem.ProductID,
+			VariantID:   cartItem.VariantID,
+			ProductName: cartItem.ProductName,
+			ProductSKU:  cartItem.ProductSKU,
+			Quantity:    cartItem.Quantity,
+			UnitPrice:   cartItem.UnitPrice,
+			TotalPrice:  cartItem.Total,
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
 		}
 
 		orderItems = append(orderItems, orderItem)
@@ -197,7 +197,7 @@ func (s *Service) CreateOrderFromCartWithItems(ctx context.Context, tenantID uui
 	}
 
 	order.Items = orderItems
-	order.SubTotal = subtotal
+	order.SubtotalAmount = subtotal
 
 	// Save order to database
 	if err := tx.Create(order).Error; err != nil {
@@ -233,7 +233,7 @@ func (s *Service) CreateOrderFromCartWithItems(ctx context.Context, tenantID uui
 	return &OrderFromCartResult{
 		OrderID:     order.ID,
 		OrderNumber: order.OrderNumber,
-		Total:       order.Total,
+		Total:       order.TotalAmount,
 		ItemCount:   len(order.Items),
 	}, nil
 }

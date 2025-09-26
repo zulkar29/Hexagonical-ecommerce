@@ -1,11 +1,14 @@
 package notification
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+
+	"ecommerce-saas/internal/shared/handlers"
 )
 
 type Handler struct {
@@ -26,17 +29,17 @@ func (h *Handler) SendNotification(c *gin.Context) {
 
 	var req SendNotificationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleError(c, fmt.Errorf("Invalid request format"))
 		return
 	}
 
 	response, err := h.service.SendNotification(tenantID.(uuid.UUID), &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": response})
+	handlers.RespondWithCreated(c, gin.H{"data": response})
 }
 
 // SendEmail handles POST /notifications/email
@@ -49,17 +52,17 @@ func (h *Handler) SendEmail(c *gin.Context) {
 
 	var req SendEmailRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleError(c, fmt.Errorf("Invalid request format"))
 		return
 	}
 
 	err := h.service.SendEmail(tenantID.(uuid.UUID), &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Email sent successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Email sent successfully"})
 }
 
 // SendSMS handles POST /notifications/sms
@@ -72,17 +75,17 @@ func (h *Handler) SendSMS(c *gin.Context) {
 
 	var req SendSMSRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleError(c, fmt.Errorf("Invalid request format"))
 		return
 	}
 
 	err := h.service.SendSMS(tenantID.(uuid.UUID), &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "SMS sent successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "SMS sent successfully"})
 }
 
 // GetNotification handles GET /notifications/:id
@@ -101,7 +104,7 @@ func (h *Handler) GetNotification(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": notification})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": notification})
 }
 
 // ListNotifications handles GET /notifications
@@ -116,10 +119,10 @@ func (h *Handler) ListNotifications(c *gin.Context) {
 	if c.Query("type") == "stats" {
 		stats, err := h.service.GetStats(tenantID.(uuid.UUID))
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			handlers.HandleError(c, fmt.Errorf(err.Error()))
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"data": stats})
+		handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": stats})
 		return
 	}
 
@@ -140,11 +143,11 @@ func (h *Handler) ListNotifications(c *gin.Context) {
 
 	notifications, total, err := h.service.ListNotifications(tenantID.(uuid.UUID), userID, offset, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{
 		"data":   notifications,
 		"total":  total,
 		"offset": offset,
@@ -164,11 +167,11 @@ func (h *Handler) MarkAsRead(c *gin.Context) {
 
 	err := h.service.MarkAsRead(tenantID.(uuid.UUID), notificationID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Notification marked as read"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Notification marked as read"})
 }
 
 // CreateTemplate handles POST /notifications/templates
@@ -181,17 +184,17 @@ func (h *Handler) CreateTemplate(c *gin.Context) {
 
 	var req CreateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleError(c, fmt.Errorf("Invalid request format"))
 		return
 	}
 
 	template, err := h.service.CreateTemplate(tenantID.(uuid.UUID), &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": template})
+	handlers.RespondWithCreated(c, gin.H{"data": template})
 }
 
 // UpdateTemplate handles PUT /notifications/templates/:id
@@ -206,17 +209,17 @@ func (h *Handler) UpdateTemplate(c *gin.Context) {
 
 	var req UpdateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleError(c, fmt.Errorf("Invalid request format"))
 		return
 	}
 
 	err := h.service.UpdateTemplate(tenantID.(uuid.UUID), templateID, &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Template updated successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Template updated successfully"})
 }
 
 // GetTemplate handles GET /notifications/templates/:id
@@ -235,7 +238,7 @@ func (h *Handler) GetTemplate(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": template})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": template})
 }
 
 // ListTemplates handles GET /notifications/templates
@@ -251,11 +254,11 @@ func (h *Handler) ListTemplates(c *gin.Context) {
 
 	templates, err := h.service.ListTemplates(tenantID.(uuid.UUID), notificationType, channel)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": templates})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": templates})
 }
 
 // GetPreferences handles GET /notifications/preferences
@@ -274,7 +277,7 @@ func (h *Handler) GetPreferences(c *gin.Context) {
 
 	channel := c.Query("channel")
 	if channel == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Channel parameter is required"})
+		handlers.HandleError(c, fmt.Errorf("Channel parameter is required"))
 		return
 	}
 
@@ -284,7 +287,7 @@ func (h *Handler) GetPreferences(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": preferences})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"data": preferences})
 }
 
 // UpdatePreferences handles PUT /notifications/preferences
@@ -303,17 +306,17 @@ func (h *Handler) UpdatePreferences(c *gin.Context) {
 
 	var req NotificationPreferenceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		handlers.HandleError(c, fmt.Errorf("Invalid request format"))
 		return
 	}
 
 	err := h.service.UpdatePreferences(tenantID.(uuid.UUID), userID.(uuid.UUID), &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleError(c, fmt.Errorf(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Preferences updated successfully"})
+	handlers.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Preferences updated successfully"})
 }
 
 // RegisterRoutes registers all notification routes

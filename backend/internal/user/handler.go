@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"ecommerce-saas/internal/security"
+	"ecommerce-saas/internal/shared/handlers"
 )
 
 // Handler handles user HTTP requests
@@ -85,20 +86,19 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 func (h *Handler) Register(c *gin.Context) {
 	var user User
 	if bindErr := c.ShouldBindJSON(&user); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": bindErr.Error()})
+		handlers.HandleValidationError(c, bindErr)
 		return
 	}
 
 	createdUser, err := h.service.RegisterUser(c.Request.Context(), &user)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		handlers.HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "User registered successfully. Please verify your email.",
-		"user":    createdUser,
-	})
+	handlers.RespondWithCreated(c, map[string]any{
+		"user": createdUser,
+	}, "User registered successfully. Please verify your email.")
 }
 
 // Login handles user login
@@ -213,15 +213,7 @@ func (h *Handler) VerifyEmail(c *gin.Context) {
 		return
 	}
 
-	// Extract user ID from query params or JWT token
-	userIDStr := c.Query("user_id")
-	userID, parseErr := uuid.Parse(userIDStr)
-	if parseErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
-		return
-	}
-
-	if err := h.service.VerifyEmail(userID, verifyData.Token); err != nil {
+	if err := h.service.VerifyEmail(c.Request.Context(), verifyData.Token); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
