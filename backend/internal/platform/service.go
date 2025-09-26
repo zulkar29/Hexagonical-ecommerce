@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"ecommerce-saas/internal/shared/utils"
 	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // Service defines the platform service interface
@@ -111,7 +111,7 @@ func (s *service) CreatePlatformAdmin(ctx context.Context, req *CreatePlatformAd
 	}
 
 	// Hash password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	hashedPassword, err := utils.HashPassword(req.Password)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
@@ -177,7 +177,7 @@ func (s *service) UpdatePlatformAdmin(ctx context.Context, id uuid.UUID, req *Up
 		updatedAdmin.Permissions = req.Permissions
 	}
 	if req.Password != nil {
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*req.Password), bcrypt.DefaultCost)
+		hashedPassword, err := utils.HashPassword(*req.Password)
 		if err != nil {
 			return nil, fmt.Errorf("failed to hash password: %w", err)
 		}

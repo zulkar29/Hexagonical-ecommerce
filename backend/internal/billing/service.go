@@ -10,6 +10,7 @@ import (
 	"ecommerce-saas/internal/contact"
 	"ecommerce-saas/internal/payment"
 	"ecommerce-saas/internal/referral"
+	"ecommerce-saas/internal/shared/constants"
 
 	"github.com/google/uuid"
 )
@@ -1218,7 +1219,7 @@ func (s *service) ProcessPayment(ctx context.Context, invoiceID uuid.UUID, payme
 	paymentResult, err := s.paymentService.CreatePayment(ctx, paymentRequest)
 
 	// Update payment attempt based on result
-	if err != nil || (paymentResult != nil && paymentResult.Status != "completed") {
+	if err != nil || (paymentResult != nil && paymentResult.Status != string(constants.PaymentStatusCompleted)) {
 		attempt.Status = PaymentStatusFailed
 		if err != nil {
 			reason := err.Error()
@@ -1435,7 +1436,7 @@ func (s *service) StartDunningProcess(ctx context.Context, invoiceID uuid.UUID) 
 		ActionType:       "email",
 		StepNumber:       1,
 		Description:      "Send payment reminder email",
-		Status:           "pending",
+		Status:           DunningActionStatusPending,
 		ScheduledAt:      time.Now(),
 	}
 
@@ -1500,7 +1501,7 @@ func (s *service) processDunningStep(ctx context.Context, process *DunningProces
 			ActionType:       "email",
 			StepNumber:       1,
 			Description:      "Send payment reminder email",
-			Status:           "pending",
+			Status:           DunningActionStatusPending,
 			ScheduledAt:      time.Now(),
 		}
 	case 2:
@@ -1511,7 +1512,7 @@ func (s *service) processDunningStep(ctx context.Context, process *DunningProces
 			ActionType:       "email",
 			StepNumber:       2,
 			Description:      "Send second payment reminder",
-			Status:           "pending",
+			Status:           DunningActionStatusPending,
 			ScheduledAt:      time.Now().AddDate(0, 0, 3),
 		}
 	case 3:
@@ -1522,7 +1523,7 @@ func (s *service) processDunningStep(ctx context.Context, process *DunningProces
 			ActionType:       "email",
 			StepNumber:       3,
 			Description:      "Send final payment notice",
-			Status:           "pending",
+			Status:           DunningActionStatusPending,
 			ScheduledAt:      time.Now().AddDate(0, 0, 7),
 		}
 	case 4:
@@ -1533,7 +1534,7 @@ func (s *service) processDunningStep(ctx context.Context, process *DunningProces
 			ActionType:       "suspend",
 			StepNumber:       4,
 			Description:      "Suspend service due to non-payment",
-			Status:           "pending",
+			Status:           DunningActionStatusPending,
 			ScheduledAt:      time.Now().AddDate(0, 0, 14),
 		}
 	case 5:
@@ -1544,7 +1545,7 @@ func (s *service) processDunningStep(ctx context.Context, process *DunningProces
 			ActionType:       "cancel",
 			StepNumber:       5,
 			Description:      "Cancel subscription due to non-payment",
-			Status:           "pending",
+			Status:           DunningActionStatusPending,
 			ScheduledAt:      time.Now().AddDate(0, 0, 30),
 		}
 	default:
@@ -1577,29 +1578,29 @@ func (s *service) executeDunningAction(ctx context.Context, action *DunningActio
 	case "email":
 		err := s.sendDunningEmail(ctx, action)
 		if err != nil {
-			action.Status = "failed"
+			action.Status = DunningActionStatusFailed
 			errMsg := err.Error()
 			action.ErrorMessage = &errMsg
 		} else {
-			action.Status = "completed"
+			action.Status = DunningActionStatusCompleted
 		}
 	case "suspend":
 		err := s.suspendServiceForDunning(ctx, action)
 		if err != nil {
-			action.Status = "failed"
+			action.Status = DunningActionStatusFailed
 			errMsg := err.Error()
 			action.ErrorMessage = &errMsg
 		} else {
-			action.Status = "completed"
+			action.Status = DunningActionStatusCompleted
 		}
 	case "cancel":
 		err := s.cancelSubscriptionForDunning(ctx, action)
 		if err != nil {
-			action.Status = "failed"
+			action.Status = DunningActionStatusFailed
 			errMsg := err.Error()
 			action.ErrorMessage = &errMsg
 		} else {
-			action.Status = "completed"
+			action.Status = DunningActionStatusCompleted
 		}
 	}
 

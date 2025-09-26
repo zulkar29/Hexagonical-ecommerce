@@ -215,8 +215,8 @@ func GetTenantFromContext(c *gin.Context) (*tenant.Tenant, bool) {
 	return tenantObj, ok
 }
 
-// GetTenantIDFromContext extracts tenant ID from gin context
-func GetTenantIDFromContext(c *gin.Context) (uuid.UUID, bool) {
+// GetTenantIDFromMiddleware extracts tenant ID from gin context (middleware version)
+func GetTenantIDFromMiddleware(c *gin.Context) (uuid.UUID, bool) {
 	tenantID, exists := c.Get("tenant_id")
 	if !exists {
 		return uuid.Nil, false

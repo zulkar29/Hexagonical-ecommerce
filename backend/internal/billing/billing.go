@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"ecommerce-saas/internal/shared/constants"
 )
 
 // BillingCycle represents billing frequency
@@ -17,39 +18,40 @@ const (
 	BillingCycleYearly    BillingCycle = "yearly"
 )
 
-// SubscriptionStatus represents the status of a subscription
-type SubscriptionStatus string
+// Use shared status constants
+type SubscriptionStatus = constants.SubscriptionStatus
+type InvoiceStatus = constants.InvoiceStatus
+type PaymentStatus = constants.PaymentStatus
+type DunningActionStatus = constants.DunningActionStatus
 
 const (
-	SubscriptionStatusActive    SubscriptionStatus = "active"
-	SubscriptionStatusPending   SubscriptionStatus = "pending"
-	SubscriptionStatusTrialing  SubscriptionStatus = "trialing"
-	SubscriptionStatusSuspended SubscriptionStatus = "suspended"
-	SubscriptionStatusCanceled  SubscriptionStatus = "canceled"
-	SubscriptionStatusExpired   SubscriptionStatus = "expired"
-)
+	// Subscription status aliases
+	SubscriptionStatusActive    = constants.SubscriptionStatusActive
+	SubscriptionStatusPending   = constants.SubscriptionStatusPending
+	SubscriptionStatusTrialing  = constants.SubscriptionStatusTrialing
+	SubscriptionStatusSuspended = constants.SubscriptionStatusSuspended
+	SubscriptionStatusCanceled  = constants.SubscriptionStatusCancelled
+	SubscriptionStatusExpired   = constants.SubscriptionStatusExpired
 
-// InvoiceStatus represents the status of an invoice
-type InvoiceStatus string
+	// Invoice status aliases
+	InvoiceStatusDraft    = constants.InvoiceStatusDraft
+	InvoiceStatusPending  = constants.InvoiceStatusPending
+	InvoiceStatusPaid     = constants.InvoiceStatusPaid
+	InvoiceStatusOverdue  = constants.InvoiceStatusOverdue
+	InvoiceStatusVoided   = constants.InvoiceStatusVoided
+	InvoiceStatusRefunded = constants.InvoiceStatusRefunded
 
-const (
-	InvoiceStatusDraft    InvoiceStatus = "draft"
-	InvoiceStatusPending  InvoiceStatus = "pending"
-	InvoiceStatusPaid     InvoiceStatus = "paid"
-	InvoiceStatusOverdue  InvoiceStatus = "overdue"
-	InvoiceStatusVoided   InvoiceStatus = "voided"
-	InvoiceStatusRefunded InvoiceStatus = "refunded"
-)
+	// Payment status aliases
+	PaymentStatusPending   = constants.PaymentStatusPending
+	PaymentStatusSuccess   = constants.PaymentStatusSuccess
+	PaymentStatusFailed    = constants.PaymentStatusFailed
+	PaymentStatusRetrying  = constants.PaymentStatusRetrying
+	PaymentStatusAbandoned = constants.PaymentStatusAbandoned
 
-// PaymentStatus represents payment attempt status
-type PaymentStatus string
-
-const (
-	PaymentStatusPending   PaymentStatus = "pending"
-	PaymentStatusSuccess   PaymentStatus = "success"
-	PaymentStatusFailed    PaymentStatus = "failed"
-	PaymentStatusRetrying  PaymentStatus = "retrying"
-	PaymentStatusAbandoned PaymentStatus = "abandoned"
+	// Dunning action status aliases
+	DunningActionStatusPending   = constants.DunningActionStatusPending
+	DunningActionStatusCompleted = constants.DunningActionStatusCompleted
+	DunningActionStatusFailed    = constants.DunningActionStatusFailed
 )
 
 // UsageType represents different types of billable usage
@@ -307,7 +309,7 @@ type DunningAction struct {
 	Description string `json:"description" gorm:"not null"`
 
 	// Action result
-	Status       string                 `json:"status" gorm:"not null"` // pending, completed, failed
+	Status       DunningActionStatus    `json:"status" gorm:"not null"` // pending, completed, failed
 	Result       map[string]interface{} `json:"result,omitempty" gorm:"serializer:json"`
 	ErrorMessage *string                `json:"error_message,omitempty"`
 

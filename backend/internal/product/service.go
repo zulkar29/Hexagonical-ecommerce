@@ -471,7 +471,7 @@ func (s *Service) ListCategories(tenantID uuid.UUID) ([]*Category, error) {
 
 func (s *Service) generateSlug(name string) string {
 	// Convert to lowercase and replace spaces with hyphens
-	slug := strings.ToLower(strings.TrimSpace(name))
+	slug := utils.TrimAndLower(name)
 	slug = strings.ReplaceAll(slug, " ", "-")
 
 	// Remove special characters using regex-like approach

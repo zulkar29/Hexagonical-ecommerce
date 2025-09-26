@@ -5,48 +5,48 @@ import (
 	"time"
 	"mime/multipart"
 
-	"github.com/google/uuid"
+	"ecommerce-saas/internal/shared/constants"
 	"ecommerce-saas/internal/user"
+	"github.com/google/uuid"
 )
 
-// OrderStatus represents the status of an order
-type OrderStatus string
-
-// PaymentStatus represents the payment status
-type PaymentStatus string
+// Use shared status constants for consistency
+type OrderStatus = constants.OrderStatus
+type PaymentStatus = constants.PaymentStatus
 
 // FulfillmentStatus represents the fulfillment status
 type FulfillmentStatus string
 
+// Use shared order status constants
 const (
-	StatusPending   OrderStatus = "pending"
-	StatusDraft     OrderStatus = "draft"
-	StatusConfirmed OrderStatus = "confirmed"
-	StatusProcessing OrderStatus = "processing"
-	StatusShipped   OrderStatus = "shipped"
-	StatusDelivered OrderStatus = "delivered"
-	StatusCompleted OrderStatus = "completed"
-	StatusCancelled OrderStatus = "cancelled"
-	StatusReturned  OrderStatus = "returned"
-	
-	// Aliases for backward compatibility
-	OrderStatusPending = StatusPending
-	OrderStatusDraft   = StatusDraft
-	OrderStatusConfirmed = StatusConfirmed
-	OrderStatusProcessing = StatusProcessing
-	OrderStatusShipped = StatusShipped
-	OrderStatusDelivered = StatusDelivered
-	OrderStatusCompleted = StatusCompleted
-	OrderStatusCancelled = StatusCancelled
-	OrderStatusReturned = StatusReturned
+	// Primary status constants from shared module
+	StatusPending    = constants.OrderStatusPending
+	StatusConfirmed  = constants.OrderStatusConfirmed
+	StatusProcessing = constants.OrderStatusProcessing
+	StatusShipped    = constants.OrderStatusShipped
+	StatusDelivered  = constants.OrderStatusDelivered
+	StatusCancelled  = constants.OrderStatusCancelled
+	StatusReturned   = constants.OrderStatusReturned
+
+	// Backward compatibility aliases
+	OrderStatusPending    = constants.OrderStatusPending
+	OrderStatusConfirmed  = constants.OrderStatusConfirmed
+	OrderStatusProcessing = constants.OrderStatusProcessing
+	OrderStatusShipped    = constants.OrderStatusShipped
+	OrderStatusDelivered  = constants.OrderStatusDelivered
+	OrderStatusCancelled  = constants.OrderStatusCancelled
+	OrderStatusReturned   = constants.OrderStatusReturned
 )
 
+// Use shared payment status constants
 const (
-	PaymentPending       PaymentStatus = "pending"
+	PaymentPending  = constants.PaymentStatusPending
+	PaymentFailed   = constants.PaymentStatusFailed
+	PaymentRefunded = constants.PaymentStatusRefunded
+
+	// Payment-specific constants not in shared module
 	PaymentAuthorized    PaymentStatus = "authorized"
 	PaymentPaid          PaymentStatus = "paid"
-	PaymentFailed        PaymentStatus = "failed"
-	PaymentRefunded      PaymentStatus = "refunded"
 	PaymentRefundPending PaymentStatus = "refund_pending"
 )
 

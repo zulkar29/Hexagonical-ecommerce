@@ -4,13 +4,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"ecommerce-saas/internal/shared/constants"
 )
 
 // ComponentType represents the type of component
 type ComponentType string
 
 // ComponentStatus represents the status of a component
-type ComponentStatus string
+type ComponentStatus = constants.ComponentStatus
 
 // ComponentCategory represents the category of component
 type ComponentCategory string
@@ -76,11 +77,12 @@ const (
 	TypeAccountDashboard ComponentType = "account-dashboard"
 )
 
+// Use shared status constants
 const (
-	StatusDraft    ComponentStatus = "draft"
-	StatusActive   ComponentStatus = "active"
-	StatusInactive ComponentStatus = "inactive"
-	StatusArchived ComponentStatus = "archived"
+	StatusDraft    = constants.ComponentStatusDraft
+	StatusActive   = constants.ComponentStatusActive
+	StatusInactive = constants.ComponentStatusInactive
+	StatusArchived = constants.ComponentStatusArchived
 )
 
 const (

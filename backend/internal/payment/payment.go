@@ -5,16 +5,17 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"ecommerce-saas/internal/shared/constants"
 )
 
-// Payment statuses
+// Use shared payment status constants
 const (
-	StatusPending    = "pending"
-	StatusProcessing = "processing"
-	StatusSucceeded  = "succeeded"
-	StatusFailed     = "failed"
-	StatusCancelled  = "cancelled"
-	StatusRefunded   = "refunded"
+	StatusPending    = constants.PaymentStatusPending
+	StatusProcessing = constants.PaymentStatusProcessing
+	StatusSucceeded  = constants.PaymentStatusCompleted
+	StatusFailed     = constants.PaymentStatusFailed
+	StatusCancelled  = constants.PaymentStatusCancelled
+	StatusRefunded   = constants.PaymentStatusRefunded
 )
 
 // Payment gateways

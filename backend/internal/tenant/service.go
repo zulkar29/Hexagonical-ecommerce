@@ -12,6 +12,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"ecommerce-saas/internal/shared/config"
+	"ecommerce-saas/internal/shared/utils"
 )
 
 // Service handles tenant business logic
@@ -38,7 +39,7 @@ func (s *Service) CreateTenant(req CreateTenantRequest) (*Tenant, error) {
 	}
 
 	// Normalize subdomain
-	req.Subdomain = strings.ToLower(strings.TrimSpace(req.Subdomain))
+	req.Subdomain = utils.TrimAndLower(req.Subdomain)
 
 	// Check subdomain availability
 	if exists, err := s.repo.SubdomainExists(req.Subdomain); err != nil {
@@ -87,7 +88,7 @@ func (s *Service) GetTenant(id string) (*Tenant, error) {
 
 // GetTenantBySubdomain retrieves a tenant by subdomain
 func (s *Service) GetTenantBySubdomain(subdomain string) (*Tenant, error) {
-	subdomain = strings.ToLower(strings.TrimSpace(subdomain))
+	subdomain = utils.TrimAndLower(subdomain)
 	if subdomain == "" {
 		return nil, NewValidationError("Subdomain is required", "subdomain")
 	}
@@ -101,7 +102,7 @@ func (s *Service) GetTenantBySubdomain(subdomain string) (*Tenant, error) {
 
 // GetTenantByCustomDomain retrieves a tenant by custom domain
 func (s *Service) GetTenantByCustomDomain(domain string) (*Tenant, error) {
-	domain = strings.ToLower(strings.TrimSpace(domain))
+	domain = utils.TrimAndLower(domain)
 	if domain == "" {
 		return nil, NewValidationError("Domain is required", "domain")
 	}
@@ -149,7 +150,7 @@ func (s *Service) UpdateTenant(id string, req UpdateTenantRequest) (*Tenant, err
 	}
 	if req.CustomDomain != "" {
 		// TODO: Validate domain ownership before setting
-		tenant.CustomDomain = strings.ToLower(strings.TrimSpace(req.CustomDomain))
+		tenant.CustomDomain = utils.TrimAndLower(req.CustomDomain)
 	}
 
 	return s.repo.Update(tenant)
@@ -294,7 +295,7 @@ func (s *Service) ValidateCustomDomain(id, domain string) error {
 	}
 
 	// Normalize domain
-	domain = strings.ToLower(strings.TrimSpace(domain))
+	domain = utils.TrimAndLower(domain)
 
 	// Validate domain format
 	if err := s.validateDomainFormat(domain); err != nil {
@@ -353,7 +354,7 @@ func (s *Service) GetPlanUpgradeOptions(id string) ([]Plan, error) {
 
 	// Get available upgrade options
 	var options []Plan
-	allPlans := []Plan{PlanStarter, PlanPro, PlanPremium, PlanEnterprise}
+	allPlans := []Plan{PlanFree, PlanStarter, PlanProfessional, PlanPro, PlanEnterprise}
 
 	for _, plan := range allPlans {
 		if tenant.CanUpgradeTo(plan) {
@@ -379,7 +380,7 @@ func (s *Service) InitializeTenantDefaults(tenantID uuid.UUID) error {
 
 // CheckSubdomainAvailability checks if a subdomain is available
 func (s *Service) CheckSubdomainAvailability(subdomain string) (bool, error) {
-	subdomain = strings.ToLower(strings.TrimSpace(subdomain))
+	subdomain = utils.TrimAndLower(subdomain)
 
 	// Validate subdomain format
 	if err := s.validateSubdomain(subdomain); err != nil {
@@ -458,10 +459,11 @@ func (s *Service) canChangeToPlan(currentPlan, newPlan Plan) bool {
 
 	// Define plan hierarchy for validation
 	planHierarchy := map[Plan]int{
-		PlanStarter:    1,
-		PlanPro:        2,
-		PlanPremium:    3,
-		PlanEnterprise: 4,
+		PlanFree:         0,
+		PlanStarter:      1,
+		PlanProfessional: 2,
+		PlanPro:          3,
+		PlanEnterprise:   4,
 	}
 
 	currentLevel, currentExists := planHierarchy[currentPlan]
@@ -483,8 +485,8 @@ func (s *Service) canChangeToPlan(currentPlan, newPlan Plan) bool {
 		if currentPlan == PlanEnterprise {
 			return true
 		}
-		// Premium can downgrade to Pro or Starter
-		if currentPlan == PlanPremium && (newPlan == PlanPro || newPlan == PlanStarter) {
+		// Pro can downgrade to Professional or Starter
+		if currentPlan == PlanPro && (newPlan == PlanProfessional || newPlan == PlanStarter) {
 			return true
 		}
 		// Pro can downgrade to Starter
@@ -500,10 +502,11 @@ func (s *Service) canChangeToPlan(currentPlan, newPlan Plan) bool {
 
 func (s *Service) getProductLimitForPlan(plan Plan) int {
 	limits := map[Plan]int{
-		PlanStarter:    100,
-		PlanPro:        1000,
-		PlanPremium:    5000,
-		PlanEnterprise: -1, // unlimited
+		PlanFree:         10,
+		PlanStarter:      500,
+		PlanProfessional: 2000,
+		PlanPro:          10000,
+		PlanEnterprise:   -1, // unlimited
 	}
 
 	if limit, exists := limits[plan]; exists {

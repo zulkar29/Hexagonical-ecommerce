@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"ecommerce-saas/internal/shared/handlers"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -35,7 +36,7 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) CreateOrder(c *gin.Context) {
 	var order Order
 	if bindErr := c.ShouldBindJSON(&order); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order data"})
+		handlers.HandleError(c, bindErr)
 		return
 	}
 
@@ -58,7 +59,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 
 	createdOrder, err := h.service.CreateOrder(c.Request.Context(), tenantID.(uuid.UUID), &order)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create order"})
+		handlers.HandleError(c, err)
 		return
 	}
 
@@ -85,7 +86,7 @@ func (h *Handler) GetOrder(c *gin.Context) {
 	orderID := c.Param("id")
 	order, err := h.service.GetOrder(tenantID.(uuid.UUID), orderID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
+		handlers.HandleError(c, err)
 		return
 	}
 
@@ -112,7 +113,7 @@ func (h *Handler) GetOrderByNumber(c *gin.Context) {
 	orderNumber := c.Param("number")
 	order, err := h.service.GetOrderByNumber(tenantID.(uuid.UUID), orderNumber)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
+		handlers.HandleError(c, err)
 		return
 	}
 
@@ -157,7 +158,7 @@ func (h *Handler) ListOrders(c *gin.Context) {
 	case "stats":
 		stats, err := h.service.GetOrderStats(tenantID.(uuid.UUID))
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get order stats"})
+			handlers.HandleError(c, err)
 			return
 		}
 		c.JSON(http.StatusOK, stats)
@@ -171,7 +172,7 @@ func (h *Handler) ListOrders(c *gin.Context) {
 		}
 		orders, err := h.service.GetCustomerOrders(tenantID.(uuid.UUID), userID.(uuid.UUID))
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get customer orders"})
+			handlers.HandleError(c, err)
 			return
 		}
 		c.JSON(http.StatusOK, orders)
@@ -185,7 +186,7 @@ func (h *Handler) ListOrders(c *gin.Context) {
 		}
 		tracking, err := h.service.TrackOrder(tenantID.(uuid.UUID), orderNumber)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Order tracking not found"})
+			handlers.HandleError(c, err)
 			return
 		}
 		c.JSON(http.StatusOK, tracking)
@@ -217,7 +218,7 @@ func (h *Handler) ListOrders(c *gin.Context) {
 		// Export orders
 		data, filename, err := h.service.ExportOrders(tenantID.(uuid.UUID), format, filters)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to export orders"})
+			handlers.HandleError(c, err)
 			return
 		}
 
@@ -298,7 +299,7 @@ func (h *Handler) ListOrders(c *gin.Context) {
 		// Use enhanced service method with includes
 		response, err := h.service.ListOrdersWithIncludes(tenantID.(uuid.UUID), filter, page, limit, includeItems, includeCustomer, includePayments, includeHistory)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list orders"})
+			handlers.HandleError(c, err)
 			return
 		}
 		c.JSON(http.StatusOK, response)
@@ -306,7 +307,7 @@ func (h *Handler) ListOrders(c *gin.Context) {
 		// Use standard service method
 		orders, total, err := h.service.ListOrders(tenantID.(uuid.UUID), filter, page, limit)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list orders"})
+			handlers.HandleError(c, err)
 			return
 		}
 
@@ -360,7 +361,7 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 		}
 		order, cancelErr := h.service.CancelOrder(tenantID.(uuid.UUID), orderID.String(), req.Reason)
 		if cancelErr != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to cancel order"})
+			handlers.HandleError(c, cancelErr)
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"order": order})
@@ -373,7 +374,7 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 			Confirmation    string `json:"confirmation"`
 		}
 		if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payment request data"})
+			handlers.HandleError(c, bindErr)
 			return
 		}
 		paymentID, parseErr := uuid.Parse(req.PaymentID)
@@ -388,7 +389,7 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 		}
 		order, processErr := h.service.ProcessPayment(tenantID.(uuid.UUID), paymentID.String())
 		if processErr != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to process payment"})
+			handlers.HandleError(c, processErr)
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"order": order})
@@ -401,7 +402,7 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 			Reason    string  `json:"reason"`
 		}
 		if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid refund request data"})
+			handlers.HandleError(c, bindErr)
 			return
 		}
 		paymentID, parseErr := uuid.Parse(req.PaymentID)
@@ -411,7 +412,7 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 		}
 		payment, refundErr := h.service.RefundOrder(c.Request.Context(), tenantID.(uuid.UUID), uuid.Nil, paymentID.String(), req.Amount, req.Reason)
 		if refundErr != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to process refund"})
+			handlers.HandleError(c, refundErr)
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"payment": payment})
@@ -425,12 +426,12 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 			Notes          string `json:"notes"`
 		}
 		if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid status update request data"})
+			handlers.HandleError(c, bindErr)
 			return
 		}
 		order, statusErr := h.service.UpdateOrderStatus(c.Request.Context(), tenantID.(uuid.UUID), orderID, OrderStatus(req.Status), req.TrackingNumber, req.TrackingURL, req.Notes)
 		if statusErr != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to update order status"})
+			handlers.HandleError(c, statusErr)
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"order": order})
@@ -440,13 +441,13 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 	// Default: Regular order update (if no action specified)
 	var req UpdateOrderRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order update data"})
+		handlers.HandleError(c, bindErr)
 		return
 	}
 
 	order, updateErr := h.service.UpdateOrder(c.Request.Context(), tenantID.(uuid.UUID), orderID.String(), &req)
 	if updateErr != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update order"})
+		handlers.HandleError(c, updateErr)
 		return
 	}
 

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"ecommerce-saas/internal/shared/utils"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -276,7 +277,7 @@ func NewService(repo Repository) Service {
 
 func generateSlug(name string) string {
 	// Convert to lowercase and replace spaces with hyphens
-	slug := strings.ToLower(strings.TrimSpace(name))
+	slug := utils.TrimAndLower(name)
 	slug = regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(slug, "-")
 	slug = strings.Trim(slug, "-")
 	return slug

@@ -57,15 +57,15 @@ func (s *Service) RegisterUser(ctx context.Context, user *User) (*User, error) {
 	}
 
 	// Hash password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	hashedPassword, err := utils.HashPassword(user.Password)
 	if err != nil {
 		return nil, err
 	}
 
 	// Set user fields
 	user.ID = uuid.New()
-	user.Email = strings.ToLower(strings.TrimSpace(user.Email))
-	user.Password = string(hashedPassword)
+	user.Email = utils.TrimAndLower(user.Email)
+	user.Password = hashedPassword
 	user.Status = StatusActive
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
@@ -103,7 +103,7 @@ func (s *Service) RegisterUser(ctx context.Context, user *User) (*User, error) {
 
 // LoginUser authenticates a user and returns tokens
 func (s *Service) LoginUser(ctx context.Context, email, password string) (*LoginResponse, error) {
-	email = strings.ToLower(strings.TrimSpace(email))
+	email = utils.TrimAndLower(email)
 
 	// Get user by email
 	user, err := s.repo.GetUserByEmail(ctx, email)
@@ -239,7 +239,7 @@ func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassw
 	}
 
 	// Hash new password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	hashedPassword, err := utils.HashPassword(newPassword)
 	if err != nil {
 		return fmt.Errorf("failed to hash password: %w", err)
 	}
@@ -251,7 +251,7 @@ func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassw
 
 	// Update password
 	now := time.Now()
-	user.Password = string(hashedPassword)
+	user.Password = hashedPassword
 	user.PasswordChangedAt = &now
 	user.UpdatedAt = now
 
@@ -287,14 +287,14 @@ func (s *Service) ResetPassword(ctx context.Context, tokenValue, newPassword str
 	}
 
 	// Hash new password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	hashedPassword, err := utils.HashPassword(newPassword)
 	if err != nil {
 		return fmt.Errorf("failed to hash password: %w", err)
 	}
 
 	// Update user password
 	user := &resetToken.User
-	user.Password = string(hashedPassword)
+	user.Password = hashedPassword
 	user.PasswordChangedAt = &time.Time{}
 	*user.PasswordChangedAt = time.Now()
 	user.UpdatedAt = time.Now()

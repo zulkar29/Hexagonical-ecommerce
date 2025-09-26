@@ -135,19 +135,7 @@ func Seed(db *gorm.DB) error {
 }
 
 // Custom database helpers
-
-// Paginate adds pagination to GORM query
-func Paginate(offset, limit int) func(*gorm.DB) *gorm.DB {
-	return func(db *gorm.DB) *gorm.DB {
-		if offset < 0 {
-			offset = 0
-		}
-		if limit <= 0 || limit > 100 {
-			limit = 20
-		}
-		return db.Offset(offset).Limit(limit)
-	}
-}
+// Note: Pagination is handled by shared/repository/base.go
 
 // Search adds search conditions to GORM query
 func Search(fields []string, query string) func(*gorm.DB) *gorm.DB {

@@ -78,7 +78,7 @@ func (r *repository) CreateContact(ctx context.Context, contact *Contact) error 
 	}
 
 	// Normalize and validate email
-	contact.Email = strings.ToLower(strings.TrimSpace(contact.Email))
+	contact.Email = utils.TrimAndLower(contact.Email)
 	if !strings.Contains(contact.Email, "@") {
 		return errors.New("invalid email format")
 	}
@@ -132,7 +132,7 @@ func (r *repository) UpdateContact(ctx context.Context, contact *Contact) error 
 	}
 
 	// Normalize email
-	contact.Email = strings.ToLower(strings.TrimSpace(contact.Email))
+	contact.Email = utils.TrimAndLower(contact.Email)
 	if !strings.Contains(contact.Email, "@") {
 		return errors.New("invalid email format")
 	}

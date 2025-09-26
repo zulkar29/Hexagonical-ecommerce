@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
-	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -51,30 +50,42 @@ func Truncate(s string, length int) string {
 
 // GenerateRandomString generates a random string of specified length
 func GenerateRandomString(length int) string {
+	if length <= 0 {
+		return ""
+	}
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	b := make([]byte, length)
-	for i := range b {
-		randomBytes := make([]byte, 1)
-		if _, err := rand.Read(randomBytes); err != nil {
-			// Fallback to time-based randomness if crypto/rand fails
-			randomBytes[0] = byte(time.Now().UnixNano() % int64(len(charset)))
+	_, err := rand.Read(b)
+	if err != nil {
+		// Fallback to time-based pseudo-random if crypto/rand fails
+		for i := range b {
+			b[i] = charset[time.Now().UnixNano()%int64(len(charset))]
 		}
-		b[i] = charset[randomBytes[0]%byte(len(charset))]
+		return string(b)
+	}
+	for i := range b {
+		b[i] = charset[int(b[i])%len(charset)]
 	}
 	return string(b)
 }
 
 // GenerateRandomNumbers generates a random numeric string
 func GenerateRandomNumbers(length int) string {
+	if length <= 0 {
+		return ""
+	}
 	const charset = "0123456789"
 	b := make([]byte, length)
-	for i := range b {
-		randomBytes := make([]byte, 1)
-		if _, err := rand.Read(randomBytes); err != nil {
-			// Fallback to time-based randomness if crypto/rand fails
-			randomBytes[0] = byte(time.Now().UnixNano() % int64(len(charset)))
+	_, err := rand.Read(b)
+	if err != nil {
+		// Fallback to time-based pseudo-random if crypto/rand fails
+		for i := range b {
+			b[i] = charset[time.Now().UnixNano()%int64(len(charset))]
 		}
-		b[i] = charset[randomBytes[0]%byte(len(charset))]
+		return string(b)
+	}
+	for i := range b {
+		b[i] = charset[int(b[i])%len(charset)]
 	}
 	return string(b)
 }
@@ -146,6 +157,9 @@ func IsValidEmail(email string) bool {
 
 // IsValidPhone validates phone number format (Bangladesh)
 func IsValidPhone(phone string) bool {
+	if phone == "" {
+		return false
+	}
 	// Remove spaces and special characters
 	phone = regexp.MustCompile(`[^\d]`).ReplaceAllString(phone, "")
 
@@ -162,7 +176,11 @@ func IsValidPhone(phone string) bool {
 
 // IsValidURL validates URL format
 func IsValidURL(url string) bool {
-	urlRegex := regexp.MustCompile(`^https?://[^\s/$.?#].[^\s]*$`)
+	if url == "" {
+		return false
+	}
+	// More robust URL validation
+	urlRegex := regexp.MustCompile(`^https?://[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}([/\w\.-]*)*/?$`)
 	return urlRegex.MatchString(url)
 }
 
@@ -170,7 +188,7 @@ func IsValidURL(url string) bool {
 
 // SettingsRepository interface for getting tenant settings
 type SettingsRepository interface {
-	GetSetting(ctx context.Context, tenantID uint, section, key string) (*Setting, error)
+	GetSetting(ctx context.Context, tenantID uuid.UUID, section, key string) (*Setting, error)
 }
 
 // Setting represents a setting value
@@ -178,109 +196,21 @@ type Setting struct {
 	Value string `json:"value"`
 }
 
-// SettingsRepositoryAdapter adapts settings.Repository to utils.SettingsRepository
-type SettingsRepositoryAdapter struct {
-	repo interface {
-		GetSetting(tenantID uint, section, key string) (interface{}, error)
-	}
-}
-
-// NewSettingsRepositoryAdapter creates a new adapter
-func NewSettingsRepositoryAdapter(repo interface{}) SettingsRepository {
-	return &DirectSettingsRepositoryAdapter{repo: repo}
-}
-
-// DirectSettingsRepositoryAdapter adapts concrete settings.Repository
-type DirectSettingsRepositoryAdapter struct {
-	repo interface{}
-}
-
-// GetSetting implements SettingsRepository interface for concrete repository
-func (a *DirectSettingsRepositoryAdapter) GetSetting(ctx context.Context, tenantID uint, section, key string) (*Setting, error) {
-	// Use reflection to call GetSetting method
-	v := reflect.ValueOf(a.repo)
-	method := v.MethodByName("GetSetting")
-	if !method.IsValid() {
-		return nil, fmt.Errorf("GetSetting method not found")
-	}
-	
-	// Call the method with parameters
-	args := []reflect.Value{
-		reflect.ValueOf(tenantID),
-		reflect.ValueOf(section),
-		reflect.ValueOf(key),
-	}
-	
-	results := method.Call(args)
-	if len(results) != 2 {
-		return nil, fmt.Errorf("unexpected number of return values")
-	}
-	
-	// Check for error
-	if !results[1].IsNil() {
-		err, ok := results[1].Interface().(error)
-		if ok {
-			return nil, err
-		}
-	}
-	
-	// Check if result is nil
-	if results[0].IsNil() {
-		return nil, nil
-	}
-	
-	// Extract Value field from the result
-	settingValue := results[0].Elem()
-	valueField := settingValue.FieldByName("Value")
-	if valueField.IsValid() && valueField.Kind() == reflect.String {
-		return &Setting{Value: valueField.String()}, nil
-	}
-	
-	return &Setting{Value: ""}, nil
-}
-
-// GetSetting implements SettingsRepository interface
-func (a *SettingsRepositoryAdapter) GetSetting(ctx context.Context, tenantID uint, section, key string) (*Setting, error) {
-	result, err := a.repo.GetSetting(tenantID, section, key)
-	if err != nil {
-		return nil, err
-	}
-	
-	if result == nil {
-		return nil, nil
-	}
-	
-	// Use reflection to extract the Value field from settings.Setting
-	v := reflect.ValueOf(result)
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
-	
-	if v.Kind() == reflect.Struct {
-		valueField := v.FieldByName("Value")
-		if valueField.IsValid() && valueField.Kind() == reflect.String {
-			return &Setting{Value: valueField.String()}, nil
-		}
-	}
-	
-	return &Setting{Value: ""}, nil
-}
+// Simple settings repository implementation
+// For production use, implement this interface in the settings module
 
 // GetTenantCurrency retrieves currency from tenant settings or returns default
 func GetTenantCurrency(ctx context.Context, tenantID uuid.UUID, settingsRepo SettingsRepository) string {
 	if settingsRepo != nil {
-		// Convert UUID to uint for settings repository compatibility
-		// TODO: Update settings repository to use UUID consistently
-		tenantIDUint := uint(tenantID.ID())
-		if setting, err := settingsRepo.GetSetting(ctx, tenantIDUint, "general", "currency"); err == nil && setting != nil && setting.Value != "" {
+		if setting, err := settingsRepo.GetSetting(ctx, tenantID, "general", "currency"); err == nil && setting != nil && setting.Value != "" {
 			return setting.Value
 		}
 	}
-	
+
 	// Fallback to default currency from environment
 	currency := os.Getenv("DEFAULT_CURRENCY")
 	if currency == "" {
-		panic("DEFAULT_CURRENCY environment variable is required")
+		currency = "BDT" // fallback default
 	}
 	return currency
 }
@@ -291,7 +221,7 @@ func FormatCurrency(amount float64, currency string) string {
 		// Get default currency from environment variable
 		currency = os.Getenv("DEFAULT_CURRENCY")
 		if currency == "" {
-			panic("DEFAULT_CURRENCY environment variable is required")
+			currency = "BDT" // fallback default
 		}
 	}
 	return fmt.Sprintf("%.2f %s", amount, currency)
@@ -319,14 +249,22 @@ func FormatPhone(phone string) string {
 // FormatDate formats date for Bangladesh timezone
 func FormatDate(t time.Time) string {
 	// Convert to Dhaka timezone
-	dhaka, _ := time.LoadLocation("Asia/Dhaka")
+	dhaka, err := time.LoadLocation("Asia/Dhaka")
+	if err != nil {
+		// Fallback to UTC if timezone loading fails
+		dhaka = time.UTC
+	}
 	t = t.In(dhaka)
 	return t.Format("02-01-2006")
 }
 
 // FormatDateTime formats datetime for Bangladesh timezone
 func FormatDateTime(t time.Time) string {
-	dhaka, _ := time.LoadLocation("Asia/Dhaka")
+	dhaka, err := time.LoadLocation("Asia/Dhaka")
+	if err != nil {
+		// Fallback to UTC if timezone loading fails
+		dhaka = time.UTC
+	}
 	t = t.In(dhaka)
 	return t.Format("02-01-2006 15:04:05")
 }

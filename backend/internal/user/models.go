@@ -3,14 +3,15 @@ package user
 import (
 	"time"
 
+	"ecommerce-saas/internal/shared/constants"
 	"github.com/google/uuid"
 )
 
 // UserRole represents user roles in the system
 type UserRole string
 
-// UserStatus represents user account status
-type UserStatus string
+// Use shared user status constants
+type UserStatus = constants.UserStatus
 
 const (
 	RoleCustomer UserRole = "customer"
@@ -19,11 +20,13 @@ const (
 	RoleSuper    UserRole = "super_admin"
 )
 
+// Use shared user status constants
 const (
-	StatusActive    UserStatus = "active"
-	StatusInactive  UserStatus = "inactive"
-	StatusSuspended UserStatus = "suspended"
-	StatusPending   UserStatus = "pending"
+	StatusActive    = constants.UserStatusActive
+	StatusInactive  = constants.UserStatusInactive
+	StatusSuspended = constants.UserStatusSuspended
+	StatusPending   = constants.UserStatusPending
+	StatusClosed    = constants.UserStatusClosed
 )
 
 // User represents a user in the system

@@ -5,26 +5,27 @@ import (
 	"os"
 	"time"
 
+	"ecommerce-saas/internal/shared/constants"
 	"github.com/google/uuid"
 )
-
-// Status represents the tenant status
-type Status string
 
 // Plan represents the subscription plan
 type Plan string
 
+// Use shared status constants
+type Status = constants.TenantStatus
 const (
-	StatusActive    Status = "active"
-	StatusInactive  Status = "inactive"
-	StatusSuspended Status = "suspended"
+	StatusActive    = constants.TenantStatusActive
+	StatusInactive  = constants.TenantStatusInactive
+	StatusSuspended = constants.TenantStatusSuspended
 )
 
 const (
-	PlanStarter    Plan = "starter"      // ৳1,990
-	PlanPro        Plan = "professional" // ৳4,990
-	PlanPremium    Plan = "premium"      // ৳7,990
-	PlanEnterprise Plan = "enterprise"   // ৳12,990
+	PlanFree         Plan = "free"         // ৳0
+	PlanStarter      Plan = "starter"      // ৳1,990
+	PlanProfessional Plan = "professional" // ৳4,990
+	PlanPro          Plan = "pro"          // ৳7,990
+	PlanEnterprise   Plan = "enterprise"   // ৳12,990
 )
 
 // Tenant represents a store/tenant in the system
@@ -72,10 +73,11 @@ func (t *Tenant) IsActive() bool {
 // CanCreateProducts checks if tenant can create more products based on plan limits
 func (t *Tenant) CanCreateProducts(currentCount int) bool {
 	limits := map[Plan]int{
-		PlanStarter:    100,
-		PlanPro:        1000,
-		PlanPremium:    5000,
-		PlanEnterprise: -1, // unlimited
+		PlanFree:         10,
+		PlanStarter:      500,
+		PlanProfessional: 2000,
+		PlanPro:          10000,
+		PlanEnterprise:   -1, // unlimited
 	}
 
 	limit, exists := limits[t.Plan]
@@ -89,10 +91,11 @@ func (t *Tenant) CanCreateProducts(currentCount int) bool {
 // GetStorageLimit returns storage limit in MB based on plan
 func (t *Tenant) GetStorageLimit() int {
 	limits := map[Plan]int{
-		PlanStarter:    1024,  // 1GB
-		PlanPro:        5120,  // 5GB
-		PlanPremium:    10240, // 10GB
-		PlanEnterprise: 51200, // 50GB
+		PlanFree:         1024,   // 1GB
+		PlanStarter:      5120,   // 5GB
+		PlanProfessional: 20480,  // 20GB
+		PlanPro:          102400, // 100GB
+		PlanEnterprise:   -1,     // unlimited
 	}
 
 	if limit, exists := limits[t.Plan]; exists {
@@ -104,10 +107,11 @@ func (t *Tenant) GetStorageLimit() int {
 // GetMonthlyPrice returns the monthly price for the plan in BDT
 func (t *Tenant) GetMonthlyPrice() int {
 	prices := map[Plan]int{
-		PlanStarter:    1990,
-		PlanPro:        4990,
-		PlanPremium:    7990,
-		PlanEnterprise: 12990,
+		PlanFree:         0,
+		PlanStarter:      1990,
+		PlanProfessional: 4990,
+		PlanPro:          7990,
+		PlanEnterprise:   12990,
 	}
 
 	if price, exists := prices[t.Plan]; exists {
@@ -149,12 +153,12 @@ func (t *Tenant) GetDomainWithBase(baseDomain string) string {
 
 // CanUsePremiumFeatures checks if tenant plan allows premium features
 func (t *Tenant) CanUsePremiumFeatures() bool {
-	return t.Plan == PlanPremium || t.Plan == PlanEnterprise
+	return t.Plan == PlanPro || t.Plan == PlanEnterprise
 }
 
 // CanUseAdvancedAnalytics checks if tenant can access advanced analytics
 func (t *Tenant) CanUseAdvancedAnalytics() bool {
-	return t.Plan == PlanPro || t.Plan == PlanPremium || t.Plan == PlanEnterprise
+	return t.Plan == PlanProfessional || t.Plan == PlanPro || t.Plan == PlanEnterprise
 }
 
 // TODO: Add more business logic methods as needed
@@ -252,10 +256,11 @@ func (t *Tenant) ValidateBusinessInfo() error {
 func (t *Tenant) CanUpgradeTo(newPlan Plan) bool {
 	// Define upgrade paths
 	upgradePaths := map[Plan][]Plan{
-		PlanStarter:    {PlanPro, PlanPremium, PlanEnterprise},
-		PlanPro:        {PlanPremium, PlanEnterprise},
-		PlanPremium:    {PlanEnterprise},
-		PlanEnterprise: {}, // Cannot upgrade from enterprise
+		PlanFree:         {PlanStarter, PlanProfessional, PlanPro, PlanEnterprise},
+		PlanStarter:      {PlanProfessional, PlanPro, PlanEnterprise},
+		PlanProfessional: {PlanPro, PlanEnterprise},
+		PlanPro:          {PlanEnterprise},
+		PlanEnterprise:   {}, // Cannot upgrade from enterprise
 	}
 
 	allowedUpgrades, exists := upgradePaths[t.Plan]
@@ -274,44 +279,55 @@ func (t *Tenant) CanUpgradeTo(newPlan Plan) bool {
 // GetFeatureList returns available features for the current plan
 func (t *Tenant) GetFeatureList() []string {
 	features := map[Plan][]string{
-		PlanStarter: {
+		PlanFree: {
+			"Up to 10 products",
 			"Basic storefront",
-			"Up to 100 products",
-			"Standard templates",
-			"Basic analytics",
+			"Community support",
+			"Platform branding",
+			"1GB storage",
+			"Limited features",
+		},
+		PlanStarter: {
+			"Up to 500 products",
+			"1 staff account",
+			"Basic themes",
 			"Email support",
-			"SSL certificate",
-			"Payment gateway integration",
+			"5GB storage",
+			"Standard features",
+		},
+		PlanProfessional: {
+			"All Starter features",
+			"Up to 2,000 products",
+			"3 staff accounts",
+			"Premium themes",
+			"Priority support",
+			"20GB storage",
+			"Advanced analytics",
+			"Email marketing",
 		},
 		PlanPro: {
-			"All Starter features",
-			"Up to 1,000 products",
+			"All Professional features",
+			"Up to 10,000 products",
+			"10 staff accounts",
+			"Custom themes",
 			"Advanced analytics",
-			"Custom domain",
-			"Priority support",
-			"Inventory management",
-			"Discount codes",
+			"100GB storage",
 			"Abandoned cart recovery",
-		},
-		PlanPremium: {
-			"All Pro features",
-			"Up to 5,000 products",
-			"Multi-language support",
-			"Advanced SEO tools",
-			"API access",
-			"Custom integrations",
-			"Advanced reporting",
-			"24/7 phone support",
+			"Advanced email marketing",
+			"Basic API access",
 		},
 		PlanEnterprise: {
-			"All Premium features",
+			"All Pro features",
 			"Unlimited products",
-			"White-label solution",
-			"Dedicated account manager",
-			"Custom development",
-			"SLA guarantee",
-			"Advanced security",
-			"Multi-store management",
+			"Unlimited staff accounts",
+			"White-label options",
+			"24/7 dedicated support",
+			"Unlimited storage",
+			"Full API access",
+			"Advanced integrations",
+			"Priority database performance",
+			"Custom development support",
+			"Priority feature requests",
 		},
 	}
 
@@ -363,10 +379,11 @@ func (t *Tenant) IsInTrialPeriod() bool {
 // GetBandwidthLimit returns bandwidth limit in MB based on plan
 func (t *Tenant) GetBandwidthLimit() int {
 	limits := map[Plan]int{
-		PlanStarter:    10240,  // 10GB
-		PlanPro:        51200,  // 50GB
-		PlanPremium:    102400, // 100GB
-		PlanEnterprise: 512000, // 500GB
+		PlanFree:         10240,   // 10GB/month
+		PlanStarter:      102400,  // 100GB/month
+		PlanProfessional: 512000,  // 500GB/month
+		PlanPro:          2097152, // 2TB/month
+		PlanEnterprise:   -1,      // unlimited
 	}
 
 	if limit, exists := limits[t.Plan]; exists {
@@ -390,13 +407,21 @@ func (t *Tenant) IsBusinessInfoComplete() bool {
 
 // CanAccessFeature checks if tenant plan allows access to a specific feature
 func (t *Tenant) CanAccessFeature(feature string) bool {
-	premiumFeatures := []string{"custom_domain", "api_access", "advanced_analytics", "multi_language"}
-	enterpriseFeatures := []string{"white_label", "custom_development", "dedicated_support"}
+	professionalFeatures := []string{"advanced_analytics", "email_marketing", "priority_support"}
+	proFeatures := []string{"custom_domain", "api_access", "abandoned_cart_recovery", "advanced_email_marketing"}
+	enterpriseFeatures := []string{"white_label", "custom_development", "dedicated_support", "unlimited_storage"}
 
-	// Check if it's a premium feature
-	for _, f := range premiumFeatures {
+	// Check if it's a professional feature
+	for _, f := range professionalFeatures {
 		if f == feature {
-			return t.Plan == PlanPremium || t.Plan == PlanEnterprise
+			return t.Plan == PlanProfessional || t.Plan == PlanPro || t.Plan == PlanEnterprise
+		}
+	}
+
+	// Check if it's a pro feature
+	for _, f := range proFeatures {
+		if f == feature {
+			return t.Plan == PlanPro || t.Plan == PlanEnterprise
 		}
 	}
 

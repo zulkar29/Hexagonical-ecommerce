@@ -138,10 +138,7 @@ func SeedMinimalTestData(t *testing.T, db *gorm.DB) {
 	}
 }
 
-// GenerateUUID generates a test UUID string
-func GenerateUUID() string {
-	return uuid.New().String()
-}
+// Use utils.GenerateUUID() instead - removed duplicate
 
 // AssertNoError is a helper for asserting no error
 func AssertNoError(t *testing.T, err error, msg string) {
